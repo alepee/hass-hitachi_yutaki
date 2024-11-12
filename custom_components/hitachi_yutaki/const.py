@@ -21,10 +21,10 @@ DEVICE_CIRCUIT_2 = "circuit_2"
 DEVICE_DHW = "dhw"
 DEVICE_POOL = "pool"
 
-# Modbus register addresses
-REGISTER_UNIT_MODEL = 1219
-REGISTER_SYSTEM_CONFIG = 1090
-REGISTER_SYSTEM_STATUS = 1223
+# Modbus registers (addresses)
+REGISTER_UNIT_MODEL = 1218
+REGISTER_SYSTEM_CONFIG = 1089
+REGISTER_SYSTEM_STATUS = 1222
 
 # Unit models
 UNIT_MODEL_YUTAKI_S = 0
@@ -58,63 +58,63 @@ MASK_DHW_HEATER = 0x0080
 MASK_SPACE_HEATER = 0x0100
 MASK_SMART_FUNCTION = 0x0200
 
-# Control registers
+# Control registers (addresses)
 REGISTER_CONTROL = {
-    "unit_power": 1001,
-    "unit_mode": 1002,
-    "circuit1_power": 1003,
-    "circuit1_heat_mode": 1004,
-    "circuit1_cool_mode": 1005,
-    "circuit1_heat_temp": 1006,
-    "circuit1_cool_temp": 1007,
-    "circuit1_eco_mode": 1008,
-    "circuit1_heat_eco_offset": 1009,
-    "circuit1_cool_eco_offset": 1010,
-    "circuit1_thermostat": 1011,
-    "circuit1_thermostat_temp": 1012,
-    "circuit1_room_temp": 1013,
-    "circuit2_power": 1014,
-    "circuit2_heat_mode": 1015,
-    "circuit2_cool_mode": 1016,
-    "circuit2_heat_temp": 1017,
-    "circuit2_cool_temp": 1018,
-    "circuit2_eco_mode": 1019,
-    "circuit2_heat_eco_offset": 1020,
-    "circuit2_cool_eco_offset": 1021,
-    "circuit2_thermostat": 1022,
-    "circuit2_thermostat_temp": 1023,
-    "circuit2_room_temp": 1024,
-    "dhw_power": 1025,
-    "dhw_temp": 1026,
-    "dhw_boost": 1027,
-    "dhw_mode": 1028,
-    "pool_power": 1029,
-    "pool_temp": 1030,
-    "antilegionella_power": 1031,
-    "antilegionella_temp": 1032,
+    "unit_power": 1000,
+    "unit_mode": 1001,
+    "circuit1_power": 1002,
+    "circuit1_heat_mode": 1003,
+    "circuit1_cool_mode": 1004,
+    "circuit1_heat_temp": 1005,
+    "circuit1_cool_temp": 1006,
+    "circuit1_eco_mode": 1007,
+    "circuit1_heat_eco_offset": 1008,
+    "circuit1_cool_eco_offset": 1009,
+    "circuit1_thermostat": 1010,
+    "circuit1_thermostat_temp": 1011,
+    "circuit1_room_temp": 1012,
+    "circuit2_power": 1013,
+    "circuit2_heat_mode": 1014,
+    "circuit2_cool_mode": 1015,
+    "circuit2_heat_temp": 1016,
+    "circuit2_cool_temp": 1017,
+    "circuit2_eco_mode": 1018,
+    "circuit2_heat_eco_offset": 1019,
+    "circuit2_cool_eco_offset": 1020,
+    "circuit2_thermostat": 1021,
+    "circuit2_thermostat_temp": 1022,
+    "circuit2_room_temp": 1023,
+    "dhw_power": 1024,
+    "dhw_temp": 1025,
+    "dhw_boost": 1026,
+    "dhw_mode": 1027,
+    "pool_power": 1028,
+    "pool_temp": 1029,
+    "antilegionella_power": 1030,
+    "antilegionella_temp": 1031,
 }
 
-# Sensor registers
+# Sensor registers (addresses)
 REGISTER_SENSOR = {
-    "outdoor_temp": 1092,
-    "water_inlet_temp": 1093,
-    "water_outlet_temp": 1094,
-    "water_flow": 1221,
-    "pump_speed": 1222,
-    "dhw_temp": 1081,
-    "pool_temp": 1084,
+    "outdoor_temp": 1091,
+    "water_inlet_temp": 1092,
+    "water_outlet_temp": 1093,
+    "water_flow": 1220,
+    "pump_speed": 1221,
+    "dhw_temp": 1080,
+    "pool_temp": 1083,
 }
 
 # R134a specific registers (S80 only)
 REGISTER_R134A = {
-    "discharge_temp": 1225,
-    "suction_temp": 1226,
-    "discharge_pressure": 1227,
-    "suction_pressure": 1228,
-    "frequency": 1229,
-    "valve_opening": 1230,
-    "current": 1231,
-    "retry_code": 1232,
+    "discharge_temp": 1224,
+    "suction_temp": 1225,
+    "discharge_pressure": 1226,
+    "suction_pressure": 1227,
+    "frequency": 1228,
+    "valve_opening": 1229,
+    "current": 1230,
+    "retry_code": 1231,
 }
 
 PLATFORMS = [
