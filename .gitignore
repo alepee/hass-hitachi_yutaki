@@ -1,0 +1,40 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Virtual environment
+venv/
+.env/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Home Assistant local development files
+config/
+.storage/
+.cloud/
+.HA_VERSION
+core/
+
+# Logs
+home-assistant.log*
+
+# Custom component development
+custom_components/hitachi_yutaki/*.pyc
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.pytest_cache/

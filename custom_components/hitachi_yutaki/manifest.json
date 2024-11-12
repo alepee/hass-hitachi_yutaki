@@ -1,0 +1,17 @@
+{
+    "domain": "hitachi_yutaki",
+    "name": "Hitachi Yutaki Heat Pump",
+    "codeowners": [
+        "@alepee"
+    ],
+    "config_flow": true,
+    "dependencies": [
+        "modbus"
+    ],
+    "documentation": "https://github.com/alepee/hitachi_yutaki",
+    "homekit": {},
+    "iot_class": "local_polling",
+    "issue_tracker": "https://github.com/alepee/hitachi_yutaki/issues",
+    "requirements": [],
+    "version": "1.0.0"
+}

@@ -1,0 +1,126 @@
+"""Constants for the Hitachi Yutaki integration."""
+from homeassistant.const import (
+    CONF_HOST,
+    CONF_PORT,
+    CONF_NAME,
+    CONF_SLAVE,
+    Platform,
+)
+
+DOMAIN = "hitachi_yutaki"
+DEFAULT_NAME = "Hitachi Yutaki"
+DEFAULT_SLAVE = 1
+DEFAULT_PORT = 502
+DEFAULT_SCAN_INTERVAL = 30
+
+# Device types
+DEVICE_GATEWAY = "gateway"
+DEVICE_CONTROL_UNIT = "control_unit"
+DEVICE_CIRCUIT_1 = "circuit_1"
+DEVICE_CIRCUIT_2 = "circuit_2"
+DEVICE_DHW = "dhw"
+DEVICE_POOL = "pool"
+
+# Modbus register addresses
+REGISTER_UNIT_MODEL = 1219
+REGISTER_SYSTEM_CONFIG = 1090
+REGISTER_SYSTEM_STATUS = 1223
+
+# Unit models
+UNIT_MODEL_YUTAKI_S = 0
+UNIT_MODEL_YUTAKI_S_COMBI = 1
+UNIT_MODEL_S80 = 2
+UNIT_MODEL_M = 3
+
+# System configuration bit masks
+MASK_CIRCUIT1_HEATING = 0x0001
+MASK_CIRCUIT2_HEATING = 0x0002
+MASK_CIRCUIT1_COOLING = 0x0004
+MASK_CIRCUIT2_COOLING = 0x0008
+MASK_DHW = 0x0010
+MASK_POOL = 0x0020
+MASK_CIRCUIT1_THERMOSTAT = 0x0040
+MASK_CIRCUIT2_THERMOSTAT = 0x0080
+MASK_CIRCUIT1_WIRELESS = 0x0100
+MASK_CIRCUIT2_WIRELESS = 0x0200
+MASK_CIRCUIT1_WIRELESS_TEMP = 0x0400
+MASK_CIRCUIT2_WIRELESS_TEMP = 0x0800
+
+# System status bit masks
+MASK_DEFROST = 0x0001
+MASK_SOLAR = 0x0002
+MASK_PUMP1 = 0x0004
+MASK_PUMP2 = 0x0008
+MASK_PUMP3 = 0x0010
+MASK_COMPRESSOR = 0x0020
+MASK_BOILER = 0x0040
+MASK_DHW_HEATER = 0x0080
+MASK_SPACE_HEATER = 0x0100
+MASK_SMART_FUNCTION = 0x0200
+
+# Control registers
+REGISTER_CONTROL = {
+    "unit_power": 1001,
+    "unit_mode": 1002,
+    "circuit1_power": 1003,
+    "circuit1_heat_mode": 1004,
+    "circuit1_cool_mode": 1005,
+    "circuit1_heat_temp": 1006,
+    "circuit1_cool_temp": 1007,
+    "circuit1_eco_mode": 1008,
+    "circuit1_heat_eco_offset": 1009,
+    "circuit1_cool_eco_offset": 1010,
+    "circuit1_thermostat": 1011,
+    "circuit1_thermostat_temp": 1012,
+    "circuit1_room_temp": 1013,
+    "circuit2_power": 1014,
+    "circuit2_heat_mode": 1015,
+    "circuit2_cool_mode": 1016,
+    "circuit2_heat_temp": 1017,
+    "circuit2_cool_temp": 1018,
+    "circuit2_eco_mode": 1019,
+    "circuit2_heat_eco_offset": 1020,
+    "circuit2_cool_eco_offset": 1021,
+    "circuit2_thermostat": 1022,
+    "circuit2_thermostat_temp": 1023,
+    "circuit2_room_temp": 1024,
+    "dhw_power": 1025,
+    "dhw_temp": 1026,
+    "dhw_boost": 1027,
+    "dhw_mode": 1028,
+    "pool_power": 1029,
+    "pool_temp": 1030,
+    "antilegionella_power": 1031,
+    "antilegionella_temp": 1032,
+}
+
+# Sensor registers
+REGISTER_SENSOR = {
+    "outdoor_temp": 1092,
+    "water_inlet_temp": 1093,
+    "water_outlet_temp": 1094,
+    "water_flow": 1221,
+    "pump_speed": 1222,
+    "dhw_temp": 1081,
+    "pool_temp": 1084,
+}
+
+# R134a specific registers (S80 only)
+REGISTER_R134A = {
+    "discharge_temp": 1225,
+    "suction_temp": 1226,
+    "discharge_pressure": 1227,
+    "suction_pressure": 1228,
+    "frequency": 1229,
+    "valve_opening": 1230,
+    "current": 1231,
+    "retry_code": 1232,
+}
+
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.NUMBER,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+]
