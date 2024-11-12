@@ -1,0 +1,101 @@
+{
+    "config": {
+        "step": {
+            "user": {
+                "data": {
+                    "host": "IP address",
+                    "port": "Port",
+                    "name": "Name",
+                    "slave": "Modbus slave ID",
+                    "scan_interval": "Scan interval (seconds)"
+                },
+                "description": "Configure your Hitachi Yutaki heat pump via ATW-MBS-02 gateway.",
+                "title": "Hitachi Yutaki"
+            }
+        },
+        "error": {
+            "cannot_connect": "Failed to connect",
+            "invalid_slave": "Invalid Modbus slave ID",
+            "modbus_error": "Modbus communication error",
+            "unknown": "Unexpected error"
+        },
+        "abort": {
+            "already_configured": "Device is already configured"
+        }
+    },
+    "entity": {
+        "binary_sensor": {
+            "defrost": {
+                "name": "Defrost"
+            },
+            "solar": {
+                "name": "Solar"
+            },
+            "pump1": {
+                "name": "Pump 1"
+            },
+            "pump2": {
+                "name": "Pump 2"
+            },
+            "pump3": {
+                "name": "Pump 3"
+            },
+            "compressor": {
+                "name": "Compressor"
+            },
+            "boiler": {
+                "name": "Boiler"
+            },
+            "dhw_heater": {
+                "name": "DHW Heater"
+            },
+            "space_heater": {
+                "name": "Space Heater"
+            },
+            "smart_function": {
+                "name": "Smart Function"
+            }
+        },
+        "select": {
+            "operation_mode": {
+                "name": "Operation Mode",
+                "state": {
+                    "cool": "Cool",
+                    "heat": "Heat",
+                    "auto": "Auto"
+                }
+            },
+            "heat_mode": {
+                "name": "Heat Mode",
+                "state": {
+                    "disabled": "Disabled",
+                    "points": "Points",
+                    "gradient": "Gradient",
+                    "fix": "Fix"
+                }
+            },
+            "cool_mode": {
+                "name": "Cool Mode",
+                "state": {
+                    "disabled": "Disabled",
+                    "points": "Points",
+                    "fix": "Fix"
+                }
+            },
+            "eco_mode": {
+                "name": "ECO Mode",
+                "state": {
+                    "eco": "ECO",
+                    "comfort": "Comfort"
+                }
+            },
+            "dhw_mode": {
+                "name": "DHW Mode",
+                "state": {
+                    "standard": "Standard",
+                    "high_demand": "High Demand"
+                }
+            }
+        }
+    }
+}
