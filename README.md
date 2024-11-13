@@ -1,8 +1,10 @@
+[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+
 # Hitachi Yutaki Integration for Home Assistant
 
 This custom integration allows you to control and monitor your Hitachi Yutaki heat pump through Home Assistant using a Modbus ATW-MBS-02 gateway.
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=alepee&repository=hass-hitachi_yutaki)
 
 ## Compatibility
 
@@ -128,12 +130,14 @@ Each circuit (if configured) provides:
 
 ### HACS Installation
 
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=alepee&repository=hass-hitachi_yutaki)
+
 1. Add this repository to HACS:
     - Open HACS in Home Assistant
     - Click on "Integrations"
     - Click the three dots in the top right corner
     - Select "Custom repositories"
-    - Add the repository URL: `https://github.com/alepee/hitachi_yutaki`
+    - Add the repository URL: `https://github.com/alepee/hass-hitachi_yutaki`
     - Select category: "Integration"
     - Click "Add"
 
@@ -179,7 +183,7 @@ hitachi_yutaki/
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/alepee/hitachi_yutaki.git
+git clone https://github.com/alepee/hass-hitachi_yutaki.git
 cd hitachi_yutaki
 ```
 
@@ -229,4 +233,4 @@ This integration was developed by Antoine Lépée and is not affiliated with Hit
 
 ## Support
 
-For bugs and feature requests, please use the [GitHub issues](https://github.com/alepee/hitachi_yutaki/issues) page.
+For bugs and feature requests, please use the [GitHub issues](https://github.com/alepee/hass-hitachi_yutaki/issues) page.
