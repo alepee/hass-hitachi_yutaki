@@ -82,19 +82,17 @@
                     "fix": "Fix"
                 }
             },
-            "eco_mode": {
-                "name": "ECO Mode",
-                "state": {
-                    "eco": "ECO",
-                    "comfort": "Comfort"
-                }
-            },
             "dhw_mode": {
                 "name": "DHW Mode",
                 "state": {
                     "standard": "Standard",
                     "high_demand": "High Demand"
                 }
+            }
+        },
+        "switch": {
+            "eco_mode": {
+                "name": "ECO Mode"
             }
         }
     }

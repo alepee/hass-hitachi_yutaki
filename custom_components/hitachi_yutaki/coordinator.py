@@ -42,7 +42,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         )
         self.slave = entry.data[CONF_SLAVE]
         self.model = None
-        self.system_config = None
+        self.system_config = 0
         
         super().__init__(
             hass,
@@ -105,21 +105,34 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         except Exception as error:
             raise UpdateFailed(f"Error communicating with API: {error}") from error
 
-    async def async_write_register(self, register: int, value: int) -> bool:
+    async def async_write_register(self, register_key: str, value: int) -> bool:
         """Write a value to a register."""
         try:
             if not self.modbus_client.connected:
                 await self.hass.async_add_executor_job(self.modbus_client.connect)
+            
+            # Get the register address from REGISTER_CONTROL
+            if register_key not in REGISTER_CONTROL:
+                _LOGGER.error("Unknown register key: %s", register_key)
+                return False
+                
+            register_address = REGISTER_CONTROL[register_key]
+            _LOGGER.debug(
+                "Writing value %s to register %s (address: %s)",
+                value,
+                register_key,
+                register_address
+            )
                 
             result = await self.hass.async_add_executor_job(
                 self.modbus_client.write_register,
-                register,
+                register_address,
                 value,
                 self.slave,
             )
             
             if result.isError():
-                _LOGGER.error("Error writing to register %s: %s", register, result)
+                _LOGGER.error("Error writing to register %s: %s", register_key, result)
                 return False
                 
             # Trigger an immediate update to refresh values
@@ -128,7 +141,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             return True
             
         except ModbusException as error:
-            _LOGGER.error("ModbusException writing to register %s: %s", register, error)
+            _LOGGER.error("ModbusException writing to register %s: %s", register_key, error)
+            return False
+        except Exception as error:
+            _LOGGER.error("Unexpected error writing to register %s: %s", register_key, error)
             return False
 
     def convert_temperature(self, value: int) -> float:
