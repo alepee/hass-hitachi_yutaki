@@ -54,7 +54,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}")},
         manufacturer="Hitachi",
         model="ATW-MBS-02",
-        name=f"{entry.data[CONF_NAME]} Gateway",
+        name=DEVICE_GATEWAY.title(),
         configuration_url=f"http://{entry.data[CONF_HOST]}",
     )
 
@@ -68,7 +68,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
         manufacturer="Hitachi",
         model=model_name,
-        name=f"{entry.data[CONF_NAME]} Control Unit",
+        name=DEVICE_CONTROL_UNIT.title(),
         via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}"),
     )
 
@@ -84,9 +84,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_1}")},
             manufacturer="Hitachi",
-            model=f"{model_name} Circuit 1",
-            name=f"{entry.data[CONF_NAME]} Circuit 1",
-            suggested_area="Circuit 1",
+            model=f"{model_name} DEVICE_CIRCUIT_1.title()",
+            name=DEVICE_CIRCUIT_1.title(),
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
@@ -102,9 +101,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_2}")},
             manufacturer="Hitachi",
-            model=f"{model_name} Circuit 2",
-            name=f"{entry.data[CONF_NAME]} Circuit 2",
-            suggested_area="Circuit 2",
+            model=f"{model_name} {DEVICE_CIRCUIT_2.title()}",
+            name=DEVICE_CIRCUIT_2.title(),
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
@@ -114,9 +112,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_DHW}")},
             manufacturer="Hitachi",
-            model=f"{model_name} DHW",
-            name=f"{entry.data[CONF_NAME]} DHW",
-            suggested_area="Hot Water",
+            model=f"{model_name} {DEVICE_DHW.upper()}",
+            name=DEVICE_DHW.upper(),
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
@@ -126,9 +123,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_POOL}")},
             manufacturer="Hitachi",
-            model=f"{model_name} Pool",
-            name=f"{entry.data[CONF_NAME]} Pool",
-            suggested_area="Pool",
+            model=f"{model_name} {DEVICE_POOL.title()}",
+            name=DEVICE_POOL.title(),
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
