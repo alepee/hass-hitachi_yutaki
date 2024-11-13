@@ -1,7 +1,7 @@
 """Switch platform for Hitachi Yutaki."""
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Any
 
 from homeassistant.components.switch import (
     SwitchEntity,
@@ -26,12 +26,18 @@ from .const import (
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
+import logging
+
+_LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class HitachiYutakiSwitchEntityDescription(SwitchEntityDescription):
     """Class describing Hitachi Yutaki switch entities."""
 
     register_key: str | None = None
+    state_on: int = 1
+    state_off: int = 0
 
 
 UNIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
@@ -53,6 +59,14 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         name="Thermostat",
         register_key="thermostat",
         entity_category=EntityCategory.CONFIG,
+    ),
+    HitachiYutakiSwitchEntityDescription(
+        key="eco_mode",
+        name="ECO Mode",
+        register_key="eco_mode",
+        entity_category=EntityCategory.CONFIG,
+        state_on=0,
+        state_off=1,
     ),
 )
 
@@ -211,22 +225,61 @@ class HitachiYutakiSwitch(
         ):
             return None
 
-        value = self.coordinator.data.get(self._register_key)
-        if value is None:
+        try:
+            value = self.coordinator.data.get(self._register_key)
+            if value is None:
+                return None
+            
+            return int(value) == self.entity_description.state_on
+        except (ValueError, TypeError):
             return None
 
-        return bool(value)
-
-    async def async_turn_on(self, **kwargs) -> None:
+    async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
         if self._register_key is None:
             return
 
-        await self.coordinator.async_write_register(self._register_key, 1)
+        try:
+            register_value = int(self.entity_description.state_on)
+            await self.coordinator.async_write_register(
+                self._register_key, 
+                register_value
+            )
+        except (ValueError, TypeError):
+            _LOGGER.error(
+                "Failed to turn on %s: invalid value %s",
+                self.entity_id,
+                self.entity_description.state_on
+            )
 
-    async def async_turn_off(self, **kwargs) -> None:
+    async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
         if self._register_key is None:
             return
 
-        await self.coordinator.async_write_register(self._register_key, 0)
+        try:
+            register_value = int(self.entity_description.state_off)
+            _LOGGER.debug(
+                "Turning off %s: register_key=%s, value=%s",
+                self.entity_id,
+                self._register_key,
+                register_value
+            )
+            await self.coordinator.async_write_register(
+                self._register_key, 
+                register_value
+            )
+        except (ValueError, TypeError) as e:
+            _LOGGER.error(
+                "Failed to turn off %s: invalid value %s - Error: %s",
+                self.entity_id,
+                self.entity_description.state_off,
+                str(e)
+            )
+        except Exception as e:
+            _LOGGER.error(
+                "Unexpected error turning off %s: %s - %s",
+                self.entity_id,
+                type(e).__name__,
+                str(e)
+            )

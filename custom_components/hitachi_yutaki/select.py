@@ -67,16 +67,6 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
             "fix": 2,
         },
     ),
-    HitachiYutakiSelectEntityDescription(
-        key="eco_mode",
-        name="ECO Mode",
-        register_key="eco_mode",
-        options=["eco", "comfort"],
-        value_map={
-            "eco": 0,
-            "comfort": 1,
-        },
-    ),
 )
 
 DHW_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
