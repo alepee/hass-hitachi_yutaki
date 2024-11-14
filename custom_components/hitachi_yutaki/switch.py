@@ -54,6 +54,7 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         name="Power",
         register_key="power",
     ),
+    # @TODO: Check if thermostat should be widely available
     HitachiYutakiSwitchEntityDescription(
         key="thermostat",
         name="Thermostat",
@@ -64,9 +65,9 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         key="eco_mode",
         name="ECO Mode",
         register_key="eco_mode",
-        entity_category=EntityCategory.CONFIG,
         state_on=0,
         state_off=1,
+        icon="mdi:leaf",
     ),
 )
 
@@ -229,7 +230,7 @@ class HitachiYutakiSwitch(
             value = self.coordinator.data.get(self._register_key)
             if value is None:
                 return None
-            
+
             return int(value) == self.entity_description.state_on
         except (ValueError, TypeError):
             return None
@@ -242,7 +243,7 @@ class HitachiYutakiSwitch(
         try:
             register_value = int(self.entity_description.state_on)
             await self.coordinator.async_write_register(
-                self._register_key, 
+                self._register_key,
                 register_value
             )
         except (ValueError, TypeError):
@@ -266,7 +267,7 @@ class HitachiYutakiSwitch(
                 register_value
             )
             await self.coordinator.async_write_register(
-                self._register_key, 
+                self._register_key,
                 register_value
             )
         except (ValueError, TypeError) as e:
