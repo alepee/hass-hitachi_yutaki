@@ -1,5 +1,5 @@
 {
-    "domain": "hitachi",
+    "domain": "hitachi_yutaki",
     "name": "Hitachi Yutaki Heat Pump",
     "codeowners": [
         "@alepee"
