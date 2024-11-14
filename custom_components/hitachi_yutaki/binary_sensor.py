@@ -31,6 +31,7 @@ from .const import (
     MASK_SPACE_HEATER,
     MASK_SMART_FUNCTION,
     DEVICE_CONTROL_UNIT,
+    DEVICE_GATEWAY,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
@@ -38,12 +39,21 @@ from .coordinator import HitachiYutakiDataCoordinator
 @dataclass
 class HitachiYutakiBinarySensorEntityDescription(BinarySensorEntityDescription):
     """Class describing Hitachi Yutaki binary sensor entities."""
-
     register_key: str | None = None
     mask: int | None = None
 
 
-BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, ...]] = (
+GATEWAY_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, ...]] = (
+    HitachiYutakiBinarySensorEntityDescription(
+        key="connectivity",
+        name="Connectivity",
+        device_class=BinarySensorDeviceClass.CONNECTIVITY,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        register_key="is_available",
+    ),
+)
+
+CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, ...]] = (
     HitachiYutakiBinarySensorEntityDescription(
         key="defrost",
         name="Defrost",
@@ -137,17 +147,29 @@ async def async_setup_entry(
 
     entities: list[HitachiYutakiBinarySensor] = []
 
-    # Add all system status binary sensors
-    for description in BINARY_SENSORS:
-        entities.append(
-            HitachiYutakiBinarySensor(
-                coordinator=coordinator,
-                description=description,
-                device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
-                ),
-            )
+    # Add gateway binary sensors
+    entities.extend(
+        HitachiYutakiBinarySensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}")},
+            ),
         )
+        for description in GATEWAY_BINARY_SENSORS
+    )
+
+    # Add control unit binary sensors
+    entities.extend(
+        HitachiYutakiBinarySensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
+            ),
+        )
+        for description in CONTROL_UNIT_BINARY_SENSORS
+    )
 
     async_add_entities(entities)
 
@@ -175,11 +197,13 @@ class HitachiYutakiBinarySensor(
     @property
     def is_on(self) -> bool | None:
         """Return true if the binary sensor is on."""
-        if (
-            self.coordinator.data is None
-            or self.entity_description.register_key is None
-            or self.entity_description.mask is None
-        ):
+        if self.coordinator.data is None:
+            return None
+
+        if self.entity_description.register_key == "is_available":
+            return self.coordinator.data.get("is_available", False)
+
+        if self.entity_description.register_key is None or self.entity_description.mask is None:
             return None
 
         register_value = self.coordinator.data.get(self.entity_description.register_key)

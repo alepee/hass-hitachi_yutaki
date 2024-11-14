@@ -11,6 +11,7 @@ from homeassistant.components.number import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     UnitOfTemperature,
+    EntityCategory,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -46,6 +47,8 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="heat_temp",
         mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiNumberEntityDescription(
         key="cool_temp",
@@ -56,6 +59,8 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="cool_temp",
         mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiNumberEntityDescription(
         key="heat_eco_offset",
@@ -65,7 +70,8 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="heat_eco_offset",
-        mode=NumberMode.BOX,
+        mode=NumberMode.SLIDER,
+        entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiNumberEntityDescription(
         key="cool_eco_offset",
@@ -76,7 +82,9 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="cool_eco_offset",
         mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
     ),
+    # @TODO: Check if thermostat should be widely available
     HitachiYutakiNumberEntityDescription(
         key="thermostat_temp",
         name="Thermostat Temperature",
@@ -100,6 +108,7 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="temperature",
         mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiNumberEntityDescription(
         key="antilegionella_temp",
@@ -110,6 +119,8 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="antilegionella_temp",
         mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
     ),
 )
 
@@ -123,6 +134,7 @@ POOL_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="temperature",
         mode=NumberMode.BOX,
+        entity_category=EntityCategory.CONFIG,
     ),
 )
 
