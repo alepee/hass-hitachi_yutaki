@@ -80,12 +80,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if coordinator.has_cooling_circuit1():
             features.append("Cooling")
 
+        device_name = DEVICE_CIRCUIT_1.replace("_", " ").title()
+
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_1}")},
             manufacturer="Hitachi",
-            model=f"{model_name} DEVICE_CIRCUIT_1.title()",
-            name=DEVICE_CIRCUIT_1.title(),
+            model=f"{model_name} {device_name}",
+            name=device_name,
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
@@ -97,34 +99,40 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         if coordinator.has_cooling_circuit2():
             features.append("Cooling")
 
+        device_name = DEVICE_CIRCUIT_2.replace("_", " ").title()
+
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_2}")},
             manufacturer="Hitachi",
-            model=f"{model_name} {DEVICE_CIRCUIT_2.title()}",
-            name=DEVICE_CIRCUIT_2.title(),
+            model=f"{model_name} {device_name}",
+            name=device_name,
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
     # Add DHW device if configured
     if coordinator.has_dhw():
+        device_name = DEVICE_DHW.replace("_", " ").title()
+
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_DHW}")},
             manufacturer="Hitachi",
-            model=f"{model_name} {DEVICE_DHW.upper()}",
-            name=DEVICE_DHW.upper(),
+            model=f"{model_name} {device_name}",
+            name=device_name,
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
     # Add Pool device if configured
     if coordinator.has_pool():
+        device_name = DEVICE_POOL.replace("_", " ").title()
+
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_POOL}")},
             manufacturer="Hitachi",
-            model=f"{model_name} {DEVICE_POOL.title()}",
-            name=DEVICE_POOL.title(),
+            model=f"{model_name} {device_name}",
+            name=device_name,
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
@@ -137,11 +145,11 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
-        
+
         # Close Modbus connection
         if coordinator.modbus_client.connected:
             coordinator.modbus_client.close()
-            
+
         hass.data[DOMAIN].pop(entry.entry_id)
 
     return unload_ok
