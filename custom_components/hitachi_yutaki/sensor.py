@@ -101,7 +101,7 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
-        register_key="inverter_frequency",
+        register_key="compressor_frequency",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
