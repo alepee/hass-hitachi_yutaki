@@ -105,6 +105,7 @@ REGISTER_SENSOR = {
     "pool_temp": 1083,
     "compressor_current": 1214,
     "compressor_frequency": 1212,
+    "power_consumption": 1098,
 }
 
 # R134a specific registers (S80 only)
