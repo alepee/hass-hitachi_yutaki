@@ -41,6 +41,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
         key="water_heating_temp_setting",
         name="Water Heating Temperature Setting",
+        description="Target water temperature when the temperature control mode is set to 'fix'",
         native_min_value=0,
         native_max_value=80,
         native_step=1,
@@ -53,6 +54,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
         key="water_cooling_temp_setting",
         name="Water Cooling Temperature Setting",
+        description="Target water temperature when the temperature control mode is set to 'fix'",
         native_min_value=0,
         native_max_value=80,
         native_step=1,
@@ -65,6 +67,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
         key="heat_eco_offset",
         name="Heat ECO Offset",
+        description="Temperature offset applied in ECO mode for heating",
         native_min_value=1,
         native_max_value=10,
         native_step=1,
@@ -76,6 +79,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
         key="cool_eco_offset",
         name="Cool ECO Offset",
+        description="Temperature offset applied in ECO mode for cooling",
         native_min_value=1,
         native_max_value=10,
         native_step=1,
@@ -84,17 +88,17 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
-    # @TODO: Check if thermostat should be widely available
     HitachiYutakiNumberEntityDescription(
         key="thermostat_temp",
         name="Thermostat Temperature",
+        description="Target room temperature when using the thermostat function",
         native_min_value=5.0,
         native_max_value=35.0,
         native_step=0.5,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="thermostat_temp",
         mode=NumberMode.BOX,
-        multiplier=10,  # Convert to/from modbus format (50-350)
+        multiplier=10,
     ),
 )
 
@@ -102,6 +106,7 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
         key="temperature",
         name="DHW Temperature",
+        description="Target temperature for domestic hot water",
         native_min_value=0,
         native_max_value=80,
         native_step=1,
@@ -113,6 +118,7 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
         key="antilegionella_temp",
         name="Anti-legionella Temperature",
+        description="Target temperature for anti-legionella treatment",
         native_min_value=0,
         native_max_value=80,
         native_step=1,
@@ -128,6 +134,7 @@ POOL_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
         key="temperature",
         name="Pool Temperature",
+        description="Target temperature for swimming pool water",
         native_min_value=0,
         native_max_value=80,
         native_step=1,

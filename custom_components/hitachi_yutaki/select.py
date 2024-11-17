@@ -29,12 +29,15 @@ class HitachiYutakiSelectEntityDescription(SelectEntityDescription):
     value_map: dict[str, int] | None = None
     condition: callable | None = None
     entity_category: EntityCategory | None = None
+    entity_registry_enabled_default: bool = False
+    description: str | None = None
 
 
 UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     HitachiYutakiSelectEntityDescription(
         key="operation_mode_heat",
         name="Operation Mode",
+        description="Operating mode of the heat pump (heating only unit)",
         register_key="unit_mode",
         options=["heat", "auto"],
         value_map={
@@ -46,6 +49,7 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     HitachiYutakiSelectEntityDescription(
         key="operation_mode_full",
         name="Operation Mode",
+        description="Operating mode of the heat pump (heating and cooling unit)",
         register_key="unit_mode",
         options=["cool", "heat", "auto"],
         value_map={
@@ -61,6 +65,7 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     HitachiYutakiSelectEntityDescription(
         key="water_heating_temp_control",
         name="Water Heating Temperature Control",
+        description="Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation)",
         register_key="water_heating_temp_control",
         options=["disabled", "points", "gradient", "fix"],
         value_map={
@@ -70,10 +75,12 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
             "fix": 3,
         },
         entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiSelectEntityDescription(
         key="water_cooling_temp_control",
         name="Water Cooling Temperature Control",
+        description="Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation)",
         register_key="water_cooling_temp_control",
         options=["disabled", "points", "fix"],
         value_map={
@@ -82,20 +89,8 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
             "fix": 2,
         },
         entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
         condition=lambda coordinator, circuit_id: getattr(coordinator, f"has_cooling_circuit{circuit_id}")(),
-    ),
-)
-
-DHW_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
-    HitachiYutakiSelectEntityDescription(
-        key="dhw_mode",
-        name="DHW Mode",
-        register_key="dhw_mode",
-        options=["standard", "high_demand"],
-        value_map={
-            "standard": 0,
-            "high_demand": 1,
-        },
     ),
 )
 
@@ -135,20 +130,6 @@ async def async_setup_entry(
             )
             for description in CIRCUIT_SELECTS
             if description.condition is None or description.condition(coordinator, circuit_id)
-        )
-
-    # Add DHW selects
-    if coordinator.has_dhw():
-        entities.extend(
-            HitachiYutakiSelect(
-                coordinator=coordinator,
-                description=description,
-                device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_DHW}")},
-                ),
-                register_prefix="dhw",
-            )
-            for description in DHW_SELECTS
         )
 
     async_add_entities(entities)
