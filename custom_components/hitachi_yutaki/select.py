@@ -59,9 +59,9 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
 
 CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     HitachiYutakiSelectEntityDescription(
-        key="heat_mode",
-        name="Heat Mode",
-        register_key="heat_mode",
+        key="water_heating_temp_control",
+        name="Water Heating Temperature Control",
+        register_key="water_heating_temp_control",
         options=["disabled", "points", "gradient", "fix"],
         value_map={
             "disabled": 0,
@@ -72,9 +72,9 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
         entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiSelectEntityDescription(
-        key="cool_mode",
-        name="Cool Mode",
-        register_key="cool_mode",
+        key="water_cooling_temp_control",
+        name="Water Cooling Temperature Control",
+        register_key="water_cooling_temp_control",
         options=["disabled", "points", "fix"],
         value_map={
             "disabled": 0,
