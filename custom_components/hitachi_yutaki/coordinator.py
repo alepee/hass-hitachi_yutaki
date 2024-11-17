@@ -21,12 +21,18 @@ from homeassistant.helpers.update_coordinator import (
 
 from .const import (
     DOMAIN,
+    MASK_POOL,
     REGISTER_CONTROL,
     REGISTER_SENSOR,
     REGISTER_R134A,
     REGISTER_UNIT_MODEL,
     REGISTER_SYSTEM_CONFIG,
     REGISTER_SYSTEM_STATUS,
+    MASK_CIRCUIT1_COOLING,
+    MASK_CIRCUIT2_COOLING,
+    MASK_CIRCUIT1_HEATING,
+    MASK_CIRCUIT2_HEATING,
+    MASK_DHW,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -166,24 +172,24 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
     def has_heating_circuit1(self) -> bool:
         """Check if heating circuit 1 is configured."""
-        return bool(self.system_config & 0x0001)
+        return bool(self.system_config & MASK_CIRCUIT1_HEATING)
 
     def has_heating_circuit2(self) -> bool:
         """Check if heating circuit 2 is configured."""
-        return bool(self.system_config & 0x0002)
+        return bool(self.system_config & MASK_CIRCUIT2_HEATING)
 
     def has_cooling_circuit1(self) -> bool:
         """Check if cooling circuit 1 is configured."""
-        return bool(self.system_config & 0x0004)
+        return bool(self.system_config & MASK_CIRCUIT1_COOLING)
 
     def has_cooling_circuit2(self) -> bool:
         """Check if cooling circuit 2 is configured."""
-        return bool(self.system_config & 0x0008)
+        return bool(self.system_config & MASK_CIRCUIT2_COOLING)
 
     def has_dhw(self) -> bool:
         """Check if DHW is configured."""
-        return bool(self.system_config & 0x0010)
+        return bool(self.system_config & MASK_DHW)
 
     def has_pool(self) -> bool:
         """Check if pool is configured."""
-        return bool(self.system_config & 0x0020)
+        return bool(self.system_config & MASK_POOL)
