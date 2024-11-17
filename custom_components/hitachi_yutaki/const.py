@@ -103,18 +103,20 @@ REGISTER_SENSOR = {
     "pump_speed": 1221,
     "dhw_temp": 1080,
     "pool_temp": 1083,
+    "compressor_current": 1214,
+    "compressor_frequency": 1212,
 }
 
 # R134a specific registers (S80 only)
 REGISTER_R134A = {
-    "discharge_temp": 1224,
-    "suction_temp": 1225,
-    "discharge_pressure": 1226,
-    "suction_pressure": 1227,
-    "frequency": 1228,
-    "valve_opening": 1229,
-    "current": 1230,
-    "retry_code": 1231,
+    "r134a_discharge_temp": 1224,
+    "r134a_suction_temp": 1225,
+    "r134a_discharge_pressure": 1226,
+    "r134a_suction_pressure": 1227,
+    "r134a_compressor_frequency": 1228,
+    "r134a_valve_opening": 1229,
+    "r134a_compressor_current": 1230,
+    "r134a_retry_code": 1231,
 }
 
 PLATFORMS = [
