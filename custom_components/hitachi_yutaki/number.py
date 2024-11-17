@@ -35,6 +35,7 @@ class HitachiYutakiNumberEntityDescription(NumberEntityDescription):
 
     register_key: str | None = None
     multiplier: float | None = None
+    description: str | None = None
 
 
 CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
