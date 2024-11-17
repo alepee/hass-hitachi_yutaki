@@ -41,12 +41,14 @@ class HitachiYutakiBinarySensorEntityDescription(BinarySensorEntityDescription):
     """Class describing Hitachi Yutaki binary sensor entities."""
     register_key: str | None = None
     mask: int | None = None
+    description: str | None = None
 
 
 GATEWAY_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, ...]] = (
     HitachiYutakiBinarySensorEntityDescription(
         key="connectivity",
         name="Connectivity",
+        description="Indicates if the gateway is connected and responding",
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="is_available",
@@ -57,6 +59,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="defrost",
         name="Defrost",
+        description="Indicates if the unit is currently in defrost mode",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
@@ -65,6 +68,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="solar",
         name="Solar",
+        description="Indicates if the solar system is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
@@ -73,6 +77,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="pump1",
         name="Pump 1",
+        description="Indicates if water pump 1 is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
@@ -81,6 +86,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="pump2",
         name="Pump 2",
+        description="Indicates if water pump 2 is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
@@ -89,6 +95,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="pump3",
         name="Pump 3",
+        description="Indicates if water pump 3 is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
@@ -97,6 +104,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="compressor",
         name="Compressor",
+        description="Indicates if the compressor is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
@@ -105,6 +113,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="boiler",
         name="Boiler",
+        description="Indicates if the backup boiler is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
@@ -113,6 +122,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="dhw_heater",
         name="DHW Heater",
+        description="Indicates if the DHW electric heater is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
@@ -121,6 +131,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="space_heater",
         name="Space Heater",
+        description="Indicates if the space heating electric heater is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
@@ -129,6 +140,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="smart_function",
         name="Smart Function",
+        description="Indicates if the smart grid function is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
