@@ -117,19 +117,33 @@ async def async_setup_entry(
         if description.condition is None or description.condition(coordinator)
     )
 
-    # Add circuit selects
-    for circuit_id, device_id in [(1, DEVICE_CIRCUIT_1), (2, DEVICE_CIRCUIT_2)]:
+    # Add circuit selects only if the circuits are configured
+    if coordinator.has_heating_circuit1():
         entities.extend(
             HitachiYutakiSelect(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{device_id}")},
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_1}")},
                 ),
-                register_prefix=f"circuit{circuit_id}",
+                register_prefix="circuit1",
             )
             for description in CIRCUIT_SELECTS
-            if description.condition is None or description.condition(coordinator, circuit_id)
+            if description.condition is None or description.condition(coordinator, 1)
+        )
+
+    if coordinator.has_heating_circuit2():
+        entities.extend(
+            HitachiYutakiSelect(
+                coordinator=coordinator,
+                description=description,
+                device_info=DeviceInfo(
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_2}")},
+                ),
+                register_prefix="circuit2",
+            )
+            for description in CIRCUIT_SELECTS
+            if description.condition is None or description.condition(coordinator, 2)
         )
 
     async_add_entities(entities)
