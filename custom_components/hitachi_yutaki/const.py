@@ -65,8 +65,8 @@ REGISTER_CONTROL = {
     "circuit1_power": 1002,
     "circuit1_heat_mode": 1003,
     "circuit1_cool_mode": 1004,
-    "circuit1_heat_temp": 1005,
-    "circuit1_cool_temp": 1006,
+    "circuit1_water_heating_temp_setting": 1005,
+    "circuit1_water_cooling_temp_setting": 1006,
     "circuit1_eco_mode": 1007,
     "circuit1_heat_eco_offset": 1008,
     "circuit1_cool_eco_offset": 1009,
@@ -76,8 +76,8 @@ REGISTER_CONTROL = {
     "circuit2_power": 1013,
     "circuit2_heat_mode": 1014,
     "circuit2_cool_mode": 1015,
-    "circuit2_heat_temp": 1016,
-    "circuit2_cool_temp": 1017,
+    "circuit2_water_heating_temp_setting": 1016,
+    "circuit2_water_cooling_temp_setting": 1017,
     "circuit2_eco_mode": 1018,
     "circuit2_heat_eco_offset": 1019,
     "circuit2_cool_eco_offset": 1020,
@@ -124,3 +124,10 @@ PLATFORMS = [
     Platform.SENSOR,
     Platform.SWITCH,
 ]
+
+MODEL_NAMES = {
+    UNIT_MODEL_YUTAKI_S: "Yutaki S",
+    UNIT_MODEL_YUTAKI_S_COMBI: "Yutaki S Combi",
+    UNIT_MODEL_S80: "Yutaki S80",
+    UNIT_MODEL_M: "Yutaki M",
+}
