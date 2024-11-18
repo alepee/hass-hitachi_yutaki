@@ -6,6 +6,11 @@ This custom integration allows you to control and monitor your Hitachi Yutaki he
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=alepee&repository=hass-hitachi_yutaki)
 
+> ⚠️ **Beta Version - Under Development**  
+> This integration is currently in active development and should be considered experimental. While it is functional, you may encounter bugs or incomplete features. Use at your own risk and please report any issues you find.
+> 
+> Currently tested only with Yutaki S80 model. Testing with other models is in progress.
+
 ## Compatibility
 
 - **Compatible Models**: 2016 and newer Hitachi Yutaki heat pumps
@@ -22,109 +27,88 @@ The integration automatically detects your heat pump model and available feature
 
 | Entity | Type | Description | Unit |
 |--------|------|-------------|------|
-| ip_address | attribute | Gateway IP Address | - |
-| availability | binary_sensor | Gateway Connection Status | - |
+| connectivity | binary_sensor | Indicates if the gateway is connected and responding | - |
 
 ### Heat Pump Control Unit Device
 
 #### Controls
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
-| power | switch | Unit Run/Stop | on/off |
-| operation_mode | select | Unit Operation Mode | cool/heat/auto |
+| power | switch | Main power switch for the heat pump unit | on/off |
+| operation_mode | select | Operating mode of the heat pump (heating only or heating/cooling depending on configuration) | cool/heat/auto |
 
 #### Temperatures
 | Entity | Type | Description | Unit |
 |--------|------|-------------|------|
-| outdoor_temp | sensor | Outdoor Ambient Temperature | °C |
-| water_inlet_temp | sensor | Water Inlet Temperature | °C |
-| water_outlet_temp | sensor | Water Outlet Temperature | °C |
-| gas_temp | sensor | Gas Temperature | °C |
-| liquid_temp | sensor | Liquid Temperature | °C |
-| discharge_gas_temp | sensor | Discharge Gas Temperature | °C |
-| evaporation_temp | sensor | Evaporation Temperature | °C |
+| outdoor_temp | sensor | Outdoor ambient temperature measurement | °C |
+| water_inlet_temp | sensor | Water temperature at the heat pump inlet | °C |
+| water_outlet_temp | sensor | Water temperature at the heat pump outlet | °C |
 
 #### System Status
 | Entity | Type | Description | Values |
 |--------|------|-------------|---------|
-| defrost_active | binary_sensor | Defrost Status | on/off |
-| solar_active | binary_sensor | Solar System Status | on/off |
-| pump1_active | binary_sensor | Water Pump 1 Status | on/off |
-| pump2_active | binary_sensor | Water Pump 2 Status | on/off |
-| pump3_active | binary_sensor | Water Pump 3 Status | on/off |
-| compressor_active | binary_sensor | Compressor Status | on/off |
-| boiler_active | binary_sensor | Boiler Status | on/off |
-| dhw_heater_active | binary_sensor | DHW Heater Status | on/off |
-| space_heater_active | binary_sensor | Space Heater Status | on/off |
-| smart_function_enabled | binary_sensor | Smart Function Status | on/off |
+| defrost | binary_sensor | Indicates if the unit is currently in defrost mode | on/off |
+| solar | binary_sensor | Indicates if the solar system is active | on/off |
+| pump1 | binary_sensor | Indicates if water pump 1 is running | on/off |
+| pump2 | binary_sensor | Indicates if water pump 2 is running | on/off |
+| pump3 | binary_sensor | Indicates if water pump 3 is running | on/off |
+| compressor | binary_sensor | Indicates if the compressor is running | on/off |
+| boiler | binary_sensor | Indicates if the backup boiler is active | on/off |
+| dhw_heater | binary_sensor | Indicates if the DHW electric heater is active | on/off |
+| space_heater | binary_sensor | Indicates if the space heating electric heater is active | on/off |
+| smart_function | binary_sensor | Indicates if the smart grid function is active | on/off |
 
 #### Performance Metrics
 | Entity | Type | Description | Unit |
 |--------|------|-------------|------|
-| water_flow | sensor | Water Flow Level | m³/h |
-| pump_speed | sensor | Water Pump Speed | % |
-| indoor_valve_opening | sensor | Indoor Expansion Valve Opening | % |
-| outdoor_valve_opening | sensor | Outdoor Expansion Valve Opening | % |
-| inverter_frequency | sensor | Inverter Operation Frequency | Hz |
-| compressor_current | sensor | Compressor Running Current | A |
-| power_consumption | sensor | Unit Power Consumption | kWh |
+| water_flow | sensor | Current water flow rate through the system | m³/h |
+| pump_speed | sensor | Current speed of the water circulation pump | % |
+| compressor_frequency | sensor | Current operating frequency of the compressor | Hz |
+| compressor_current | sensor | Current electrical consumption of the compressor | A |
+| power_consumption | sensor | Total electrical energy consumed by the unit | kWh |
 
 #### R134a Circuit (S80 Model Only)
 | Entity | Type | Description | Unit |
 |--------|------|-------------|------|
-| r134a_discharge_temp | sensor | R134a Discharge Temperature | °C |
-| r134a_suction_temp | sensor | R134a Suction Temperature | °C |
-| r134a_discharge_pressure | sensor | R134a Discharge Pressure | MPa |
-| r134a_suction_pressure | sensor | R134a Suction Pressure | MPa |
-| r134a_frequency | sensor | R134a Compressor Frequency | Hz |
-| r134a_valve_opening | sensor | R134a Indoor Expansion Valve Opening | % |
-| r134a_current | sensor | R134a Compressor Current | A |
+| r134a_discharge_temp | sensor | Temperature of the R134a refrigerant at compressor discharge | °C |
+| r134a_suction_temp | sensor | Temperature of the R134a refrigerant at compressor suction | °C |
+| r134a_discharge_pressure | sensor | Pressure of the R134a refrigerant at compressor discharge | mbar |
+| r134a_suction_pressure | sensor | Pressure of the R134a refrigerant at compressor suction | mbar |
+| r134a_compressor_frequency | sensor | Operating frequency of the R134a compressor | Hz |
+| r134a_compressor_current | sensor | Electrical current drawn by the R134a compressor | A |
 
 ### Heating/Cooling Circuit Device (up to 2 circuits)
 
-Each circuit (if configured) provides:
-
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
-| power | switch | Circuit Run/Stop | on/off |
-| heat_mode | select | Heat OTC Mode | disabled/points/gradient/fix |
-| cool_mode | select | Cool OTC Mode | disabled/points/fix |
-| heat_temp | number | Water Heating Temperature | °C (0-80) |
-| cool_temp | number | Water Cooling Temperature | °C (0-80) |
-| mode | select | Circuit Mode | eco/comfort |
-| heat_eco_offset | number | Heat ECO Offset | °C (1-10) |
-| cool_eco_offset | number | Cool ECO Offset | °C (1-10) |
-
-#### Thermostat (if configured)
-| Entity | Type | Description | Values/Unit |
-|--------|------|-------------|-------------|
-| thermostat_available | switch | Thermostat Availability | on/off |
-| thermostat_temp | number | Thermostat Setting | °C (5.0-35.0) |
-| room_temp | sensor | Room Temperature | °C |
+| power | switch | Power switch for this heating/cooling circuit | on/off |
+| water_heating_temp_control | select | Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation) | disabled/points/gradient/fix |
+| water_cooling_temp_control | select | Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation) | disabled/points/fix |
+| water_heating_temp_setting | number | Target water temperature when the temperature control mode is set to 'fix' | °C (0-80) |
+| water_cooling_temp_setting | number | Target water temperature when the temperature control mode is set to 'fix' | °C (0-80) |
+| eco_mode | switch | Enable/disable ECO mode which applies a temperature offset to save energy | on/off |
+| heat_eco_offset | number | Temperature offset applied in ECO mode for heating | °C (1-10) |
+| cool_eco_offset | number | Temperature offset applied in ECO mode for cooling | °C (1-10) |
+| thermostat | switch | Enable/disable the thermostat function for this circuit | on/off |
+| thermostat_temp | number | Target room temperature when using the thermostat function | °C (5.0-35.0) |
 
 ### Domestic Hot Water Device (if configured)
 
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
-| power | switch | DHW Run/Stop | on/off |
-| temperature | number | DHW Temperature Setting | °C (0-80) |
-| boost | switch | DHW Boost | on/off |
-| mode | select | DHW Demand Mode | standard/high_demand |
-| current_temp | sensor | Current DHW Temperature | °C |
-
-#### Anti-legionella
-| Entity | Type | Description | Values/Unit |
-|--------|------|-------------|-------------|
-| power | switch | Anti-legionella Run/Stop | on/off |
-| temperature | number | Anti-legionella Temperature | °C (0-80) |
+| power | switch | Power switch for domestic hot water production | on/off |
+| boost | switch | Temporarily boost DHW production | on/off |
+| high_demand | switch | Enable high demand mode for increased DHW production | on/off |
+| temperature | number | Target temperature for domestic hot water | °C (0-80) |
+| antilegionella | switch | Enable/disable periodic high temperature treatment to prevent legionella | on/off |
+| antilegionella_temp | number | Target temperature for anti-legionella treatment | °C (0-80) |
 
 ### Swimming Pool Device (if configured)
 
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
-| power | switch | Pool Run/Stop | on/off |
-| temperature | number | Pool Temperature Setting | °C (0-80) |
-| current_temp | sensor | Current Pool Temperature | °C |
+| power | switch | Power switch for swimming pool heating | on/off |
+| temperature | number | Target temperature for swimming pool water | °C (0-80) |
 
 ## Installation
 
@@ -180,6 +164,23 @@ hitachi_yutaki/
 ```
 
 ### Setting Up Development Environment
+
+#### Option 1: Using Dev Container (Recommended)
+This repository includes a dev container configuration, which provides a fully configured development environment. To use it:
+
+1. Install [Visual Studio Code](https://code.visualstudio.com/) and the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers)
+2. Clone this repository
+3. Open the repository in VS Code
+4. When prompted to "Reopen in Container", click "Yes"
+   - Or click F1, type "Dev Containers: Rebuild and Reopen in Container"
+
+The container includes:
+- All required development dependencies
+- Pre-configured development tools
+- Pre-commit hooks
+- A ready-to-use Home Assistant development instance
+
+#### Option 2: Manual Setup
 
 1. Clone the repository:
 ```bash
