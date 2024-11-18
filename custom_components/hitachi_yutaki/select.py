@@ -36,7 +36,7 @@ class HitachiYutakiSelectEntityDescription(SelectEntityDescription):
 UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     HitachiYutakiSelectEntityDescription(
         key="operation_mode_heat",
-        name="Operation Mode",
+        translation_key="operation_mode_heat",
         description="Operating mode of the heat pump (heating only unit)",
         register_key="unit_mode",
         options=["heat", "auto"],
@@ -48,7 +48,7 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     ),
     HitachiYutakiSelectEntityDescription(
         key="operation_mode_full",
-        name="Operation Mode",
+        translation_key="operation_mode_full",
         description="Operating mode of the heat pump (heating and cooling unit)",
         register_key="unit_mode",
         options=["cool", "heat", "auto"],
@@ -64,7 +64,7 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
 CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     HitachiYutakiSelectEntityDescription(
         key="water_heating_temp_control",
-        name="Water Heating Temperature Control",
+        translation_key="water_heating_temp_control",
         description="Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation)",
         register_key="water_heating_temp_control",
         options=["disabled", "points", "gradient", "fix"],
@@ -79,7 +79,7 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     ),
     HitachiYutakiSelectEntityDescription(
         key="water_cooling_temp_control",
-        name="Water Cooling Temperature Control",
+        translation_key="water_cooling_temp_control",
         description="Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation)",
         register_key="water_cooling_temp_control",
         options=["disabled", "points", "fix"],
