@@ -98,6 +98,7 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
         key="compressor_frequency",
         name="Compressor Frequency",
+        icon="mdi:sine-wave",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
@@ -172,6 +173,7 @@ R134A_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
         key="r134a_compressor_frequency",
         name="R134a Compressor Frequency",
+        icon="mdi:sine-wave",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,

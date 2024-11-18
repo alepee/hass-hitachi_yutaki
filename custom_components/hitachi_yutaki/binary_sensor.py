@@ -119,7 +119,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="boiler",
         name="Boiler",
-        icon="mdi:boiler",
+        icon="mdi:resistor",
         description="Indicates if the backup boiler is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -129,7 +129,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="dhw_heater",
         name="DHW Heater",
-        icon="mdi:boiler",
+        icon="mdi:water-boiler",
         description="Indicates if the DHW electric heater is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -148,6 +148,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="smart_function",
         name="Smart Function",
+        icon="mdi:home-automation",
         description="Indicates if the smart grid function is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
