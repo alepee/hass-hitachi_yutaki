@@ -63,12 +63,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     model_name = MODEL_NAMES.get(unit_model, "Unknown Model")
 
     # Add main unit device
+    device_name = DEVICE_CONTROL_UNIT.replace("_", " ").title()
+
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
         manufacturer="Hitachi",
         model=model_name,
-        name=DEVICE_CONTROL_UNIT.title(),
+        name=device_name,
         via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}"),
     )
 
