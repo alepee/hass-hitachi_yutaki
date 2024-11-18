@@ -59,6 +59,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="defrost",
         name="Defrost",
+        icon="mdi:snowflake",
         description="Indicates if the unit is currently in defrost mode",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -68,6 +69,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="solar",
         name="Solar",
+        icon="mdi:solar-power",
         description="Indicates if the solar system is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -77,6 +79,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="pump1",
         name="Pump 1",
+        icon="mdi:pump",
         description="Indicates if water pump 1 is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -86,6 +89,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="pump2",
         name="Pump 2",
+        icon="mdi:pump",
         description="Indicates if water pump 2 is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -95,6 +99,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="pump3",
         name="Pump 3",
+        icon="mdi:pump",
         description="Indicates if water pump 3 is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -104,6 +109,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="compressor",
         name="Compressor",
+        icon="mdi:heat-pump",
         description="Indicates if the compressor is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -113,6 +119,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="boiler",
         name="Boiler",
+        icon="mdi:boiler",
         description="Indicates if the backup boiler is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
@@ -122,6 +129,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescript
     HitachiYutakiBinarySensorEntityDescription(
         key="dhw_heater",
         name="DHW Heater",
+        icon="mdi:boiler",
         description="Indicates if the DHW electric heater is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,

@@ -45,6 +45,7 @@ UNIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="power",
         name="Power",
+        icon="mdi:power",
         description="Main power switch for the heat pump unit",
         register_key="unit_power",
     ),
@@ -54,6 +55,7 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="power",
         name="Power",
+        icon="mdi:power",
         description="Power switch for this heating/cooling circuit",
         register_key="power",
     ),
@@ -67,11 +69,11 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="eco_mode",
         name="ECO Mode",
+        icon="mdi:leaf",
         description="Enable/disable ECO mode which applies a temperature offset to save energy",
         register_key="eco_mode",
         state_on=0,
         state_off=1,
-        icon="mdi:leaf",
     ),
 )
 
@@ -79,6 +81,7 @@ DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="power",
         name="Power",
+        icon="mdi:power",
         description="Power switch for domestic hot water production",
         register_key="power",
     ),
@@ -86,7 +89,7 @@ DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         key="boost",
         name="Boost",
         description="Temporarily boost DHW production",
-        register_key="boost",
+        register_key="dhw_boost",
     ),
     HitachiYutakiSwitchEntityDescription(
         key="high_demand",
@@ -98,7 +101,7 @@ DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="antilegionella",
         name="Anti-legionella",
-        description="Enable/disable periodic high temperature treatment to prevent legionella",
+        description="Enable/disable periodic high temperature treatment to prevent legionella. This parameter can only be used if the function is enabled on the LCD.",
         register_key="antilegionella_power",
         entity_category=EntityCategory.CONFIG,
     ),
