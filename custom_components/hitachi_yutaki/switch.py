@@ -44,7 +44,7 @@ class HitachiYutakiSwitchEntityDescription(SwitchEntityDescription):
 UNIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="power",
-        name="Power",
+        translation_key="power",
         icon="mdi:power",
         description="Main power switch for the heat pump unit",
         register_key="unit_power",
@@ -54,21 +54,21 @@ UNIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
 CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="power",
-        name="Power",
+        translation_key="power",
         icon="mdi:power",
         description="Power switch for this heating/cooling circuit",
         register_key="power",
     ),
     HitachiYutakiSwitchEntityDescription(
         key="thermostat",
-        name="Thermostat",
+        translation_key="thermostat",
         description="Enable/disable the thermostat function for this circuit",
         register_key="thermostat",
         entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiSwitchEntityDescription(
         key="eco_mode",
-        name="ECO Mode",
+        translation_key="eco_mode",
         icon="mdi:leaf",
         description="Enable/disable ECO mode which applies a temperature offset to save energy",
         register_key="eco_mode",
@@ -80,28 +80,28 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
 DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="power",
-        name="Power",
+        translation_key="power",
         icon="mdi:power",
         description="Power switch for domestic hot water production",
         register_key="power",
     ),
     HitachiYutakiSwitchEntityDescription(
         key="boost",
-        name="Boost",
+        translation_key="boost",
         description="Temporarily boost DHW production",
         register_key="dhw_boost",
     ),
     HitachiYutakiSwitchEntityDescription(
         key="high_demand",
-        name="High Demand",
+        translation_key="high_demand",
         description="Enable high demand mode for increased DHW production",
         register_key="dhw_mode",
         entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiSwitchEntityDescription(
         key="antilegionella",
-        name="Anti-legionella",
-        description="Enable/disable periodic high temperature treatment to prevent legionella. This parameter can only be used if the function is enabled on the LCD.",
+        translation_key="antilegionella",
+        description="Enable/disable periodic high temperature treatment to prevent legionella",
         register_key="antilegionella_power",
         entity_category=EntityCategory.CONFIG,
     ),
@@ -110,7 +110,7 @@ DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
 POOL_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="power",
-        name="Power",
+        translation_key="power",
         description="Power switch for swimming pool heating",
         register_key="power",
     ),

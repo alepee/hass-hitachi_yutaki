@@ -43,12 +43,15 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     register_key: str | None = None
     needs_conversion: bool = False
     model_required: str | None = None
+    translation_key: str | None = None
+    description: str | None = None
 
 
 TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
         key="outdoor_temp",
-        name="Outdoor Temperature",
+        translation_key="outdoor_temp",
+        description="Outdoor ambient temperature measurement",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -57,7 +60,8 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="water_inlet_temp",
-        name="Water Inlet Temperature",
+        translation_key="water_inlet_temp",
+        description="Water inlet temperature measurement",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -66,7 +70,8 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="water_outlet_temp",
-        name="Water Outlet Temperature",
+        translation_key="water_outlet_temp",
+        description="Water outlet temperature measurement",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -78,7 +83,8 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
 PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
         key="water_flow",
-        name="Water Flow",
+        translation_key="water_flow",
+        description="Current water flow rate through the system",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfVolumeFlowRate.CUBIC_METERS_PER_HOUR,
@@ -88,7 +94,8 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="pump_speed",
-        name="Pump Speed",
+        translation_key="pump_speed",
+        description="Current speed of the water circulation pump",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
@@ -97,7 +104,8 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="compressor_frequency",
-        name="Compressor Frequency",
+        translation_key="compressor_frequency",
+        description="Current operating frequency of the compressor",
         icon="mdi:sine-wave",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -107,7 +115,8 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="compressor_current",
-        name="Compressor Current",
+        translation_key="compressor_current",
+        description="Current electrical consumption of the compressor",
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
@@ -116,7 +125,8 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="power_consumption",
-        name="Power Consumption",
+        translation_key="power_consumption",
+        description="Total electrical energy consumed by the unit",
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
@@ -128,7 +138,8 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
 R134A_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
         key="r134a_discharge_temp",
-        name="R134a Discharge Temperature",
+        translation_key="r134a_discharge_temp",
+        description="Temperature of the R134a refrigerant at compressor discharge",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -139,7 +150,8 @@ R134A_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="r134a_suction_temp",
-        name="R134a Suction Temperature",
+        translation_key="r134a_suction_temp",
+        description="Temperature of the R134a refrigerant at compressor suction",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
@@ -150,7 +162,8 @@ R134A_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="r134a_discharge_pressure",
-        name="R134a Discharge Pressure",
+        translation_key="r134a_discharge_pressure",
+        description="Pressure of the R134a refrigerant at compressor discharge",
         device_class=SensorDeviceClass.PRESSURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPressure.MBAR,
@@ -161,7 +174,8 @@ R134A_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="r134a_suction_pressure",
-        name="R134a Suction Pressure",
+        translation_key="r134a_suction_pressure",
+        description="Pressure of the R134a refrigerant at compressor suction",
         device_class=SensorDeviceClass.PRESSURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPressure.MBAR,
@@ -172,7 +186,8 @@ R134A_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="r134a_compressor_frequency",
-        name="R134a Compressor Frequency",
+        translation_key="r134a_compressor_frequency",
+        description="Operating frequency of the R134a compressor",
         icon="mdi:sine-wave",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
@@ -183,7 +198,8 @@ R134A_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
     HitachiYutakiSensorEntityDescription(
         key="r134a_compressor_current",
-        name="R134a Compressor Current",
+        translation_key="r134a_compressor_current",
+        description="Electrical current drawn by the R134a compressor",
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,

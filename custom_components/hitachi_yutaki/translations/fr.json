@@ -3,181 +3,181 @@
         "step": {
             "user": {
                 "data": {
-                    "host": "IP address",
+                    "host": "Adresse IP",
                     "port": "Port",
-                    "name": "Name",
-                    "slave": "Modbus slave ID",
-                    "scan_interval": "Scan interval (seconds)"
+                    "name": "Nom",
+                    "slave": "ID esclave Modbus",
+                    "scan_interval": "Intervalle de scan (secondes)"
                 },
-                "description": "Configure your Hitachi Yutaki heat pump via ATW-MBS-02 gateway.",
+                "description": "Configurez votre pompe à chaleur Hitachi Yutaki via la passerelle ATW-MBS-02.",
                 "title": "Hitachi Yutaki"
             }
         },
         "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_slave": "Invalid Modbus slave ID",
-            "modbus_error": "Modbus communication error",
-            "unknown": "Unexpected error"
+            "cannot_connect": "Échec de connexion",
+            "invalid_slave": "ID esclave Modbus invalide",
+            "modbus_error": "Erreur de communication Modbus",
+            "unknown": "Erreur inattendue"
         },
         "abort": {
-            "already_configured": "Device is already configured"
+            "already_configured": "L'appareil est déjà configuré"
         }
     },
     "entity": {
         "sensor": {
             "outdoor_temp": {
-                "name": "Outdoor Temperature"
+                "name": "Température Extérieure"
             },
             "water_inlet_temp": {
-                "name": "Water Inlet Temperature"
+                "name": "Température d'Entrée d'Eau"
             },
             "water_outlet_temp": {
-                "name": "Water Outlet Temperature"
+                "name": "Température de Sortie d'Eau"
             },
             "water_flow": {
-                "name": "Water Flow"
+                "name": "Débit d'Eau"
             },
             "pump_speed": {
-                "name": "Pump Speed"
+                "name": "Vitesse de Pompe"
             },
             "compressor_frequency": {
-                "name": "Compressor Frequency"
+                "name": "Fréquence du Compresseur"
             },
             "compressor_current": {
-                "name": "Compressor Current"
+                "name": "Courant du Compresseur"
             },
             "power_consumption": {
-                "name": "Power Consumption"
+                "name": "Consommation Électrique"
             },
             "r134a_discharge_temp": {
-                "name": "R134a Discharge Temperature"
+                "name": "Température de Refoulement R134a"
             },
             "r134a_suction_temp": {
-                "name": "R134a Suction Temperature"
+                "name": "Température d'Aspiration R134a"
             },
             "r134a_discharge_pressure": {
-                "name": "R134a Discharge Pressure"
+                "name": "Pression de Refoulement R134a"
             },
             "r134a_suction_pressure": {
-                "name": "R134a Suction Pressure"
+                "name": "Pression d'Aspiration R134a"
             },
             "r134a_compressor_frequency": {
-                "name": "R134a Compressor Frequency"
+                "name": "Fréquence du Compresseur R134a"
             },
             "r134a_compressor_current": {
-                "name": "R134a Compressor Current"
+                "name": "Courant du Compresseur R134a"
             }
         },
         "binary_sensor": {
             "connectivity": {
-                "name": "Connectivity"
+                "name": "Connectivité"
             },
             "defrost": {
-                "name": "Defrost"
+                "name": "Dégivrage"
             },
             "solar": {
-                "name": "Solar"
+                "name": "Solaire"
             },
             "pump1": {
-                "name": "Pump 1"
+                "name": "Pompe 1"
             },
             "pump2": {
-                "name": "Pump 2"
+                "name": "Pompe 2"
             },
             "pump3": {
-                "name": "Pump 3"
+                "name": "Pompe 3"
             },
             "compressor": {
-                "name": "Compressor"
+                "name": "Compresseur"
             },
             "boiler": {
-                "name": "Boiler"
+                "name": "Chaudière"
             },
             "dhw_heater": {
-                "name": "DHW Heater"
+                "name": "Chauffage ECS"
             },
             "space_heater": {
-                "name": "Space Heater"
+                "name": "Chauffage d'Appoint"
             },
             "smart_function": {
-                "name": "Smart Function"
+                "name": "Fonction Smart"
             }
         },
         "select": {
             "operation_mode_heat": {
-                "name": "Operation Mode",
+                "name": "Mode de Fonctionnement",
                 "state": {
-                    "heat": "Heat",
+                    "heat": "Chauffage",
                     "auto": "Auto"
                 }
             },
             "operation_mode_full": {
-                "name": "Operation Mode",
+                "name": "Mode de Fonctionnement",
                 "state": {
-                    "cool": "Cool",
-                    "heat": "Heat",
+                    "cool": "Refroidissement",
+                    "heat": "Chauffage",
                     "auto": "Auto"
                 }
             },
             "water_heating_temp_control": {
-                "name": "Water Heating Temperature Control",
+                "name": "Contrôle de Température Chauffage",
                 "state": {
-                    "disabled": "Disabled",
+                    "disabled": "Désactivé",
                     "points": "Points",
                     "gradient": "Gradient",
-                    "fix": "Fix"
+                    "fix": "Fixe"
                 }
             },
             "water_cooling_temp_control": {
-                "name": "Water Cooling Temperature Control",
+                "name": "Contrôle de Température Refroidissement",
                 "state": {
-                    "disabled": "Disabled",
+                    "disabled": "Désactivé",
                     "points": "Points",
-                    "fix": "Fix"
+                    "fix": "Fixe"
                 }
             }
         },
         "switch": {
             "power": {
-                "name": "Power"
+                "name": "Alimentation"
             },
             "thermostat": {
                 "name": "Thermostat"
             },
             "eco_mode": {
-                "name": "ECO Mode"
+                "name": "Mode ECO"
             },
             "boost": {
                 "name": "Boost"
             },
             "high_demand": {
-                "name": "High Demand"
+                "name": "Haute Demande"
             },
             "antilegionella": {
-                "name": "Anti-legionella"
+                "name": "Anti-légionelle"
             }
         },
         "number": {
             "water_heating_temp_setting": {
-                "name": "Water Heating Temperature Setting"
+                "name": "Température de Consigne Chauffage"
             },
             "water_cooling_temp_setting": {
-                "name": "Water Cooling Temperature Setting"
+                "name": "Température de Consigne Refroidissement"
             },
             "heat_eco_offset": {
-                "name": "Heat ECO Offset"
+                "name": "Décalage ECO Chauffage"
             },
             "cool_eco_offset": {
-                "name": "Cool ECO Offset"
+                "name": "Décalage ECO Refroidissement"
             },
             "thermostat_temp": {
-                "name": "Thermostat Temperature"
+                "name": "Température Thermostat"
             },
             "temperature": {
-                "name": "Temperature"
+                "name": "Température"
             },
             "antilegionella_temp": {
-                "name": "Anti-legionella Temperature"
+                "name": "Température Anti-légionelle"
             }
         }
     }
