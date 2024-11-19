@@ -121,14 +121,14 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
 
 DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
-        key="temperature",
-        translation_key="temperature",
+        key="dhw_temperature",
+        translation_key="dhw_target_temperature",
         description="Target temperature for domestic hot water",
         native_min_value=0,
         native_max_value=80,
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="temperature",
+        register_key="dhw_temperature",
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
@@ -149,14 +149,14 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
 
 POOL_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
-        key="temperature",
-        translation_key="temperature",
+        key="pool_temperature",
+        translation_key="pool_target_temperature",
         description="Target temperature for swimming pool water",
         native_min_value=0,
         native_max_value=80,
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="temperature",
+        register_key="pool_temperature",
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
