@@ -63,10 +63,10 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
 
 CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     HitachiYutakiSelectEntityDescription(
-        key="water_heating_temp_control",
-        translation_key="water_heating_temp_control",
-        description="Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation)",
-        register_key="water_heating_temp_control",
+        key="otc_calculation_method_heating",
+        translation_key="otc_calculation_method_heating",
+        description="Method used to calculate the heating water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation)",
+        register_key="otc_calculation_method_heating",
         options=["disabled", "points", "gradient", "fix"],
         value_map={
             "disabled": 0,
@@ -78,10 +78,10 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiSelectEntityDescription(
-        key="water_cooling_temp_control",
-        translation_key="water_cooling_temp_control",
-        description="Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation)",
-        register_key="water_cooling_temp_control",
+        key="otc_calculation_method_cooling",
+        translation_key="otc_calculation_method_cooling",
+        description="Method used to calculate the cooling water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation)",
+        register_key="otc_calculation_method_cooling",
         options=["disabled", "points", "fix"],
         value_map={
             "disabled": 0,

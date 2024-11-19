@@ -119,7 +119,7 @@
                     "auto": "Auto"
                 }
             },
-            "water_heating_temp_control": {
+            "otc_calculation_method_heating": {
                 "name": "Contrôle de Température Chauffage",
                 "state": {
                     "disabled": "Désactivé",
@@ -128,7 +128,7 @@
                     "fix": "Fixe"
                 }
             },
-            "water_cooling_temp_control": {
+            "otc_calculation_method_cooling": {
                 "name": "Contrôle de Température Refroidissement",
                 "state": {
                     "disabled": "Désactivé",
@@ -158,10 +158,10 @@
             }
         },
         "number": {
-            "water_heating_temp_setting": {
+            "max_flow_temp_heating_otc": {
                 "name": "Température de Consigne Chauffage"
             },
-            "water_cooling_temp_setting": {
+            "max_flow_temp_cooling_otc": {
                 "name": "Température de Consigne Refroidissement"
             },
             "heat_eco_offset": {

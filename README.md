@@ -82,10 +82,10 @@ The integration automatically detects your heat pump model and available feature
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
 | power | switch | Power switch for this heating/cooling circuit | on/off |
-| water_heating_temp_control | select | Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation) | disabled/points/gradient/fix |
-| water_cooling_temp_control | select | Method used to calculate the water temperature setpoint based on outdoor temperature (Weather compensation) | disabled/points/fix |
-| water_heating_temp_setting | number | Target water temperature when the temperature control mode is set to 'fix' | °C (0-80) |
-| water_cooling_temp_setting | number | Target water temperature when the temperature control mode is set to 'fix' | °C (0-80) |
+| otc_calculation_method_heating | select | Method used to calculate the heating water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation) | disabled/points/gradient/fix |
+| otc_calculation_method_cooling | select | Method used to calculate the cooling water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation) | disabled/points/fix |
+| max_flow_temp_heating_otc | number | Maximum heating water temperature used in outdoor temperature compensation (OTC) calculations | °C (0-80) |
+| max_flow_temp_cooling_otc | number | Maximum cooling water temperature used in outdoor temperature compensation (OTC) calculations | °C (0-80) |
 | eco_mode | switch | Enable/disable ECO mode which applies a temperature offset to save energy | on/off |
 | heat_eco_offset | number | Temperature offset applied in ECO mode for heating | °C (1-10) |
 | cool_eco_offset | number | Temperature offset applied in ECO mode for cooling | °C (1-10) |
