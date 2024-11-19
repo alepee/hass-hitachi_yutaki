@@ -62,7 +62,7 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
         key="thermostat",
         translation_key="thermostat",
-        description="Enable/disable the thermostat function for this circuit",
+        description="Enable/disable the Modbus thermostat function for this circuit",
         register_key="thermostat",
         entity_category=EntityCategory.CONFIG,
     ),

@@ -170,14 +170,17 @@
             "cool_eco_offset": {
                 "name": "Cool ECO Offset"
             },
-            "thermostat_temp": {
-                "name": "Thermostat Temperature"
+            "target_temp": {
+                "name": "Target Temperature"
             },
             "temperature": {
                 "name": "Temperature"
             },
             "antilegionella_temp": {
                 "name": "Anti-legionella Temperature"
+            },
+            "current_temp": {
+                "name": "Current Temperature"
             }
         }
     }
