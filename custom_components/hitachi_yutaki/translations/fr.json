@@ -120,7 +120,7 @@
                 }
             },
             "otc_calculation_method_heating": {
-                "name": "Contrôle de Température Chauffage",
+                "name": "Méthode de Compensation Chauffage",
                 "state": {
                     "disabled": "Désactivé",
                     "points": "Points",
@@ -129,7 +129,7 @@
                 }
             },
             "otc_calculation_method_cooling": {
-                "name": "Contrôle de Température Refroidissement",
+                "name": "Méthode de Compensation Refroidissement",
                 "state": {
                     "disabled": "Désactivé",
                     "points": "Points",
@@ -159,10 +159,10 @@
         },
         "number": {
             "max_flow_temp_heating_otc": {
-                "name": "Température de Consigne Chauffage"
+                "name": "Température de départ maximum en chauffage"
             },
             "max_flow_temp_cooling_otc": {
-                "name": "Température de Consigne Refroidissement"
+                "name": "Température de départ maximum en refroidissement"
             },
             "heat_eco_offset": {
                 "name": "Décalage ECO Chauffage"
@@ -170,17 +170,20 @@
             "cool_eco_offset": {
                 "name": "Décalage ECO Refroidissement"
             },
+            "current_temp": {
+                "name": "Température Ambiante"
+            },
             "target_temp": {
                 "name": "Température Cible"
             },
-            "temperature": {
-                "name": "Température"
+            "dhw_target_temperature": {
+                "name": "Température Cible"
+            },
+            "pool_target_temperature": {
+                "name": "Température Cible"
             },
             "antilegionella_temp": {
                 "name": "Température Anti-légionelle"
-            },
-            "current_temp": {
-                "name": "Température Ambiante"
             }
         }
     }
