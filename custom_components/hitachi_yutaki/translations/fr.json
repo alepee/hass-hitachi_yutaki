@@ -170,14 +170,17 @@
             "cool_eco_offset": {
                 "name": "Décalage ECO Refroidissement"
             },
-            "thermostat_temp": {
-                "name": "Température Thermostat"
+            "target_temp": {
+                "name": "Température Cible"
             },
             "temperature": {
                 "name": "Température"
             },
             "antilegionella_temp": {
                 "name": "Température Anti-légionelle"
+            },
+            "current_temp": {
+                "name": "Température Ambiante"
             }
         }
     }

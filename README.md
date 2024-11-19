@@ -89,8 +89,9 @@ The integration automatically detects your heat pump model and available feature
 | eco_mode | switch | Enable/disable ECO mode which applies a temperature offset to save energy | on/off |
 | heat_eco_offset | number | Temperature offset applied in ECO mode for heating | °C (1-10) |
 | cool_eco_offset | number | Temperature offset applied in ECO mode for cooling | °C (1-10) |
-| thermostat | switch | Enable/disable the thermostat function for this circuit | on/off |
-| thermostat_temp | number | Target room temperature when using the thermostat function | °C (5.0-35.0) |
+| thermostat | switch | Enable/disable the Modbus thermostat function for this circuit | on/off |
+| target_temp | number | Target room temperature when using the thermostat function | °C (5.0-35.0) |
+| current_temp | number | Current measured room temperature | °C (0.0-50.0) |
 
 ### Domestic Hot Water Device (if configured)
 
