@@ -48,7 +48,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="max_flow_temp_heating_otc",
-        mode=NumberMode.BOX,
+        mode=NumberMode.AUTO,
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
@@ -61,7 +61,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="max_flow_temp_cooling_otc",
-        mode=NumberMode.BOX,
+        mode=NumberMode.AUTO,
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
@@ -74,7 +74,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="heat_eco_offset",
-        mode=NumberMode.SLIDER,
+        mode=NumberMode.AUTO,
         entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiNumberEntityDescription(
@@ -86,7 +86,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="cool_eco_offset",
-        mode=NumberMode.BOX,
+        mode=NumberMode.AUTO,
         entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiNumberEntityDescription(
@@ -98,7 +98,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=0.5,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="target_temp",
-        mode=NumberMode.BOX,
+        mode=NumberMode.AUTO,
         multiplier=10,
         entity_category=EntityCategory.CONFIG,
         entity_registry_visible_default=False,
@@ -112,7 +112,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=0.5,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="current_temp",
-        mode=NumberMode.BOX,
+        mode=NumberMode.AUTO,
         multiplier=10,
         entity_category=EntityCategory.CONFIG,
         entity_registry_visible_default=False,
@@ -129,7 +129,7 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="dhw_temperature",
-        mode=NumberMode.BOX,
+        mode=NumberMode.AUTO,
         entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiNumberEntityDescription(
@@ -141,7 +141,7 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="antilegionella_temp",
-        mode=NumberMode.BOX,
+        mode=NumberMode.AUTO,
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
@@ -157,7 +157,7 @@ POOL_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="pool_temperature",
-        mode=NumberMode.BOX,
+        mode=NumberMode.AUTO,
         entity_category=EntityCategory.CONFIG,
     ),
 )
@@ -182,12 +182,6 @@ async def async_setup_entry(
                 and not coordinator.has_cooling_circuit1()
             ):
                 continue
-            # Skip thermostat temp if thermostat is not configured
-            if (
-                "thermostat" in description.key
-                and not coordinator.data.get("circuit1_thermostat", 0)
-            ):
-                continue
             entities.append(
                 HitachiYutakiNumber(
                     coordinator=coordinator,
@@ -206,12 +200,6 @@ async def async_setup_entry(
             if (
                 "cool" in description.key
                 and not coordinator.has_cooling_circuit2()
-            ):
-                continue
-            # Skip thermostat temp if thermostat is not configured
-            if (
-                "thermostat" in description.key
-                and not coordinator.data.get("circuit2_thermostat", 0)
             ):
                 continue
             entities.append(
