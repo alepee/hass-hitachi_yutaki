@@ -168,7 +168,7 @@ async def async_setup_entry(
 
     entities: list[HitachiYutakiBinarySensor] = []
 
-    # Add gateway binary sensors
+    # Add gateway binary sensors (always added)
     entities.extend(
         HitachiYutakiBinarySensor(
             coordinator=coordinator,
@@ -180,17 +180,29 @@ async def async_setup_entry(
         for description in GATEWAY_BINARY_SENSORS
     )
 
-    # Add control unit binary sensors
-    entities.extend(
-        HitachiYutakiBinarySensor(
-            coordinator=coordinator,
-            description=description,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
-            ),
+    # Add control unit binary sensors based on configuration
+    for description in CONTROL_UNIT_BINARY_SENSORS:
+        # Skip DHW heater sensor if DHW is not configured
+        if description.key == "dhw_heater" and not coordinator.has_dhw():
+            continue
+
+        # Skip solar sensor if solar is not configured
+        if description.key == "solar" and not coordinator.has_solar():
+            continue
+
+        # Skip boiler sensor if boiler is not configured
+        if description.key == "boiler" and not coordinator.has_boiler():
+            continue
+
+        entities.append(
+            HitachiYutakiBinarySensor(
+                coordinator=coordinator,
+                description=description,
+                device_info=DeviceInfo(
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
+                ),
+            )
         )
-        for description in CONTROL_UNIT_BINARY_SENSORS
-    )
 
     async_add_entities(entities)
 
