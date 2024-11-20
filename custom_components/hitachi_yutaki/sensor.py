@@ -221,7 +221,7 @@ async def async_setup_entry(
 
     entities: list[HitachiYutakiSensor] = []
 
-    # Add temperature sensors
+    # Add temperature sensors (always added as they are basic measurements)
     entities.extend(
         HitachiYutakiSensor(
             coordinator=coordinator,
@@ -233,19 +233,27 @@ async def async_setup_entry(
         for description in TEMPERATURE_SENSORS
     )
 
-    # Add performance sensors
-    entities.extend(
-        HitachiYutakiSensor(
-            coordinator=coordinator,
-            description=description,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
-            ),
-        )
-        for description in PERFORMANCE_SENSORS
-    )
+    # Add performance sensors based on configuration
+    for description in PERFORMANCE_SENSORS:
+        # Skip DHW related sensors if DHW is not configured
+        if "dhw" in description.key.lower() and not coordinator.has_dhw():
+            continue
 
-    # Add R134a sensors if unit is S80
+        # Skip pool related sensors if pool is not configured
+        if "pool" in description.key.lower() and not coordinator.has_pool():
+            continue
+
+        entities.append(
+            HitachiYutakiSensor(
+                coordinator=coordinator,
+                description=description,
+                device_info=DeviceInfo(
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
+                ),
+            )
+        )
+
+    # Add R134a sensors only if unit is S80 and they are relevant
     if coordinator.is_s80_model():
         entities.extend(
             HitachiYutakiSensor(
