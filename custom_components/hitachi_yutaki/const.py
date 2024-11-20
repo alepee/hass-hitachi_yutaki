@@ -122,11 +122,11 @@ REGISTER_R134A = {
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
+    Platform.CLIMATE,
     Platform.NUMBER,
     Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
-    Platform.CLIMATE,
 ]
 
 MODEL_NAMES = {
@@ -136,18 +136,12 @@ MODEL_NAMES = {
     UNIT_MODEL_M: "Yutaki M",
 }
 
-# Operation modes
-OPERATION_MODE_HEAT = 0
-OPERATION_MODE_COOL = 1
-OPERATION_MODE_AUTO = 2
+# Add these constants for HVAC modes and presets
+HVAC_MODE_MAP = {
+    "cool": 0,
+    "heat": 1,
+    "auto": 2,
+}
 
-# Preset modes
 PRESET_COMFORT = "comfort"
 PRESET_ECO = "eco"
-
-# HVAC actions
-CURRENT_HVAC_OFF = "off"
-CURRENT_HVAC_HEAT = "heating"
-CURRENT_HVAC_COOL = "cooling"
-CURRENT_HVAC_IDLE = "idle"
-CURRENT_HVAC_DEFROST = "defrost"
