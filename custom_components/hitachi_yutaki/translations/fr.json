@@ -185,6 +185,27 @@
             "antilegionella_temp": {
                 "name": "Température Anti-légionelle"
             }
+        },
+        "climate": {
+            "climate": {
+                "name": "Contrôle Climatique",
+                "state": {
+                    "off": "Arrêt",
+                    "heat": "Chauffage",
+                    "cool": "Refroidissement",
+                    "auto": "Auto",
+                    "idle": "Inactif",
+                    "defrost": "Dégivrage"
+                },
+                "state_attributes": {
+                    "preset_mode": {
+                        "state": {
+                            "eco": "Éco",
+                            "comfort": "Confort"
+                        }
+                    }
+                }
+            }
         }
     }
 }

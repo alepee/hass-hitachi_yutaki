@@ -185,6 +185,27 @@
             "antilegionella_temp": {
                 "name": "Anti-legionella Temperature"
             }
+        },
+        "climate": {
+            "climate": {
+                "name": "Climate Control",
+                "state": {
+                    "off": "Off",
+                    "heat": "Heat",
+                    "cool": "Cool",
+                    "auto": "Auto",
+                    "idle": "Idle",
+                    "defrost": "Defrost"
+                },
+                "state_attributes": {
+                    "preset_mode": {
+                        "state": {
+                            "eco": "Eco",
+                            "comfort": "Comfort"
+                        }
+                    }
+                }
+            }
         }
     }
 }

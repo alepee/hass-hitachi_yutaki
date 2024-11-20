@@ -1,194 +1,264 @@
-"""Climate platform for Hitachi Yutaki integration."""
+"""Climate platform for Hitachi Yutaki."""
 from __future__ import annotations
-
-from typing import Any
+from dataclasses import dataclass
+from typing import Final
 
 from homeassistant.components.climate import (
     ClimateEntity,
-    ClimateEntityFeature,
+    ClimateEntityDescription,
     HVACAction,
     HVACMode,
+    ClimateEntityFeatures,
+    PRESET_ECO,
+    PRESET_NONE,
+)
+from homeassistant.components.climate.const import (
+    ATTR_HVAC_MODE,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
+from homeassistant.const import (
+    ATTR_TEMPERATURE,
+    UnitOfTemperature,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from . import HitachiYutakiDataUpdateCoordinator, HitachiYutakiEntity
 from .const import (
-    CURRENT_HVAC_COOL,
-    CURRENT_HVAC_DEFROST,
-    CURRENT_HVAC_HEAT,
-    CURRENT_HVAC_IDLE,
-    CURRENT_HVAC_OFF,
     DOMAIN,
-    MASK_CIRCUIT1_COOLING,
-    MASK_CIRCUIT1_HEATING,
-    MASK_CIRCUIT2_COOLING,
-    MASK_CIRCUIT2_HEATING,
+    DEVICE_CIRCUIT_1,
+    DEVICE_CIRCUIT_2,
     MASK_DEFROST,
-    OPERATION_MODE_AUTO,
-    OPERATION_MODE_COOL,
-    OPERATION_MODE_HEAT,
+    MASK_COMPRESSOR,
     PRESET_COMFORT,
-    PRESET_ECO,
+)
+from .coordinator import HitachiYutakiDataCoordinator
+
+
+@dataclass
+class HitachiYutakiClimateEntityDescription(ClimateEntityDescription):
+    """Class describing Hitachi Yutaki climate entities."""
+
+
+CLIMATE_DESCRIPTIONS: Final[tuple[HitachiYutakiClimateEntityDescription, ...]] = (
+    HitachiYutakiClimateEntityDescription(
+        key="climate",
+        translation_key="climate",
+    ),
 )
 
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    config_entry: ConfigEntry,
+    entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the Hitachi Yutaki climate platform."""
-    coordinator = hass.data[DOMAIN][config_entry.entry_id]
-    entities = []
+    """Set up the climate entities."""
+    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    entities: list[HitachiYutakiClimate] = []
 
-    system_config = coordinator.data.get("system_config", 0)
+    # Add circuit 1 climate if configured
+    if coordinator.has_heating_circuit1():
+        entities.append(
+            HitachiYutakiClimate(
+                coordinator=coordinator,
+                description=CLIMATE_DESCRIPTIONS[0],
+                device_info=DeviceInfo(
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_1}")},
+                ),
+                circuit_id=1,
+            )
+        )
 
-    # Add Circuit 1 if heating or cooling is enabled
-    if system_config & (MASK_CIRCUIT1_HEATING | MASK_CIRCUIT1_COOLING):
-        entities.append(HitachiYutakiClimate(coordinator, 1))
-
-    # Add Circuit 2 if heating or cooling is enabled
-    if system_config & (MASK_CIRCUIT2_HEATING | MASK_CIRCUIT2_COOLING):
-        entities.append(HitachiYutakiClimate(coordinator, 2))
+    # Add circuit 2 climate if configured
+    if coordinator.has_heating_circuit2():
+        entities.append(
+            HitachiYutakiClimate(
+                coordinator=coordinator,
+                description=CLIMATE_DESCRIPTIONS[0],
+                device_info=DeviceInfo(
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_2}")},
+                ),
+                circuit_id=2,
+            )
+        )
 
     async_add_entities(entities)
 
 
-class HitachiYutakiClimate(HitachiYutakiEntity, ClimateEntity):
-    """Representation of a Hitachi Yutaki Climate entity."""
+class HitachiYutakiClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], ClimateEntity):
+    """Representation of a Hitachi Yutaki Climate."""
 
-    _attr_temperature_unit = UnitOfTemperature.CELSIUS
-    _attr_has_entity_name = True
-    _attr_name = None
+    entity_description: HitachiYutakiClimateEntityDescription
 
     def __init__(
         self,
-        coordinator: HitachiYutakiDataUpdateCoordinator,
-        circuit_number: int,
+        coordinator: HitachiYutakiDataCoordinator,
+        description: HitachiYutakiClimateEntityDescription,
+        device_info: DeviceInfo,
+        circuit_id: int,
     ) -> None:
         """Initialize the climate entity."""
         super().__init__(coordinator)
-        self.circuit_number = circuit_number
-        self._attr_unique_id = f"{self.coordinator.unique_id}_circuit{circuit_number}_climate"
+        self.entity_description = description
+        self._circuit_id = circuit_id
+        self._register_prefix = f"circuit{circuit_id}"
+        self._attr_unique_id = f"{coordinator.slave}_{self._register_prefix}_climate"
+        self._attr_device_info = device_info
+        self._attr_has_entity_name = True
+
+        # Set supported features
         self._attr_supported_features = (
-            ClimateEntityFeature.TARGET_TEMPERATURE
-            | ClimateEntityFeature.PRESET_MODE
+            ClimateEntityFeatures.TARGET_TEMPERATURE
+            | ClimateEntityFeatures.PRESET_MODE
         )
-        self._attr_preset_modes = [PRESET_COMFORT, PRESET_ECO]
+
+        # Set temperature settings
+        self._attr_min_temp = 5.0
+        self._attr_max_temp = 35.0
+        self._attr_target_temperature_step = 0.5
+        self._attr_temperature_unit = UnitOfTemperature.CELSIUS
+
+        # Set available modes
         self._attr_hvac_modes = [HVACMode.OFF]
-
-        # Add supported HVAC modes based on system configuration
-        system_config = coordinator.data.get("system_config", 0)
-        circuit_heating = MASK_CIRCUIT1_HEATING if circuit_number == 1 else MASK_CIRCUIT2_HEATING
-        circuit_cooling = MASK_CIRCUIT1_COOLING if circuit_number == 1 else MASK_CIRCUIT2_COOLING
-
-        if system_config & circuit_heating:
+        if coordinator.has_heating_circuit1() if circuit_id == 1 else coordinator.has_heating_circuit2():
             self._attr_hvac_modes.append(HVACMode.HEAT)
-        if system_config & circuit_cooling:
+        if coordinator.has_cooling_circuit1() if circuit_id == 1 else coordinator.has_cooling_circuit2():
             self._attr_hvac_modes.append(HVACMode.COOL)
-        if len(self._attr_hvac_modes) > 2:  # If both heating and cooling supported
+        if len(self._attr_hvac_modes) > 2:  # If both heating and cooling are available
             self._attr_hvac_modes.append(HVACMode.AUTO)
+
+        # Set available presets
+        self._attr_preset_modes = [PRESET_COMFORT, PRESET_ECO]
 
     @property
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
-        return self.coordinator.data.get(f"circuit{self.circuit_number}_current_temp")
+        if self.coordinator.data is None:
+            return None
+
+        temp = self.coordinator.data.get(f"{self._register_prefix}_current_temp")
+        if temp is None:
+            return None
+
+        return float(temp) / 10
 
     @property
     def target_temperature(self) -> float | None:
-        """Return the target temperature."""
-        return self.coordinator.data.get(f"circuit{self.circuit_number}_target_temp")
+        """Return the temperature we try to reach."""
+        if self.coordinator.data is None:
+            return None
+
+        temp = self.coordinator.data.get(f"{self._register_prefix}_target_temp")
+        if temp is None:
+            return None
+
+        return float(temp) / 10
 
     @property
-    def hvac_mode(self) -> HVACMode:
-        """Return the current HVAC mode."""
-        if not self.coordinator.data.get(f"circuit{self.circuit_number}_power"):
+    def hvac_mode(self) -> HVACMode | None:
+        """Return hvac operation mode."""
+        if self.coordinator.data is None:
+            return None
+
+        power = self.coordinator.data.get(f"{self._register_prefix}_power")
+        if power == 0:
             return HVACMode.OFF
 
         unit_mode = self.coordinator.data.get("unit_mode")
-        if unit_mode == OPERATION_MODE_HEAT:
-            return HVACMode.HEAT
-        elif unit_mode == OPERATION_MODE_COOL:
-            return HVACMode.COOL
-        return HVACMode.AUTO
+        if unit_mode is None:
+            return None
+
+        return {
+            0: HVACMode.COOL,
+            1: HVACMode.HEAT,
+            2: HVACMode.AUTO,
+        }.get(unit_mode)
 
     @property
-    def hvac_action(self) -> HVACAction:
-        """Return the current HVAC action."""
-        if not self.coordinator.data.get(f"circuit{self.circuit_number}_power"):
+    def hvac_action(self) -> HVACAction | None:
+        """Return the current running hvac operation."""
+        if self.coordinator.data is None:
+            return None
+
+        power = self.coordinator.data.get(f"{self._register_prefix}_power")
+        if power == 0:
             return HVACAction.OFF
 
         system_status = self.coordinator.data.get("system_status", 0)
+
+        # Check if in defrost mode
         if system_status & MASK_DEFROST:
             return HVACAction.DEFROST
 
-        # You'll need to implement logic to determine if the system is actively
-        # heating/cooling or idle based on your system's behavior
-        # This is a simplified example:
-        current_temp = self.current_temperature
-        target_temp = self.target_temperature
-        if current_temp is None or target_temp is None:
+        # Check if compressor is running
+        if not (system_status & MASK_COMPRESSOR):
             return HVACAction.IDLE
 
-        mode = self.hvac_mode
-        if mode == HVACMode.HEAT and current_temp < target_temp:
-            return HVACAction.HEATING
-        elif mode == HVACMode.COOL and current_temp > target_temp:
+        unit_mode = self.coordinator.data.get("unit_mode")
+        if unit_mode == 0:
             return HVACAction.COOLING
-        return HVACAction.IDLE
+        elif unit_mode == 1:
+            return HVACAction.HEATING
+
+        return None
 
     @property
-    def preset_mode(self) -> str:
+    def preset_mode(self) -> str | None:
         """Return the current preset mode."""
-        if self.coordinator.data.get(f"circuit{self.circuit_number}_eco_mode"):
-            return PRESET_ECO
-        return PRESET_COMFORT
+        if self.coordinator.data is None:
+            return None
 
-    async def async_set_temperature(self, **kwargs: Any) -> None:
+        eco_mode = self.coordinator.data.get(f"{self._register_prefix}_eco_mode")
+        if eco_mode is None:
+            return None
+
+        return PRESET_ECO if eco_mode == 0 else PRESET_COMFORT
+
+    async def async_set_temperature(self, **kwargs) -> None:
         """Set new target temperature."""
-        temperature = kwargs.get(ATTR_TEMPERATURE)
-        if temperature is not None:
-            await self.coordinator.client.write_register(
-                f"circuit{self.circuit_number}_target_temp",
-                int(temperature * 10)
-            )
-            await self.coordinator.async_request_refresh()
+        if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
+            return
+
+        await self.coordinator.async_write_register(
+            f"{self._register_prefix}_target_temp",
+            int(temperature * 10)
+        )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
-        """Set new HVAC mode."""
+        """Set new target hvac mode."""
         if hvac_mode == HVACMode.OFF:
-            await self.coordinator.client.write_register(
-                f"circuit{self.circuit_number}_power",
+            await self.coordinator.async_write_register(
+                f"{self._register_prefix}_power",
                 0
             )
-        else:
-            # First ensure the circuit is powered on
-            await self.coordinator.client.write_register(
-                f"circuit{self.circuit_number}_power",
-                1
+            return
+
+        # Ensure circuit is powered on
+        await self.coordinator.async_write_register(
+            f"{self._register_prefix}_power",
+            1
+        )
+
+        # Set unit mode
+        mode_map = {
+            HVACMode.COOL: 0,
+            HVACMode.HEAT: 1,
+            HVACMode.AUTO: 2,
+        }
+        if hvac_mode in mode_map:
+            await self.coordinator.async_write_register(
+                "unit_mode",
+                mode_map[hvac_mode]
             )
-
-            # Then set the operation mode if needed
-            if hvac_mode != HVACMode.OFF:
-                mode_map = {
-                    HVACMode.HEAT: OPERATION_MODE_HEAT,
-                    HVACMode.COOL: OPERATION_MODE_COOL,
-                    HVACMode.AUTO: OPERATION_MODE_AUTO,
-                }
-                await self.coordinator.client.write_register(
-                    "unit_mode",
-                    mode_map[hvac_mode]
-                )
-
-        await self.coordinator.async_request_refresh()
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
-        await self.coordinator.client.write_register(
-            f"circuit{self.circuit_number}_eco_mode",
-            1 if preset_mode == PRESET_ECO else 0
+        if preset_mode not in self.preset_modes:
+            return
+
+        await self.coordinator.async_write_register(
+            f"{self._register_prefix}_eco_mode",
+            0 if preset_mode == PRESET_ECO else 1
         )
-        await self.coordinator.async_request_refresh()
