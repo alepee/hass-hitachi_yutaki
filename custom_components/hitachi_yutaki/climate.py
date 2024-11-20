@@ -6,9 +6,9 @@ from typing import Final
 from homeassistant.components.climate import (
     ClimateEntity,
     ClimateEntityDescription,
+    ClimateEntityFeature,
     HVACAction,
     HVACMode,
-    ClimateEntityFeatures,
     PRESET_ECO,
     PRESET_NONE,
 )
@@ -110,8 +110,8 @@ class HitachiYutakiClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], Clim
 
         # Set supported features
         self._attr_supported_features = (
-            ClimateEntityFeatures.TARGET_TEMPERATURE
-            | ClimateEntityFeatures.PRESET_MODE
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.PRESET_MODE
         )
 
         # Set temperature settings
