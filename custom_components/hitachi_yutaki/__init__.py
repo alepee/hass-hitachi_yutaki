@@ -17,6 +17,8 @@ from .const import (
     PLATFORMS,
     DEVICE_GATEWAY,
     DEVICE_CONTROL_UNIT,
+    DEVICE_PRIMARY_COMPRESSOR,
+    DEVICE_SECONDARY_COMPRESSOR,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
     DEVICE_DHW,
@@ -73,6 +75,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         name=device_name,
         via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}"),
     )
+
+    # Add primary compressor device
+    device_registry.async_get_or_create(
+        config_entry_id=entry.entry_id,
+        identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_PRIMARY_COMPRESSOR}")},
+        manufacturer="Hitachi",
+        model=model_name,
+        name=device_name,
+        via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+    )
+
+    # Add secondary compressor device for S80 model
+    if coordinator.is_s80_model():
+        device_registry.async_get_or_create(
+            config_entry_id=entry.entry_id,
+            identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")},
+            manufacturer="Hitachi",
+            model=model_name,
+            name=device_name,
+            via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+        )
 
     # Add Circuit 1 device if configured
     if coordinator.has_heating_circuit1() or coordinator.has_cooling_circuit1():
