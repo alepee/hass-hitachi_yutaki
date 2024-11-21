@@ -11,7 +11,7 @@ DOMAIN = "hitachi_yutaki"
 DEFAULT_NAME = "Hitachi Yutaki"
 DEFAULT_SLAVE = 1
 DEFAULT_PORT = 502
-DEFAULT_SCAN_INTERVAL = 30
+DEFAULT_SCAN_INTERVAL = 5
 
 # Device types
 DEVICE_GATEWAY = "gateway"
