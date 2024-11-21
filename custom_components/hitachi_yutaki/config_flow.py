@@ -22,6 +22,7 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
+    REGISTER_UNIT_MODEL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         ): cv.positive_int,
     }
 )
+
 
 class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
@@ -68,7 +70,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     try:
                         result = await self.hass.async_add_executor_job(
                             client.read_holding_registers,
-                            1219,  # REGISTER_UNIT_MODEL
+                            REGISTER_UNIT_MODEL,
                             1,
                             user_input[CONF_SLAVE],
                         )
@@ -78,7 +80,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                                 f"{user_input[CONF_HOST]}_{user_input[CONF_SLAVE]}"
                             )
                             self._abort_if_unique_id_configured()
-                            
+
                             return self.async_create_entry(
                                 title=user_input[CONF_NAME],
                                 data=user_input,
