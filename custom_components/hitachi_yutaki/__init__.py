@@ -65,14 +65,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     model_name = MODEL_NAMES.get(unit_model, "Unknown Model")
 
     # Add main unit device
-    device_name = DEVICE_CONTROL_UNIT.replace("_", " ").title()
-
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
         manufacturer="Hitachi",
         model=model_name,
-        name=device_name,
+        name=DEVICE_CONTROL_UNIT.replace("_", " ").title(),
         via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}"),
     )
 
@@ -82,7 +80,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_PRIMARY_COMPRESSOR}")},
         manufacturer="Hitachi",
         model=model_name,
-        name=device_name,
+        name=DEVICE_PRIMARY_COMPRESSOR.replace("_", " ").title(),
         via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
     )
 
@@ -93,7 +91,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")},
             manufacturer="Hitachi",
             model=model_name,
-            name=device_name,
+            name=DEVICE_SECONDARY_COMPRESSOR.replace("_", " ").title(),
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
@@ -106,7 +104,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             features.append("Cooling")
 
         device_name = DEVICE_CIRCUIT_1.replace("_", " ").title()
-
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_1}")},
@@ -125,7 +122,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             features.append("Cooling")
 
         device_name = DEVICE_CIRCUIT_2.replace("_", " ").title()
-
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_2}")},
