@@ -195,11 +195,3 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     def has_pool(self) -> bool:
         """Check if pool is configured."""
         return bool(self.system_config & MASK_POOL)
-
-    def has_solar(self) -> bool:
-        """Check if solar is configured."""
-        return bool(self.system_config & MASK_SOLAR)
-
-    def has_boiler(self) -> bool:
-        """Check if boiler is configured."""
-        return bool(self.system_config & MASK_BOILER)

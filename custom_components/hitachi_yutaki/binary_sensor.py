@@ -186,14 +186,6 @@ async def async_setup_entry(
         if description.key == "dhw_heater" and not coordinator.has_dhw():
             continue
 
-        # Skip solar sensor if solar is not configured
-        if description.key == "solar" and not coordinator.has_solar():
-            continue
-
-        # Skip boiler sensor if boiler is not configured
-        if description.key == "boiler" and not coordinator.has_boiler():
-            continue
-
         entities.append(
             HitachiYutakiBinarySensor(
                 coordinator=coordinator,
