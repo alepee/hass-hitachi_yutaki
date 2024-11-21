@@ -26,6 +26,8 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    DEVICE_PRIMARY_COMPRESSOR,
+    DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
     DEVICE_CONTROL_UNIT,
     UNIT_MODEL_YUTAKI_S,
@@ -103,6 +105,19 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
+        key="power_consumption",
+        translation_key="power_consumption",
+        description="Total electrical energy consumed by the unit",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        register_key="power_consumption",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+)
+
+PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
+    HitachiYutakiSensorEntityDescription(
         key="compressor_frequency",
         translation_key="compressor_frequency",
         description="Current operating frequency of the compressor",
@@ -123,19 +138,9 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         register_key="compressor_current",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
-        key="power_consumption",
-        translation_key="power_consumption",
-        description="Total electrical energy consumed by the unit",
-        device_class=SensorDeviceClass.ENERGY,
-        state_class=SensorStateClass.TOTAL_INCREASING,
-        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        register_key="power_consumption",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
 )
 
-R134A_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
+SECONDARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
         key="r134a_discharge_temp",
         translation_key="r134a_discharge_temp",
@@ -253,6 +258,18 @@ async def async_setup_entry(
             )
         )
 
+    # Add primary compressor sensors
+    entities.extend(
+        HitachiYutakiSensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_PRIMARY_COMPRESSOR}")},
+            ),
+        )
+        for description in PRIMARY_COMPRESSOR_SENSORS
+    )
+
     # Add R134a sensors only if unit is S80 and they are relevant
     if coordinator.is_s80_model():
         entities.extend(
@@ -260,10 +277,10 @@ async def async_setup_entry(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")},
                 ),
             )
-            for description in R134A_SENSORS
+            for description in SECONDARY_COMPRESSOR_SENSORS
         )
 
     async_add_entities(entities)

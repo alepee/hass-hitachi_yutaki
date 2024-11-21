@@ -16,6 +16,8 @@ DEFAULT_SCAN_INTERVAL = 30
 # Device types
 DEVICE_GATEWAY = "gateway"
 DEVICE_CONTROL_UNIT = "control_unit"
+DEVICE_PRIMARY_COMPRESSOR = "outdoor_compressor"
+DEVICE_SECONDARY_COMPRESSOR = "indoor_compressor"
 DEVICE_CIRCUIT_1 = "circuit_1"
 DEVICE_CIRCUIT_2 = "circuit_2"
 DEVICE_DHW = "dhw"
