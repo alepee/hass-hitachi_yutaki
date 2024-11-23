@@ -176,8 +176,14 @@
             "target_temp": {
                 "name": "Température Cible"
             },
+            "dhw_current_temperature": {
+                "name": "Température Actuelle"
+            },
             "dhw_target_temperature": {
                 "name": "Température Cible"
+            },
+            "pool_current_temperature": {
+                "name": "Température Actuelle"
             },
             "pool_target_temperature": {
                 "name": "Température Cible"
