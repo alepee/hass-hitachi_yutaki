@@ -142,6 +142,15 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         register_key="power_consumption",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
+    HitachiYutakiSensorEntityDescription(
+        key="alarm_code",
+        translation_key="alarm_code",
+        description="Alarm code",
+        device_class=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        register_key="alarm_code",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
 )
 
 PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
