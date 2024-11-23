@@ -26,6 +26,8 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    DEVICE_DHW,
+    DEVICE_POOL,
     DEVICE_PRIMARY_COMPRESSOR,
     DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
@@ -264,25 +266,41 @@ async def async_setup_entry(
         for description in TEMPERATURE_SENSORS
     )
 
-    # Add performance sensors based on configuration
-    for description in CONTROL_UNIT_SENSORS:
-        # Skip DHW related sensors if DHW is not configured
-        if "dhw" in description.key.lower() and not coordinator.has_dhw():
-            continue
-
-        # Skip pool related sensors if pool is not configured
-        if "pool" in description.key.lower() and not coordinator.has_pool():
-            continue
-
-        entities.append(
+    if coordinator.has_dhw():
+        entities.extend(
             HitachiYutakiSensor(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_DHW}")},
                 ),
             )
+            for description in DHW_SENSORS
         )
+
+    if coordinator.has_pool():
+        entities.extend(
+            HitachiYutakiSensor(
+                coordinator=coordinator,
+                description=description,
+                device_info=DeviceInfo(
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_POOL}")},
+                ),
+            )
+            for description in POOL_SENSORS
+        )
+
+    # Add control unit sensors based on configuration
+    entities.extend(
+        HitachiYutakiSensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
+            ),
+        )
+        for description in CONTROL_UNIT_SENSORS
+    )
 
     # Add primary compressor sensors
     entities.extend(

@@ -104,6 +104,7 @@ DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         description="Enable/disable periodic high temperature treatment to prevent legionella",
         register_key="antilegionella_power",
         entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
     ),
 )
 
