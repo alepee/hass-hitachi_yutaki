@@ -82,7 +82,33 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
 )
 
-PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
+DHW_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
+    HitachiYutakiSensorEntityDescription(
+        key="dhw_current_temp",
+        translation_key="dhw_current_temperature",
+        description="Current temperature of the domestic hot water",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        register_key="dhw_current_temp",
+        needs_conversion=True,
+    ),
+)
+
+POOL_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
+    HitachiYutakiSensorEntityDescription(
+        key="pool_current_temp",
+        translation_key="pool_current_temperature",
+        description="Current temperature of the pool",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        register_key="pool_current_temp",
+        needs_conversion=True,
+    ),
+)
+
+CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
         key="water_flow",
         translation_key="water_flow",
@@ -239,7 +265,7 @@ async def async_setup_entry(
     )
 
     # Add performance sensors based on configuration
-    for description in PERFORMANCE_SENSORS:
+    for description in CONTROL_UNIT_SENSORS:
         # Skip DHW related sensors if DHW is not configured
         if "dhw" in description.key.lower() and not coordinator.has_dhw():
             continue
@@ -306,7 +332,7 @@ class HitachiYutakiSensor(
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
-    @property
+    @ property
     def native_value(self) -> StateType:
         """Return the state of the sensor."""
         if (
