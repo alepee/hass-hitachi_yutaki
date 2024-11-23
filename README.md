@@ -77,21 +77,44 @@ The integration automatically detects your heat pump model and available feature
 | r134a_compressor_frequency | sensor | Operating frequency of the R134a compressor | Hz |
 | r134a_compressor_current | sensor | Electrical current drawn by the R134a compressor | A |
 
-### Heating/Cooling Circuit Device (up to 2 circuits)
+### Climate Device (up to 2 circuits)
 
+#### Controls
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
-| power | switch | Power switch for this heating/cooling circuit | on/off |
-| otc_calculation_method_heating | select | Method used to calculate the heating water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation) | disabled/points/gradient/fix |
-| otc_calculation_method_cooling | select | Method used to calculate the cooling water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation) | disabled/points/fix |
-| max_flow_temp_heating_otc | number | Maximum heating water temperature used in outdoor temperature compensation (OTC) calculations | °C (0-80) |
-| max_flow_temp_cooling_otc | number | Maximum cooling water temperature used in outdoor temperature compensation (OTC) calculations | °C (0-80) |
-| eco_mode | switch | Enable/disable ECO mode which applies a temperature offset to save energy | on/off |
-| heat_eco_offset | number | Temperature offset applied in ECO mode for heating | °C (1-10) |
-| cool_eco_offset | number | Temperature offset applied in ECO mode for cooling | °C (1-10) |
-| thermostat | switch | Enable/disable the Modbus thermostat function for this circuit | on/off |
-| target_temp | number | Target room temperature when using the thermostat function | °C (5.0-35.0) |
-| current_temp | number | Current measured room temperature | °C (0.0-50.0) |
+| power | switch | Power switch for the circuit | on/off |
+| operation_mode | select | Operating mode selection | heat/cool/auto |
+| target_temperature | number | Target temperature setpoint | °C (5.0-35.0) |
+| current_temperature | sensor | Current measured temperature | °C |
+| preset_mode | select | Energy saving mode selection | comfort/eco |
+| hvac_action | sensor | Current operation status | off/idle/heating/cooling/defrost |
+
+#### Configuration
+| Entity | Type | Description | Values/Unit |
+|--------|------|-------------|-------------|
+| otc_calculation_method_heating | select | Method used for heating water temperature calculation | disabled/points/gradient/fix |
+| otc_calculation_method_cooling | select | Method used for cooling water temperature calculation | disabled/points/fix |
+| max_flow_temp_heating_otc | number | Maximum heating water temperature for OTC | °C (0-80) |
+| max_flow_temp_cooling_otc | number | Maximum cooling water temperature for OTC | °C (0-80) |
+| heat_eco_offset | number | Temperature offset in ECO mode for heating | °C (1-10) |
+| cool_eco_offset | number | Temperature offset in ECO mode for cooling | °C (1-10) |
+| thermostat | switch | Enable/disable Modbus thermostat function | on/off |
+
+Each circuit operates independently and supports:
+- Heating mode (if configured)
+- Cooling mode (if configured)
+- Auto mode (if both heating and cooling are configured)
+
+The operation status (hvac_action) indicates:
+- OFF: Circuit is powered off
+- IDLE: Circuit is on but not actively heating/cooling
+- HEATING: Circuit is actively heating
+- COOLING: Circuit is actively cooling
+- DEFROST: Unit is in defrost mode
+
+The preset modes affect the target temperature:
+- COMFORT: Normal operation
+- ECO: Energy-saving operation with temperature offset
 
 ### Domestic Hot Water Device (if configured)
 
@@ -100,9 +123,11 @@ The integration automatically detects your heat pump model and available feature
 | power | switch | Power switch for domestic hot water production | on/off |
 | boost | switch | Temporarily boost DHW production | on/off |
 | high_demand | switch | Enable high demand mode for increased DHW production | on/off |
-| temperature | number | Target temperature for domestic hot water | °C (0-80) |
+| target_temperature | number | Target temperature for domestic hot water | °C (30-80) |
+| current_temperature | sensor | Current DHW tank temperature | °C |
 | antilegionella | switch | Enable/disable periodic high temperature treatment to prevent legionella | on/off |
-| antilegionella_temp | number | Target temperature for anti-legionella treatment | °C (0-80) |
+| antilegionella_temperature | number | Target temperature for anti-legionella treatment | °C (60-80) |
+| electric_heater | binary_sensor | Indicates if the DHW electric heater is active | on/off |
 
 ### Swimming Pool Device (if configured)
 
@@ -110,6 +135,24 @@ The integration automatically detects your heat pump model and available feature
 |--------|------|-------------|-------------|
 | power | switch | Power switch for swimming pool heating | on/off |
 | temperature | number | Target temperature for swimming pool water | °C (0-80) |
+
+### Primary Compressor Device
+
+| Entity | Type | Description | Unit |
+|--------|------|-------------|------|
+| compressor_frequency | sensor | Operating frequency | Hz |
+| compressor_current | sensor | Electrical current draw | A |
+
+### Secondary Compressor Device (S80 Model Only)
+
+| Entity | Type | Description | Unit |
+|--------|------|-------------|------|
+| r134a_discharge_temp | sensor | R134a discharge temperature | °C |
+| r134a_suction_temp | sensor | R134a suction temperature | °C |
+| r134a_discharge_pressure | sensor | R134a discharge pressure | mbar |
+| r134a_suction_pressure | sensor | R134a suction pressure | mbar |
+| r134a_compressor_frequency | sensor | R134a compressor frequency | Hz |
+| r134a_compressor_current | sensor | R134a compressor current | A |
 
 ## Installation
 

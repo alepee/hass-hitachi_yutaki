@@ -140,7 +140,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Add DHW device if configured
     if coordinator.has_dhw():
-        dhw_name = get_translated_name("dhw_heater", DEVICE_DHW.replace("_", " ").title())
+        dhw_name = get_translated_name("dhw_heater", DEVICE_DHW.replace("_", " ").capitalize())
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_DHW}")},
