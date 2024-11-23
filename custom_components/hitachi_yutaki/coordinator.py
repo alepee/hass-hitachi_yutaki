@@ -52,6 +52,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.slave = entry.data[CONF_SLAVE]
         self.model = None
         self.system_config = 0
+        self.dev_mode = entry.data.get("dev_mode", False)
 
         super().__init__(
             hass,
@@ -174,24 +175,24 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
     def has_heating_circuit1(self) -> bool:
         """Check if heating circuit 1 is configured."""
-        return bool(self.system_config & MASK_CIRCUIT1_HEATING)
+        return self.dev_mode or bool(self.system_config & MASK_CIRCUIT1_HEATING)
 
     def has_heating_circuit2(self) -> bool:
         """Check if heating circuit 2 is configured."""
-        return bool(self.system_config & MASK_CIRCUIT2_HEATING)
+        return self.dev_mode or bool(self.system_config & MASK_CIRCUIT2_HEATING)
 
     def has_cooling_circuit1(self) -> bool:
         """Check if cooling circuit 1 is configured."""
-        return bool(self.system_config & MASK_CIRCUIT1_COOLING)
+        return self.dev_mode or bool(self.system_config & MASK_CIRCUIT1_COOLING)
 
     def has_cooling_circuit2(self) -> bool:
         """Check if cooling circuit 2 is configured."""
-        return bool(self.system_config & MASK_CIRCUIT2_COOLING)
+        return self.dev_mode or bool(self.system_config & MASK_CIRCUIT2_COOLING)
 
     def has_dhw(self) -> bool:
         """Check if DHW is configured."""
-        return bool(self.system_config & MASK_DHW)
+        return self.dev_mode or bool(self.system_config & MASK_DHW)
 
     def has_pool(self) -> bool:
         """Check if pool is configured."""
-        return bool(self.system_config & MASK_POOL)
+        return self.dev_mode or bool(self.system_config & MASK_POOL)

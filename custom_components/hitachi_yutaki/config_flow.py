@@ -38,6 +38,7 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
         vol.Optional(
             CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
         ): cv.positive_int,
+        vol.Optional("dev_mode", default=False): bool,
     }
 )
 
@@ -83,7 +84,10 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                             return self.async_create_entry(
                                 title=user_input[CONF_NAME],
-                                data=user_input,
+                                data={
+                                    **user_input,
+                                    "dev_mode": user_input.get("dev_mode", False),
+                                },
                             )
                         else:
                             errors["base"] = "invalid_slave"

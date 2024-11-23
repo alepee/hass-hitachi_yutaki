@@ -7,7 +7,8 @@
                     "port": "Port",
                     "name": "Nom",
                     "slave": "ID esclave Modbus",
-                    "scan_interval": "Intervalle de scan (secondes)"
+                    "scan_interval": "Intervalle de scan (secondes)",
+                    "dev_mode": "Mode développeur (affiche tous les types de devices)"
                 },
                 "description": "Configurez votre pompe à chaleur Hitachi Yutaki via la passerelle ATW-MBS-02.",
                 "title": "Hitachi Yutaki"
