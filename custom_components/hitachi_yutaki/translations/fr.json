@@ -1,4 +1,30 @@
 {
+    "device": {
+        "gateway": {
+            "name": "Passerelle"
+        },
+        "control_unit": {
+            "name": "Unité de Contrôle"
+        },
+        "primary_compressor": {
+            "name": "Compresseur Extérieur"
+        },
+        "secondary_compressor": {
+            "name": "Compresseur Intérieur"
+        },
+        "circuit1": {
+            "name": "Circuit 1"
+        },
+        "circuit2": {
+            "name": "Circuit 2"
+        },
+        "dhw": {
+            "name": "ECS"
+        },
+        "pool": {
+            "name": "Piscine"
+        }
+    },
     "config": {
         "step": {
             "user": {
