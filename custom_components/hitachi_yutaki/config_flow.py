@@ -23,6 +23,8 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
     REGISTER_UNIT_MODEL,
+    REGISTER_CENTRAL_CONTROL_MODE,
+    CENTRAL_CONTROL_MODE_MAP,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -54,50 +56,83 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step."""
         errors: dict[str, str] = {}
 
-        if user_input is not None:
-            # Test connection to the Modbus gateway
-            try:
-                # Create Modbus client and test connection
-                from pymodbus.client import ModbusTcpClient
-                client = ModbusTcpClient(
-                    host=user_input[CONF_HOST],
-                    port=user_input[CONF_PORT],
-                )
-                if not client.connect():
-                    errors["base"] = "cannot_connect"
-                else:
-                    # Try to read unit model register
-                    from pymodbus.exceptions import ModbusException
-                    try:
-                        result = await self.hass.async_add_executor_job(
-                            client.read_holding_registers,
-                            REGISTER_UNIT_MODEL,
-                            1,
-                            user_input[CONF_SLAVE],
-                        )
-                        if not result.isError():
-                            # Create unique ID from host and slave
-                            await self.async_set_unique_id(
-                                f"{user_input[CONF_HOST]}_{user_input[CONF_SLAVE]}"
-                            )
-                            self._abort_if_unique_id_configured()
+        if user_input is None:
+            return self.async_show_form(
+                step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+            )
 
-                            return self.async_create_entry(
-                                title=user_input[CONF_NAME],
-                                data={
-                                    **user_input,
-                                    "dev_mode": user_input.get("dev_mode", False),
-                                },
-                            )
-                        else:
-                            errors["base"] = "invalid_slave"
-                    except ModbusException:
-                        errors["base"] = "modbus_error"
-                    finally:
-                        client.close()
-            except Exception:  # pylint: disable=broad-except
-                _LOGGER.exception("Unexpected exception")
-                errors["base"] = "unknown"
+        try:
+            from pymodbus.client import ModbusTcpClient
+            from pymodbus.exceptions import ModbusException
+
+            client = ModbusTcpClient(
+                host=user_input[CONF_HOST],
+                port=user_input[CONF_PORT],
+            )
+
+            if not client.connect():
+                errors["base"] = "cannot_connect"
+                return self.async_show_form(
+                    step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+                )
+
+            try:
+                # Check unit model
+                result = await self.hass.async_add_executor_job(
+                    client.read_holding_registers,
+                    REGISTER_UNIT_MODEL,
+                    1,
+                    user_input[CONF_SLAVE],
+                )
+
+                if result.isError():
+                    errors["base"] = "invalid_slave"
+                    return self.async_show_form(
+                        step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+                    )
+
+                # Check central control mode
+                mode_result = await self.hass.async_add_executor_job(
+                    client.read_holding_registers,
+                    REGISTER_CENTRAL_CONTROL_MODE,
+                    1,
+                    user_input[CONF_SLAVE],
+                )
+
+                if mode_result.isError():
+                    errors["base"] = "modbus_error"
+                    return self.async_show_form(
+                        step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+                    )
+
+                if mode_result.registers[0] != CENTRAL_CONTROL_MODE_MAP["air"]:
+                    errors["base"] = "invalid_central_control_mode"
+                    return self.async_show_form(
+                        step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+                    )
+
+                # Create entry if everything is OK
+                await self.async_set_unique_id(
+                    f"{user_input[CONF_HOST]}_{user_input[CONF_SLAVE]}"
+                )
+                self._abort_if_unique_id_configured()
+
+                return self.async_create_entry(
+                    title=user_input[CONF_NAME],
+                    data={
+                        **user_input,
+                        "dev_mode": user_input.get("dev_mode", False),
+                    },
+                )
+
+            except ModbusException:
+                errors["base"] = "modbus_error"
+            finally:
+                client.close()
+
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("Unexpected exception")
+            errors["base"] = "unknown"
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors

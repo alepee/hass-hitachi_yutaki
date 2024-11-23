@@ -146,5 +146,13 @@ HVAC_MODE_MAP = {
     "auto": 2,
 }
 
+REGISTER_CENTRAL_CONTROL_MODE = 1088
+CENTRAL_CONTROL_MODE_MAP = {
+    "local": 0,
+    "air": 1,
+    "water": 2,
+    "total": 3,
+}
+
 PRESET_COMFORT = "comfort"
 PRESET_ECO = "eco"

@@ -18,7 +18,8 @@
             "cannot_connect": "Failed to connect",
             "invalid_slave": "Invalid Modbus slave ID",
             "modbus_error": "Modbus communication error",
-            "unknown": "Unexpected error"
+            "unknown": "Unexpected error",
+            "invalid_central_control_mode": "The heat pump must be configured in Central mode 'Air' (1). Possible modes: Local (0), Air (1), Water (2), Total (3). Please change this setting in your heat pump parameters. (System Configuration > General Options > External Control Option > Control Mode = Air)"
         },
         "abort": {
             "already_configured": "Device is already configured"
