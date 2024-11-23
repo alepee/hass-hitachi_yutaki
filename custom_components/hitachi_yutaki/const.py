@@ -108,6 +108,7 @@ REGISTER_SENSOR = {
     "compressor_current": 1214,
     "compressor_frequency": 1212,
     "power_consumption": 1098,
+    "alarm_code": 1223,
 }
 
 # R134a specific registers (S80 only)

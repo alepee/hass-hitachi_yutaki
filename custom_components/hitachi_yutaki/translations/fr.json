@@ -50,6 +50,9 @@
             "power_consumption": {
                 "name": "Consommation Électrique"
             },
+            "alarm_code": {
+                "name": "Code d'Alarme"
+            },
             "r134a_discharge_temp": {
                 "name": "Température de Refoulement R134a"
             },

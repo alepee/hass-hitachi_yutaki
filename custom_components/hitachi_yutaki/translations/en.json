@@ -50,6 +50,9 @@
             "power_consumption": {
                 "name": "Power Consumption"
             },
+            "alarm_code": {
+                "name": "Alarm Code"
+            },
             "r134a_discharge_temp": {
                 "name": "R134a Discharge Temperature"
             },
