@@ -8,6 +8,10 @@ from homeassistant.const import (
 )
 
 DOMAIN = "hitachi_yutaki"
+MANUFACTURER = "Hitachi"
+GATEWAY_MODEL = "ATW-MBS-02"
+
+# Default values
 DEFAULT_NAME = "Hitachi Yutaki"
 DEFAULT_SLAVE = 1
 DEFAULT_PORT = 502
@@ -25,6 +29,7 @@ DEVICE_POOL = "pool"
 
 # Modbus registers (addresses)
 REGISTER_UNIT_MODEL = 1218
+REGISTER_CENTRAL_CONTROL_MODE = 1088
 REGISTER_SYSTEM_CONFIG = 1089
 REGISTER_SYSTEM_STATUS = 1222
 
@@ -146,7 +151,6 @@ HVAC_MODE_MAP = {
     "auto": 2,
 }
 
-REGISTER_CENTRAL_CONTROL_MODE = 1088
 CENTRAL_CONTROL_MODE_MAP = {
     "local": 0,
     "air": 1,

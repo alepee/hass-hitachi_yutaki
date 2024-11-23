@@ -1,4 +1,30 @@
 {
+    "device": {
+        "gateway": {
+            "name": "Gateway"
+        },
+        "control_unit": {
+            "name": "Control Unit"
+        },
+        "primary_compressor": {
+            "name": "Outdoor Compressor"
+        },
+        "secondary_compressor": {
+            "name": "Indoor Compressor"
+        },
+        "circuit1": {
+            "name": "Circuit 1"
+        },
+        "circuit2": {
+            "name": "Circuit 2"
+        },
+        "dhw": {
+            "name": "DHW"
+        },
+        "pool": {
+            "name": "Pool"
+        }
+    },
     "config": {
         "step": {
             "user": {
