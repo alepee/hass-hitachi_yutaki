@@ -249,6 +249,22 @@
                         }
                     }
                 }
+            },
+            "dhw_climate": {
+                "name": "DHW Control",
+                "state": {
+                    "off": "Off",
+                    "heat": "Heat"
+                },
+                "state_attributes": {
+                    "preset_mode": {
+                        "state": {
+                            "dhw_off": "Off",
+                            "dhw_standard": "Standard",
+                            "dhw_high_demand": "High Demand"
+                        }
+                    }
+                }
             }
         }
     }

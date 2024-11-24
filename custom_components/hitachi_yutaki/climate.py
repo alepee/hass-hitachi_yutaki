@@ -311,6 +311,8 @@ class HitachiYutakiDHWClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], C
         self._attr_supported_features = (
             ClimateEntityFeature.TARGET_TEMPERATURE
             | ClimateEntityFeature.PRESET_MODE
+            | ClimateEntityFeature.TURN_ON
+            | ClimateEntityFeature.TURN_OFF
         )
 
         # Set temperature settings

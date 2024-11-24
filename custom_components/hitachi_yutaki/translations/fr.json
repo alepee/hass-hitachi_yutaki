@@ -249,6 +249,22 @@
                         }
                     }
                 }
+            },
+            "dhw_climate": {
+                "name": "Contrôle ECS",
+                "state": {
+                    "off": "Arrêt",
+                    "heat": "Chauffage"
+                },
+                "state_attributes": {
+                    "preset_mode": {
+                        "state": {
+                            "dhw_off": "Arrêt",
+                            "dhw_standard": "Standard",
+                            "dhw_high_demand": "Haute Demande"
+                        }
+                    }
+                }
             }
         }
     }
