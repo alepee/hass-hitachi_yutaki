@@ -44,7 +44,7 @@ ADVANCED_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.port,
         vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): vol.All(
-            cv.positive_int, vol.Range(min=1, max=247)
+            vol.Coerce(int), vol.Range(min=1, max=247)
         ),
         vol.Optional(
             CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
@@ -58,6 +58,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
 
     VERSION = 1
+    MINOR_VERSION = 1
 
     def __init__(self):
         """Initialize the config flow."""

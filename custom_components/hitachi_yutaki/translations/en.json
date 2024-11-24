@@ -33,7 +33,7 @@
                     "host": "IP address",
                     "show_advanced": "Show advanced settings"
                 },
-                "description": "Configure your Hitachi Yutaki heat pump via ATW-MBS-02 gateway.",
+                "description": "Configure your Hitachi Yutaki heat pump via the Modbus TCP/IP interface exposed by the ATW-MBS-02 gateway. Important: your heat pump must be configured in 'Air' control mode to allow the gateway full read and write access to the heat pump control registers.",
                 "title": "Hitachi Yutaki"
             },
             "advanced": {
