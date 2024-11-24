@@ -26,6 +26,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    DEVICE_DHW,
     DOMAIN,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
