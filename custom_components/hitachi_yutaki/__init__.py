@@ -63,7 +63,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     def get_translated_name(device_key: str, fallback: str) -> str:
         """Get translated name for device with fallback."""
-        return translations.get(f"device.{device_key}.name", fallback)
+        return translations.get(f"{device_key}.name", fallback)
 
     # Add gateway device
     gateway_name = get_translated_name("gateway", DEVICE_GATEWAY.title())
