@@ -45,13 +45,22 @@ MODEL_NAMES = {
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Hitachi Yutaki from a config entry."""
+    _LOGGER.info("Setting up Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
+
     coordinator = HitachiYutakiDataCoordinator(hass, entry)
     await coordinator.async_config_entry_first_refresh()
+    _LOGGER.debug("Data coordinator initialized and first refresh completed")
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
+    # Get unit model
+    unit_model = coordinator.data.get("unit_model")
+    model_name = MODEL_NAMES.get(unit_model, "Unknown Model")
+    _LOGGER.info("Detected Hitachi unit model: %s", model_name)
+
     # Register devices
     device_registry = dr.async_get(hass)
+    _LOGGER.debug("Registering devices for unit model %s", model_name)
 
     # Get translations for device names
     translations = await async_get_translations(
@@ -60,10 +69,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "device",
         DOMAIN
     )
+    _LOGGER.debug("Loaded translations for language '%s'. Available translations: %s",
+                  hass.config.language,
+                  {key: value for key, value in translations.items() if key.endswith(".name")})
 
     def get_translated_name(device_key: str, fallback: str) -> str:
         """Get translated name for device with fallback."""
-        return translations.get(f"{device_key}.name", fallback)
+        translation_key = f"{device_key}.name"
+        translated_name = translations.get(translation_key, fallback)
+        _LOGGER.debug("Translation for '%s': using %s ('%s')",
+                      device_key,
+                      "translation" if translation_key in translations else "fallback",
+                      translated_name)
+        return translated_name
 
     # Add gateway device
     gateway_name = get_translated_name("gateway", DEVICE_GATEWAY.title())
@@ -75,10 +93,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         name=gateway_name,
         configuration_url=f"http://{entry.data[CONF_HOST]}",
     )
-
-    # Get unit model
-    unit_model = coordinator.data.get("unit_model")
-    model_name = MODEL_NAMES.get(unit_model, "Unknown Model")
 
     # Add main unit device
     control_unit_name = get_translated_name("control_unit", DEVICE_CONTROL_UNIT.replace("_", " ").title())
@@ -104,6 +118,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Add secondary compressor device for S80 model
     if coordinator.is_s80_model():
+        _LOGGER.debug("S80 model detected, registering secondary compressor")
         secondary_compressor_name = get_translated_name("secondary_compressor", DEVICE_SECONDARY_COMPRESSOR.replace("_", " ").title())
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -116,6 +131,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Add Circuit 1 device if configured
     if coordinator.has_heating_circuit1() or coordinator.has_cooling_circuit1():
+        _LOGGER.debug("Circuit 1 configured, registering device")
         circuit1_name = get_translated_name("circuit1", DEVICE_CIRCUIT_1.replace("_", " ").title())
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -128,6 +144,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Add Circuit 2 device if configured
     if coordinator.has_heating_circuit2() or coordinator.has_cooling_circuit2():
+        _LOGGER.debug("Circuit 2 configured, registering device")
         circuit2_name = get_translated_name("circuit2", DEVICE_CIRCUIT_2.replace("_", " ").title())
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -140,6 +157,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Add DHW device if configured
     if coordinator.has_dhw():
+        _LOGGER.debug("DHW configured, registering device")
         dhw_name = get_translated_name("dhw_heater", DEVICE_DHW.replace("_", " ").capitalize())
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -152,6 +170,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Add Pool device if configured
     if coordinator.has_pool():
+        _LOGGER.debug("Pool configured, registering device")
         pool_name = get_translated_name("pool", DEVICE_POOL.replace("_", " ").title())
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -163,19 +182,24 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    _LOGGER.info("Hitachi Yutaki integration setup completed for %s", entry.data[CONF_NAME])
 
     return True
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
+    _LOGGER.info("Unloading Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
+
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
         # Close Modbus connection
         if coordinator.modbus_client.connected:
+            _LOGGER.debug("Closing Modbus connection")
             coordinator.modbus_client.close()
 
         hass.data[DOMAIN].pop(entry.entry_id)
+        _LOGGER.info("Hitachi Yutaki integration unloaded successfully")
 
     return unload_ok
