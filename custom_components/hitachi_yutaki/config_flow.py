@@ -33,8 +33,8 @@ _LOGGER = logging.getLogger(__name__)
 # Basic schema with essential options and advanced mode checkbox
 BASE_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
+        vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
         vol.Required("show_advanced", default=False): bool,
     }
 )

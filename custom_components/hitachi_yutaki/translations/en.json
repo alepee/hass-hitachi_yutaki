@@ -29,13 +29,9 @@
         "step": {
             "user": {
                 "data": {
-                    "host": "IP address",
-                    "port": "Port",
                     "name": "Name",
-                    "show_advanced": "Show advanced settings",
-                    "slave": "Modbus slave ID",
-                    "scan_interval": "Scan interval (seconds)",
-                    "dev_mode": "Developer mode (show all device types)"
+                    "host": "IP address",
+                    "show_advanced": "Show advanced settings"
                 },
                 "description": "Configure your Hitachi Yutaki heat pump via ATW-MBS-02 gateway.",
                 "title": "Hitachi Yutaki"
@@ -45,7 +41,7 @@
                     "port": "Port",
                     "slave": "Modbus slave ID",
                     "scan_interval": "Scan interval (seconds)",
-                    "dev_mode": "Developer mode"
+                    "dev_mode": "Developer mode (add all devices, even if they are not configured in the system)"
                 },
                 "description": "Advanced settings are intended for developers and users with custom Modbus configurations. Only modify these values if you know what you're doing.",
                 "title": "Advanced Settings"
