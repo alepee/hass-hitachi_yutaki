@@ -345,7 +345,7 @@ class HitachiYutakiDHWClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], C
         if temp > 32767:  # If highest bit is set (negative number)
             temp = temp - 65536
 
-        return float(temp) / 10
+        return float(temp)
 
     @property
     def target_temperature(self) -> float | None:
@@ -357,7 +357,7 @@ class HitachiYutakiDHWClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], C
         if temp is None:
             return None
 
-        return float(temp) / 10
+        return float(temp)
 
     @property
     def hvac_mode(self) -> HVACMode | None:
