@@ -32,6 +32,9 @@ from .const import (
     MASK_DEFROST,
     MASK_COMPRESSOR,
     PRESET_COMFORT,
+    PRESET_DHW_OFF,
+    PRESET_DHW_STANDARD,
+    PRESET_DHW_HIGH_DEMAND,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
@@ -45,6 +48,13 @@ CLIMATE_DESCRIPTIONS: Final[tuple[HitachiYutakiClimateEntityDescription, ...]] =
     HitachiYutakiClimateEntityDescription(
         key="climate",
         translation_key="climate",
+    ),
+)
+
+DHW_CLIMATE_DESCRIPTIONS: Final[tuple[HitachiYutakiClimateEntityDescription, ...]] = (
+    HitachiYutakiClimateEntityDescription(
+        key="dhw_climate",
+        translation_key="dhw_climate",
     ),
 )
 
@@ -81,6 +91,18 @@ async def async_setup_entry(
                     identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_2}")},
                 ),
                 circuit_id=2,
+            )
+        )
+
+    # Add DHW climate if configured
+    if coordinator.has_dhw():
+        entities.append(
+            HitachiYutakiDHWClimate(
+                coordinator=coordinator,
+                description=DHW_CLIMATE_DESCRIPTIONS[0],
+                device_info=DeviceInfo(
+                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_DHW}")},
+                ),
             )
         )
 
@@ -263,4 +285,130 @@ class HitachiYutakiClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], Clim
         await self.coordinator.async_write_register(
             f"{self._register_prefix}_eco_mode",
             0 if preset_mode == PRESET_ECO else 1
+        )
+
+
+class HitachiYutakiDHWClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], ClimateEntity):
+    """Representation of a Hitachi Yutaki DHW Climate."""
+
+    entity_description: HitachiYutakiClimateEntityDescription
+
+    def __init__(
+        self,
+        coordinator: HitachiYutakiDataCoordinator,
+        description: HitachiYutakiClimateEntityDescription,
+        device_info: DeviceInfo,
+    ) -> None:
+        """Initialize the climate entity."""
+        super().__init__(coordinator)
+        self.entity_description = description
+        self._attr_unique_id = f"{coordinator.slave}_dhw_climate"
+        self._attr_device_info = device_info
+        self._attr_has_entity_name = True
+
+        # Set supported features
+        self._attr_supported_features = (
+            ClimateEntityFeature.TARGET_TEMPERATURE
+            | ClimateEntityFeature.PRESET_MODE
+        )
+
+        # Set temperature settings
+        self._attr_min_temp = 30.0
+        self._attr_max_temp = 60.0
+        self._attr_target_temperature_step = 1.0
+        self._attr_temperature_unit = UnitOfTemperature.CELSIUS
+
+        # Set available modes
+        self._attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT]
+
+        # Set available presets
+        self._attr_preset_modes = [
+            PRESET_DHW_OFF,
+            PRESET_DHW_STANDARD,
+            PRESET_DHW_HIGH_DEMAND,
+        ]
+
+    @property
+    def current_temperature(self) -> float | None:
+        """Return the current temperature."""
+        if self.coordinator.data is None:
+            return None
+
+        temp = self.coordinator.data.get("dhw_current_temp")
+        if temp is None:
+            return None
+
+        # Convert from 2's complement if necessary (16-bit signed integer)
+        if temp > 32767:  # If highest bit is set (negative number)
+            temp = temp - 65536
+
+        return float(temp) / 10
+
+    @property
+    def target_temperature(self) -> float | None:
+        """Return the temperature we try to reach."""
+        if self.coordinator.data is None:
+            return None
+
+        temp = self.coordinator.data.get("dhw_target_temp")
+        if temp is None:
+            return None
+
+        return float(temp) / 10
+
+    @property
+    def hvac_mode(self) -> HVACMode | None:
+        """Return hvac operation mode."""
+        if self.coordinator.data is None:
+            return None
+
+        power = self.coordinator.data.get("dhw_power")
+        return HVACMode.HEAT if power == 1 else HVACMode.OFF
+
+    @property
+    def preset_mode(self) -> str | None:
+        """Return the current preset mode."""
+        if self.coordinator.data is None:
+            return None
+
+        power = self.coordinator.data.get("dhw_power")
+        if power == 0:
+            return PRESET_DHW_OFF
+
+        high_demand = self.coordinator.data.get("dhw_mode")
+        return PRESET_DHW_HIGH_DEMAND if high_demand == 1 else PRESET_DHW_STANDARD
+
+    async def async_set_temperature(self, **kwargs) -> None:
+        """Set new target temperature."""
+        if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
+            return
+
+        await self.coordinator.async_write_register(
+            "dhw_target_temp",
+            int(temperature * 10)
+        )
+
+    async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
+        """Set new target hvac mode."""
+        await self.coordinator.async_write_register(
+            "dhw_power",
+            1 if hvac_mode == HVACMode.HEAT else 0
+        )
+
+    async def async_set_preset_mode(self, preset_mode: str) -> None:
+        """Set new preset mode."""
+        if preset_mode not in self.preset_modes:
+            return
+
+        if preset_mode == PRESET_DHW_OFF:
+            await self.coordinator.async_write_register("dhw_power", 0)
+            return
+
+        # For all other modes, ensure power is on
+        await self.coordinator.async_write_register("dhw_power", 1)
+
+        # Set high demand mode
+        await self.coordinator.async_write_register(
+            "dhw_mode",
+            1 if preset_mode == PRESET_DHW_HIGH_DEMAND else 0
         )
