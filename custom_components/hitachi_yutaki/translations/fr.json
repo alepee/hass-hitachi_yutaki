@@ -33,7 +33,7 @@
                     "host": "Adresse IP",
                     "show_advanced": "Afficher les paramètres avancés"
                 },
-                "description": "Configurez votre pompe à chaleur Hitachi Yutaki via la passerelle ATW-MBS-02.",
+                "description": "Configurez votre pompe à chaleur Hitachi Yutaki via l'interface Modbus TCP/IP exposée par la passerelle ATW-MBS-02. Important : votre pompe à chaleur doit être configurée en mode de contrôle 'Air' pour permettre à la passerelle d'avoir un accès complet en lecture et écriture aux registres de contrôle de la pompe à chaleur.",
                 "title": "Hitachi Yutaki"
             },
             "advanced": {
