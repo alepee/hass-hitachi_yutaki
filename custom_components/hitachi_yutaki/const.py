@@ -144,13 +144,14 @@ MODEL_NAMES = {
     UNIT_MODEL_M: "Yutaki M",
 }
 
-# Add these constants for HVAC modes and presets
+# HVAC modes
 HVAC_MODE_MAP = {
     "cool": 0,
     "heat": 1,
     "auto": 2,
 }
 
+# Central control modes
 CENTRAL_CONTROL_MODE_MAP = {
     "local": 0,
     "air": 1,
@@ -158,5 +159,11 @@ CENTRAL_CONTROL_MODE_MAP = {
     "total": 3,
 }
 
+# HVAC presets
 PRESET_COMFORT = "comfort"
 PRESET_ECO = "eco"
+
+# DHW presets
+PRESET_DHW_OFF = "off"
+PRESET_DHW_STANDARD = "standard"
+PRESET_DHW_HIGH_DEMAND = "high_demand"
