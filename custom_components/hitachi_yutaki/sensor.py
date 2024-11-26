@@ -82,6 +82,16 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         register_key="water_outlet_temp",
         needs_conversion=True,
     ),
+    HitachiYutakiSensorEntityDescription(
+        key="water_target_temp",
+        translation_key="water_target_temp",
+        description="Target water temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        register_key="water_target_temp",
+        needs_conversion=True,
+    ),
 )
 
 DHW_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (

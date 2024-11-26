@@ -69,6 +69,9 @@
             "water_outlet_temp": {
                 "name": "Température de Sortie d'Eau"
             },
+            "water_target_temp": {
+                "name": "Température Cible Corrigée"
+            },
             "water_flow": {
                 "name": "Débit d'Eau"
             },

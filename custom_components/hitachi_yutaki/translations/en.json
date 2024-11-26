@@ -69,6 +69,9 @@
             "water_outlet_temp": {
                 "name": "Water Outlet Temperature"
             },
+            "water_target_temp": {
+                "name": "Corrected Target Temperature"
+            },
             "water_flow": {
                 "name": "Water Flow"
             },
