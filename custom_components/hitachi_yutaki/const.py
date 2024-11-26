@@ -107,6 +107,7 @@ REGISTER_SENSOR = {
     "outdoor_temp": 1091,
     "water_inlet_temp": 1092,
     "water_outlet_temp": 1093,
+    "water_target_temp": 1219,
     "water_flow": 1220,
     "pump_speed": 1221,
     "dhw_current_temp": 1080,
