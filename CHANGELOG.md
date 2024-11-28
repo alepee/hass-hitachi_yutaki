@@ -5,7 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.0.0] - 2023-12-05
+## [1.1.0] - 2024-11-28
+
+### Added
+- Added detailed error descriptions for all alarm codes
+- Improved alarm code sensor to display both code and description
+
+## [1.0.0] - 2024-11-05
 
 ### Added
 - Initial release of the Hitachi Yutaki integration

@@ -47,6 +47,7 @@ The integration automatically detects your heat pump model and available feature
 #### System Status
 | Entity | Type | Description | Values |
 |--------|------|-------------|---------|
+| alarm_code | sensor | Current alarm code with description. Provides detailed error descriptions | - |
 | defrost | binary_sensor | Indicates if the unit is currently in defrost mode | on/off |
 | solar | binary_sensor | Indicates if the solar system is active | on/off |
 | pump1 | binary_sensor | Indicates if water pump 1 is running | on/off |

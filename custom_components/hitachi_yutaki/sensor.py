@@ -1,7 +1,7 @@
 """Sensor platform for Hitachi Yutaki."""
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Final
+from typing import Final, Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -49,6 +49,7 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     model_required: str | None = None
     translation_key: str | None = None
     description: str | None = None
+    fallback_translation_key: str | None = None
 
 
 TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
@@ -157,7 +158,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         translation_key="alarm_code",
         description="Alarm code",
         device_class=None,
-        state_class=SensorStateClass.MEASUREMENT,
+        state_class=None,
         register_key="alarm_code",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -394,3 +395,16 @@ class HitachiYutakiSensor(
                 return value / 10  # Convert to A
 
         return value
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        """Return the state attributes of the sensor."""
+        if self.entity_description.key == "alarm_code":
+            value = self.coordinator.data.get(self.entity_description.register_key)
+            if value is not None:
+                alarm_code = str(value)
+                return {
+                    "code": alarm_code,
+                    "description": f"alarm_code_{alarm_code}"  # Home Assistant gérera automatiquement le fallback
+                }
+        return None
