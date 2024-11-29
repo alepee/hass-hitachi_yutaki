@@ -95,11 +95,11 @@ REGISTER_CONTROL = {
     "dhw_power": 1024,
     "dhw_target_temp": 1025,
     "dhw_boost": 1026,
-    "dhw_mode": 1027,
+    "dhw_high_demand": 1027,
     "pool_power": 1028,
     "pool_target_temp": 1029,
-    "antilegionella_power": 1030,
-    "antilegionella_temp": 1031,
+    "dhw_antilegionella_power": 1030,
+    "dhw_antilegionella_temp": 1031,
 }
 
 # Sensor registers (addresses)
