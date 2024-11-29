@@ -1,4 +1,5 @@
 """Sensor platform for Hitachi Yutaki."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -250,7 +251,9 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
     ),
 )
 
-SECONDARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
+SECONDARY_COMPRESSOR_SENSORS: Final[
+    tuple[HitachiYutakiSensorEntityDescription, ...]
+] = (
     HitachiYutakiSensorEntityDescription(
         key="r134a_discharge_temp",
         translation_key="r134a_discharge_temp",
@@ -403,7 +406,9 @@ async def async_setup_entry(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")},
+                    identifiers={
+                        (DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")
+                    },
                 ),
             )
             for description in SECONDARY_COMPRESSOR_SENSORS
@@ -432,7 +437,7 @@ class HitachiYutakiSensor(
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
-    @ property
+    @property
     def native_value(self) -> StateType:
         """Return the state of the sensor."""
         if (
@@ -467,6 +472,6 @@ class HitachiYutakiSensor(
                 alarm_code = str(value)
                 return {
                     "code": alarm_code,
-                    "description": f"alarm_code_{alarm_code}"  # Home Assistant gérera automatiquement le fallback
+                    "description": f"alarm_code_{alarm_code}",  # Home Assistant gérera automatiquement le fallback
                 }
         return None
