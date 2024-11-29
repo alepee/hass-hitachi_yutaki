@@ -90,13 +90,14 @@ DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         translation_key="boost",
         description="Temporarily boost DHW production",
         register_key="dhw_boost",
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiSwitchEntityDescription(
         key="high_demand",
         translation_key="high_demand",
+        icon="mdi:crowd",
         description="Enable high demand mode for increased DHW production",
         register_key="dhw_mode",
-        entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiSwitchEntityDescription(
         key="antilegionella",
