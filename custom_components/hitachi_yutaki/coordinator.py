@@ -21,20 +21,18 @@ from homeassistant.helpers.update_coordinator import (
 
 from .const import (
     DOMAIN,
-    MASK_POOL,
-    REGISTER_CONTROL,
-    REGISTER_SENSOR,
-    REGISTER_R134A,
-    REGISTER_UNIT_MODEL,
-    REGISTER_SYSTEM_CONFIG,
-    REGISTER_SYSTEM_STATUS,
     MASK_CIRCUIT1_COOLING,
-    MASK_CIRCUIT2_COOLING,
     MASK_CIRCUIT1_HEATING,
+    MASK_CIRCUIT2_COOLING,
     MASK_CIRCUIT2_HEATING,
     MASK_DHW,
-    MASK_SOLAR,
-    MASK_BOILER,
+    MASK_POOL,
+    REGISTER_CONTROL,
+    REGISTER_R134A,
+    REGISTER_SENSOR,
+    REGISTER_SYSTEM_CONFIG,
+    REGISTER_SYSTEM_STATUS,
+    REGISTER_UNIT_MODEL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -113,7 +111,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             return data
 
-        except Exception as error:
+        except Exception:
             # Set is_available to False on any error
             return {"is_available": False}
 

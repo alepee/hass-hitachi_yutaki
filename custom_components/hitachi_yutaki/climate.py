@@ -1,19 +1,16 @@
 """Climate platform for Hitachi Yutaki."""
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Final
 
 from homeassistant.components.climate import (
+    PRESET_ECO,
     ClimateEntity,
     ClimateEntityDescription,
     ClimateEntityFeature,
     HVACAction,
     HVACMode,
-    PRESET_ECO,
-    PRESET_NONE,
-)
-from homeassistant.components.climate.const import (
-    ATTR_HVAC_MODE,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
@@ -21,21 +18,17 @@ from homeassistant.const import (
     UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DEVICE_DHW,
-    DOMAIN,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
-    MASK_DEFROST,
+    DOMAIN,
     MASK_COMPRESSOR,
+    MASK_DEFROST,
     PRESET_COMFORT,
-    PRESET_DHW_OFF,
-    PRESET_DHW_STANDARD,
-    PRESET_DHW_HIGH_DEMAND,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 

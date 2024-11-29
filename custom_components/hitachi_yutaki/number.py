@@ -1,5 +1,6 @@
 """Number platform for Hitachi Yutaki."""
 from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import Final
 
@@ -10,21 +11,20 @@ from homeassistant.components.number import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
-    UnitOfTemperature,
     EntityCategory,
+    UnitOfTemperature,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DOMAIN,
-    DEVICE_CONTROL_UNIT,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
     DEVICE_DHW,
     DEVICE_POOL,
+    DOMAIN,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 

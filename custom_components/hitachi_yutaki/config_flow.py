@@ -1,5 +1,6 @@
 """Config flow for Hitachi Yutaki integration."""
 from __future__ import annotations
+
 import logging
 from typing import Any
 
@@ -8,24 +9,24 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import (
     CONF_HOST,
-    CONF_PORT,
     CONF_NAME,
-    CONF_SLAVE,
+    CONF_PORT,
     CONF_SCAN_INTERVAL,
+    CONF_SLAVE,
 )
 from homeassistant.data_entry_flow import FlowResult
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
-    DOMAIN,
-    DEFAULT_NAME,
+    CENTRAL_CONTROL_MODE_MAP,
     DEFAULT_HOST,
+    DEFAULT_NAME,
     DEFAULT_PORT,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
-    REGISTER_UNIT_MODEL,
+    DOMAIN,
     REGISTER_CENTRAL_CONTROL_MODE,
-    CENTRAL_CONTROL_MODE_MAP,
+    REGISTER_UNIT_MODEL,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -194,7 +195,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             finally:
                 client.close()
 
-        except Exception:  # pylint: disable=broad-except
+        except Exception:
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
 
