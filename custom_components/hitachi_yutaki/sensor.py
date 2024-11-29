@@ -1,7 +1,8 @@
 """Sensor platform for Hitachi Yutaki."""
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Final, Any
+from typing import Any, Final
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -12,30 +13,27 @@ from homeassistant.components.sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     PERCENTAGE,
-    UnitOfTemperature,
-    UnitOfPressure,
-    UnitOfFrequency,
     UnitOfElectricCurrent,
-    UnitOfVolumeFlowRate,
     UnitOfEnergy,
+    UnitOfFrequency,
+    UnitOfPressure,
+    UnitOfTemperature,
+    UnitOfVolumeFlowRate,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    DEVICE_CONTROL_UNIT,
     DEVICE_DHW,
     DEVICE_POOL,
     DEVICE_PRIMARY_COMPRESSOR,
     DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
-    DEVICE_CONTROL_UNIT,
-    UNIT_MODEL_YUTAKI_S,
-    UNIT_MODEL_YUTAKI_S_COMBI,
     UNIT_MODEL_S80,
-    UNIT_MODEL_M,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 

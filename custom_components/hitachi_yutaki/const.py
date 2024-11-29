@@ -1,9 +1,5 @@
 """Constants for the Hitachi Yutaki integration."""
 from homeassistant.const import (
-    CONF_HOST,
-    CONF_PORT,
-    CONF_NAME,
-    CONF_SLAVE,
     Platform,
 )
 

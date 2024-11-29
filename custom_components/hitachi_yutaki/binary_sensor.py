@@ -12,26 +12,26 @@ from homeassistant.components.binary_sensor import (
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import (
     CoordinatorEntity,
 )
 
 from .const import (
+    DEVICE_CONTROL_UNIT,
+    DEVICE_GATEWAY,
     DOMAIN,
+    MASK_BOILER,
+    MASK_COMPRESSOR,
     MASK_DEFROST,
-    MASK_SOLAR,
+    MASK_DHW_HEATER,
     MASK_PUMP1,
     MASK_PUMP2,
     MASK_PUMP3,
-    MASK_COMPRESSOR,
-    MASK_BOILER,
-    MASK_DHW_HEATER,
-    MASK_SPACE_HEATER,
     MASK_SMART_FUNCTION,
-    DEVICE_CONTROL_UNIT,
-    DEVICE_GATEWAY,
+    MASK_SOLAR,
+    MASK_SPACE_HEATER,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
@@ -39,6 +39,7 @@ from .coordinator import HitachiYutakiDataCoordinator
 @dataclass
 class HitachiYutakiBinarySensorEntityDescription(BinarySensorEntityDescription):
     """Class describing Hitachi Yutaki binary sensor entities."""
+
     register_key: str | None = None
     mask: int | None = None
     description: str | None = None
