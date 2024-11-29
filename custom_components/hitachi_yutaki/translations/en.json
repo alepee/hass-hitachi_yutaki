@@ -84,6 +84,24 @@
             "compressor_current": {
                 "name": "Compressor Current"
             },
+            "compressor_tg_gas_temp": {
+                "name": "Gas Temperature"
+            },
+            "compressor_ti_liquid_temp": {
+                "name": "Liquid Temperature"
+            },
+            "compressor_td_discharge_temp": {
+                "name": "Discharge Temperature"
+            },
+            "compressor_te_evaporator_temp": {
+                "name": "Evaporator Temperature"
+            },
+            "compressor_evi_indoor_expansion_valve_opening": {
+                "name": "Indoor Expansion Valve Opening"
+            },
+            "compressor_evo_outdoor_expansion_valve_opening": {
+                "name": "Outdoor Expansion Valve Opening"
+            },
             "power_consumption": {
                 "name": "Power Consumption"
             },
