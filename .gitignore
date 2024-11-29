@@ -2,20 +2,18 @@
 config/
 
 #Links for local development
+/translations
 /__init__.py
-/manifest.json
-/reuse.py
-/sensor.py
-/easee.py
-/services.yaml
-/services.py
+/binary_sensor.py
+/climate.py
 /config_flow.py
 /const.py
-/translations
-/controller.py
-/entity.py
+/coordinator.py
+/manifest.json
+/number.py
+/select.py
+/sensor.py
 /switch.py
-/binary_sensor.py
 
 todo
 

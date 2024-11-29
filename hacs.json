@@ -1,6 +1,6 @@
 {
   "name": "Hitachi Yutaki",
-  "content_in_root": false,
-  "hide_default_branch": false,
-  "homeassistant": "2024.1.0"
+  "filename": "hitachi_yutaki.zip",
+  "homeassistant": "2024.1.0",
+  "zip_release": true
 }
