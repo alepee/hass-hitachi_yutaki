@@ -1,0 +1,6 @@
+colorlog==6.9.0
+ruff==0.7.0
+bump2version
+wheel
+
+pymodbus==3.6.9

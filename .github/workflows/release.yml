@@ -1,36 +1,32 @@
 name: Release
 
 on:
-  push:
-    branches:
-      - main
+  release:
+    types: [published]
 
 jobs:
-  release:
+  release_zip_file:
+    name: Prepare release asset
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Check out repository
+        uses: actions/checkout@v4.2.2
 
-      - name: Configure Git
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # Pack the hitachi_yutaki dir as a zip and upload to the release
+      - name: ZIP hitachi_yutaki Dir
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-            
-      - name: Generate version
-        uses: alepee/calendar-version-action@v1
-        id: version
+          cd ${{ github.workspace }}/custom_components/hitachi_yutaki
+          zip hitachi_yutaki.zip -r ./
+      - name: Upload zip to release
+        uses: svenstaro/upload-release-action@2.9.0
         with:
-          dateFormat: "YYYY.0M"
-          format: "%NOW%.0b%MICRO%"
-  
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: v${{ steps.version.outputs.version }}
-          name: ${{ steps.version.outputs.version }}
-          draft: false
-          prerelease: true
-          generate_release_notes: true
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{ github.workspace }}/custom_components/hitachi_yutaki/hitachi_yutaki.zip
+          asset_name: hitachi_yutaki.zip
+          tag: ${{ github.ref }}
+          overwrite: true

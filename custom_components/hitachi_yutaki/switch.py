@@ -1,7 +1,9 @@
 """Switch platform for Hitachi Yutaki."""
 from __future__ import annotations
+
 from dataclasses import dataclass
-from typing import Final, Any
+import logging
+from typing import Any, Final
 
 from homeassistant.components.switch import (
     SwitchEntity,
@@ -12,21 +14,19 @@ from homeassistant.const import (
     EntityCategory,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
-    DOMAIN,
-    DEVICE_CONTROL_UNIT,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
+    DEVICE_CONTROL_UNIT,
     DEVICE_DHW,
     DEVICE_POOL,
+    DOMAIN,
 )
 from .coordinator import HitachiYutakiDataCoordinator
-
-import logging
 
 _LOGGER = logging.getLogger(__name__)
 

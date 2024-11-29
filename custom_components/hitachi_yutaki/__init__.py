@@ -1,4 +1,5 @@
 """The Hitachi Yutaki integration."""
+
 from __future__ import annotations
 
 import logging
@@ -7,29 +8,27 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
-    Platform,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
-from homeassistant.helpers.translation import async_get_translations
 
 from .const import (
+    DEVICE_CIRCUIT_1,
+    DEVICE_CIRCUIT_2,
+    DEVICE_CONTROL_UNIT,
+    DEVICE_DHW,
+    DEVICE_GATEWAY,
+    DEVICE_POOL,
+    DEVICE_PRIMARY_COMPRESSOR,
+    DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
     GATEWAY_MODEL,
     MANUFACTURER,
     PLATFORMS,
-    DEVICE_GATEWAY,
-    DEVICE_CONTROL_UNIT,
-    DEVICE_PRIMARY_COMPRESSOR,
-    DEVICE_SECONDARY_COMPRESSOR,
-    DEVICE_CIRCUIT_1,
-    DEVICE_CIRCUIT_2,
-    DEVICE_DHW,
-    DEVICE_POOL,
+    UNIT_MODEL_M,
+    UNIT_MODEL_S80,
     UNIT_MODEL_YUTAKI_S,
     UNIT_MODEL_YUTAKI_S_COMBI,
-    UNIT_MODEL_S80,
-    UNIT_MODEL_M,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
@@ -161,7 +160,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    _LOGGER.info("Hitachi Yutaki integration setup completed for %s", entry.data[CONF_NAME])
+    _LOGGER.info(
+        "Hitachi Yutaki integration setup completed for %s", entry.data[CONF_NAME]
+    )
 
     return True
 
