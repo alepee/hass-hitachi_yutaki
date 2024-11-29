@@ -98,7 +98,7 @@ REGISTER_CONTROL = {
     "dhw_high_demand": 1027,
     "pool_power": 1028,
     "pool_target_temp": 1029,
-    "dhw_antilegionella_power": 1030,
+    "dhw_antilegionella": 1030,
     "dhw_antilegionella_temp": 1031,
 }
 
