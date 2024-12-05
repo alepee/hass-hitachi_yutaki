@@ -29,7 +29,7 @@ change-template: "- $TITLE @$AUTHOR (#$NUMBER)"
 change-title-escapes: '\<*_&' # You can add # and @ to disable mentions, and add ` to disable code blocks.
 
 template: |
-  [![Downloads for this release](https://img.shields.io/github/downloads/alepee/hitachi_yutaki/v$RESOLVED_VERSION/total.svg)](https://github.com/alepee/hitachi_yutaki/releases/v$RESOLVED_VERSION)
+  [![Downloads for this release](https://img.shields.io/github/downloads/alepee/hass-hitachi_yutaki/v$RESOLVED_VERSION/total.svg)](https://github.com/alepee/hass-hitachi_yutaki/releases/v$RESOLVED_VERSION)
 
   ### Don't forget to run `make lint` and `make bump` before releasing new version
 
