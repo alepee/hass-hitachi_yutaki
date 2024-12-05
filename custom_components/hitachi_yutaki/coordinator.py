@@ -1,4 +1,5 @@
 """DataUpdateCoordinator for Hitachi Yutaki integration."""
+
 from datetime import timedelta
 import logging
 from typing import Any
@@ -131,7 +132,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 "Writing value %s to register %s (address: %s)",
                 value,
                 register_key,
-                register_address
+                register_address,
             )
 
             result = await self.hass.async_add_executor_job(
@@ -151,17 +152,21 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             return True
 
         except ModbusException as error:
-            _LOGGER.error("ModbusException writing to register %s: %s", register_key, error)
+            _LOGGER.error(
+                "ModbusException writing to register %s: %s", register_key, error
+            )
             return False
         except Exception as error:
-            _LOGGER.error("Unexpected error writing to register %s: %s", register_key, error)
+            _LOGGER.error(
+                "Unexpected error writing to register %s: %s", register_key, error
+            )
             return False
 
     def convert_temperature(self, value: int) -> float:
         """Convert a raw temperature value."""
         if value > 32767:  # Handle negative values (2's complement)
             value -= 65536
-        return float(value)
+        return int(value)
 
     def convert_pressure(self, value: int) -> float:
         """Convert a raw pressure value to MPa."""
