@@ -43,6 +43,13 @@ from .coordinator import HitachiYutakiDataCoordinator
 class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     """Class describing Hitachi Yutaki sensor entities."""
 
+    key: str
+    device_class: SensorDeviceClass | None = None
+    state_class: SensorStateClass | None = None
+    native_unit_of_measurement: str | None = None
+    entity_category: EntityCategory | None = None
+    icon: str | None = None
+
     register_key: str | None = None
     needs_conversion: bool = False
     model_required: str | None = None

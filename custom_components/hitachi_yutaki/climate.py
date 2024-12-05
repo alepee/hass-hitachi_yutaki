@@ -1,4 +1,5 @@
 """Climate platform for Hitachi Yutaki."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -36,6 +37,9 @@ from .coordinator import HitachiYutakiDataCoordinator
 @dataclass
 class HitachiYutakiClimateEntityDescription(ClimateEntityDescription):
     """Class describing Hitachi Yutaki climate entities."""
+
+    key: str
+    translation_key: str
 
 
 CLIMATE_DESCRIPTIONS: Final[tuple[HitachiYutakiClimateEntityDescription, ...]] = (
@@ -84,7 +88,9 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], ClimateEntity):
+class HitachiYutakiClimate(
+    CoordinatorEntity[HitachiYutakiDataCoordinator], ClimateEntity
+):
     """Representation of a Hitachi Yutaki Climate."""
 
     entity_description: HitachiYutakiClimateEntityDescription
@@ -121,9 +127,17 @@ class HitachiYutakiClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], Clim
 
         # Set available modes
         self._attr_hvac_modes = [HVACMode.OFF]
-        if coordinator.has_heating_circuit1() if circuit_id == 1 else coordinator.has_heating_circuit2():
+        if (
+            coordinator.has_heating_circuit1()
+            if circuit_id == 1
+            else coordinator.has_heating_circuit2()
+        ):
             self._attr_hvac_modes.append(HVACMode.HEAT)
-        if coordinator.has_cooling_circuit1() if circuit_id == 1 else coordinator.has_cooling_circuit2():
+        if (
+            coordinator.has_cooling_circuit1()
+            if circuit_id == 1
+            else coordinator.has_cooling_circuit2()
+        ):
             self._attr_hvac_modes.append(HVACMode.COOL)
         if len(self._attr_hvac_modes) > 2:  # If both heating and cooling are available
             self._attr_hvac_modes.append(HVACMode.AUTO)
@@ -189,7 +203,7 @@ class HitachiYutakiClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], Clim
 
         # Check if in defrost mode
         if system_status & MASK_DEFROST:
-            return HVACAction.DEFROST
+            return HVACAction.DEFROSTING
 
         # Check if compressor is running
         if not (system_status & MASK_COMPRESSOR):
@@ -221,24 +235,19 @@ class HitachiYutakiClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], Clim
             return
 
         await self.coordinator.async_write_register(
-            f"{self._register_prefix}_target_temp",
-            int(temperature * 10)
+            f"{self._register_prefix}_target_temp", int(temperature * 10)
         )
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.OFF:
             await self.coordinator.async_write_register(
-                f"{self._register_prefix}_power",
-                0
+                f"{self._register_prefix}_power", 0
             )
             return
 
         # Ensure circuit is powered on
-        await self.coordinator.async_write_register(
-            f"{self._register_prefix}_power",
-            1
-        )
+        await self.coordinator.async_write_register(f"{self._register_prefix}_power", 1)
 
         # Set unit mode
         mode_map = {
@@ -248,8 +257,7 @@ class HitachiYutakiClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], Clim
         }
         if hvac_mode in mode_map:
             await self.coordinator.async_write_register(
-                "unit_mode",
-                mode_map[hvac_mode]
+                "unit_mode", mode_map[hvac_mode]
             )
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
@@ -258,6 +266,42 @@ class HitachiYutakiClimate(CoordinatorEntity[HitachiYutakiDataCoordinator], Clim
             return
 
         await self.coordinator.async_write_register(
-            f"{self._register_prefix}_eco_mode",
-            0 if preset_mode == PRESET_ECO else 1
+            f"{self._register_prefix}_eco_mode", 0 if preset_mode == PRESET_ECO else 1
         )
+
+    async def async_turn_on(self) -> None:
+        """Turn the entity on."""
+        await self.async_set_hvac_mode(
+            HVACMode.HEAT if HVACMode.HEAT in self._attr_hvac_modes else HVACMode.COOL
+        )
+
+    async def async_turn_off(self) -> None:
+        """Turn the entity off."""
+        await self.async_set_hvac_mode(HVACMode.OFF)
+
+    async def async_toggle(self) -> None:
+        """Toggle the entity."""
+        if self.hvac_mode == HVACMode.OFF:
+            await self.async_turn_on()
+        else:
+            await self.async_turn_off()
+
+    def set_humidity(self, humidity: int) -> None:
+        """Set new target humidity."""
+        raise NotImplementedError("Humidity control not supported")
+
+    def set_fan_mode(self, fan_mode: str) -> None:
+        """Set new target fan mode."""
+        raise NotImplementedError("Fan mode control not supported")
+
+    def set_swing_mode(self, swing_mode: str) -> None:
+        """Set new target swing operation."""
+        raise NotImplementedError("Swing mode control not supported")
+
+    async def async_turn_aux_heat_on(self) -> None:
+        """Turn auxiliary heater on."""
+        raise NotImplementedError("Auxiliary heat control not supported")
+
+    async def async_turn_aux_heat_off(self) -> None:
+        """Turn auxiliary heater off."""
+        raise NotImplementedError("Auxiliary heat control not supported")
