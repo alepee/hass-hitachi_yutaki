@@ -1,368 +1,371 @@
 {
-    "device": {
-        "gateway": {
-            "name": "Gateway"
-        },
-        "control_unit": {
-            "name": "Control Unit"
-        },
-        "primary_compressor": {
-            "name": "Outdoor Compressor"
-        },
-        "secondary_compressor": {
-            "name": "Indoor Compressor"
-        },
-        "circuit1": {
-            "name": "Circuit 1"
-        },
-        "circuit2": {
-            "name": "Circuit 2"
-        },
-        "dhw": {
-            "name": "DHW"
-        },
-        "pool": {
-            "name": "Pool"
-        }
+  "device": {
+    "gateway": {
+      "name": "Gateway"
     },
-    "config": {
-        "step": {
-            "user": {
-                "data": {
-                    "name": "Name",
-                    "host": "IP address",
-                    "show_advanced": "Show advanced settings"
-                },
-                "description": "Configure your Hitachi Yutaki heat pump via the Modbus TCP/IP interface exposed by the ATW-MBS-02 gateway. Important: your heat pump must be configured in 'Air' control mode to allow the gateway full read and write access to the heat pump control registers.",
-                "title": "Hitachi Yutaki"
-            },
-            "advanced": {
-                "data": {
-                    "port": "Port",
-                    "slave": "Modbus slave ID",
-                    "scan_interval": "Scan interval (seconds)",
-                    "dev_mode": "Developer mode (add all devices, even if they are not configured in the system)"
-                },
-                "description": "Advanced settings are intended for developers and users with custom Modbus configurations. Only modify these values if you know what you're doing.",
-                "title": "Advanced Settings"
-            }
-        },
-        "error": {
-            "cannot_connect": "Failed to connect",
-            "invalid_slave": "Invalid Modbus slave ID",
-            "modbus_error": "Modbus communication error",
-            "unknown": "Unexpected error",
-            "invalid_central_control_mode": "The heat pump must be configured in Central mode 'Air' (1). Possible modes: Local (0), Air (1), Water (2), Total (3). Please change this setting in your heat pump parameters. (System Configuration > General Options > External Control Option > Control Mode = Air)"
-        },
-        "abort": {
-            "already_configured": "Device is already configured"
-        }
+    "control_unit": {
+      "name": "Control Unit"
     },
-    "entity": {
-        "sensor": {
-            "outdoor_temp": {
-                "name": "Outdoor Temperature"
-            },
-            "water_inlet_temp": {
-                "name": "Water Inlet Temperature"
-            },
-            "water_outlet_temp": {
-                "name": "Water Outlet Temperature"
-            },
-            "water_target_temp": {
-                "name": "Corrected Target Temperature"
-            },
-            "water_flow": {
-                "name": "Water Flow"
-            },
-            "pump_speed": {
-                "name": "Pump Speed"
-            },
-            "compressor_frequency": {
-                "name": "Compressor Frequency"
-            },
-            "compressor_current": {
-                "name": "Compressor Current"
-            },
-            "compressor_tg_gas_temp": {
-                "name": "Gas Temperature"
-            },
-            "compressor_ti_liquid_temp": {
-                "name": "Liquid Temperature"
-            },
-            "compressor_td_discharge_temp": {
-                "name": "Discharge Temperature"
-            },
-            "compressor_te_evaporator_temp": {
-                "name": "Evaporator Temperature"
-            },
-            "compressor_evi_indoor_expansion_valve_opening": {
-                "name": "Indoor Expansion Valve Opening"
-            },
-            "compressor_evo_outdoor_expansion_valve_opening": {
-                "name": "Outdoor Expansion Valve Opening"
-            },
-            "power_consumption": {
-                "name": "Power Consumption"
-            },
-            "alarm_code": {
-                "name": "Alarm Code",
-                "state_attributes": {
-                    "description": {
-                        "state": {
-                            "alarm_code_0": "No Alarm",
-                            "alarm_code_2": "Activation of outdoor unit safety device",
-                            "alarm_code_3": "Abnormal transmission between indoor units and outdoor unit",
-                            "alarm_code_4": "Abnormal transmission between outdoor unit control PCB and inverter PCB",
-                            "alarm_code_5": "Phase detection signal abnormal operation code",
-                            "alarm_code_6": "Excessively low or high voltage for inverter",
-                            "alarm_code_7": "Decrease in discharge gas superheat",
-                            "alarm_code_8": "Excessive discharge gas temperature at top of compressor",
-                            "alarm_code_11": "Water inlet temperature thermistor abnormality (THMWI)",
-                            "alarm_code_12": "Water outlet temperature thermistor abnormality (THMWO)",
-                            "alarm_code_13": "Indoor R410A liquid pipe temperature thermistor abnormality (THML)",
-                            "alarm_code_14": "Indoor R410A gas pipe temperature thermistor abnormality (THMG)",
-                            "alarm_code_15": "Circuit 2 water outlet temperature thermistor abnormality (THMWO2)",
-                            "alarm_code_16": "DHW temperature thermistor abnormality (THMDHW)",
-                            "alarm_code_17": "Auxiliary sensor 2 abnormality (THMAUX2)",
-                            "alarm_code_18": "Universal sensor abnormality",
-                            "alarm_code_19": "Temperature thermistor abnormality",
-                            "alarm_code_20": "Discharge gas temperature thermistor abnormality",
-                            "alarm_code_21": "High pressure sensor abnormality",
-                            "alarm_code_22": "Outdoor temperature thermistor abnormality (THM7)",
-                            "alarm_code_23": "Discharge gas temperature thermistor abnormality (THM9)",
-                            "alarm_code_24": "Evaporation temperature thermistor abnormality during heating (THM8)",
-                            "alarm_code_25": "Auxiliary sensor 3 abnormality (THMAUX3)",
-                            "alarm_code_26": "Power or combined power setting error between indoor and outdoor unit",
-                            "alarm_code_35": "Power or combined power setting error between indoor and outdoor unit",
-                            "alarm_code_36": "Power or combined power setting error between indoor and outdoor unit",
-                            "alarm_code_38": "Protection circuit abnormality (outdoor unit)",
-                            "alarm_code_40": "Incorrect unit controller setting",
-                            "alarm_code_41": "High pressure switch overload",
-                            "alarm_code_42": "Heating overload (high pressure switch must be activated)",
-                            "alarm_code_45": "High pressure increase protection activation",
-                            "alarm_code_47": "System protection activation against insufficient suction pressure",
-                            "alarm_code_48": "Overcurrent protection activation",
-                            "alarm_code_51": "Current sensor abnormal operation",
-                            "alarm_code_53": "Transistor module activation",
-                            "alarm_code_54": "Inverter fin temperature abnormality",
-                            "alarm_code_57": "Fan motor protection abnormality (DC fan motor)",
-                            "alarm_code_70": "Water flow alarm and water pump malfunction",
-                            "alarm_code_72": "Water heater thermostat alarm",
-                            "alarm_code_73": "Mixed circuit maximum temperature limit protection",
-                            "alarm_code_74": "Unit temperature limit protection",
-                            "alarm_code_75": "Anti-freeze protection by cold water inlet/outlet temperature detection",
-                            "alarm_code_76": "Anti-freeze protection stop by indoor liquid temperature thermistor",
-                            "alarm_code_77": "Smart wireless receiver communication fault",
-                            "alarm_code_78": "RF communication fault",
-                            "alarm_code_79": "Incorrect power setting",
-                            "alarm_code_80": "H-LINK remote control communication fault",
-                            "alarm_code_81": "Momentary power interruption or Low voltage detected",
-                            "alarm_code_83": "Low pressure abnormality in hydraulic circuit",
-                            "alarm_code_101": "High pressure switch activation command",
-                            "alarm_code_102": "Excessive high pressure protection control activation",
-                            "alarm_code_104": "Low pressure protection control activation",
-                            "alarm_code_105": "Excessive low pressure difference",
-                            "alarm_code_106": "Excessive discharge gas temperature",
-                            "alarm_code_129": "Discharge gas pressure sensor failure",
-                            "alarm_code_130": "Suction gas pressure sensor failure",
-                            "alarm_code_132": "Transmission error between inverter PCB and main PCB",
-                            "alarm_code_134": "Power source phase abnormality control",
-                            "alarm_code_135": "Incorrect PCB setting",
-                            "alarm_code_151": "Inverter voltage abnormality control",
-                            "alarm_code_152": "Current sensor abnormal operation",
-                            "alarm_code_153": "Inverter overcurrent protection activation (I)",
-                            "alarm_code_154": "Transistor module protection activation",
-                            "alarm_code_155": "Inverter fin abnormality control",
-                            "alarm_code_156": "Inverter failure",
-                            "alarm_code_157": "Other abnormalities",
-                            "alarm_code_202": "Incorrect PC-ARF HE controller settings",
-                            "alarm_code_203": "Slave PC-ARFHE stop in response to master PC-ARFHE",
-                            "alarm_code_204": "Indoor unit loses communication with master PC-ARFHE",
-                            "alarm_code_205": "Central alarm, no central message"
-                        }
-                    }
-                }
-            },
-            "r134a_discharge_temp": {
-                "name": "R134a Discharge Temperature"
-            },
-            "r134a_suction_temp": {
-                "name": "R134a Suction Temperature"
-            },
-            "r134a_discharge_pressure": {
-                "name": "R134a Discharge Pressure"
-            },
-            "r134a_suction_pressure": {
-                "name": "R134a Suction Pressure"
-            },
-            "r134a_compressor_frequency": {
-                "name": "R134a Compressor Frequency"
-            },
-            "r134a_compressor_current": {
-                "name": "R134a Compressor Current"
-            }
-        },
-        "binary_sensor": {
-            "connectivity": {
-                "name": "Connectivity"
-            },
-            "defrost": {
-                "name": "Defrost"
-            },
-            "solar": {
-                "name": "Solar"
-            },
-            "pump1": {
-                "name": "Pump 1"
-            },
-            "pump2": {
-                "name": "Pump 2"
-            },
-            "pump3": {
-                "name": "Pump 3"
-            },
-            "compressor": {
-                "name": "Compressor"
-            },
-            "boiler": {
-                "name": "Boiler"
-            },
-            "dhw_heater": {
-                "name": "DHW Heater"
-            },
-            "space_heater": {
-                "name": "Space Heater"
-            },
-            "smart_function": {
-                "name": "Smart Function"
-            }
-        },
-        "select": {
-            "operation_mode_heat": {
-                "name": "Operation Mode",
-                "state": {
-                    "heat": "Heat",
-                    "auto": "Auto"
-                }
-            },
-            "operation_mode_full": {
-                "name": "Operation Mode",
-                "state": {
-                    "cool": "Cool",
-                    "heat": "Heat",
-                    "auto": "Auto"
-                }
-            },
-            "otc_calculation_method_heating": {
-                "name": "Heating Compensation Method",
-                "state": {
-                    "disabled": "Disabled",
-                    "points": "Points",
-                    "gradient": "Gradient",
-                    "fix": "Fix"
-                }
-            },
-            "otc_calculation_method_cooling": {
-                "name": "Cooling Compensation Method",
-                "state": {
-                    "disabled": "Disabled",
-                    "points": "Points",
-                    "fix": "Fix"
-                }
-            }
-        },
-        "switch": {
-            "power": {
-                "name": "Power"
-            },
-            "thermostat": {
-                "name": "Thermostat"
-            },
-            "eco_mode": {
-                "name": "ECO Mode"
-            },
-            "boost": {
-                "name": "Boost"
-            },
-            "high_demand": {
-                "name": "High Demand"
-            },
-            "antilegionella": {
-                "name": "Anti-legionella"
-            }
-        },
-        "number": {
-            "max_flow_temp_heating_otc": {
-                "name": "Maximum Flow Temperature Heating"
-            },
-            "max_flow_temp_cooling_otc": {
-                "name": "Maximum Flow Temperature Cooling"
-            },
-            "heat_eco_offset": {
-                "name": "Heat ECO Offset"
-            },
-            "cool_eco_offset": {
-                "name": "Cool ECO Offset"
-            },
-            "current_temp": {
-                "name": "Current Temperature"
-            },
-            "target_temp": {
-                "name": "Target Temperature"
-            },
-            "dhw_current_temperature": {
-                "name": "Current Temperature"
-            },
-            "dhw_target_temperature": {
-                "name": "Target Temperature"
-            },
-            "pool_current_temperature": {
-                "name": "Current Temperature"
-            },
-            "pool_target_temperature": {
-                "name": "Target Temperature"
-            },
-            "antilegionella_temp": {
-                "name": "Anti-legionella Temperature"
-            }
-        },
-        "climate": {
-            "climate": {
-                "name": "Climate Control",
-                "state": {
-                    "off": "Off",
-                    "heat": "Heat",
-                    "cool": "Cool",
-                    "auto": "Auto",
-                    "idle": "Idle",
-                    "defrost": "Defrost"
-                },
-                "state_attributes": {
-                    "preset_mode": {
-                        "state": {
-                            "eco": "Eco",
-                            "comfort": "Comfort"
-                        }
-                    }
-                }
-            },
-            "dhw_climate": {
-                "name": "DHW Control",
-                "state": {
-                    "off": "Off",
-                    "heat": "Heat"
-                },
-                "state_attributes": {
-                    "preset_mode": {
-                        "state": {
-                            "dhw_off": "Off",
-                            "dhw_standard": "Standard",
-                            "dhw_high_demand": "High Demand"
-                        }
-                    }
-                }
-            }
-        }
+    "primary_compressor": {
+      "name": "Outdoor Compressor"
+    },
+    "secondary_compressor": {
+      "name": "Indoor Compressor"
+    },
+    "circuit1": {
+      "name": "Circuit 1"
+    },
+    "circuit2": {
+      "name": "Circuit 2"
+    },
+    "dhw": {
+      "name": "DHW"
+    },
+    "pool": {
+      "name": "Pool"
     }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "name": "Name",
+          "host": "IP address",
+          "show_advanced": "Show advanced settings"
+        },
+        "description": "Configure your Hitachi Yutaki heat pump via the Modbus TCP/IP interface exposed by the ATW-MBS-02 gateway. Important: your heat pump must be configured in 'Air' control mode to allow the gateway full read and write access to the heat pump control registers.",
+        "title": "Hitachi Yutaki"
+      },
+      "advanced": {
+        "data": {
+          "port": "Port",
+          "slave": "Modbus slave ID",
+          "scan_interval": "Scan interval (seconds)",
+          "dev_mode": "Developer mode (add all devices, even if they are not configured in the system)"
+        },
+        "description": "Advanced settings are intended for developers and users with custom Modbus configurations. Only modify these values if you know what you're doing.",
+        "title": "Advanced Settings"
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect",
+      "invalid_slave": "Invalid Modbus slave ID",
+      "modbus_error": "Modbus communication error",
+      "unknown": "Unexpected error",
+      "invalid_central_control_mode": "The heat pump must be configured in Central mode 'Air' (1). Possible modes: Local (0), Air (1), Water (2), Total (3). Please change this setting in your heat pump parameters. (System Configuration > General Options > External Control Option > Control Mode = Air)"
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "outdoor_temp": {
+        "name": "Outdoor Temperature"
+      },
+      "water_inlet_temp": {
+        "name": "Water Inlet Temperature"
+      },
+      "water_outlet_temp": {
+        "name": "Water Outlet Temperature"
+      },
+      "water_target_temp": {
+        "name": "Corrected Target Temperature"
+      },
+      "water_flow": {
+        "name": "Water Flow"
+      },
+      "pump_speed": {
+        "name": "Pump Speed"
+      },
+      "compressor_frequency": {
+        "name": "Compressor Frequency"
+      },
+      "compressor_current": {
+        "name": "Compressor Current"
+      },
+      "compressor_cycle_time": {
+        "name": "Compressor Cycle Time"
+      },
+      "compressor_tg_gas_temp": {
+        "name": "Gas Temperature"
+      },
+      "compressor_ti_liquid_temp": {
+        "name": "Liquid Temperature"
+      },
+      "compressor_td_discharge_temp": {
+        "name": "Discharge Temperature"
+      },
+      "compressor_te_evaporator_temp": {
+        "name": "Evaporator Temperature"
+      },
+      "compressor_evi_indoor_expansion_valve_opening": {
+        "name": "Indoor Expansion Valve Opening"
+      },
+      "compressor_evo_outdoor_expansion_valve_opening": {
+        "name": "Outdoor Expansion Valve Opening"
+      },
+      "power_consumption": {
+        "name": "Power Consumption"
+      },
+      "alarm_code": {
+        "name": "Alarm Code",
+        "state_attributes": {
+          "description": {
+            "state": {
+              "alarm_code_0": "No Alarm",
+              "alarm_code_2": "Activation of outdoor unit safety device",
+              "alarm_code_3": "Abnormal transmission between indoor units and outdoor unit",
+              "alarm_code_4": "Abnormal transmission between outdoor unit control PCB and inverter PCB",
+              "alarm_code_5": "Phase detection signal abnormal operation code",
+              "alarm_code_6": "Excessively low or high voltage for inverter",
+              "alarm_code_7": "Decrease in discharge gas superheat",
+              "alarm_code_8": "Excessive discharge gas temperature at top of compressor",
+              "alarm_code_11": "Water inlet temperature thermistor abnormality (THMWI)",
+              "alarm_code_12": "Water outlet temperature thermistor abnormality (THMWO)",
+              "alarm_code_13": "Indoor R410A liquid pipe temperature thermistor abnormality (THML)",
+              "alarm_code_14": "Indoor R410A gas pipe temperature thermistor abnormality (THMG)",
+              "alarm_code_15": "Circuit 2 water outlet temperature thermistor abnormality (THMWO2)",
+              "alarm_code_16": "DHW temperature thermistor abnormality (THMDHW)",
+              "alarm_code_17": "Auxiliary sensor 2 abnormality (THMAUX2)",
+              "alarm_code_18": "Universal sensor abnormality",
+              "alarm_code_19": "Temperature thermistor abnormality",
+              "alarm_code_20": "Discharge gas temperature thermistor abnormality",
+              "alarm_code_21": "High pressure sensor abnormality",
+              "alarm_code_22": "Outdoor temperature thermistor abnormality (THM7)",
+              "alarm_code_23": "Discharge gas temperature thermistor abnormality (THM9)",
+              "alarm_code_24": "Evaporation temperature thermistor abnormality during heating (THM8)",
+              "alarm_code_25": "Auxiliary sensor 3 abnormality (THMAUX3)",
+              "alarm_code_26": "Power or combined power setting error between indoor and outdoor unit",
+              "alarm_code_35": "Power or combined power setting error between indoor and outdoor unit",
+              "alarm_code_36": "Power or combined power setting error between indoor and outdoor unit",
+              "alarm_code_38": "Protection circuit abnormality (outdoor unit)",
+              "alarm_code_40": "Incorrect unit controller setting",
+              "alarm_code_41": "High pressure switch overload",
+              "alarm_code_42": "Heating overload (high pressure switch must be activated)",
+              "alarm_code_45": "High pressure increase protection activation",
+              "alarm_code_47": "System protection activation against insufficient suction pressure",
+              "alarm_code_48": "Overcurrent protection activation",
+              "alarm_code_51": "Current sensor abnormal operation",
+              "alarm_code_53": "Transistor module activation",
+              "alarm_code_54": "Inverter fin temperature abnormality",
+              "alarm_code_57": "Fan motor protection abnormality (DC fan motor)",
+              "alarm_code_70": "Water flow alarm and water pump malfunction",
+              "alarm_code_72": "Water heater thermostat alarm",
+              "alarm_code_73": "Mixed circuit maximum temperature limit protection",
+              "alarm_code_74": "Unit temperature limit protection",
+              "alarm_code_75": "Anti-freeze protection by cold water inlet/outlet temperature detection",
+              "alarm_code_76": "Anti-freeze protection stop by indoor liquid temperature thermistor",
+              "alarm_code_77": "Smart wireless receiver communication fault",
+              "alarm_code_78": "RF communication fault",
+              "alarm_code_79": "Incorrect power setting",
+              "alarm_code_80": "H-LINK remote control communication fault",
+              "alarm_code_81": "Momentary power interruption or Low voltage detected",
+              "alarm_code_83": "Low pressure abnormality in hydraulic circuit",
+              "alarm_code_101": "High pressure switch activation command",
+              "alarm_code_102": "Excessive high pressure protection control activation",
+              "alarm_code_104": "Low pressure protection control activation",
+              "alarm_code_105": "Excessive low pressure difference",
+              "alarm_code_106": "Excessive discharge gas temperature",
+              "alarm_code_129": "Discharge gas pressure sensor failure",
+              "alarm_code_130": "Suction gas pressure sensor failure",
+              "alarm_code_132": "Transmission error between inverter PCB and main PCB",
+              "alarm_code_134": "Power source phase abnormality control",
+              "alarm_code_135": "Incorrect PCB setting",
+              "alarm_code_151": "Inverter voltage abnormality control",
+              "alarm_code_152": "Current sensor abnormal operation",
+              "alarm_code_153": "Inverter overcurrent protection activation (I)",
+              "alarm_code_154": "Transistor module protection activation",
+              "alarm_code_155": "Inverter fin abnormality control",
+              "alarm_code_156": "Inverter failure",
+              "alarm_code_157": "Other abnormalities",
+              "alarm_code_202": "Incorrect PC-ARF HE controller settings",
+              "alarm_code_203": "Slave PC-ARFHE stop in response to master PC-ARFHE",
+              "alarm_code_204": "Indoor unit loses communication with master PC-ARFHE",
+              "alarm_code_205": "Central alarm, no central message"
+            }
+          }
+        }
+      },
+      "r134a_discharge_temp": {
+        "name": "R134a Discharge Temperature"
+      },
+      "r134a_suction_temp": {
+        "name": "R134a Suction Temperature"
+      },
+      "r134a_discharge_pressure": {
+        "name": "R134a Discharge Pressure"
+      },
+      "r134a_suction_pressure": {
+        "name": "R134a Suction Pressure"
+      },
+      "r134a_compressor_frequency": {
+        "name": "R134a Compressor Frequency"
+      },
+      "r134a_compressor_current": {
+        "name": "R134a Compressor Current"
+      }
+    },
+    "binary_sensor": {
+      "connectivity": {
+        "name": "Connectivity"
+      },
+      "defrost": {
+        "name": "Defrost"
+      },
+      "solar": {
+        "name": "Solar"
+      },
+      "pump1": {
+        "name": "Pump 1"
+      },
+      "pump2": {
+        "name": "Pump 2"
+      },
+      "pump3": {
+        "name": "Pump 3"
+      },
+      "compressor": {
+        "name": "Compressor"
+      },
+      "boiler": {
+        "name": "Boiler"
+      },
+      "dhw_heater": {
+        "name": "DHW Heater"
+      },
+      "space_heater": {
+        "name": "Space Heater"
+      },
+      "smart_function": {
+        "name": "Smart Function"
+      }
+    },
+    "select": {
+      "operation_mode_heat": {
+        "name": "Operation Mode",
+        "state": {
+          "heat": "Heat",
+          "auto": "Auto"
+        }
+      },
+      "operation_mode_full": {
+        "name": "Operation Mode",
+        "state": {
+          "cool": "Cool",
+          "heat": "Heat",
+          "auto": "Auto"
+        }
+      },
+      "otc_calculation_method_heating": {
+        "name": "Heating Compensation Method",
+        "state": {
+          "disabled": "Disabled",
+          "points": "Points",
+          "gradient": "Gradient",
+          "fix": "Fix"
+        }
+      },
+      "otc_calculation_method_cooling": {
+        "name": "Cooling Compensation Method",
+        "state": {
+          "disabled": "Disabled",
+          "points": "Points",
+          "fix": "Fix"
+        }
+      }
+    },
+    "switch": {
+      "power": {
+        "name": "Power"
+      },
+      "thermostat": {
+        "name": "Thermostat"
+      },
+      "eco_mode": {
+        "name": "ECO Mode"
+      },
+      "boost": {
+        "name": "Boost"
+      },
+      "high_demand": {
+        "name": "High Demand"
+      },
+      "antilegionella": {
+        "name": "Anti-legionella"
+      }
+    },
+    "number": {
+      "max_flow_temp_heating_otc": {
+        "name": "Maximum Flow Temperature Heating"
+      },
+      "max_flow_temp_cooling_otc": {
+        "name": "Maximum Flow Temperature Cooling"
+      },
+      "heat_eco_offset": {
+        "name": "Heat ECO Offset"
+      },
+      "cool_eco_offset": {
+        "name": "Cool ECO Offset"
+      },
+      "current_temp": {
+        "name": "Current Temperature"
+      },
+      "target_temp": {
+        "name": "Target Temperature"
+      },
+      "dhw_current_temperature": {
+        "name": "Current Temperature"
+      },
+      "dhw_target_temperature": {
+        "name": "Target Temperature"
+      },
+      "pool_current_temperature": {
+        "name": "Current Temperature"
+      },
+      "pool_target_temperature": {
+        "name": "Target Temperature"
+      },
+      "antilegionella_temp": {
+        "name": "Anti-legionella Temperature"
+      }
+    },
+    "climate": {
+      "climate": {
+        "name": "Climate Control",
+        "state": {
+          "off": "Off",
+          "heat": "Heat",
+          "cool": "Cool",
+          "auto": "Auto",
+          "idle": "Idle",
+          "defrost": "Defrost"
+        },
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "eco": "Eco",
+              "comfort": "Comfort"
+            }
+          }
+        }
+      },
+      "dhw_climate": {
+        "name": "DHW Control",
+        "state": {
+          "off": "Off",
+          "heat": "Heat"
+        },
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "dhw_off": "Off",
+              "dhw_standard": "Standard",
+              "dhw_high_demand": "High Demand"
+            }
+          }
+        }
+      }
+    }
+  }
 }
