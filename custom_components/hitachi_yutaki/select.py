@@ -1,4 +1,5 @@
 """Select platform for Hitachi Yutaki."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -25,6 +26,10 @@ from .coordinator import HitachiYutakiDataCoordinator
 class HitachiYutakiSelectEntityDescription(SelectEntityDescription):
     """Class describing Hitachi Yutaki select entities."""
 
+    key: str
+    translation_key: str
+    options: list[str] | None = None
+
     register_key: str | None = None
     value_map: dict[str, int] | None = None
     condition: callable | None = None
@@ -44,7 +49,9 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
             "heat": 1,
             "auto": 2,
         },
-        condition=lambda coordinator: not (coordinator.has_cooling_circuit1() or coordinator.has_cooling_circuit2()),
+        condition=lambda coordinator: not (
+            coordinator.has_cooling_circuit1() or coordinator.has_cooling_circuit2()
+        ),
     ),
     HitachiYutakiSelectEntityDescription(
         key="operation_mode_full",
@@ -57,7 +64,8 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
             "heat": 1,
             "auto": 2,
         },
-        condition=lambda coordinator: coordinator.has_cooling_circuit1() or coordinator.has_cooling_circuit2(),
+        condition=lambda coordinator: coordinator.has_cooling_circuit1()
+        or coordinator.has_cooling_circuit2(),
     ),
 )
 
@@ -90,7 +98,9 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
         },
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
-        condition=lambda coordinator, circuit_id: getattr(coordinator, f"has_cooling_circuit{circuit_id}")(),
+        condition=lambda coordinator, circuit_id: getattr(
+            coordinator, f"has_cooling_circuit{circuit_id}"
+        )(),
     ),
 )
 
@@ -149,7 +159,9 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiSelect(CoordinatorEntity[HitachiYutakiDataCoordinator], SelectEntity):
+class HitachiYutakiSelect(
+    CoordinatorEntity[HitachiYutakiDataCoordinator], SelectEntity
+):
     """Representation of a Hitachi Yutaki Select."""
 
     entity_description: HitachiYutakiSelectEntityDescription
@@ -165,15 +177,27 @@ class HitachiYutakiSelect(CoordinatorEntity[HitachiYutakiDataCoordinator], Selec
         super().__init__(coordinator)
         self.entity_description = description
         self.register_prefix = register_prefix
-        self._register_key = f"{register_prefix}_{description.register_key}" if register_prefix else description.register_key
-        self._attr_unique_id = f"{coordinator.slave}_{register_prefix}_{description.key}" if register_prefix else f"{coordinator.slave}_{description.key}"
+        self._register_key = (
+            f"{register_prefix}_{description.register_key}"
+            if register_prefix
+            else description.register_key
+        )
+        self._attr_unique_id = (
+            f"{coordinator.slave}_{register_prefix}_{description.key}"
+            if register_prefix
+            else f"{coordinator.slave}_{description.key}"
+        )
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
     @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
-        if not self.coordinator.data or not self.entity_description.value_map or not self._register_key:
+        if (
+            not self.coordinator.data
+            or not self.entity_description.value_map
+            or not self._register_key
+        ):
             return None
 
         value = self.coordinator.data.get(self._register_key)
@@ -182,15 +206,22 @@ class HitachiYutakiSelect(CoordinatorEntity[HitachiYutakiDataCoordinator], Selec
 
         return next(
             (k for k, v in self.entity_description.value_map.items() if v == value),
-            None
+            None,
         )
+
+    def select_option(self, option: str) -> None:
+        """Change the selected option."""
+        raise NotImplementedError("Async version should be used instead")
 
     async def async_select_option(self, option: str) -> None:
         """Change the selected option."""
-        if not self.entity_description.value_map or not self._register_key or option not in self.entity_description.value_map:
+        if (
+            not self.entity_description.value_map
+            or not self._register_key
+            or option not in self.entity_description.value_map
+        ):
             return
 
         await self.coordinator.async_write_register(
-            self._register_key,
-            self.entity_description.value_map[option]
+            self._register_key, self.entity_description.value_map[option]
         )

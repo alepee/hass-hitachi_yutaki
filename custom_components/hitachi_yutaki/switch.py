@@ -1,4 +1,5 @@
 """Switch platform for Hitachi Yutaki."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -34,6 +35,13 @@ _LOGGER = logging.getLogger(__name__)
 @dataclass
 class HitachiYutakiSwitchEntityDescription(SwitchEntityDescription):
     """Class describing Hitachi Yutaki switch entities."""
+
+    key: str
+    translation_key: str
+    icon: str | None = None
+    entity_category: EntityCategory | None = None
+    entity_registry_enabled_default: bool = True
+    entity_registry_visible_default: bool = True
 
     register_key: str | None = None
     state_on: int = 1
@@ -233,17 +241,18 @@ class HitachiYutakiSwitch(
             if register_prefix
             else description.register_key
         )
-        self._attr_unique_id = f"{coordinator.slave}_{register_prefix}_{description.key}" if register_prefix else f"{coordinator.slave}_{description.key}"
+        self._attr_unique_id = (
+            f"{coordinator.slave}_{register_prefix}_{description.key}"
+            if register_prefix
+            else f"{coordinator.slave}_{description.key}"
+        )
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
     @property
     def is_on(self) -> bool | None:
         """Return true if the switch is on."""
-        if (
-            self.coordinator.data is None
-            or self._register_key is None
-        ):
+        if self.coordinator.data is None or self._register_key is None:
             return None
 
         try:
@@ -263,14 +272,13 @@ class HitachiYutakiSwitch(
         try:
             register_value = int(self.entity_description.state_on)
             await self.coordinator.async_write_register(
-                self._register_key,
-                register_value
+                self._register_key, register_value
             )
         except (ValueError, TypeError):
             _LOGGER.error(
                 "Failed to turn on %s: invalid value %s",
                 self.entity_id,
-                self.entity_description.state_on
+                self.entity_description.state_on,
             )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
@@ -284,23 +292,22 @@ class HitachiYutakiSwitch(
                 "Turning off %s: register_key=%s, value=%s",
                 self.entity_id,
                 self._register_key,
-                register_value
+                register_value,
             )
             await self.coordinator.async_write_register(
-                self._register_key,
-                register_value
+                self._register_key, register_value
             )
         except (ValueError, TypeError) as e:
             _LOGGER.error(
                 "Failed to turn off %s: invalid value %s - Error: %s",
                 self.entity_id,
                 self.entity_description.state_off,
-                str(e)
+                str(e),
             )
         except Exception as e:
             _LOGGER.error(
                 "Unexpected error turning off %s: %s - %s",
                 self.entity_id,
                 type(e).__name__,
-                str(e)
+                str(e),
             )

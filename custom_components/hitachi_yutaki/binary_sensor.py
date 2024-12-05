@@ -1,4 +1,5 @@
 """Binary sensor platform for Hitachi Yutaki."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -40,12 +41,20 @@ from .coordinator import HitachiYutakiDataCoordinator
 class HitachiYutakiBinarySensorEntityDescription(BinarySensorEntityDescription):
     """Class describing Hitachi Yutaki binary sensor entities."""
 
+    key: str
+    translation_key: str
+    icon: str | None = None
+    device_class: BinarySensorDeviceClass | None = None
+    entity_category: EntityCategory | None = None
+
     register_key: str | None = None
     mask: int | None = None
     description: str | None = None
 
 
-GATEWAY_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, ...]] = (
+GATEWAY_BINARY_SENSORS: Final[
+    tuple[HitachiYutakiBinarySensorEntityDescription, ...]
+] = (
     HitachiYutakiBinarySensorEntityDescription(
         key="connectivity",
         translation_key="connectivity",
@@ -56,7 +65,9 @@ GATEWAY_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, 
     ),
 )
 
-CONTROL_UNIT_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, ...]] = (
+CONTROL_UNIT_BINARY_SENSORS: Final[
+    tuple[HitachiYutakiBinarySensorEntityDescription, ...]
+] = (
     HitachiYutakiBinarySensorEntityDescription(
         key="defrost",
         translation_key="defrost",
@@ -229,7 +240,10 @@ class HitachiYutakiBinarySensor(
         if self.entity_description.register_key == "is_available":
             return self.coordinator.data.get("is_available", False)
 
-        if self.entity_description.register_key is None or self.entity_description.mask is None:
+        if (
+            self.entity_description.register_key is None
+            or self.entity_description.mask is None
+        ):
             return None
 
         register_value = self.coordinator.data.get(self.entity_description.register_key)

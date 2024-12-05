@@ -1,4 +1,5 @@
 """Number platform for Hitachi Yutaki."""
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -32,6 +33,20 @@ from .coordinator import HitachiYutakiDataCoordinator
 @dataclass
 class HitachiYutakiNumberEntityDescription(NumberEntityDescription):
     """Class describing Hitachi Yutaki number entities."""
+
+    key: str
+    translation_key: str
+    max_value: None = None
+    min_value: None = None
+    mode: NumberMode | None = None
+    native_max_value: float | None = None
+    native_min_value: float | None = None
+    native_step: float | None = None
+    native_unit_of_measurement: str | None = None
+    step: None = None
+    entity_category: EntityCategory | None = None
+    entity_registry_enabled_default: bool = True
+    entity_registry_visible_default: bool = True
 
     register_key: str | None = None
     multiplier: float | None = None
@@ -177,10 +192,7 @@ async def async_setup_entry(
     if coordinator.has_heating_circuit1():
         for description in CIRCUIT_NUMBERS:
             # Skip cooling related entities if cooling is not available
-            if (
-                "cool" in description.key
-                and not coordinator.has_cooling_circuit1()
-            ):
+            if "cool" in description.key and not coordinator.has_cooling_circuit1():
                 continue
             entities.append(
                 HitachiYutakiNumber(
@@ -197,10 +209,7 @@ async def async_setup_entry(
     if coordinator.has_heating_circuit2():
         for description in CIRCUIT_NUMBERS:
             # Skip cooling related entities if cooling is not available
-            if (
-                "cool" in description.key
-                and not coordinator.has_cooling_circuit2()
-            ):
+            if "cool" in description.key and not coordinator.has_cooling_circuit2():
                 continue
             entities.append(
                 HitachiYutakiNumber(
@@ -267,17 +276,18 @@ class HitachiYutakiNumber(
             if register_prefix
             else description.register_key
         )
-        self._attr_unique_id = f"{coordinator.slave}_{register_prefix}_{description.key}" if register_prefix else f"{coordinator.slave}_{description.key}"
+        self._attr_unique_id = (
+            f"{coordinator.slave}_{register_prefix}_{description.key}"
+            if register_prefix
+            else f"{coordinator.slave}_{description.key}"
+        )
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
     @property
     def native_value(self) -> float | None:
         """Return the entity value to represent the entity state."""
-        if (
-            self.coordinator.data is None
-            or self._register_key is None
-        ):
+        if self.coordinator.data is None or self._register_key is None:
             return None
 
         value = self.coordinator.data.get(self._register_key)
