@@ -60,6 +60,23 @@
   },
   "entity": {
     "sensor": {
+      "operation_state": {
+        "name": "État de Fonctionnement",
+        "state": {
+          "operation_state_0": "Arrêt",
+          "operation_state_1": "Pas de demande refroidissement",
+          "operation_state_2": "Refroidissement Thermo OFF",
+          "operation_state_3": "Refroidissement Thermo ON",
+          "operation_state_4": "Pas de demande chauffage",
+          "operation_state_5": "Chauffage Thermo OFF",
+          "operation_state_6": "Chauffage Thermo ON",
+          "operation_state_7": "ECS OFF",
+          "operation_state_8": "ECS ON",
+          "operation_state_9": "Piscine OFF",
+          "operation_state_10": "Piscine ON",
+          "operation_state_11": "Alarme"
+        }
+      },
       "outdoor_temp": {
         "name": "Température Extérieure"
       },

@@ -60,6 +60,23 @@
   },
   "entity": {
     "sensor": {
+      "operation_state": {
+        "name": "Operation State",
+        "state": {
+          "operation_state_0": "Off",
+          "operation_state_1": "Cool Demand Off",
+          "operation_state_2": "Cool Regulation Off",
+          "operation_state_3": "Cool Regulation On",
+          "operation_state_4": "Heat Demand Off",
+          "operation_state_5": "Heat Regulation Off",
+          "operation_state_6": "Heat Regulation On",
+          "operation_state_7": "DHW Off",
+          "operation_state_8": "DHW On",
+          "operation_state_9": "Pool Off",
+          "operation_state_10": "Pool On",
+          "operation_state_11": "Alarm"
+        }
+      },
       "outdoor_temp": {
         "name": "Outdoor Temperature"
       },
