@@ -6,9 +6,9 @@ This custom integration allows you to control and monitor your Hitachi Yutaki he
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=alepee&repository=hass-hitachi_yutaki)
 
-> ⚠️ **Beta Version - Under Development**  
+> ⚠️ **Beta Version - Under Development**
 > This integration is currently in active development and should be considered experimental. While it is functional, you may encounter bugs or incomplete features. Use at your own risk and please report any issues you find.
-> 
+>
 > Currently tested only with Yutaki S80 model. Testing with other models is in progress.
 
 ## Compatibility
@@ -66,6 +66,7 @@ The integration automatically detects your heat pump model and available feature
 | pump_speed | sensor | Current speed of the water circulation pump | % |
 | compressor_frequency | sensor | Current operating frequency of the compressor | Hz |
 | compressor_current | sensor | Current electrical consumption of the compressor | A |
+| compressor_cycle_time | sensor | Average time between compressor starts | min |
 | power_consumption | sensor | Total electrical energy consumed by the unit | kWh |
 
 #### R134a Circuit (S80 Model Only)

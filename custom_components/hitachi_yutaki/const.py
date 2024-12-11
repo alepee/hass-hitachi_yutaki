@@ -1,4 +1,5 @@
 """Constants for the Hitachi Yutaki integration."""
+
 from homeassistant.const import (
     Platform,
 )
@@ -7,7 +8,7 @@ DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
-VERSION = "1.3.4"
+VERSION = "1.4.0"
 
 # Default values
 DEFAULT_NAME = "Hitachi Yutaki"
@@ -102,6 +103,7 @@ REGISTER_CONTROL = {
 
 # Sensor registers (addresses)
 REGISTER_SENSOR = {
+    "operation_state": 1090,
     "outdoor_temp": 1091,
     "water_inlet_temp": 1092,
     "water_outlet_temp": 1093,

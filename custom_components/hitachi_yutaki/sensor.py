@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime
+from statistics import mean
 from typing import Any, Final
 
 from homeassistant.components.sensor import (
@@ -34,6 +36,7 @@ from .const import (
     DEVICE_PRIMARY_COMPRESSOR,
     DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
+    MASK_COMPRESSOR,
     UNIT_MODEL_S80,
 )
 from .coordinator import HitachiYutakiDataCoordinator
@@ -167,6 +170,25 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         state_class=None,
         register_key="alarm_code",
         entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    HitachiYutakiSensorEntityDescription(
+        key="compressor_cycle_time",
+        translation_key="compressor_cycle_time",
+        description="Average time between compressor starts",
+        device_class=SensorDeviceClass.DURATION,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="min",
+        register_key="system_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:timer-outline",
+    ),
+    HitachiYutakiSensorEntityDescription(
+        key="operation_state",
+        translation_key="operation_state",
+        description="Current operation state of the heat pump",
+        register_key="operation_state",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:state-machine",
     ),
 )
 
@@ -444,6 +466,12 @@ class HitachiYutakiSensor(
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
+        # Initialiser les variables pour le calcul du temps de cycle
+        if description.key == "compressor_cycle_time":
+            self._last_start_time: datetime | None = None
+            self._cycle_times: list[float] = []
+            self._compressor_running = False
+
     @property
     def native_value(self) -> StateType:
         """Return the state of the sensor."""
@@ -455,6 +483,30 @@ class HitachiYutakiSensor(
 
         value = self.coordinator.data.get(self.entity_description.register_key)
         if value is None:
+            return None
+
+        # Specific logic for compressor cycle time sensor
+        if self.entity_description.key == "compressor_cycle_time":
+            compressor_running = bool(value & MASK_COMPRESSOR)
+
+            # Detect compressor start
+            if compressor_running and not self._compressor_running:
+                current_time = datetime.now()
+                if self._last_start_time is not None:
+                    cycle_time = (
+                        current_time - self._last_start_time
+                    ).total_seconds() / 60
+                    self._cycle_times.append(cycle_time)
+                    # Keep only the last 10 cycles
+                    if len(self._cycle_times) > 10:
+                        self._cycle_times.pop(0)
+                self._last_start_time = current_time
+
+            self._compressor_running = compressor_running
+
+            # Calculate average cycle time
+            if self._cycle_times:
+                return round(mean(self._cycle_times), 1)
             return None
 
         # Convert value if needed
@@ -480,5 +532,12 @@ class HitachiYutakiSensor(
                 return {
                     "code": alarm_code,
                     "description": f"alarm_code_{alarm_code}",  # Home Assistant gérera automatiquement le fallback
+                }
+        elif self.entity_description.key == "operation_state":
+            value = self.coordinator.data.get(self.entity_description.register_key)
+            if value is not None:
+                return {
+                    "code": value,
+                    "description": f"operation_state_{value}",
                 }
         return None
