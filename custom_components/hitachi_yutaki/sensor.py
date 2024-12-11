@@ -182,6 +182,14 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-outline",
     ),
+    HitachiYutakiSensorEntityDescription(
+        key="operation_state",
+        translation_key="operation_state",
+        description="Current operation state of the heat pump",
+        register_key="operation_state",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:state-machine",
+    ),
 )
 
 PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
@@ -477,11 +485,11 @@ class HitachiYutakiSensor(
         if value is None:
             return None
 
-        # Logique spécifique pour le sensor de temps de cycle du compresseur
+        # Specific logic for compressor cycle time sensor
         if self.entity_description.key == "compressor_cycle_time":
             compressor_running = bool(value & MASK_COMPRESSOR)
 
-            # Détecter le démarrage du compresseur
+            # Detect compressor start
             if compressor_running and not self._compressor_running:
                 current_time = datetime.now()
                 if self._last_start_time is not None:
@@ -489,14 +497,14 @@ class HitachiYutakiSensor(
                         current_time - self._last_start_time
                     ).total_seconds() / 60
                     self._cycle_times.append(cycle_time)
-                    # Garder seulement les 10 derniers cycles
+                    # Keep only the last 10 cycles
                     if len(self._cycle_times) > 10:
                         self._cycle_times.pop(0)
                 self._last_start_time = current_time
 
             self._compressor_running = compressor_running
 
-            # Calculer la moyenne des temps de cycle
+            # Calculate average cycle time
             if self._cycle_times:
                 return round(mean(self._cycle_times), 1)
             return None
@@ -524,5 +532,12 @@ class HitachiYutakiSensor(
                 return {
                     "code": alarm_code,
                     "description": f"alarm_code_{alarm_code}",  # Home Assistant gérera automatiquement le fallback
+                }
+        elif self.entity_description.key == "operation_state":
+            value = self.coordinator.data.get(self.entity_description.register_key)
+            if value is not None:
+                return {
+                    "code": value,
+                    "description": f"operation_state_{value}",
                 }
         return None
