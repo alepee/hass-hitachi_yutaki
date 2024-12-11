@@ -175,3 +175,19 @@ PRESET_ECO = "eco"
 PRESET_DHW_OFF = "off"
 PRESET_DHW_STANDARD = "standard"
 PRESET_DHW_HIGH_DEMAND = "high_demand"
+
+# Operation state values
+OPERATION_STATE_MAP = {
+    0: "off",
+    1: "cool_demand_off",
+    2: "cool_thermo_off",
+    3: "cool_thermo_on",
+    4: "heat_demand_off",
+    5: "heat_thermo_off",
+    6: "heat_thermo_on",
+    7: "dhw_off",
+    8: "dhw_on",
+    9: "pool_off",
+    10: "pool_on",
+    11: "alarm",
+}
