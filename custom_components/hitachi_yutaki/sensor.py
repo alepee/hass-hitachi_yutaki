@@ -37,6 +37,7 @@ from .const import (
     DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
     MASK_COMPRESSOR,
+    OPERATION_STATE_MAP,
     UNIT_MODEL_S80,
 )
 from .coordinator import HitachiYutakiDataCoordinator
@@ -485,6 +486,10 @@ class HitachiYutakiSensor(
         if value is None:
             return None
 
+        # Specific logic for operation state sensor
+        if self.entity_description.key == "operation_state":
+            return f"operation_state_{OPERATION_STATE_MAP.get(value, 'unknown')}"
+
         # Specific logic for compressor cycle time sensor
         if self.entity_description.key == "compressor_cycle_time":
             compressor_running = bool(value & MASK_COMPRESSOR)
@@ -531,13 +536,6 @@ class HitachiYutakiSensor(
                 alarm_code = str(value)
                 return {
                     "code": alarm_code,
-                    "description": f"alarm_code_{alarm_code}",  # Home Assistant gérera automatiquement le fallback
-                }
-        elif self.entity_description.key == "operation_state":
-            value = self.coordinator.data.get(self.entity_description.register_key)
-            if value is not None:
-                return {
-                    "code": value,
-                    "description": f"operation_state_{value}",
+                    "description": f"alarm_code_{alarm_code}",
                 }
         return None

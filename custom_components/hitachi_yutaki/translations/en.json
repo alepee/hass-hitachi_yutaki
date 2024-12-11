@@ -63,18 +63,19 @@
       "operation_state": {
         "name": "Operation State",
         "state": {
-          "operation_state_0": "Off",
-          "operation_state_1": "Cool Demand Off",
-          "operation_state_2": "Cool Regulation Off",
-          "operation_state_3": "Cool Regulation On",
-          "operation_state_4": "Heat Demand Off",
-          "operation_state_5": "Heat Regulation Off",
-          "operation_state_6": "Heat Regulation On",
-          "operation_state_7": "DHW Off",
-          "operation_state_8": "DHW On",
-          "operation_state_9": "Pool Off",
-          "operation_state_10": "Pool On",
-          "operation_state_11": "Alarm"
+          "operation_state_off": "Off",
+          "operation_state_cool_demand_off": "No Cooling Demand",
+          "operation_state_cool_thermo_off": "Cooling Thermo OFF",
+          "operation_state_cool_thermo_on": "Cooling Thermo ON",
+          "operation_state_heat_demand_off": "No Heating Demand",
+          "operation_state_heat_thermo_off": "Heating Thermo OFF",
+          "operation_state_heat_thermo_on": "Heating Thermo ON",
+          "operation_state_dhw_off": "DHW OFF",
+          "operation_state_dhw_on": "DHW ON",
+          "operation_state_pool_off": "Pool OFF",
+          "operation_state_pool_on": "Pool ON",
+          "operation_state_alarm": "Alarm",
+          "operation_state_unknown": "Unknown State"
         }
       },
       "outdoor_temp": {
