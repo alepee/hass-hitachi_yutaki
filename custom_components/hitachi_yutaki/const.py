@@ -194,6 +194,7 @@ OPERATION_STATE_MAP = {
 }
 
 CONF_POWER_SUPPLY = "power_supply"
+CONF_VOLTAGE_ENTITY = "voltage_entity"
 
 # Electrical constants
 VOLTAGE_SINGLE_PHASE = 230  # Volts

@@ -25,25 +25,61 @@
       "name": "Pool"
     }
   },
+  "selector": {
+    "power_supply": {
+      "options": {
+        "single": "Single phase",
+        "three": "Three phase"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "power_supply": "Power supply",
+          "host": "Gateway IP address",
+          "port": "Gateway port"
+        },
+        "description": "Modify your Hitachi Yutaki heat pump settings"
+      }
+    }
+  },
   "config": {
     "step": {
       "user": {
         "data": {
           "name": "Name",
-          "host": "IP address",
+          "host": "Gateway IP address",
+          "port": "Gateway port",
           "show_advanced": "Show advanced settings"
         },
-        "description": "Configure your Hitachi Yutaki heat pump via the Modbus TCP/IP interface exposed by the ATW-MBS-02 gateway. Important: your heat pump must be configured in 'Air' control mode to allow the gateway full read and write access to the heat pump control registers.",
-        "title": "Hitachi Yutaki"
+        "data_description": {
+          "host": "IP address of the ATW-MBS-02 gateway",
+          "port": "Modbus TCP communication port (default: 502)"
+        },
+        "description": "Configure your Hitachi Yutaki heat pump via the Modbus TCP/IP interface exposed by the ATW-MBS-02 gateway.",
+        "title": "Gateway Configuration"
+      },
+      "power": {
+        "data": {
+          "power_supply": "Power supply",
+          "voltage_entity": "Voltage entity"
+        },
+        "data_description": {
+          "power_supply": "Type of power supply for the heat pump",
+          "voltage_entity": "Entity providing the mains voltage"
+        },
+        "description": "Power supply configuration",
+        "title": "Power Supply"
       },
       "advanced": {
         "data": {
-          "port": "Port",
           "slave": "Modbus slave ID",
           "scan_interval": "Scan interval (seconds)",
-          "dev_mode": "Developer mode (add all devices, even if they are not configured in the system)"
+          "dev_mode": "Developer mode"
         },
-        "description": "Advanced settings are intended for developers and users with custom Modbus configurations. Only modify these values if you know what you're doing.",
+        "description": "Advanced settings are intended for developers and users with custom Modbus configurations.",
         "title": "Advanced Settings"
       }
     },

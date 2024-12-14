@@ -32,6 +32,7 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    CONF_VOLTAGE_ENTITY,
     COP_HISTORY_SIZE,
     COP_UPDATE_INTERVAL,
     DEVICE_CONTROL_UNIT,
@@ -41,6 +42,7 @@ from .const import (
     DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
     MASK_COMPRESSOR,
+    OPERATION_STATE_MAP,
     POWER_FACTOR,
     THREE_PHASE_FACTOR,
     UNIT_MODEL_S80,
@@ -514,14 +516,36 @@ class HitachiYutakiSensor(
 
     def _calculate_electrical_power(self, current: float) -> float:
         """Calculate electrical power in kW based on current and power supply type."""
+        # Get voltage from entity if configured, otherwise use default
+        default_voltage = (
+            VOLTAGE_SINGLE_PHASE
+            if self.coordinator.power_supply == "single"
+            else VOLTAGE_THREE_PHASE
+        )
+
+        voltage_entity_id = self.coordinator.config_entry.data.get(CONF_VOLTAGE_ENTITY)
+        if voltage_entity_id:
+            voltage_state = self.hass.states.get(voltage_entity_id)
+            if voltage_state and voltage_state.state not in (
+                None,
+                "unknown",
+                "unavailable",
+            ):
+                try:
+                    voltage = float(voltage_state.state)
+                except ValueError:
+                    voltage = default_voltage
+            else:
+                voltage = default_voltage
+        else:
+            voltage = default_voltage
+
         if self.coordinator.power_supply == "single":
             # Single phase: P = U * I * cos φ
-            return (VOLTAGE_SINGLE_PHASE * current * POWER_FACTOR) / 1000
+            return (voltage * current * POWER_FACTOR) / 1000
         else:
             # Three phase: P = U * I * cos φ * √3
-            return (
-                VOLTAGE_THREE_PHASE * current * POWER_FACTOR * THREE_PHASE_FACTOR
-            ) / 1000
+            return (voltage * current * POWER_FACTOR * THREE_PHASE_FACTOR) / 1000
 
     def _calculate_cop_values(self) -> tuple[float | None, float | None]:
         """Calculate thermal and electrical power for COP."""
@@ -575,6 +599,10 @@ class HitachiYutakiSensor(
         value = self.coordinator.data.get(self.entity_description.register_key)
         if value is None:
             return None
+
+        # Specific logic for operation state sensor
+        if self.entity_description.key == "operation_state":
+            return f"operation_state_{OPERATION_STATE_MAP.get(value, 'unknown')}"
 
         # Specific logic for compressor cycle time sensor
         if self.entity_description.key == "compressor_cycle_time":
@@ -648,12 +676,5 @@ class HitachiYutakiSensor(
                 return {
                     "code": alarm_code,
                     "description": f"alarm_code_{alarm_code}",  # Home Assistant gérera automatiquement le fallback
-                }
-        elif self.entity_description.key == "operation_state":
-            value = self.coordinator.data.get(self.entity_description.register_key)
-            if value is not None:
-                return {
-                    "code": value,
-                    "description": f"operation_state_{value}",
                 }
         return None

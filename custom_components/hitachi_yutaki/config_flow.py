@@ -15,12 +15,15 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
     CONF_SLAVE,
 )
+from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
+from homeassistant.helpers import selector
 import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CENTRAL_CONTROL_MODE_MAP,
     CONF_POWER_SUPPLY,
+    CONF_VOLTAGE_ENTITY,
     DEFAULT_HOST,
     DEFAULT_NAME,
     DEFAULT_PORT,
@@ -34,28 +37,44 @@ from .const import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Basic schema with essential options and advanced mode checkbox
-BASE_SCHEMA = vol.Schema(
+# Basic schema for gateway configuration
+GATEWAY_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
         vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
+        vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.port,
         vol.Required("show_advanced", default=False): bool,
     }
 )
 
-# Advanced schema with additional options
+# Schema for power supply configuration
+POWER_SCHEMA = vol.Schema(
+    {
+        vol.Required(
+            CONF_POWER_SUPPLY, default=DEFAULT_POWER_SUPPLY
+        ): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=["single", "three"],
+                translation_key="power_supply",
+            ),
+        ),
+        vol.Optional(CONF_VOLTAGE_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain=["sensor", "number", "input_number"],
+            ),
+        ),
+    }
+)
+
+# Advanced schema
 ADVANCED_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.port,
         vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=247)
         ),
         vol.Optional(
             CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
         ): cv.positive_int,
-        vol.Required(CONF_POWER_SUPPLY, default=DEFAULT_POWER_SUPPLY): vol.In(
-            ["single", "three"]
-        ),
         vol.Optional("dev_mode", default=False): bool,
     }
 )
@@ -70,6 +89,20 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         """Initialize the config flow."""
         self.basic_config = None
+        self.show_advanced = False
+
+    @staticmethod
+    def is_matching(_, other_flow: dict) -> bool:
+        """Test if the match dictionary matches this flow."""
+        return True
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> HitachiYutakiOptionsFlow:
+        """Get the options flow for this handler."""
+        return HitachiYutakiOptionsFlow(config_entry)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -82,17 +115,37 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.basic_config = {
                 CONF_HOST: user_input[CONF_HOST],
                 CONF_NAME: user_input[CONF_NAME],
+                CONF_PORT: user_input[CONF_PORT],
             }
 
-            # If advanced mode is selected, go to advanced step
-            if user_input["show_advanced"]:
+            # Store advanced mode preference
+            self.show_advanced = user_input["show_advanced"]
+
+            # Go to power supply step
+            return await self.async_step_power()
+
+        return self.async_show_form(
+            step_id="user",
+            data_schema=GATEWAY_SCHEMA,
+            errors=errors,
+        )
+
+    async def async_step_power(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle power supply configuration step."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            self.basic_config.update(user_input)
+
+            if self.show_advanced:
                 return await self.async_step_advanced()
 
             # Otherwise, proceed with default values
             return await self.async_validate_connection(
                 {
                     **self.basic_config,
-                    CONF_PORT: DEFAULT_PORT,
                     CONF_SLAVE: DEFAULT_SLAVE,
                     CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
                     "dev_mode": False,
@@ -100,8 +153,8 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             )
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=BASE_SCHEMA,
+            step_id="power",
+            data_schema=POWER_SCHEMA,
             errors=errors,
         )
 
@@ -131,7 +184,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         try:
             from pymodbus.client import ModbusTcpClient
-            from pymodbus.exceptions import ModbusException
+            from pymodbus.exceptions import ConnectionException, ModbusException
 
             client = ModbusTcpClient(
                 host=config[CONF_HOST],
@@ -144,7 +197,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     step_id="advanced" if "show_advanced" in config else "user",
                     data_schema=ADVANCED_SCHEMA
                     if "show_advanced" in config
-                    else BASE_SCHEMA,
+                    else GATEWAY_SCHEMA,
                     errors=errors,
                 )
 
@@ -163,7 +216,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         step_id="advanced" if "show_advanced" in config else "user",
                         data_schema=ADVANCED_SCHEMA
                         if "show_advanced" in config
-                        else BASE_SCHEMA,
+                        else GATEWAY_SCHEMA,
                         errors=errors,
                     )
 
@@ -181,7 +234,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         step_id="advanced" if "show_advanced" in config else "user",
                         data_schema=ADVANCED_SCHEMA
                         if "show_advanced" in config
-                        else BASE_SCHEMA,
+                        else GATEWAY_SCHEMA,
                         errors=errors,
                     )
 
@@ -191,7 +244,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         step_id="advanced" if "show_advanced" in config else "user",
                         data_schema=ADVANCED_SCHEMA
                         if "show_advanced" in config
-                        else BASE_SCHEMA,
+                        else GATEWAY_SCHEMA,
                         errors=errors,
                     )
 
@@ -211,12 +264,50 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             finally:
                 client.close()
 
-        except Exception:
+        except (ConnectionException, OSError):
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
 
         return self.async_show_form(
             step_id="advanced" if "show_advanced" in config else "user",
-            data_schema=ADVANCED_SCHEMA if "show_advanced" in config else BASE_SCHEMA,
+            data_schema=ADVANCED_SCHEMA
+            if "show_advanced" in config
+            else GATEWAY_SCHEMA,
             errors=errors,
+        )
+
+
+class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
+    """Handle options."""
+
+    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Manage the options."""
+        if user_input is not None:
+            return self.async_create_entry(title="", data=user_input)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
+                    vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.port,
+                    vol.Required(
+                        CONF_POWER_SUPPLY,
+                        default=self.config_entry.data.get(
+                            CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY
+                        ),
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=["single", "three"],
+                            translation_key="power_supply",
+                        ),
+                    ),
+                }
+            ),
         )
