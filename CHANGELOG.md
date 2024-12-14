@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-b1] - 2024-12-14
+
+### Added
+- Added voltage entity configuration option for more accurate power calculations
+- Introduced new configuration schemas for gateway, power supply and advanced settings
+- Added support for custom voltage entity in sensor calculations
+
+### Changed
+- Modified configuration flow to include voltage entity selection
+- Updated power consumption calculations to use voltage entity when available
+- Enhanced system configuration flexibility with new voltage setup options
+
+## [1.5.0-b0] - 2024-12-13
+
+### Added
+- New COP (Coefficient of Performance) sensor with real-time calculation
+- Power supply type configuration (single-phase/three-phase)
+- Enhanced power calculations for S80 models with dual compressor support
+
+### Changed
+- Improved power consumption calculations with smoothing algorithm
+- Updated configuration options to include power supply type
+- Enhanced accuracy of energy measurements
+
 ## [1.4.1] - 2024-12-11
 
 ### Changed
