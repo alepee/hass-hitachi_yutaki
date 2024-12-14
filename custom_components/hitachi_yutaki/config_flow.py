@@ -1,4 +1,5 @@
 """Config flow for Hitachi Yutaki integration."""
+
 from __future__ import annotations
 
 import logging
@@ -19,9 +20,11 @@ import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CENTRAL_CONTROL_MODE_MAP,
+    CONF_POWER_SUPPLY,
     DEFAULT_HOST,
     DEFAULT_NAME,
     DEFAULT_PORT,
+    DEFAULT_POWER_SUPPLY,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
     DOMAIN,
@@ -50,6 +53,9 @@ ADVANCED_SCHEMA = vol.Schema(
         vol.Optional(
             CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
         ): cv.positive_int,
+        vol.Required(CONF_POWER_SUPPLY, default=DEFAULT_POWER_SUPPLY): vol.In(
+            ["single", "three"]
+        ),
         vol.Optional("dev_mode", default=False): bool,
     }
 )
@@ -83,13 +89,15 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 return await self.async_step_advanced()
 
             # Otherwise, proceed with default values
-            return await self.async_validate_connection({
-                **self.basic_config,
-                CONF_PORT: DEFAULT_PORT,
-                CONF_SLAVE: DEFAULT_SLAVE,
-                CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
-                "dev_mode": False,
-            })
+            return await self.async_validate_connection(
+                {
+                    **self.basic_config,
+                    CONF_PORT: DEFAULT_PORT,
+                    CONF_SLAVE: DEFAULT_SLAVE,
+                    CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
+                    "dev_mode": False,
+                }
+            )
 
         return self.async_show_form(
             step_id="user",
@@ -134,7 +142,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 errors["base"] = "cannot_connect"
                 return self.async_show_form(
                     step_id="advanced" if "show_advanced" in config else "user",
-                    data_schema=ADVANCED_SCHEMA if "show_advanced" in config else BASE_SCHEMA,
+                    data_schema=ADVANCED_SCHEMA
+                    if "show_advanced" in config
+                    else BASE_SCHEMA,
                     errors=errors,
                 )
 
@@ -151,7 +161,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "invalid_slave"
                     return self.async_show_form(
                         step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA if "show_advanced" in config else BASE_SCHEMA,
+                        data_schema=ADVANCED_SCHEMA
+                        if "show_advanced" in config
+                        else BASE_SCHEMA,
                         errors=errors,
                     )
 
@@ -167,7 +179,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "modbus_error"
                     return self.async_show_form(
                         step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA if "show_advanced" in config else BASE_SCHEMA,
+                        data_schema=ADVANCED_SCHEMA
+                        if "show_advanced" in config
+                        else BASE_SCHEMA,
                         errors=errors,
                     )
 
@@ -175,7 +189,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     errors["base"] = "invalid_central_control_mode"
                     return self.async_show_form(
                         step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA if "show_advanced" in config else BASE_SCHEMA,
+                        data_schema=ADVANCED_SCHEMA
+                        if "show_advanced" in config
+                        else BASE_SCHEMA,
                         errors=errors,
                     )
 

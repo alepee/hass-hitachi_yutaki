@@ -37,7 +37,11 @@ from .const import (
     DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
     MASK_COMPRESSOR,
+    POWER_FACTOR,
+    THREE_PHASE_FACTOR,
     UNIT_MODEL_S80,
+    VOLTAGE_SINGLE_PHASE,
+    VOLTAGE_THREE_PHASE,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
@@ -189,6 +193,19 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         register_key="operation_state",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:state-machine",
+    ),
+)
+
+PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
+    HitachiYutakiSensorEntityDescription(
+        key="cop",
+        translation_key="cop",
+        description="Coefficient of Performance",
+        device_class=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        register_key="system_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:heat-pump",
     ),
 )
 
@@ -443,6 +460,18 @@ async def async_setup_entry(
             for description in SECONDARY_COMPRESSOR_SENSORS
         )
 
+    # Add performance sensors
+    entities.extend(
+        HitachiYutakiSensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
+            ),
+        )
+        for description in PERFORMANCE_SENSORS
+    )
+
     async_add_entities(entities)
 
 
@@ -471,6 +500,17 @@ class HitachiYutakiSensor(
             self._last_start_time: datetime | None = None
             self._cycle_times: list[float] = []
             self._compressor_running = False
+
+    def _calculate_electrical_power(self, current: float) -> float:
+        """Calculate electrical power in kW based on current and power supply type."""
+        if self.coordinator.power_supply == "single":
+            # Single phase: P = U * I * cos φ
+            return (VOLTAGE_SINGLE_PHASE * current * POWER_FACTOR) / 1000
+        else:
+            # Three phase: P = U * I * cos φ * √3
+            return (
+                VOLTAGE_THREE_PHASE * current * POWER_FACTOR * THREE_PHASE_FACTOR
+            ) / 1000
 
     @property
     def native_value(self) -> StateType:
@@ -519,6 +559,48 @@ class HitachiYutakiSensor(
                 return value / 10  # Convert to m³/h
             elif "r134a_current" in self.entity_description.key:
                 return value / 10  # Convert to A
+
+        # Specific logic for COP calculation
+        if self.entity_description.key == "cop":
+            # Get water temperatures
+            water_inlet = self.coordinator.data.get("water_inlet_temp")
+            water_outlet = self.coordinator.data.get("water_outlet_temp")
+            water_flow = self.coordinator.data.get("water_flow")
+            compressor_current = self.coordinator.data.get("compressor_current")
+
+            if None in (water_inlet, water_outlet, water_flow, compressor_current):
+                return None
+
+            # Convert temperatures
+            water_inlet = self.coordinator.convert_temperature(water_inlet)
+            water_outlet = self.coordinator.convert_temperature(water_outlet)
+            water_flow = water_flow / 10  # Convert to m³/h
+
+            # Calculate thermal power (kW)
+            # P = m * c * ΔT
+            # where: m = water flow in kg/s (1 m³/h = 0.277778 kg/s)
+            #        c = specific heat capacity of water (4.186 kJ/kg·K)
+            #        ΔT = temperature difference
+            water_flow_kgs = water_flow * 0.277778
+            delta_t = water_outlet - water_inlet
+            thermal_power = water_flow_kgs * 4.186 * delta_t
+
+            # Calculate electrical power (kW)
+            electrical_power = self._calculate_electrical_power(compressor_current)
+
+            # If it's an S80 model, add the secondary compressor power
+            if self.coordinator.is_s80_model():
+                r134a_current = self.coordinator.data.get("r134a_compressor_current")
+                if r134a_current is not None:
+                    r134a_current = r134a_current / 10  # Convert to A
+                    electrical_power += self._calculate_electrical_power(r134a_current)
+
+            # Calculate COP
+            if electrical_power > 0:
+                cop = thermal_power / electrical_power
+                return round(cop, 2)
+
+            return None
 
         return value
 
