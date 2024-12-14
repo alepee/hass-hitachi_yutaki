@@ -115,7 +115,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             return data
 
-        except Exception:
+        except (ModbusException, ConnectionError):
             # Set is_available to False on any error
             return {"is_available": False}
 
@@ -159,7 +159,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 "ModbusException writing to register %s: %s", register_key, error
             )
             return False
-        except Exception as error:
+        except (ConnectionError, OSError) as error:
             _LOGGER.error(
                 "Unexpected error writing to register %s: %s", register_key, error
             )
