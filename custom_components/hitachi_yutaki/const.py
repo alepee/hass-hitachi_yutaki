@@ -16,6 +16,7 @@ DEFAULT_HOST = "192.168.0.4"
 DEFAULT_SLAVE = 1
 DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
+DEFAULT_POWER_SUPPLY = "single"
 
 # Device types
 DEVICE_GATEWAY = "gateway"
@@ -175,3 +176,27 @@ PRESET_ECO = "eco"
 PRESET_DHW_OFF = "off"
 PRESET_DHW_STANDARD = "standard"
 PRESET_DHW_HIGH_DEMAND = "high_demand"
+
+# Operation state values
+OPERATION_STATE_MAP = {
+    0: "off",
+    1: "cool_demand_off",
+    2: "cool_thermo_off",
+    3: "cool_thermo_on",
+    4: "heat_demand_off",
+    5: "heat_thermo_off",
+    6: "heat_thermo_on",
+    7: "dhw_off",
+    8: "dhw_on",
+    9: "pool_off",
+    10: "pool_on",
+    11: "alarm",
+}
+
+CONF_POWER_SUPPLY = "power_supply"
+
+# Electrical constants
+VOLTAGE_SINGLE_PHASE = 230  # Volts
+VOLTAGE_THREE_PHASE = 400  # Volts
+POWER_FACTOR = 0.85  # cos φ
+THREE_PHASE_FACTOR = 1.732  # √3

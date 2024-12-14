@@ -1,5 +1,9 @@
+# Private files
+private/
+
 # Home Assistant config
 config/
+
 
 #Links for local development
 /translations

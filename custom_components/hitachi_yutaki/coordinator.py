@@ -21,6 +21,8 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .const import (
+    CONF_POWER_SUPPLY,
+    DEFAULT_POWER_SUPPLY,
     DOMAIN,
     MASK_CIRCUIT1_COOLING,
     MASK_CIRCUIT1_HEATING,
@@ -52,6 +54,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.model = None
         self.system_config = 0
         self.dev_mode = entry.data.get("dev_mode", False)
+        self.power_supply = entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY)
 
         super().__init__(
             hass,
