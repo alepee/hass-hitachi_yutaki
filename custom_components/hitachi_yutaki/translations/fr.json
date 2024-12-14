@@ -39,7 +39,11 @@
         "data": {
           "power_supply": "Alimentation électrique",
           "host": "Adresse IP de la passerelle",
-          "port": "Port de la passerelle"
+          "port": "Port de la passerelle",
+          "voltage_entity": "Entité de tension (optionnel)"
+        },
+        "data_description": {
+          "voltage_entity": "Entité fournissant la tension en temps réel. Si non définie, les valeurs par défaut seront utilisées"
         },
         "description": "Modifiez les paramètres de votre pompe à chaleur Hitachi Yutaki"
       }
@@ -64,11 +68,11 @@
       "power": {
         "data": {
           "power_supply": "Alimentation électrique",
-          "voltage_entity": "Entité de tension"
+          "voltage_entity": "Entité de tension (optionnel)"
         },
         "data_description": {
           "power_supply": "Type d'alimentation électrique de la pompe à chaleur",
-          "voltage_entity": "Entité fournissant la tension du réseau électrique"
+          "voltage_entity": "Entité fournissant la tension du réseau électrique. Si non définie, les valeurs par défaut seront utilisées"
         },
         "description": "Configuration de l'alimentation électrique",
         "title": "Alimentation électrique"

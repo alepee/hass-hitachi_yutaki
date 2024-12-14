@@ -308,6 +308,11 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                             translation_key="power_supply",
                         ),
                     ),
+                    vol.Optional(CONF_VOLTAGE_ENTITY): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["sensor", "number", "input_number"],
+                        ),
+                    ),
                 }
             ),
         )
