@@ -200,3 +200,9 @@ VOLTAGE_SINGLE_PHASE = 230  # Volts
 VOLTAGE_THREE_PHASE = 400  # Volts
 POWER_FACTOR = 0.85  # cos φ
 THREE_PHASE_FACTOR = 1.732  # √3
+
+# COP calculation constants
+WATER_SPECIFIC_HEAT = 4.186  # kJ/kg·K
+WATER_FLOW_TO_KGS = 0.277778  # Conversion from m³/h to kg/s
+COP_HISTORY_SIZE = 15  # Number of minutes to keep in history
+COP_UPDATE_INTERVAL = 60  # Seconds between COP measurements
