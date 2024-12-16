@@ -312,3 +312,7 @@ class HitachiYutakiNumber(
             value = value * self.entity_description.multiplier
 
         await self.coordinator.async_write_register(self._register_key, int(value))
+
+    def set_native_value(self, value: float) -> None:
+        """Set new value."""
+        raise NotImplementedError
