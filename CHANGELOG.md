@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated configuration options to include power supply type
 - Enhanced accuracy of energy measurements
 
+## [1.4.2] - 2024-12-11
+
+### Changed
+- Improved operation state sensor with more descriptive state values
+
 ## [1.4.1] - 2024-12-11
 
 ### Changed

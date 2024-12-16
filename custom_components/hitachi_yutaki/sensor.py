@@ -675,6 +675,6 @@ class HitachiYutakiSensor(
                 alarm_code = str(value)
                 return {
                     "code": alarm_code,
-                    "description": f"alarm_code_{alarm_code}",  # Home Assistant gérera automatiquement le fallback
+                    "description": f"alarm_code_{alarm_code}",
                 }
         return None
