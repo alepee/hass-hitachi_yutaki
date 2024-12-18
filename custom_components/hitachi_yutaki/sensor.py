@@ -32,6 +32,7 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    CONF_POWER_ENTITY,
     CONF_VOLTAGE_ENTITY,
     COP_HISTORY_SIZE,
     COP_UPDATE_INTERVAL,
@@ -516,6 +517,20 @@ class HitachiYutakiSensor(
 
     def _calculate_electrical_power(self, current: float) -> float:
         """Calculate electrical power in kW based on current and power supply type."""
+        # Check if power entity is configured
+        power_entity_id = self.coordinator.config_entry.data.get(CONF_POWER_ENTITY)
+        if power_entity_id:
+            power_state = self.hass.states.get(power_entity_id)
+            if power_state and power_state.state not in (
+                None,
+                "unknown",
+                "unavailable",
+            ):
+                try:
+                    return float(power_state.state) / 1000  # Convert W to kW
+                except ValueError:
+                    pass  # Fall back to calculation if conversion fails
+
         # Get voltage from entity if configured, otherwise use default
         default_voltage = (
             VOLTAGE_SINGLE_PHASE
