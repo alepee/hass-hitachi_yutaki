@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-b2] - 2024-12-18
+
+### Added
+- Added power meter entity configuration option for more accurate COP calculations
+- Added support for external power meter in sensor calculations
+
+### Changed
+- Modified configuration flow to include power meter entity selection
+- Updated COP calculations to use power meter readings when available
+- Enhanced power consumption accuracy with direct power meter readings
+
+### Documentation
+- Updated README with power meter configuration instructions
+- Added power meter entity option in configuration documentation
+
 ## [1.5.0-b1] - 2024-12-14
 
 ### Added
