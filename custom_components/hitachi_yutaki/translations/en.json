@@ -40,10 +40,12 @@
           "power_supply": "Power supply",
           "host": "Gateway IP address",
           "port": "Gateway port",
-          "voltage_entity": "Voltage entity (optional)"
+          "voltage_entity": "Voltage entity (optional)",
+          "power_entity": "Power entity (optional)"
         },
         "data_description": {
-          "voltage_entity": "Entity providing real-time voltage measurements. If not set, default values will be used"
+          "voltage_entity": "Entity providing real-time voltage measurements. If not set, default values will be used",
+          "power_entity": "Entity providing real-time power consumption measurements. If not set, power will be calculated"
         },
         "description": "Modify your Hitachi Yutaki heat pump settings"
       }
@@ -68,11 +70,13 @@
       "power": {
         "data": {
           "power_supply": "Power supply",
-          "voltage_entity": "Voltage entity (optional)"
+          "voltage_entity": "Voltage entity (optional)",
+          "power_entity": "Power entity (optional)"
         },
         "data_description": {
           "power_supply": "Type of power supply for the heat pump",
-          "voltage_entity": "Entity providing the mains voltage measurements. If not set, default values will be used"
+          "voltage_entity": "Entity providing the mains voltage measurements. If not set, default values will be used",
+          "power_entity": "Entity providing real-time power consumption measurements. If not set, power will be calculated"
         },
         "description": "Power supply configuration",
         "title": "Power Supply"

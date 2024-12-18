@@ -22,6 +22,7 @@ import homeassistant.helpers.config_validation as cv
 
 from .const import (
     CENTRAL_CONTROL_MODE_MAP,
+    CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
     CONF_VOLTAGE_ENTITY,
     DEFAULT_HOST,
@@ -61,6 +62,12 @@ POWER_SCHEMA = vol.Schema(
         vol.Optional(CONF_VOLTAGE_ENTITY): selector.EntitySelector(
             selector.EntitySelectorConfig(
                 domain=["sensor", "number", "input_number"],
+            ),
+        ),
+        vol.Optional(CONF_POWER_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain=["sensor"],
+                device_class=["power"],
             ),
         ),
     }
@@ -311,6 +318,12 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(CONF_VOLTAGE_ENTITY): selector.EntitySelector(
                         selector.EntitySelectorConfig(
                             domain=["sensor", "number", "input_number"],
+                        ),
+                    ),
+                    vol.Optional(CONF_POWER_ENTITY): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["sensor"],
+                            device_class=["power"],
                         ),
                     ),
                 }
