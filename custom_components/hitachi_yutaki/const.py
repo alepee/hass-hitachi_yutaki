@@ -8,7 +8,7 @@ DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
-VERSION = "1.4.2"
+VERSION = "1.5.0-b2"
 
 # Default values
 DEFAULT_NAME = "Hitachi Yutaki"
@@ -16,6 +16,7 @@ DEFAULT_HOST = "192.168.0.4"
 DEFAULT_SLAVE = 1
 DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
+DEFAULT_POWER_SUPPLY = "single"
 
 # Device types
 DEVICE_GATEWAY = "gateway"
@@ -191,3 +192,19 @@ OPERATION_STATE_MAP = {
     10: "pool_on",
     11: "alarm",
 }
+
+CONF_POWER_SUPPLY = "power_supply"
+CONF_VOLTAGE_ENTITY = "voltage_entity"
+CONF_POWER_ENTITY = "power_entity"
+
+# Electrical constants
+VOLTAGE_SINGLE_PHASE = 230  # Volts
+VOLTAGE_THREE_PHASE = 400  # Volts
+POWER_FACTOR = 0.85  # cos φ
+THREE_PHASE_FACTOR = 1.732  # √3
+
+# COP calculation constants
+WATER_SPECIFIC_HEAT = 4.186  # kJ/kg·K
+WATER_FLOW_TO_KGS = 0.277778  # Conversion from m³/h to kg/s
+COP_HISTORY_SIZE = 15  # Number of minutes to keep in history
+COP_UPDATE_INTERVAL = 60  # Seconds between COP measurements
