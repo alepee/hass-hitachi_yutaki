@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-b3] - 2024-12-19
+
+### Added
+- Added external temperature entities configuration for more accurate COP calculations
+- Added support for two COP calculation methods:
+  - Moving median over 10 measurements when using external temperature sensors
+  - Energy accumulation over 15 minutes when using internal sensors
+
+### Changed
+- Modified configuration flow to include temperature entity selection
+- Improved COP calculation accuracy with external temperature sensors
+- Refactored sensor code to reduce complexity and improve maintainability
+
+### Documentation
+- Updated configuration documentation with new temperature entity options
+- Added explanation of COP calculation methods in the documentation
+
 ## [1.5.0-b2] - 2024-12-18
 
 ### Added

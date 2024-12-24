@@ -71,12 +71,16 @@
         "data": {
           "power_supply": "Power supply",
           "voltage_entity": "Voltage entity (optional)",
-          "power_entity": "Power entity (optional)"
+          "power_entity": "Power entity (optional)",
+          "water_inlet_temp_entity": "Water inlet temperature entity (optional)",
+          "water_outlet_temp_entity": "Water outlet temperature entity (optional)"
         },
         "data_description": {
           "power_supply": "Type of power supply for the heat pump",
           "voltage_entity": "Entity providing the mains voltage measurements. If not set, default values will be used",
-          "power_entity": "Entity providing real-time power consumption measurements. If not set, power will be calculated"
+          "power_entity": "Entity providing real-time power consumption measurements. If not set, power will be calculated",
+          "water_inlet_temp_entity": "Entity providing more precise water inlet temperature measurements. If not set, internal measurements will be used",
+          "water_outlet_temp_entity": "Entity providing more precise water outlet temperature measurements. If not set, internal measurements will be used"
         },
         "description": "Power supply configuration",
         "title": "Power Supply"
@@ -267,8 +271,17 @@
       "r134a_compressor_current": {
         "name": "R134a Compressor Current"
       },
-      "cop": {
-        "name": "Coefficient of Performance"
+      "cop_heating": {
+        "name": "Space Heating COP"
+      },
+      "cop_cooling": {
+        "name": "Space Cooling COP"
+      },
+      "cop_dhw": {
+        "name": "DHW COP"
+      },
+      "cop_pool": {
+        "name": "Pool COP"
       }
     },
     "binary_sensor": {

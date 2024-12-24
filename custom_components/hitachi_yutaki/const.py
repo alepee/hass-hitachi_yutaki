@@ -1,8 +1,8 @@
 """Constants for the Hitachi Yutaki integration."""
 
-from homeassistant.const import (
-    Platform,
-)
+from datetime import timedelta
+
+from homeassistant.const import Platform
 
 DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
@@ -193,9 +193,14 @@ OPERATION_STATE_MAP = {
     11: "alarm",
 }
 
+# Configuration options
+CONF_SLAVE = "slave"
 CONF_POWER_SUPPLY = "power_supply"
 CONF_VOLTAGE_ENTITY = "voltage_entity"
 CONF_POWER_ENTITY = "power_entity"
+CONF_WATER_INLET_TEMP_ENTITY = "water_inlet_temp_entity"
+CONF_WATER_OUTLET_TEMP_ENTITY = "water_outlet_temp_entity"
+CONF_DEV_MODE = "dev_mode"
 
 # Electrical constants
 VOLTAGE_SINGLE_PHASE = 230  # Volts
@@ -204,7 +209,10 @@ POWER_FACTOR = 0.85  # cos φ
 THREE_PHASE_FACTOR = 1.732  # √3
 
 # COP calculation constants
-WATER_SPECIFIC_HEAT = 4.186  # kJ/kg·K
-WATER_FLOW_TO_KGS = 0.277778  # Conversion from m³/h to kg/s
-COP_HISTORY_SIZE = 15  # Number of minutes to keep in history
+WATER_SPECIFIC_HEAT = 4.18  # kJ/kg·K
+WATER_FLOW_TO_KGS = 1000 / 3600  # Conversion from m³/h to kg/s
+COP_HISTORY_SIZE = 10  # Number of measurements to keep in history
 COP_UPDATE_INTERVAL = 60  # Seconds between COP measurements
+COP_ENERGY_ACCUMULATION_PERIOD = timedelta(
+    minutes=15
+)  # Period for energy accumulation when using internal temperatures

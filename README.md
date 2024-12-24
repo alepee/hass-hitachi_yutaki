@@ -91,7 +91,10 @@ The integration automatically detects your heat pump model and available feature
 | compressor_current | sensor | Current electrical consumption of the compressor | A | diagnostic |
 | compressor_cycle_time | sensor | Average time between compressor starts | min | diagnostic |
 | power_consumption | sensor | Total electrical energy consumed by the unit | kWh | diagnostic |
-| cop | sensor | Real-time Coefficient of Performance calculated from water flow, temperatures and electrical consumption | - | diagnostic |
+| cop_heating | sensor | Space heating COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
+| cop_cooling | sensor | Space cooling COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
+| cop_dhw | sensor | Domestic hot water COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
+| cop_pool | sensor | Pool heating COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
 
 ### Primary Compressor Device
 
@@ -197,10 +200,35 @@ The integration automatically detects your heat pump model and available feature
     - Port (default: 502)
     - Power supply type (single phase/three phase)
     - Voltage entity (optional - for real-time voltage measurements)
+    - Power meter entity (optional - for real-time power measurements)
+    - Water inlet temperature entity (optional - for more accurate COP calculations)
+    - Water outlet temperature entity (optional - for more accurate COP calculations)
     - Advanced settings (optional):
         - Modbus slave ID (default: 1)
         - Scan interval (seconds)
         - Developer mode (enables all entities regardless of heat pump configuration)
+
+## COP Calculation Methods
+
+The integration provides two methods for calculating the Coefficient of Performance (COP):
+
+### Using External Temperature Sensors
+
+When both water inlet and outlet temperature entities are configured:
+- Uses more precise external temperature measurements
+- Calculates COP using a moving median over 10 measurements
+- Updates every minute
+- Filters out unrealistic values (COP > 8)
+- Best option when you have accurate external temperature sensors
+
+### Using Internal Temperature Sensors
+
+When no external temperature entities are configured:
+- Uses the heat pump's internal temperature sensors
+- Accumulates thermal and electrical energy over 15 minutes
+- Calculates COP from accumulated energy values
+- Helps mitigate the impact of temperature measurement precision (1°C)
+- Default method using built-in sensors
 
 ## Development
 

@@ -3,8 +3,9 @@
 from __future__ import annotations
 
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from statistics import mean, median
 from time import time
 from typing import Any, Final
@@ -34,6 +35,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     CONF_POWER_ENTITY,
     CONF_VOLTAGE_ENTITY,
+    CONF_WATER_INLET_TEMP_ENTITY,
+    CONF_WATER_OUTLET_TEMP_ENTITY,
+    COP_ENERGY_ACCUMULATION_PERIOD,
     COP_HISTORY_SIZE,
     COP_UPDATE_INTERVAL,
     DEVICE_CONTROL_UNIT,
@@ -46,13 +50,47 @@ from .const import (
     OPERATION_STATE_MAP,
     POWER_FACTOR,
     THREE_PHASE_FACTOR,
-    UNIT_MODEL_S80,
     VOLTAGE_SINGLE_PHASE,
     VOLTAGE_THREE_PHASE,
     WATER_FLOW_TO_KGS,
     WATER_SPECIFIC_HEAT,
 )
 from .coordinator import HitachiYutakiDataCoordinator
+
+
+class EnergyAccumulator:
+    """Class to accumulate thermal and electrical energy over time."""
+
+    def __init__(self, period: timedelta) -> None:
+        """Initialize the accumulator."""
+        self.period = period
+        self.thermal_energy = 0.0
+        self.electrical_energy = 0.0
+        self.last_update = datetime.now()
+        self.start_time = self.last_update
+
+    def add_measurement(self, thermal_power: float, electrical_power: float) -> None:
+        """Add a power measurement and accumulate energy."""
+        now = datetime.now()
+        dt = (now - self.last_update).total_seconds() / 3600  # Convert to hours
+
+        # Accumulate energy (kWh)
+        self.thermal_energy += thermal_power * dt
+        self.electrical_energy += electrical_power * dt
+
+        self.last_update = now
+
+        # Reset if period has elapsed
+        if now - self.start_time > self.period:
+            self.thermal_energy = 0.0
+            self.electrical_energy = 0.0
+            self.start_time = now
+
+    def get_cop(self) -> float | None:
+        """Calculate COP from accumulated energies."""
+        if self.electrical_energy <= 0:
+            return None
+        return self.thermal_energy / self.electrical_energy
 
 
 @dataclass
@@ -68,10 +106,10 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
 
     register_key: str | None = None
     needs_conversion: bool = False
-    model_required: str | None = None
     translation_key: str | None = None
     description: str | None = None
     fallback_translation_key: str | None = None
+    condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
 
 
 TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
@@ -207,14 +245,48 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
 
 PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
-        key="cop",
-        translation_key="cop",
-        description="Coefficient of Performance",
+        key="cop_heating",
+        translation_key="cop_heating",
+        description="Coefficient of Performance for Space Heating",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-pump",
+        condition=lambda c: c.has_heating_circuit1() or c.has_heating_circuit2(),
+    ),
+    HitachiYutakiSensorEntityDescription(
+        key="cop_cooling",
+        translation_key="cop_cooling",
+        description="Coefficient of Performance for Space Cooling",
+        device_class=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        register_key="system_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:heat-pump-outline",
+        condition=lambda c: c.has_cooling_circuit1() or c.has_cooling_circuit2(),
+    ),
+    HitachiYutakiSensorEntityDescription(
+        key="cop_dhw",
+        translation_key="cop_dhw",
+        description="Coefficient of Performance for Domestic Hot Water",
+        device_class=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        register_key="system_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:water-boiler",
+        condition=lambda c: c.has_dhw(),
+    ),
+    HitachiYutakiSensorEntityDescription(
+        key="cop_pool",
+        translation_key="cop_pool",
+        description="Coefficient of Performance for Pool Heating",
+        device_class=None,
+        state_class=SensorStateClass.MEASUREMENT,
+        register_key="system_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:pool",
+        condition=lambda c: c.has_pool(),
     ),
 )
 
@@ -318,7 +390,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="r134a_discharge_temp",
         needs_conversion=True,
-        model_required=UNIT_MODEL_S80,
+        condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -330,7 +402,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="r134a_suction_temp",
         needs_conversion=True,
-        model_required=UNIT_MODEL_S80,
+        condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -342,7 +414,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         native_unit_of_measurement=UnitOfPressure.MBAR,
         register_key="r134a_discharge_pressure",
         needs_conversion=True,
-        model_required=UNIT_MODEL_S80,
+        condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -354,19 +426,18 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         native_unit_of_measurement=UnitOfPressure.MBAR,
         register_key="r134a_suction_pressure",
         needs_conversion=True,
-        model_required=UNIT_MODEL_S80,
+        condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
         key="r134a_compressor_frequency",
         translation_key="r134a_compressor_frequency",
         description="Operating frequency of the R134a compressor",
-        icon="mdi:sine-wave",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         register_key="r134a_compressor_frequency",
-        model_required=UNIT_MODEL_S80,
+        condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -378,7 +449,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         register_key="r134a_compressor_current",
         needs_conversion=True,
-        model_required=UNIT_MODEL_S80,
+        condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
 )
@@ -454,20 +525,20 @@ async def async_setup_entry(
         for description in PRIMARY_COMPRESSOR_SENSORS
     )
 
-    # Add R134a sensors only if unit is S80 and they are relevant
-    if coordinator.is_s80_model():
-        entities.extend(
-            HitachiYutakiSensor(
-                coordinator=coordinator,
-                description=description,
-                device_info=DeviceInfo(
-                    identifiers={
-                        (DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")
-                    },
-                ),
-            )
-            for description in SECONDARY_COMPRESSOR_SENSORS
+    # Add R134a sensors
+    entities.extend(
+        HitachiYutakiSensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={
+                    (DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")
+                },
+            ),
         )
+        for description in SECONDARY_COMPRESSOR_SENSORS
+        if description.condition is None or description.condition(coordinator)
+    )
 
     # Add performance sensors
     entities.extend(
@@ -479,6 +550,7 @@ async def async_setup_entry(
             ),
         )
         for description in PERFORMANCE_SENSORS
+        if description.condition is None or description.condition(coordinator)
     )
 
     async_add_entities(entities)
@@ -504,16 +576,35 @@ class HitachiYutakiSensor(
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
-        # Initialiser les variables pour le calcul du temps de cycle
+        # Initialize variables for cycle time calculation
         if description.key == "compressor_cycle_time":
             self._last_start_time: datetime | None = None
             self._cycle_times: list[float] = []
             self._compressor_running = False
 
-        # Initialiser l'historique pour le COP
-        if description.key == "cop":
+        # Initialize history for COPs
+        if description.key in ("cop_heating", "cop_cooling", "cop_dhw", "cop_pool"):
             self._measurements = deque(maxlen=COP_HISTORY_SIZE)
             self._last_measurement = 0
+            self._energy_accumulator = EnergyAccumulator(COP_ENERGY_ACCUMULATION_PERIOD)
+
+    def _get_temperature(self, register_key: str, entity_key: str) -> float | None:
+        """Get temperature from entity if configured, otherwise from register."""
+        # Try to get temperature from configured entity
+        entity_id = self.coordinator.config_entry.data.get(entity_key)
+        if entity_id:
+            state = self.hass.states.get(entity_id)
+            if state and state.state not in (None, "unknown", "unavailable"):
+                try:
+                    return float(state.state)
+                except ValueError:
+                    pass
+
+        # Fall back to register value
+        value = self.coordinator.data.get(register_key)
+        if value is not None:
+            return self.coordinator.convert_temperature(value)
+        return None
 
     def _calculate_electrical_power(self, current: float) -> float:
         """Calculate electrical power in kW based on current and power supply type."""
@@ -572,35 +663,143 @@ class HitachiYutakiSensor(
         if system_status is None or not bool(system_status & MASK_COMPRESSOR):
             return None, None
 
-        water_inlet = self.coordinator.data.get("water_inlet_temp")
-        water_outlet = self.coordinator.data.get("water_outlet_temp")
+        # Get temperatures from entities if configured, otherwise from registers
+        water_inlet = self._get_temperature(
+            "water_inlet_temp", CONF_WATER_INLET_TEMP_ENTITY
+        )
+        water_outlet = self._get_temperature(
+            "water_outlet_temp", CONF_WATER_OUTLET_TEMP_ENTITY
+        )
         water_flow = self.coordinator.data.get("water_flow")
-        compressor_current = self.coordinator.data.get("compressor_current")
 
-        if None in (water_inlet, water_outlet, water_flow, compressor_current):
+        if None in (water_inlet, water_outlet, water_flow):
             return None, None
 
-        # Convert temperatures
-        water_inlet = self.coordinator.convert_temperature(water_inlet)
-        water_outlet = self.coordinator.convert_temperature(water_outlet)
+        # Convert water flow
         water_flow = water_flow / 10  # Convert to m³/h
 
         # Calculate thermal power (kW)
         water_flow_kgs = water_flow * WATER_FLOW_TO_KGS
         delta_t = water_outlet - water_inlet
-        thermal_power = water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t
+        thermal_power = abs(water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t)
 
-        # Calculate electrical power (kW)
+        # Get electrical power
+        power_entity_id = self.coordinator.config_entry.data.get(CONF_POWER_ENTITY)
+        if power_entity_id:
+            power_state = self.hass.states.get(power_entity_id)
+            if power_state and power_state.state not in (
+                None,
+                "unknown",
+                "unavailable",
+            ):
+                try:
+                    electrical_power = (
+                        float(power_state.state) / 1000
+                    )  # Convert W to kW
+                    if electrical_power <= 0:
+                        return None, None
+                    return thermal_power, electrical_power
+                except ValueError:
+                    pass
+
+        # Calculate electrical power if no power entity
+        compressor_current = self.coordinator.data.get("compressor_current")
+        if compressor_current is None or compressor_current <= 0:
+            return None, None
+
         electrical_power = self._calculate_electrical_power(compressor_current)
+        if electrical_power <= 0:
+            return None, None
 
         # Add secondary compressor power for S80 models
         if self.coordinator.is_s80_model():
             r134a_current = self.coordinator.data.get("r134a_compressor_current")
             if r134a_current is not None:
                 r134a_current = r134a_current / 10
-                electrical_power += self._calculate_electrical_power(r134a_current)
+                additional_power = self._calculate_electrical_power(r134a_current)
+                if additional_power > 0:
+                    electrical_power += additional_power
 
         return thermal_power, electrical_power
+
+    def _get_cop_value(self) -> StateType:
+        """Calculate and return COP value."""
+        # Check if compressor is running
+        system_status = self.coordinator.data.get("system_status")
+        if system_status is None or not bool(system_status & MASK_COMPRESSOR):
+            return None
+
+        # Check operation state
+        operation_state = self.coordinator.data.get("operation_state")
+        if operation_state is None:
+            return None
+
+        # Skip if wrong state
+        state_map = {
+            "cop_heating": 6,  # heat_thermo_on
+            "cop_cooling": 3,  # cool_thermo_on
+            "cop_dhw": 8,  # dhw_on
+            "cop_pool": 10,  # pool_on
+        }
+        if operation_state != state_map.get(self.entity_description.key):
+            return None
+
+        current_time = time()
+
+        # Add new measurement every minute
+        if current_time - self._last_measurement >= COP_UPDATE_INTERVAL:
+            thermal_power, electrical_power = self._calculate_cop_values()
+
+            if thermal_power is not None and electrical_power is not None:
+                # If using external temperature sensors, use moving median
+                if self.coordinator.config_entry.data.get(
+                    CONF_WATER_INLET_TEMP_ENTITY
+                ) and self.coordinator.config_entry.data.get(
+                    CONF_WATER_OUTLET_TEMP_ENTITY
+                ):
+                    if electrical_power > 0 and thermal_power / electrical_power <= 8:
+                        self._measurements.append(thermal_power / electrical_power)
+                # Otherwise use energy accumulation
+                else:
+                    self._energy_accumulator.add_measurement(
+                        thermal_power, electrical_power
+                    )
+
+            self._last_measurement = current_time
+
+        # Return COP based on calculation method
+        if self.coordinator.config_entry.data.get(
+            CONF_WATER_INLET_TEMP_ENTITY
+        ) and self.coordinator.config_entry.data.get(CONF_WATER_OUTLET_TEMP_ENTITY):
+            if self._measurements:
+                return round(median(self._measurements), 2)
+        else:
+            cop = self._energy_accumulator.get_cop()
+            if cop is not None:
+                return round(cop, 2)
+        return None
+
+    def _get_cycle_time(self, value: int) -> StateType:
+        """Calculate and return compressor cycle time."""
+        compressor_running = bool(value & MASK_COMPRESSOR)
+
+        # Detect compressor start
+        if compressor_running and not self._compressor_running:
+            current_time = datetime.now()
+            if self._last_start_time is not None:
+                cycle_time = (current_time - self._last_start_time).total_seconds() / 60
+                self._cycle_times.append(cycle_time)
+                # Keep only the last 10 cycles
+                if len(self._cycle_times) > 10:
+                    self._cycle_times.pop(0)
+            self._last_start_time = current_time
+
+        self._compressor_running = compressor_running
+
+        # Calculate average cycle time
+        if self._cycle_times:
+            return round(mean(self._cycle_times), 1)
+        return None
 
     @property
     def native_value(self) -> StateType:
@@ -621,27 +820,7 @@ class HitachiYutakiSensor(
 
         # Specific logic for compressor cycle time sensor
         if self.entity_description.key == "compressor_cycle_time":
-            compressor_running = bool(value & MASK_COMPRESSOR)
-
-            # Detect compressor start
-            if compressor_running and not self._compressor_running:
-                current_time = datetime.now()
-                if self._last_start_time is not None:
-                    cycle_time = (
-                        current_time - self._last_start_time
-                    ).total_seconds() / 60
-                    self._cycle_times.append(cycle_time)
-                    # Keep only the last 10 cycles
-                    if len(self._cycle_times) > 10:
-                        self._cycle_times.pop(0)
-                self._last_start_time = current_time
-
-            self._compressor_running = compressor_running
-
-            # Calculate average cycle time
-            if self._cycle_times:
-                return round(mean(self._cycle_times), 1)
-            return None
+            return self._get_cycle_time(value)
 
         # Convert value if needed
         if self.entity_description.needs_conversion:
@@ -654,30 +833,14 @@ class HitachiYutakiSensor(
             elif "r134a_current" in self.entity_description.key:
                 return value / 10  # Convert to A
 
-        # Specific logic for COP calculation
-        if self.entity_description.key == "cop":
-            # Check if compressor is running
-            system_status = self.coordinator.data.get("system_status")
-            if system_status is None or not bool(system_status & MASK_COMPRESSOR):
-                return None
-
-            current_time = time()
-
-            # Add new measurement every minute
-            if current_time - self._last_measurement >= COP_UPDATE_INTERVAL:
-                thermal_power, electrical_power = self._calculate_cop_values()
-                if (
-                    thermal_power is not None
-                    and electrical_power is not None
-                    and electrical_power > 0
-                ):
-                    self._measurements.append(thermal_power / electrical_power)
-                self._last_measurement = current_time
-
-            # Calculate median COP if we have measurements
-            if self._measurements:
-                return round(median(self._measurements), 2)
-            return None
+        # Specific logic for COP calculations
+        if self.entity_description.key in (
+            "cop_heating",
+            "cop_cooling",
+            "cop_dhw",
+            "cop_pool",
+        ):
+            return self._get_cop_value()
 
         return value
 
