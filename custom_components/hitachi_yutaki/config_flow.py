@@ -25,6 +25,8 @@ from .const import (
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
     CONF_VOLTAGE_ENTITY,
+    CONF_WATER_INLET_TEMP_ENTITY,
+    CONF_WATER_OUTLET_TEMP_ENTITY,
     DEFAULT_HOST,
     DEFAULT_NAME,
     DEFAULT_PORT,
@@ -68,6 +70,18 @@ POWER_SCHEMA = vol.Schema(
             selector.EntitySelectorConfig(
                 domain=["sensor"],
                 device_class=["power"],
+            ),
+        ),
+        vol.Optional(CONF_WATER_INLET_TEMP_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain=["sensor", "number", "input_number"],
+                device_class=["temperature"],
+            ),
+        ),
+        vol.Optional(CONF_WATER_OUTLET_TEMP_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain=["sensor", "number", "input_number"],
+                device_class=["temperature"],
             ),
         ),
     }
@@ -324,6 +338,20 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                         selector.EntitySelectorConfig(
                             domain=["sensor"],
                             device_class=["power"],
+                        ),
+                    ),
+                    vol.Optional(CONF_WATER_INLET_TEMP_ENTITY): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["sensor", "number", "input_number"],
+                            device_class=["temperature"],
+                        ),
+                    ),
+                    vol.Optional(
+                        CONF_WATER_OUTLET_TEMP_ENTITY
+                    ): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["sensor", "number", "input_number"],
+                            device_class=["temperature"],
                         ),
                     ),
                 }
