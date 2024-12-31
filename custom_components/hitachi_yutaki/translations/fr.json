@@ -155,7 +155,10 @@
         "name": "Courant du Compresseur"
       },
       "compressor_cycle_time": {
-        "name": "Temps de Cycle Compresseur"
+        "name": "Temps de cycle compresseur",
+        "state": {
+          "operation_state_off": "Arrêt"
+        }
       },
       "compressor_tg_gas_temp": {
         "name": "Température du Gaz"
@@ -286,6 +289,21 @@
       },
       "cop_pool": {
         "name": "COP Piscine"
+      },
+      "compressor_runtime": {
+        "name": "Temps de fonctionnement compresseur"
+      },
+      "compressor_resttime": {
+        "name": "Temps de repos compresseur"
+      },
+      "r134a_cycle_time": {
+        "name": "Temps de cycle compresseur R134a"
+      },
+      "r134a_runtime": {
+        "name": "Temps de fonctionnement compresseur R134a"
+      },
+      "r134a_resttime": {
+        "name": "Temps de repos compresseur R134a"
       }
     },
     "binary_sensor": {
@@ -321,6 +339,12 @@
       },
       "smart_function": {
         "name": "Fonction Smart"
+      },
+      "compressor_running": {
+        "name": "Fonctionnement compresseur"
+      },
+      "r134a_compressor_running": {
+        "name": "Fonctionnement compresseur R134a"
       }
     },
     "select": {
@@ -449,5 +473,9 @@
         }
       }
     }
+  },
+  "translations": {
+    "compressor_running": "Compresseur en marche",
+    "r134a_compressor_running": "Compresseur R134a en marche"
   }
 }

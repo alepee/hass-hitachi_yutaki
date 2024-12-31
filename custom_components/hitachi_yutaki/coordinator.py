@@ -1,5 +1,7 @@
 """DataUpdateCoordinator for Hitachi Yutaki integration."""
 
+from __future__ import annotations
+
 from datetime import timedelta
 import logging
 from typing import Any
@@ -55,6 +57,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.system_config = 0
         self.dev_mode = entry.data.get("dev_mode", False)
         self.power_supply = entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY)
+        self.entities = []
 
         super().__init__(
             hass,
@@ -113,6 +116,11 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 except ModbusException as error:
                     raise UpdateFailed(f"Error reading {register_name}") from error
 
+            # Update timing sensors
+            for entity in self.entities:
+                if hasattr(entity, "async_update_timing"):
+                    await entity.async_update_timing()
+
             return data
 
         except (ModbusException, ConnectionError):
@@ -165,15 +173,34 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             )
             return False
 
-    def convert_temperature(self, value: int) -> float:
+    def convert_temperature(self, value: int | None) -> int | None:
         """Convert a raw temperature value."""
+        if value is None:
+            return None
+        if value == 0xFFFF:  # Special value for sensor error
+            return None
         if value > 32767:  # Handle negative values (2's complement)
             value -= 65536
-        return int(value)
+        return int(value)  # Temperature is already in °C
 
-    def convert_pressure(self, value: int) -> float:
-        """Convert a raw pressure value to MPa."""
-        return value / 100.0  # Convert from 0-510 to 0.00-5.10 MPa
+    def convert_water_flow(self, value: int | None) -> float | None:
+        """Convert a raw water flow value to m³/h."""
+        if value is None:
+            return None
+        return float(value) / 10.0  # Water flow is already in m³/h
+
+    def convert_current(self, value: int | None) -> float | None:
+        """Convert a raw current value to amperes."""
+        if value is None:
+            return None
+        return float(value) / 10.0  # Current is already in A
+
+    def convert_pressure(self, value: int | None) -> float | None:
+        """Convert a raw pressure value from MPa to bar."""
+        if value is None:
+            return None
+        # Convert from MPa to bar (1 MPa = 10 bar)
+        return float(value) / 10.0  # Value is in MPa * 100, so divide by 10 to get bar
 
     def is_s80_model(self) -> bool:
         """Check if the unit is an S80 model."""

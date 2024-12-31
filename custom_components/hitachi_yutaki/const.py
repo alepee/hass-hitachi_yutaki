@@ -8,7 +8,7 @@ DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
-VERSION = "1.5.0-b3"
+VERSION = "1.5.0-b4"
 
 # Default values
 DEFAULT_NAME = "Hitachi Yutaki"

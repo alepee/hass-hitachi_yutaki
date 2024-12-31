@@ -151,7 +151,10 @@
         "name": "Compressor Current"
       },
       "compressor_cycle_time": {
-        "name": "Compressor Cycle Time"
+        "name": "Compressor cycle time",
+        "state": {
+          "operation_state_off": "Off"
+        }
       },
       "compressor_tg_gas_temp": {
         "name": "Gas Temperature"
@@ -282,6 +285,21 @@
       },
       "cop_pool": {
         "name": "Pool COP"
+      },
+      "compressor_runtime": {
+        "name": "Compressor runtime"
+      },
+      "compressor_resttime": {
+        "name": "Compressor rest time"
+      },
+      "r134a_cycle_time": {
+        "name": "R134a compressor cycle time"
+      },
+      "r134a_runtime": {
+        "name": "R134a compressor runtime"
+      },
+      "r134a_resttime": {
+        "name": "R134a compressor rest time"
       }
     },
     "binary_sensor": {
@@ -317,6 +335,12 @@
       },
       "smart_function": {
         "name": "Smart Function"
+      },
+      "compressor_running": {
+        "name": "Compressor running"
+      },
+      "r134a_compressor_running": {
+        "name": "R134a compressor running"
       }
     },
     "select": {
@@ -445,5 +469,9 @@
         }
       }
     }
+  },
+  "translations": {
+    "compressor_running": "Compressor running",
+    "r134a_compressor_running": "R134a compressor running"
   }
 }
