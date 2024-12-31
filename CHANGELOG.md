@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0-b4] - 2024-01-14
+
+### Added
+- Added runtime and rest time sensors for both compressors
+- Added detailed logging for power calculations
+- Added debug information for thermal power calculation
+- Added comprehensive logging for COP measurements and accumulation
+
+### Changed
+- Moved cycle time sensors to compressor devices for better organization
+- Optimized COP calculation with more detailed debug information
+- Simplified sensor code by moving value validation to conversion methods
+
+### Fixed
+- Fixed temperature conversion for special values (0xFFFF)
+- Fixed water flow value scaling
+- Fixed double conversion issue for temperature and pressure sensors
+- Fixed connectivity sensor state calculation
+
+### Added
+- Added detailed logging for power calculations
+- Added debug information for thermal power calculation
+- Added comprehensive logging for COP measurements and accumulation
+
 ## [1.5.0-b3] - 2024-12-19
 
 ### Added
