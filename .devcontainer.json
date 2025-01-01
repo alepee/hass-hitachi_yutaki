@@ -35,6 +35,9 @@
                     "editor.defaultFormatter": "charliermarsh.ruff",
                     "editor.formatOnSave": true
                 },
+                "[json]": {
+                    "editor.tabSize": 2
+                },
                 "editor.formatOnPaste": false,
                 "editor.formatOnSave": true,
                 "editor.formatOnType": true,

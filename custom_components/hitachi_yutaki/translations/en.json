@@ -469,9 +469,5 @@
         }
       }
     }
-  },
-  "translations": {
-    "compressor_running": "Compressor running",
-    "r134a_compressor_running": "R134a compressor running"
   }
 }
