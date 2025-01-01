@@ -11,8 +11,6 @@ from statistics import median
 from time import time
 from typing import Any, Final
 
-from homeassistant.components import recorder
-from homeassistant.components.recorder import history
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -30,12 +28,10 @@ from homeassistant.const import (
     UnitOfVolumeFlowRate,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
-from homeassistant.util import dt as dt_util
 
 from .const import (
     CONF_POWER_ENTITY,
@@ -710,90 +706,6 @@ async def async_setup_entry(
     coordinator.entities.extend(entities)
 
     async_add_entities(entities)
-
-
-async def get_compressor_timing(
-    hass: HomeAssistant, entity_id: str, duration: timedelta = timedelta(hours=24)
-) -> tuple[float, float, float]:
-    """Calculate average cycle, run and rest times from binary sensor history."""
-    start_time = dt_util.utcnow() - duration
-    _LOGGER.debug("Getting history for %s from %s", entity_id, start_time)
-
-    try:
-        states = await recorder.get_instance(hass).async_add_executor_job(
-            history.state_changes_during_period,
-            hass,
-            start_time,
-            dt_util.utcnow(),
-            entity_id,
-        )
-    except HomeAssistantError as err:
-        _LOGGER.error("Error getting history data: %s", err)
-        return None, None, None
-
-    if not states:
-        _LOGGER.debug("No history found")
-        return None, None, None
-
-    if entity_id not in states:
-        _LOGGER.debug("Entity %s not found in history", entity_id)
-        return None, None, None
-
-    states = states[entity_id]
-    _LOGGER.debug("Found %d state changes", len(states))
-
-    if len(states) < 2:
-        _LOGGER.debug("Not enough state changes")
-        return None, None, None
-
-    cycles = []
-    run_times = []
-    rest_times = []
-
-    cycle_start = None
-    last_run_start = None
-    last_rest_start = None
-
-    for state in states:
-        if state.state not in ("on", "off"):
-            continue
-
-        current_time = dt_util.as_utc(state.last_changed)
-        is_running = state.state == "on"
-        _LOGGER.debug("State change at %s: %s", current_time, state.state)
-
-        if is_running:
-            if last_rest_start:
-                rest_time = (current_time - last_rest_start).total_seconds() / 60
-                rest_times.append(rest_time)
-                _LOGGER.debug("Rest time: %.1f minutes", rest_time)
-            last_run_start = current_time
-            if not cycle_start:
-                cycle_start = current_time
-        else:
-            if last_run_start:
-                run_time = (current_time - last_run_start).total_seconds() / 60
-                run_times.append(run_time)
-                _LOGGER.debug("Run time: %.1f minutes", run_time)
-                if cycle_start:
-                    cycle_time = (current_time - cycle_start).total_seconds() / 60
-                    cycles.append(cycle_time)
-                    _LOGGER.debug("Cycle time: %.1f minutes", cycle_time)
-                    cycle_start = None
-            last_rest_start = current_time
-
-    avg_cycle = sum(cycles) / len(cycles) if cycles else None
-    avg_run = sum(run_times) / len(run_times) if run_times else None
-    avg_rest = sum(rest_times) / len(rest_times) if rest_times else None
-
-    _LOGGER.debug(
-        "Averages - Cycle: %s, Run: %s, Rest: %s",
-        f"{avg_cycle:.1f}" if avg_cycle else "None",
-        f"{avg_run:.1f}" if avg_run else "None",
-        f"{avg_rest:.1f}" if avg_rest else "None",
-    )
-
-    return avg_cycle, avg_run, avg_rest
 
 
 class HitachiYutakiSensor(

@@ -341,10 +341,10 @@
         "name": "Fonction Smart"
       },
       "compressor_running": {
-        "name": "Fonctionnement compresseur"
+        "name": "Compresseur en marche"
       },
       "r134a_compressor_running": {
-        "name": "Fonctionnement compresseur R134a"
+        "name": "Compresseur R134a en marche"
       }
     },
     "select": {
@@ -473,9 +473,5 @@
         }
       }
     }
-  },
-  "translations": {
-    "compressor_running": "Compresseur en marche",
-    "r134a_compressor_running": "Compresseur R134a en marche"
   }
 }
