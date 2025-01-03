@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -11,17 +12,16 @@ from homeassistant.components.binary_sensor import (
     BinarySensorEntityDescription,
 )
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import DeviceInfo
+from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import (
-    CoordinatorEntity,
-)
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     DEVICE_CONTROL_UNIT,
     DEVICE_GATEWAY,
+    DEVICE_PRIMARY_COMPRESSOR,
+    DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
     MASK_BOILER,
     MASK_COMPRESSOR,
@@ -42,13 +42,15 @@ class HitachiYutakiBinarySensorEntityDescription(BinarySensorEntityDescription):
     """Class describing Hitachi Yutaki binary sensor entities."""
 
     key: str
-    translation_key: str
-    icon: str | None = None
     device_class: BinarySensorDeviceClass | None = None
     entity_category: EntityCategory | None = None
+    icon: str | None = None
 
     register_key: str | None = None
     mask: int | None = None
+    value_fn: Callable[[Any, HitachiYutakiDataCoordinator], bool] | None = None
+    condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
+    translation_key: str | None = None
     description: str | None = None
 
 
@@ -62,6 +64,7 @@ GATEWAY_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="is_available",
+        value_fn=lambda value, coordinator: bool(value),
     ),
 )
 
@@ -169,6 +172,37 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
     ),
 )
 
+PRIMARY_COMPRESSOR_BINARY_SENSORS: Final[
+    tuple[HitachiYutakiBinarySensorEntityDescription, ...]
+] = (
+    HitachiYutakiBinarySensorEntityDescription(
+        key="compressor_running",
+        translation_key="compressor_running",
+        description="Indicates if the primary compressor is running",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        register_key="compressor_frequency",
+        icon="mdi:engine",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda value, coordinator: value is not None and value > 0,
+    ),
+)
+
+SECONDARY_COMPRESSOR_BINARY_SENSORS: Final[
+    tuple[HitachiYutakiBinarySensorEntityDescription, ...]
+] = (
+    HitachiYutakiBinarySensorEntityDescription(
+        key="r134a_compressor_running",
+        translation_key="r134a_compressor_running",
+        description="Indicates if the R134a compressor is running",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        register_key="r134a_compressor_frequency",
+        icon="mdi:engine",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda value, coordinator: value is not None and value > 0,
+        condition=lambda c: c.is_s80_model(),
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -208,6 +242,33 @@ async def async_setup_entry(
             )
         )
 
+    # Add primary compressor binary sensors
+    entities.extend(
+        HitachiYutakiBinarySensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_PRIMARY_COMPRESSOR}")},
+            ),
+        )
+        for description in PRIMARY_COMPRESSOR_BINARY_SENSORS
+    )
+
+    # Add secondary compressor binary sensors
+    entities.extend(
+        HitachiYutakiBinarySensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={
+                    (DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")
+                },
+            ),
+        )
+        for description in SECONDARY_COMPRESSOR_BINARY_SENSORS
+        if description.condition is None or description.condition(coordinator)
+    )
+
     async_add_entities(entities)
 
 
@@ -234,20 +295,22 @@ class HitachiYutakiBinarySensor(
     @property
     def is_on(self) -> bool | None:
         """Return true if the binary sensor is on."""
-        if self.coordinator.data is None:
-            return None
-
-        if self.entity_description.register_key == "is_available":
-            return self.coordinator.data.get("is_available", False)
-
         if (
-            self.entity_description.register_key is None
-            or self.entity_description.mask is None
+            self.coordinator.data is None
+            or self.entity_description.register_key is None
         ):
             return None
 
-        register_value = self.coordinator.data.get(self.entity_description.register_key)
-        if register_value is None:
+        value = self.coordinator.data.get(self.entity_description.register_key)
+        if value is None:
             return None
 
-        return bool(register_value & self.entity_description.mask)
+        # Use value_fn if provided
+        if self.entity_description.value_fn is not None:
+            return self.entity_description.value_fn(value, self.coordinator)
+
+        # Otherwise use mask
+        if self.entity_description.mask is not None:
+            return bool(value & self.entity_description.mask)
+
+        return None
