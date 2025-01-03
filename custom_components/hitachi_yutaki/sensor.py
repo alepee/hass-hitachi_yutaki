@@ -877,17 +877,17 @@ class HitachiYutakiSensor(
             return None, None
 
         # Convert water flow and calculate thermal power
-        water_flow = water_flow / 10  # Convert to m³/h
         water_flow_kgs = water_flow * WATER_FLOW_TO_KGS
         delta_t = water_outlet - water_inlet
         thermal_power = abs(water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t)
 
         _LOGGER.debug(
-            "Thermal power calculation: %.2f kW (%.2f kg/s * %.2f kJ/kg·K * %.1f K)",
+            "Thermal power calculation: %.2f kW (%.2f kg/s * %.2f kJ/kg·K * %.1f K) [flow=%.1f m³/h]",
             thermal_power,
             water_flow_kgs,
             WATER_SPECIFIC_HEAT,
             abs(delta_t),
+            water_flow,
         )
 
         # Get electrical power from entity if configured
