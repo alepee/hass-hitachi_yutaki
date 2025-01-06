@@ -865,7 +865,8 @@ class HitachiYutakiSensor(
         water_outlet = self._get_temperature(
             "water_outlet_temp", CONF_WATER_OUTLET_TEMP_ENTITY
         )
-        water_flow = self.coordinator.data.get("water_flow")
+        water_flow_raw = self.coordinator.data.get("water_flow")
+        water_flow = self.coordinator.convert_water_flow(water_flow_raw)
 
         if None in (water_inlet, water_outlet, water_flow):
             _LOGGER.debug(
@@ -879,7 +880,9 @@ class HitachiYutakiSensor(
         # Convert water flow and calculate thermal power
         water_flow_kgs = water_flow * WATER_FLOW_TO_KGS
         delta_t = water_outlet - water_inlet
-        thermal_power = abs(water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t)
+        thermal_power = abs(
+            water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t
+        )  # Result is already in kW
 
         _LOGGER.debug(
             "Thermal power calculation: %.2f kW (%.2f kg/s * %.2f kJ/kg·K * %.1f K) [flow=%.1f m³/h]",
@@ -962,36 +965,43 @@ class HitachiYutakiSensor(
 
     def _get_cop_value(self) -> StateType:
         """Calculate and return COP value."""
+        _LOGGER.debug(
+            "Starting COP calculation for %s",
+            self.entity_description.key,
+        )
+
         # Check if primary compressor is running
         if not self._is_compressor_running(False):
             _LOGGER.debug("Primary compressor not running, skipping COP calculation")
             return None
 
-        # For S80, also check R134a compressor
-        if self.coordinator.is_s80_model() and not self._is_compressor_running(True):
-            _LOGGER.debug("R134a compressor not running, skipping COP calculation")
-            return None
-
         # Check operation state
         operation_state = self.coordinator.data.get("operation_state")
+        _LOGGER.debug(
+            "Operation state for %s: %s",
+            self.entity_description.key,
+            operation_state,
+        )
         if operation_state is None:
             _LOGGER.debug("Operation state not available")
             return None
 
         # Skip if wrong state
         cop_state_map = {
-            "cop_heating": OPERATION_STATE_MAP["heat_thermo_on"],
-            "cop_cooling": OPERATION_STATE_MAP["cool_thermo_on"],
-            "cop_dhw": OPERATION_STATE_MAP["dhw_on"],
-            "cop_pool": OPERATION_STATE_MAP["pool_on"],
+            "cop_heating": 6,  # heat_thermo_on
+            "cop_cooling": 3,  # cool_thermo_on
+            "cop_dhw": 8,  # dhw_on
+            "cop_pool": 10,  # pool_on
         }
         expected_state = cop_state_map.get(self.entity_description.key)
         if operation_state != expected_state:
             _LOGGER.debug(
-                "Wrong operation state for %s: expected %s, got %s",
+                "Wrong operation state for %s: expected %s (%s), got %s (%s)",
                 self.entity_description.key,
                 expected_state,
+                OPERATION_STATE_MAP.get(expected_state, "unknown"),
                 operation_state,
+                OPERATION_STATE_MAP.get(operation_state, "unknown"),
             )
             return None
 
@@ -999,7 +1009,16 @@ class HitachiYutakiSensor(
 
         # Add new measurement every minute
         if current_time - self._last_measurement >= COP_UPDATE_INTERVAL:
+            _LOGGER.debug(
+                "Time since last measurement: %.1f seconds",
+                current_time - self._last_measurement,
+            )
             thermal_power, electrical_power = self._calculate_cop_values()
+            _LOGGER.debug(
+                "Calculated powers: thermal=%.2f kW, electrical=%.2f kW",
+                thermal_power if thermal_power is not None else -1,
+                electrical_power if electrical_power is not None else -1,
+            )
 
             if thermal_power is not None and electrical_power is not None:
                 cop = thermal_power / electrical_power
@@ -1016,6 +1035,9 @@ class HitachiYutakiSensor(
                 ) and self.coordinator.config_entry.data.get(
                     CONF_WATER_OUTLET_TEMP_ENTITY
                 ):
+                    _LOGGER.debug(
+                        "Using external temperature sensors for COP calculation"
+                    )
                     if electrical_power > 0 and cop <= 8:
                         self._measurements.append(cop)
                         _LOGGER.debug(
@@ -1025,6 +1047,9 @@ class HitachiYutakiSensor(
                         )
                 # Otherwise use energy accumulation
                 else:
+                    _LOGGER.debug(
+                        "Using internal temperature sensors for COP calculation"
+                    )
                     self._energy_accumulator.add_measurement(
                         thermal_power, electrical_power
                     )
@@ -1035,6 +1060,11 @@ class HitachiYutakiSensor(
                     )
 
             self._last_measurement = current_time
+        else:
+            _LOGGER.debug(
+                "Skipping measurement, not enough time elapsed: %.1f seconds",
+                current_time - self._last_measurement,
+            )
 
         # Return COP based on calculation method
         if self.coordinator.config_entry.data.get(
@@ -1048,6 +1078,8 @@ class HitachiYutakiSensor(
                     len(self._measurements),
                 )
                 return cop
+            else:
+                _LOGGER.debug("No measurements available for median COP")
         else:
             cop = self._energy_accumulator.get_cop()
             if cop is not None:
@@ -1059,6 +1091,8 @@ class HitachiYutakiSensor(
                     self._energy_accumulator.electrical_energy,
                 )
                 return cop
+            else:
+                _LOGGER.debug("No accumulated energy available for COP")
         return None
 
     async def async_update_timing(self) -> None:
@@ -1109,6 +1143,19 @@ class HitachiYutakiSensor(
                 "r134a_resttime",
             ):
                 return self._timing_values.get("rest_time")
+
+        # For COP sensors, use the COP calculation method
+        if self.entity_description.key in (
+            "cop_heating",
+            "cop_cooling",
+            "cop_dhw",
+            "cop_pool",
+        ):
+            _LOGGER.debug(
+                "Calling _get_cop_value for %s",
+                self.entity_description.key,
+            )
+            return self._get_cop_value()
 
         # For other sensors, use the standard value calculation
         value = self.coordinator.data.get(self.entity_description.register_key)
