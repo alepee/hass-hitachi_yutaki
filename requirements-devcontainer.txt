@@ -3,4 +3,4 @@ ruff==0.8.3
 bump2version
 wheel
 
-pymodbus==3.6.9
+pymodbus==3.8.3
