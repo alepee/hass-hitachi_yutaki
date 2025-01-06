@@ -187,7 +187,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         """Convert a raw water flow value to m³/h."""
         if value is None:
             return None
-        return float(value) / 10.0  # Water flow is already in m³/h
+        return float(value) / 10.0  # Convert from tenths of m³/h to m³/h
 
     def convert_current(self, value: int | None) -> float | None:
         """Convert a raw current value to amperes."""
