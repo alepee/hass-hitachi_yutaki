@@ -208,11 +208,11 @@ VOLTAGE_THREE_PHASE = 400  # Volts
 POWER_FACTOR = 0.85  # cos φ
 THREE_PHASE_FACTOR = 1.732  # √3
 
-# COP calculation constants
+# Water constants
 WATER_SPECIFIC_HEAT = 4.18  # kJ/kg·K
 WATER_FLOW_TO_KGS = 1000 / 3600  # Conversion from m³/h to kg/s
-COP_HISTORY_SIZE = 10  # Number of measurements to keep in history
-COP_UPDATE_INTERVAL = 60  # Seconds between COP measurements
-COP_ENERGY_ACCUMULATION_PERIOD = timedelta(
-    minutes=15
-)  # Period for energy accumulation when using internal temperatures
+
+# COP calculation constants
+COP_MEASUREMENTS_INTERVAL = 30  # Seconds between COP measurements
+COP_MEASUREMENTS_HISTORY_SIZE = 40  # Number of measurements to keep in history
+COP_MEASUREMENTS_PERIOD = timedelta(minutes=20)  # Period for energy accumulation

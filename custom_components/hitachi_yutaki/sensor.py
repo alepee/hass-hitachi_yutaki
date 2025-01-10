@@ -1,4 +1,4 @@
-"""Sensor platform for Hitachi Yutaki."""
+"""Sensor platform for Hitachi Yutaki integration."""
 
 from __future__ import annotations
 
@@ -7,9 +7,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
-from statistics import median
 from time import time
-from typing import Any, Final
+from typing import Any, Final, NamedTuple
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -38,9 +37,9 @@ from .const import (
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
-    COP_ENERGY_ACCUMULATION_PERIOD,
-    COP_HISTORY_SIZE,
-    COP_UPDATE_INTERVAL,
+    COP_MEASUREMENTS_HISTORY_SIZE,
+    COP_MEASUREMENTS_INTERVAL,
+    COP_MEASUREMENTS_PERIOD,
     DEVICE_CONTROL_UNIT,
     DEVICE_DHW,
     DEVICE_POOL,
@@ -61,41 +60,82 @@ from .coordinator import HitachiYutakiDataCoordinator
 _LOGGER = logging.getLogger(__name__)
 
 
+class PowerMeasurement(NamedTuple):
+    """Class to store a power measurement with its timestamp."""
+
+    timestamp: datetime
+    thermal_power: float
+    electrical_power: float
+
+
 class EnergyAccumulator:
     """Class to accumulate energy over time for COP calculation."""
 
     def __init__(self, period: timedelta) -> None:
         """Initialize the accumulator."""
         self.period = period
-        self.thermal_energy = 0.0
-        self.electrical_energy = 0.0
-        self.last_update = None
+        self.measurements = deque(maxlen=COP_MEASUREMENTS_HISTORY_SIZE)
 
     def add_measurement(self, thermal_power: float, electrical_power: float) -> None:
         """Add a power measurement to the accumulator."""
         current_time = datetime.now()
+        self.measurements.append(
+            PowerMeasurement(current_time, thermal_power, electrical_power)
+        )
 
-        # Reset accumulator if period has elapsed
-        if (
-            self.last_update is not None
-            and current_time - self.last_update > self.period
-        ):
-            self.thermal_energy = 0.0
-            self.electrical_energy = 0.0
-
-        # Calculate energy for this interval
-        if self.last_update is not None:
-            interval = (current_time - self.last_update).total_seconds() / 3600  # hours
-            self.thermal_energy += thermal_power * interval
-            self.electrical_energy += electrical_power * interval
-
-        self.last_update = current_time
+        # Remove measurements older than the period
+        cutoff_time = current_time - self.period
+        while self.measurements and self.measurements[0].timestamp < cutoff_time:
+            self.measurements.popleft()
 
     def get_cop(self) -> float | None:
         """Calculate COP from accumulated energy."""
-        if self.electrical_energy <= 0:
+        if not self.measurements:
             return None
-        return self.thermal_energy / self.electrical_energy
+
+        # Calculate total energy by integrating power over time
+        thermal_energy = 0.0
+        electrical_energy = 0.0
+
+        for i in range(len(self.measurements) - 1):
+            interval = (
+                self.measurements[i + 1].timestamp - self.measurements[i].timestamp
+            ).total_seconds() / 3600  # hours
+            avg_thermal_power = (
+                self.measurements[i].thermal_power
+                + self.measurements[i + 1].thermal_power
+            ) / 2
+            avg_electrical_power = (
+                self.measurements[i].electrical_power
+                + self.measurements[i + 1].electrical_power
+            ) / 2
+
+            thermal_energy += avg_thermal_power * interval
+            electrical_energy += avg_electrical_power * interval
+
+            _LOGGER.debug(
+                "Interval %d: %.2f hours, Thermal: %.2f kW -> %.2f kW (avg: %.2f kW), Electrical: %.2f kW -> %.2f kW (avg: %.2f kW)",
+                i,
+                interval,
+                self.measurements[i].thermal_power,
+                self.measurements[i + 1].thermal_power,
+                avg_thermal_power,
+                self.measurements[i].electrical_power,
+                self.measurements[i + 1].electrical_power,
+                avg_electrical_power,
+            )
+
+        if electrical_energy <= 0:
+            return None
+
+        _LOGGER.debug(
+            "Total energy over %d measurements: Thermal: %.2f kWh, Electrical: %.2f kWh",
+            len(self.measurements),
+            thermal_energy,
+            electrical_energy,
+        )
+
+        return thermal_energy / electrical_energy
 
 
 class CompressorHistory:
@@ -729,9 +769,8 @@ class HitachiYutakiSensor(
 
         # Initialize history for COPs
         if description.key in ("cop_heating", "cop_cooling", "cop_dhw", "cop_pool"):
-            self._measurements = deque(maxlen=COP_HISTORY_SIZE)
             self._last_measurement = 0
-            self._energy_accumulator = EnergyAccumulator(COP_ENERGY_ACCUMULATION_PERIOD)
+            self._energy_accumulator = EnergyAccumulator(COP_MEASUREMENTS_PERIOD)
 
         # Initialize compressor history
         if description.key in (
@@ -965,10 +1004,7 @@ class HitachiYutakiSensor(
 
     def _get_cop_value(self) -> StateType:
         """Calculate and return COP value."""
-        _LOGGER.debug(
-            "Starting COP calculation for %s",
-            self.entity_description.key,
-        )
+        _LOGGER.debug("Starting COP calculation for %s", self.entity_description.key)
 
         # Check if primary compressor is running
         if not self._is_compressor_running(False):
@@ -977,11 +1013,6 @@ class HitachiYutakiSensor(
 
         # Check operation state
         operation_state = self.coordinator.data.get("operation_state")
-        _LOGGER.debug(
-            "Operation state for %s: %s",
-            self.entity_description.key,
-            operation_state,
-        )
         if operation_state is None:
             _LOGGER.debug("Operation state not available")
             return None
@@ -996,103 +1027,43 @@ class HitachiYutakiSensor(
         expected_state = cop_state_map.get(self.entity_description.key)
         if operation_state != expected_state:
             _LOGGER.debug(
-                "Wrong operation state for %s: expected %s (%s), got %s (%s)",
+                "Wrong operation state for %s: expected %s, got %s",
                 self.entity_description.key,
                 expected_state,
-                OPERATION_STATE_MAP.get(expected_state, "unknown"),
                 operation_state,
-                OPERATION_STATE_MAP.get(operation_state, "unknown"),
             )
             return None
 
         current_time = time()
 
         # Add new measurement every minute
-        if current_time - self._last_measurement >= COP_UPDATE_INTERVAL:
-            _LOGGER.debug(
-                "Time since last measurement: %.1f seconds",
-                current_time - self._last_measurement,
-            )
+        if current_time - self._last_measurement >= COP_MEASUREMENTS_INTERVAL:
             thermal_power, electrical_power = self._calculate_cop_values()
-            _LOGGER.debug(
-                "Calculated powers: thermal=%.2f kW, electrical=%.2f kW",
-                thermal_power if thermal_power is not None else -1,
-                electrical_power if electrical_power is not None else -1,
-            )
 
             if thermal_power is not None and electrical_power is not None:
-                cop = thermal_power / electrical_power
+                self._energy_accumulator.add_measurement(
+                    thermal_power, electrical_power
+                )
                 _LOGGER.debug(
-                    "New COP measurement: %.2f (%.2f kW / %.2f kW)",
-                    cop,
+                    "Added measurement to energy accumulator: %.2f kW / %.2f kW",
                     thermal_power,
                     electrical_power,
                 )
 
-                # If using external temperature sensors, use moving median
-                if self.coordinator.config_entry.data.get(
-                    CONF_WATER_INLET_TEMP_ENTITY
-                ) and self.coordinator.config_entry.data.get(
-                    CONF_WATER_OUTLET_TEMP_ENTITY
-                ):
-                    _LOGGER.debug(
-                        "Using external temperature sensors for COP calculation"
-                    )
-                    if electrical_power > 0 and cop <= 8:
-                        self._measurements.append(cop)
-                        _LOGGER.debug(
-                            "Added COP %.2f to measurements (total: %d)",
-                            cop,
-                            len(self._measurements),
-                        )
-                # Otherwise use energy accumulation
-                else:
-                    _LOGGER.debug(
-                        "Using internal temperature sensors for COP calculation"
-                    )
-                    self._energy_accumulator.add_measurement(
-                        thermal_power, electrical_power
-                    )
-                    _LOGGER.debug(
-                        "Added measurement to energy accumulator: %.2f kWh / %.2f kWh",
-                        self._energy_accumulator.thermal_energy,
-                        self._energy_accumulator.electrical_energy,
-                    )
-
             self._last_measurement = current_time
-        else:
-            _LOGGER.debug(
-                "Skipping measurement, not enough time elapsed: %.1f seconds",
-                current_time - self._last_measurement,
-            )
 
-        # Return COP based on calculation method
-        if self.coordinator.config_entry.data.get(
-            CONF_WATER_INLET_TEMP_ENTITY
-        ) and self.coordinator.config_entry.data.get(CONF_WATER_OUTLET_TEMP_ENTITY):
-            if self._measurements:
-                cop = round(median(self._measurements), 2)
-                _LOGGER.debug(
-                    "Returning median COP %.2f from %d measurements",
-                    cop,
-                    len(self._measurements),
-                )
-                return cop
-            else:
-                _LOGGER.debug("No measurements available for median COP")
-        else:
-            cop = self._energy_accumulator.get_cop()
-            if cop is not None:
-                cop = round(cop, 2)
-                _LOGGER.debug(
-                    "Returning accumulated COP %.2f (%.2f kWh / %.2f kWh)",
-                    cop,
-                    self._energy_accumulator.thermal_energy,
-                    self._energy_accumulator.electrical_energy,
-                )
-                return cop
-            else:
-                _LOGGER.debug("No accumulated energy available for COP")
+        # Calculate COP from accumulated energy
+        cop = self._energy_accumulator.get_cop()
+        if cop is not None:
+            cop = round(cop, 2)
+            _LOGGER.debug(
+                "Returning COP %.2f from %d measurements",
+                cop,
+                len(self._energy_accumulator.measurements),
+            )
+            return cop
+
+        _LOGGER.debug("No measurements available for COP")
         return None
 
     async def async_update_timing(self) -> None:
