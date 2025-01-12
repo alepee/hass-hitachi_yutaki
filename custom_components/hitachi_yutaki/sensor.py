@@ -40,6 +40,10 @@ from .const import (
     COP_MEASUREMENTS_HISTORY_SIZE,
     COP_MEASUREMENTS_INTERVAL,
     COP_MEASUREMENTS_PERIOD,
+    COP_MIN_MEASUREMENTS,
+    COP_MIN_TIME_SPAN,
+    COP_OPTIMAL_MEASUREMENTS,
+    COP_OPTIMAL_TIME_SPAN,
     DEVICE_CONTROL_UNIT,
     DEVICE_DHW,
     DEVICE_POOL,
@@ -1150,4 +1154,39 @@ class HitachiYutakiSensor(
                     "code": alarm_code,
                     "description": f"alarm_code_{alarm_code}",
                 }
+        elif self.entity_description.key in (
+            "cop_heating",
+            "cop_cooling",
+            "cop_dhw",
+            "cop_pool",
+        ):
+            if not hasattr(self, "_energy_accumulator"):
+                return {"quality": "no_data"}
+
+            measurements = self._energy_accumulator.measurements
+            if not measurements:
+                return {"quality": "no_data"}
+
+            # Calculate time span of measurements
+            time_span = (
+                measurements[-1].timestamp - measurements[0].timestamp
+            ).total_seconds() / 60  # minutes
+            num_measurements = len(measurements)
+
+            if num_measurements < COP_MIN_MEASUREMENTS or time_span < COP_MIN_TIME_SPAN:
+                quality = "insufficient_data"
+            elif (
+                num_measurements < COP_OPTIMAL_MEASUREMENTS
+                or time_span < COP_OPTIMAL_TIME_SPAN
+            ):
+                quality = "preliminary"
+            else:
+                quality = "optimal"
+
+            return {
+                "quality": quality,
+                "measurements": num_measurements,
+                "time_span_minutes": round(time_span, 1),
+            }
+
         return None
