@@ -275,16 +275,84 @@
         "name": "R134a Compressor Current"
       },
       "cop_heating": {
-        "name": "Space Heating COP"
+        "name": "Space Heating COP",
+        "state_attributes": {
+          "quality": {
+            "name": "Quality",
+            "state": {
+              "no_data": "No data",
+              "insufficient_data": "Insufficient data",
+              "preliminary": "Preliminary",
+              "optimal": "Optimal"
+            }
+          },
+          "measurements": {
+            "name": "Number of measurements"
+          },
+          "time_span_minutes": {
+            "name": "Measurement period"
+          }
+        }
       },
       "cop_cooling": {
-        "name": "Space Cooling COP"
+        "name": "Space Cooling COP",
+        "state_attributes": {
+          "quality": {
+            "name": "Quality",
+            "state": {
+              "no_data": "No data",
+              "insufficient_data": "Insufficient data",
+              "preliminary": "Preliminary",
+              "optimal": "Optimal"
+            }
+          },
+          "measurements": {
+            "name": "Number of measurements"
+          },
+          "time_span_minutes": {
+            "name": "Measurement period"
+          }
+        }
       },
       "cop_dhw": {
-        "name": "DHW COP"
+        "name": "DHW COP",
+        "state_attributes": {
+          "quality": {
+            "name": "Quality",
+            "state": {
+              "no_data": "No data",
+              "insufficient_data": "Insufficient data",
+              "preliminary": "Preliminary",
+              "optimal": "Optimal"
+            }
+          },
+          "measurements": {
+            "name": "Number of measurements"
+          },
+          "time_span_minutes": {
+            "name": "Measurement period"
+          }
+        }
       },
       "cop_pool": {
-        "name": "Pool COP"
+        "name": "Pool COP",
+        "state_attributes": {
+          "quality": {
+            "name": "Quality",
+            "state": {
+              "no_data": "No data",
+              "insufficient_data": "Insufficient data",
+              "preliminary": "Preliminary",
+              "optimal": "Optimal"
+            }
+          },
+          "measurements": {
+            "name": "Number of measurements"
+          },
+          "time_span_minutes": {
+            "name": "Measurement period"
+          }
+        }
       },
       "compressor_runtime": {
         "name": "Compressor runtime"
