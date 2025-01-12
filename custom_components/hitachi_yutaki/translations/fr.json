@@ -279,16 +279,84 @@
         "name": "Courant du Compresseur R134a"
       },
       "cop_heating": {
-        "name": "COP Chauffage"
+        "name": "COP Chauffage",
+        "state_attributes": {
+          "quality": {
+            "name": "Qualité",
+            "state": {
+              "no_data": "Pas de données",
+              "insufficient_data": "Données insuffisantes",
+              "preliminary": "Préliminaire",
+              "optimal": "Optimal"
+            }
+          },
+          "measurements": {
+            "name": "Nombre de mesures"
+          },
+          "time_span_minutes": {
+            "name": "Période de mesure"
+          }
+        }
       },
       "cop_cooling": {
-        "name": "COP Refroidissement"
+        "name": "COP Refroidissement",
+        "state_attributes": {
+          "quality": {
+            "name": "Qualité",
+            "state": {
+              "no_data": "Pas de données",
+              "insufficient_data": "Données insuffisantes",
+              "preliminary": "Préliminaire",
+              "optimal": "Optimal"
+            }
+          },
+          "measurements": {
+            "name": "Nombre de mesures"
+          },
+          "time_span_minutes": {
+            "name": "Période de mesure"
+          }
+        }
       },
       "cop_dhw": {
-        "name": "COP ECS"
+        "name": "COP ECS",
+        "state_attributes": {
+          "quality": {
+            "name": "Qualité",
+            "state": {
+              "no_data": "Pas de données",
+              "insufficient_data": "Données insuffisantes",
+              "preliminary": "Préliminaire",
+              "optimal": "Optimal"
+            }
+          },
+          "measurements": {
+            "name": "Nombre de mesures"
+          },
+          "time_span_minutes": {
+            "name": "Période de mesure"
+          }
+        }
       },
       "cop_pool": {
-        "name": "COP Piscine"
+        "name": "COP Piscine",
+        "state_attributes": {
+          "quality": {
+            "name": "Qualité",
+            "state": {
+              "no_data": "Pas de données",
+              "insufficient_data": "Données insuffisantes",
+              "preliminary": "Préliminaire",
+              "optimal": "Optimal"
+            }
+          },
+          "measurements": {
+            "name": "Nombre de mesures"
+          },
+          "time_span_minutes": {
+            "name": "Période de mesure"
+          }
+        }
       },
       "compressor_runtime": {
         "name": "Temps de fonctionnement compresseur"
