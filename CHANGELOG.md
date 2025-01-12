@@ -5,13 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
+## [1.5.0-b7] - 2024-01-12
+
+### Added
+- Added quality indicators for COP measurements (no_data, insufficient_data, preliminary, optimal)
+- Added translations for COP quality indicators in French and English
+
+### Fixed
+- Fixed sample size and interval for more accurate COP calculation
+
 ## [1.5.0-b6] - 2024-01-06
 
 ### Fixed
 - Fixed COP calculation by applying water flow conversion (raw value was used instead of m³/h)
 
 ## [1.5.0-b5] - 2025-01-03
-
 ### Fixed
 - Fixed COP calculation by removing incorrect water flow division
 - Added more detailed debug logging for thermal power calculation
