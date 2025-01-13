@@ -214,11 +214,11 @@ WATER_FLOW_TO_KGS = 1000 / 3600  # Conversion from m³/h to kg/s
 
 # COP calculation constants
 COP_MEASUREMENTS_INTERVAL = 30  # Seconds between COP measurements
-COP_MEASUREMENTS_HISTORY_SIZE = 40  # Number of measurements to keep in history
-COP_MEASUREMENTS_PERIOD = timedelta(minutes=20)  # Period for energy accumulation
+COP_MEASUREMENTS_HISTORY_SIZE = 60  # Number of measurements to keep in history
+COP_MEASUREMENTS_PERIOD = timedelta(minutes=30)  # Period for energy accumulation
 
 # COP quality thresholds
 COP_MIN_MEASUREMENTS = 5  # Minimum number of measurements for COP calculation
 COP_MIN_TIME_SPAN = 15  # Minimum time span in minutes for COP calculation
-COP_OPTIMAL_MEASUREMENTS = 15  # Number of measurements for optimal COP calculation
+COP_OPTIMAL_MEASUREMENTS = 20  # Number of measurements for optimal COP calculation
 COP_OPTIMAL_TIME_SPAN = 30  # Time span in minutes for optimal COP calculation

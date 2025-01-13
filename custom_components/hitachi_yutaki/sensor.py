@@ -1056,6 +1056,11 @@ class HitachiYutakiSensor(
 
             self._last_measurement = current_time
 
+        # Check if there are enough measurements
+        if len(self._energy_accumulator.measurements) < COP_MIN_MEASUREMENTS:
+            _LOGGER.debug("Not enough measurements for COP calculation")
+            return None
+
         # Calculate COP from accumulated energy
         cop = self._energy_accumulator.get_cop()
         if cop is not None:
