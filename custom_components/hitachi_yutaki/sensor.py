@@ -102,9 +102,10 @@ class EnergyAccumulator:
         electrical_energy = 0.0
 
         for i in range(len(self.measurements) - 1):
-            interval = (
+            interval_in_seconds = (
                 self.measurements[i + 1].timestamp - self.measurements[i].timestamp
-            ).total_seconds() / 3600  # hours
+            ).total_seconds()
+            interval_in_hours = interval_in_seconds / 3600  # hours
             avg_thermal_power = (
                 self.measurements[i].thermal_power
                 + self.measurements[i + 1].thermal_power
@@ -114,13 +115,13 @@ class EnergyAccumulator:
                 + self.measurements[i + 1].electrical_power
             ) / 2
 
-            thermal_energy += avg_thermal_power * interval
-            electrical_energy += avg_electrical_power * interval
+            thermal_energy += avg_thermal_power * interval_in_hours
+            electrical_energy += avg_electrical_power * interval_in_hours
 
             _LOGGER.debug(
-                "Interval %d: %.2f hours, Thermal: %.2f kW -> %.2f kW (avg: %.2f kW), Electrical: %.2f kW -> %.2f kW (avg: %.2f kW)",
+                "Interval %d: %d seconds, Thermal: %.2f kW -> %.2f kW (avg: %.2f kW), Electrical: %.2f kW -> %.2f kW (avg: %.2f kW)",
                 i,
-                interval,
+                interval_in_seconds,
                 self.measurements[i].thermal_power,
                 self.measurements[i + 1].thermal_power,
                 avg_thermal_power,
