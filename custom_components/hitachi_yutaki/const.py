@@ -8,7 +8,7 @@ DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
-VERSION = "1.5.0-b8"
+VERSION = "1.5.0"
 
 # Default values
 DEFAULT_NAME = "Hitachi Yutaki"
@@ -220,5 +220,5 @@ COP_MEASUREMENTS_PERIOD = timedelta(minutes=30)  # Period for energy accumulatio
 # COP quality thresholds
 COP_MIN_MEASUREMENTS = 6  # Minimum number of measurements for COP calculation
 COP_MIN_TIME_SPAN = 3  # Minimum time span in minutes for COP calculation
-COP_OPTIMAL_MEASUREMENTS = 20  # Number of measurements for optimal COP calculation
-COP_OPTIMAL_TIME_SPAN = 30  # Time span in minutes for optimal COP calculation
+COP_OPTIMAL_MEASUREMENTS = 10  # Number of measurements for optimal COP calculation
+COP_OPTIMAL_TIME_SPAN = 15  # Time span in minutes for optimal COP calculation
