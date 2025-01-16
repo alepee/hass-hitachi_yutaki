@@ -148,10 +148,12 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             )
 
             result = await self.hass.async_add_executor_job(
-                self.modbus_client.write_register,
-                register_address,
-                value,
-                self.slave,
+                lambda addr=register_address,
+                val=value: self.modbus_client.write_register(
+                    address=addr,
+                    value=val,
+                    slave=self.slave,
+                )
             )
 
             if result.isError():
