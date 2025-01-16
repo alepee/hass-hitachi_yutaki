@@ -5,10 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.0-b8] - 2024-01-13
+## [1.5.0-b8] - 2024-01-16
 
-### Fixed
-- Fixed COP calculation by checking for enough measurements and time span
+### Added
+- Improved logging for COP calculation and system state monitoring
+
+### Changed
+- Updated pymodbus dependency to match Home Assistant's version
+- Optimized COP calculation parameters for better accuracy
 
 ## [1.5.0-b7] - 2024-01-12
 
