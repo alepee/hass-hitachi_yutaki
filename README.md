@@ -210,25 +210,40 @@ The integration automatically detects your heat pump model and available feature
 
 ## COP Calculation Methods
 
-The integration provides two methods for calculating the Coefficient of Performance (COP):
+The integration provides advanced COP (Coefficient of Performance) monitoring with quality indicators and multiple calculation methods:
+
+### Quality Indicators
+
+Each COP measurement includes a quality indicator to help assess its reliability:
+- `no_data`: No measurements available
+- `insufficient_data`: Too few measurements for reliable calculation (< 6 measurements or < 3 minutes)
+- `preliminary`: Basic reliability achieved (6-10 measurements or 3-15 minutes)
+- `optimal`: High reliability achieved (≥ 10 measurements and ≥ 15 minutes)
 
 ### Using External Temperature Sensors
 
 When both water inlet and outlet temperature entities are configured:
 - Uses more precise external temperature measurements
-- Calculates COP using a moving median over 10 measurements
-- Updates every minute
-- Filters out unrealistic values (COP > 8)
+- Calculates COP using energy accumulation over time
+- Updates every 30 seconds
+- Provides quality indicators for measurement reliability
 - Best option when you have accurate external temperature sensors
 
 ### Using Internal Temperature Sensors
 
 When no external temperature entities are configured:
 - Uses the heat pump's internal temperature sensors
-- Accumulates thermal and electrical energy over 15 minutes
+- Accumulates thermal and electrical energy over time
 - Calculates COP from accumulated energy values
 - Helps mitigate the impact of temperature measurement precision (1°C)
 - Default method using built-in sensors
+
+### Additional Attributes
+
+Each COP sensor provides additional attributes:
+- `quality`: Current quality level of the measurement
+- `measurements`: Number of measurements used in calculation
+- `time_span_minutes`: Time span covered by the measurements
 
 ## Development
 
