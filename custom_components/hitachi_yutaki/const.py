@@ -1,14 +1,14 @@
 """Constants for the Hitachi Yutaki integration."""
 
-from homeassistant.const import (
-    Platform,
-)
+from datetime import timedelta
+
+from homeassistant.const import Platform
 
 DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
-VERSION = "1.4.2"
+VERSION = "1.5.0"
 
 # Default values
 DEFAULT_NAME = "Hitachi Yutaki"
@@ -16,6 +16,7 @@ DEFAULT_HOST = "192.168.0.4"
 DEFAULT_SLAVE = 1
 DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
+DEFAULT_POWER_SUPPLY = "single"
 
 # Device types
 DEVICE_GATEWAY = "gateway"
@@ -191,3 +192,33 @@ OPERATION_STATE_MAP = {
     10: "pool_on",
     11: "alarm",
 }
+
+# Configuration options
+CONF_SLAVE = "slave"
+CONF_POWER_SUPPLY = "power_supply"
+CONF_VOLTAGE_ENTITY = "voltage_entity"
+CONF_POWER_ENTITY = "power_entity"
+CONF_WATER_INLET_TEMP_ENTITY = "water_inlet_temp_entity"
+CONF_WATER_OUTLET_TEMP_ENTITY = "water_outlet_temp_entity"
+CONF_DEV_MODE = "dev_mode"
+
+# Electrical constants
+VOLTAGE_SINGLE_PHASE = 230  # Volts
+VOLTAGE_THREE_PHASE = 400  # Volts
+POWER_FACTOR = 0.85  # cos φ
+THREE_PHASE_FACTOR = 1.732  # √3
+
+# Water constants
+WATER_SPECIFIC_HEAT = 4.18  # kJ/kg·K
+WATER_FLOW_TO_KGS = 1000 / 3600  # Conversion from m³/h to kg/s
+
+# COP calculation constants
+COP_MEASUREMENTS_INTERVAL = 30  # Seconds between COP measurements
+COP_MEASUREMENTS_HISTORY_SIZE = 60  # Number of measurements to keep in history
+COP_MEASUREMENTS_PERIOD = timedelta(minutes=30)  # Period for energy accumulation
+
+# COP quality thresholds
+COP_MIN_MEASUREMENTS = 6  # Minimum number of measurements for COP calculation
+COP_MIN_TIME_SPAN = 3  # Minimum time span in minutes for COP calculation
+COP_OPTIMAL_MEASUREMENTS = 10  # Number of measurements for optimal COP calculation
+COP_OPTIMAL_TIME_SPAN = 15  # Time span in minutes for optimal COP calculation

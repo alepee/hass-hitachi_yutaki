@@ -5,6 +5,114 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2024-01-16
+
+### Added
+- Improved logging for COP calculation and system state monitoring
+
+### Changed
+- Updated pymodbus dependency to match Home Assistant's version
+- Optimized COP calculation parameters for better accuracy
+
+## [1.5.0-b7] - 2024-01-12
+
+### Added
+- Added quality indicators for COP measurements (no_data, insufficient_data, preliminary, optimal)
+- Added translations for COP quality indicators in French and English
+
+### Fixed
+- Fixed sample size and interval for more accurate COP calculation
+
+## [1.5.0-b6] - 2024-01-06
+
+### Fixed
+- Fixed COP calculation by applying water flow conversion (raw value was used instead of m³/h)
+
+## [1.5.0-b5] - 2025-01-03
+### Fixed
+- Fixed COP calculation by removing incorrect water flow division
+- Added more detailed debug logging for thermal power calculation
+
+## [1.5.0-b4] - 2025-01-02
+
+### Added
+- Added runtime and rest time sensors for both compressors
+- Added detailed logging for power calculations
+- Added debug information for thermal power calculation
+- Added comprehensive logging for COP measurements and accumulation
+
+### Changed
+- Moved cycle time sensors to compressor devices for better organization
+- Optimized COP calculation with more detailed debug information
+- Simplified sensor code by moving value validation to conversion methods
+
+### Fixed
+- Fixed temperature conversion for special values (0xFFFF)
+- Fixed water flow value scaling
+- Fixed double conversion issue for temperature and pressure sensors
+- Fixed connectivity sensor state calculation
+
+### Added
+- Added detailed logging for power calculations
+- Added debug information for thermal power calculation
+- Added comprehensive logging for COP measurements and accumulation
+
+## [1.5.0-b3] - 2024-12-19
+
+### Added
+- Added external temperature entities configuration for more accurate COP calculations
+- Added support for two COP calculation methods:
+  - Moving median over 10 measurements when using external temperature sensors
+  - Energy accumulation over 15 minutes when using internal sensors
+
+### Changed
+- Modified configuration flow to include temperature entity selection
+- Improved COP calculation accuracy with external temperature sensors
+- Refactored sensor code to reduce complexity and improve maintainability
+
+### Documentation
+- Updated configuration documentation with new temperature entity options
+- Added explanation of COP calculation methods in the documentation
+
+## [1.5.0-b2] - 2024-12-18
+
+### Added
+- Added power meter entity configuration option for more accurate COP calculations
+- Added support for external power meter in sensor calculations
+
+### Changed
+- Modified configuration flow to include power meter entity selection
+- Updated COP calculations to use power meter readings when available
+- Enhanced power consumption accuracy with direct power meter readings
+
+### Documentation
+- Updated README with power meter configuration instructions
+- Added power meter entity option in configuration documentation
+
+## [1.5.0-b1] - 2024-12-14
+
+### Added
+- Added voltage entity configuration option for more accurate power calculations
+- Introduced new configuration schemas for gateway, power supply and advanced settings
+- Added support for custom voltage entity in sensor calculations
+
+### Changed
+- Modified configuration flow to include voltage entity selection
+- Updated power consumption calculations to use voltage entity when available
+- Enhanced system configuration flexibility with new voltage setup options
+
+## [1.5.0-b0] - 2024-12-13
+
+### Added
+- New COP (Coefficient of Performance) sensor with real-time calculation
+- Power supply type configuration (single-phase/three-phase)
+- Enhanced power calculations for S80 models with dual compressor support
+
+### Changed
+- Improved power consumption calculations with smoothing algorithm
+- Updated configuration options to include power supply type
+- Enhanced accuracy of energy measurements
+
 ## [1.4.2] - 2024-12-11
 
 ### Changed

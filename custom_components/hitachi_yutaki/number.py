@@ -63,7 +63,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="max_flow_temp_heating_otc",
-        mode=NumberMode.AUTO,
+        mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
@@ -76,7 +76,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="max_flow_temp_cooling_otc",
-        mode=NumberMode.AUTO,
+        mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
@@ -89,7 +89,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="heat_eco_offset",
-        mode=NumberMode.AUTO,
+        mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiNumberEntityDescription(
@@ -101,7 +101,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="cool_eco_offset",
-        mode=NumberMode.AUTO,
+        mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiNumberEntityDescription(
@@ -113,9 +113,10 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=0.5,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="target_temp",
-        mode=NumberMode.AUTO,
+        mode=NumberMode.BOX,
         multiplier=10,
         entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
         entity_registry_visible_default=False,
     ),
     HitachiYutakiNumberEntityDescription(
@@ -127,9 +128,10 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=0.5,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="current_temp",
-        mode=NumberMode.AUTO,
+        mode=NumberMode.BOX,
         multiplier=10,
         entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
         entity_registry_visible_default=False,
     ),
 )
@@ -144,7 +146,7 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="target_temp",
-        mode=NumberMode.AUTO,
+        mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
     HitachiYutakiNumberEntityDescription(
@@ -156,7 +158,7 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="antilegionella_temp",
-        mode=NumberMode.AUTO,
+        mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
@@ -172,7 +174,7 @@ POOL_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="pool_target_temp",
-        mode=NumberMode.AUTO,
+        mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
 )
@@ -310,3 +312,7 @@ class HitachiYutakiNumber(
             value = value * self.entity_description.multiplier
 
         await self.coordinator.async_write_register(self._register_key, int(value))
+
+    def set_native_value(self, value: float) -> None:
+        """Set new value."""
+        raise NotImplementedError
