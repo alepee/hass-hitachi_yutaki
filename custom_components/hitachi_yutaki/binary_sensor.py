@@ -45,6 +45,8 @@ class HitachiYutakiBinarySensorEntityDescription(BinarySensorEntityDescription):
     device_class: BinarySensorDeviceClass | None = None
     entity_category: EntityCategory | None = None
     icon: str | None = None
+    entity_registry_enabled_default: bool = True
+    entity_registry_visible_default: bool = True
 
     register_key: str | None = None
     mask: int | None = None
@@ -64,7 +66,7 @@ GATEWAY_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="is_available",
-        value_fn=lambda value, coordinator: bool(value),
+        value_fn=lambda value, _: bool(value),
     ),
 )
 
@@ -90,6 +92,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_SOLAR,
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="pump1",
@@ -100,6 +103,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_PUMP1,
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="pump2",
@@ -110,6 +114,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_PUMP2,
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="pump3",
@@ -120,6 +125,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_PUMP3,
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="compressor",
@@ -140,6 +146,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_BOILER,
+        condition=lambda c: c.is_s80_model() is False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="dhw_heater",
@@ -150,6 +157,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_DHW_HEATER,
+        condition=lambda c: c.has_dhw(),
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="space_heater",
@@ -159,6 +167,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_SPACE_HEATER,
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="smart_function",
@@ -169,6 +178,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_SMART_FUNCTION,
+        entity_registry_enabled_default=False,
     ),
 )
 
@@ -183,7 +193,7 @@ PRIMARY_COMPRESSOR_BINARY_SENSORS: Final[
         register_key="compressor_frequency",
         icon="mdi:engine",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda value, coordinator: value is not None and value > 0,
+        value_fn=lambda value, _: value is not None and value > 0,
     ),
 )
 
@@ -224,23 +234,21 @@ async def async_setup_entry(
             ),
         )
         for description in GATEWAY_BINARY_SENSORS
+        if description.condition is None or description.condition(coordinator)
     )
 
     # Add control unit binary sensors based on configuration
-    for description in CONTROL_UNIT_BINARY_SENSORS:
-        # Skip DHW heater sensor if DHW is not configured
-        if description.key == "dhw_heater" and not coordinator.has_dhw():
-            continue
-
-        entities.append(
-            HitachiYutakiBinarySensor(
-                coordinator=coordinator,
-                description=description,
-                device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
-                ),
-            )
+    entities.extend(
+        HitachiYutakiBinarySensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
+            ),
         )
+        for description in CONTROL_UNIT_BINARY_SENSORS
+        if description.condition is None or description.condition(coordinator)
+    )
 
     # Add primary compressor binary sensors
     entities.extend(
@@ -252,6 +260,7 @@ async def async_setup_entry(
             ),
         )
         for description in PRIMARY_COMPRESSOR_BINARY_SENSORS
+        if description.condition is None or description.condition(coordinator)
     )
 
     # Add secondary compressor binary sensors
