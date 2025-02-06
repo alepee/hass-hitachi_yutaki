@@ -5,17 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.5.2] - 2024-01-16
+## [1.6.0] - 2025-02-06
+
+### Added
+- New thermal energy monitoring sensors:
+  - Real-time thermal power output (kW)
+  - Daily thermal energy production with midnight auto-reset (kWh)
+  - Total cumulative thermal energy production (kWh)
+- Detailed monitoring attributes:
+  - Temperature differential and water flow tracking
+  - Average power calculation over measurement periods
+  - Precise measurement timing with compressor state tracking
+- Full translations for all new features in French and English
+
+## [1.5.2] - 2025-01-16
 
 ### Changed
 - Optimized default sensor visibility based on configuration and relevance for standard users
 
-## [1.5.1] - 2024-01-16
+## [1.5.1] - 2025-01-16
 
 ### Fixed
 - Compatibility with latest pymodbus API
 
-## [1.5.0] - 2024-01-16
+## [1.5.0] - 2025-01-16
 
 ### Added
 - Improved logging for COP calculation and system state monitoring
@@ -24,7 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated pymodbus dependency to match Home Assistant's version
 - Optimized COP calculation parameters for better accuracy
 
-## [1.5.0-b7] - 2024-01-12
+## [1.5.0-b7] - 2025-01-12
 
 ### Added
 - Added quality indicators for COP measurements (no_data, insufficient_data, preliminary, optimal)
@@ -33,7 +46,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fixed sample size and interval for more accurate COP calculation
 
-## [1.5.0-b6] - 2024-01-06
+## [1.5.0-b6] - 2025-01-06
 
 ### Fixed
 - Fixed COP calculation by applying water flow conversion (raw value was used instead of m³/h)

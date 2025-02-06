@@ -91,6 +91,9 @@ The integration automatically detects your heat pump model and available feature
 | compressor_current | sensor | Current electrical consumption of the compressor | A | diagnostic |
 | compressor_cycle_time | sensor | Average time between compressor starts | min | diagnostic |
 | power_consumption | sensor | Total electrical energy consumed by the unit | kWh | diagnostic |
+| thermal_power | sensor | Real-time thermal power output | kW | diagnostic |
+| daily_thermal_energy | sensor | Daily thermal energy production (resets at midnight) | kWh | diagnostic |
+| total_thermal_energy | sensor | Total cumulative thermal energy production | kWh | diagnostic |
 | cop_heating | sensor | Space heating COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
 | cop_cooling | sensor | Space cooling COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
 | cop_dhw | sensor | Domestic hot water COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
@@ -201,8 +204,8 @@ The integration automatically detects your heat pump model and available feature
     - Power supply type (single phase/three phase)
     - Voltage entity (optional - for real-time voltage measurements)
     - Power meter entity (optional - for real-time power measurements)
-    - Water inlet temperature entity (optional - for more accurate COP calculations)
-    - Water outlet temperature entity (optional - for more accurate COP calculations)
+    - Water inlet temperature entity (optional - for more accurate COP and thermal energy calculations)
+    - Water outlet temperature entity (optional - for more accurate COP and thermal energy calculations)
     - Advanced settings (optional):
         - Modbus slave ID (default: 1)
         - Scan interval (seconds)
@@ -244,6 +247,51 @@ Each COP sensor provides additional attributes:
 - `quality`: Current quality level of the measurement
 - `measurements`: Number of measurements used in calculation
 - `time_span_minutes`: Time span covered by the measurements
+
+## Thermal Energy Monitoring
+
+The integration provides detailed thermal energy monitoring through three complementary sensors:
+
+### Real-time Power Output
+
+The `thermal_power` sensor shows the instantaneous thermal power output in kW, calculated from:
+- Water flow rate
+- Temperature difference between outlet and inlet (ΔT)
+- Water specific heat capacity
+
+Additional attributes provide detailed measurement data:
+- `delta_t`: Temperature difference between outlet and inlet (°C)
+- `water_flow`: Current water flow rate (m³/h)
+- `last_update`: Timestamp of the last measurement
+
+### Daily Energy Production
+
+The `daily_thermal_energy` sensor tracks the thermal energy produced since midnight in kWh. It automatically resets at midnight and provides:
+- Automatic state restoration after Home Assistant restart (same day only)
+- Average power calculation over the measurement period
+- Detailed timing information in attributes:
+  - `last_reset`: Last midnight reset timestamp
+  - `start_time`: First measurement timestamp of the day
+  - `average_power`: Average power over the measurement period (kW)
+  - `time_span_hours`: Duration of the measurement period
+
+### Total Energy Production
+
+The `total_thermal_energy` sensor maintains a running total of all thermal energy produced in kWh. It features:
+- Persistent state across Home Assistant restarts
+- Long-term performance tracking
+- Statistical information in attributes:
+  - `start_date`: Date of the first measurement
+  - `average_power`: Average power since start (kW)
+  - `time_span_days`: Number of days since first measurement
+
+### Measurement Accuracy
+
+To ensure accuracy:
+- Measurements are only taken when the compressor is running
+- Calculations use precise water flow and temperature measurements
+- Values are stored with 2 decimal places precision
+- All relevant units are clearly indicated in attributes
 
 ## Development
 
