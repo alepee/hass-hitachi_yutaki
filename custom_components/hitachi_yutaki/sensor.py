@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 from collections.abc import Callable
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
@@ -29,6 +30,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -409,6 +411,42 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
 )
 
+THERMAL_ENERGY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
+    HitachiYutakiSensorEntityDescription(
+        key="thermal_power",
+        translation_key="thermal_power",
+        description="Current thermal power output",
+        device_class=SensorDeviceClass.POWER,
+        state_class=SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="kW",
+        register_key="system_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:heat-wave",
+    ),
+    HitachiYutakiSensorEntityDescription(
+        key="daily_thermal_energy",
+        translation_key="daily_thermal_energy",
+        description="Daily thermal energy production (resets at midnight)",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        register_key="system_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:heat-wave",
+    ),
+    HitachiYutakiSensorEntityDescription(
+        key="total_thermal_energy",
+        translation_key="total_thermal_energy",
+        description="Total thermal energy production",
+        device_class=SensorDeviceClass.ENERGY,
+        state_class=SensorStateClass.TOTAL_INCREASING,
+        native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+        register_key="system_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:heat-wave",
+    ),
+)
+
 PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
         key="compressor_frequency",
@@ -747,6 +785,18 @@ async def async_setup_entry(
         if description.condition is None or description.condition(coordinator)
     )
 
+    # Add thermal energy sensors
+    entities.extend(
+        HitachiYutakiSensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
+            ),
+        )
+        for description in THERMAL_ENERGY_SENSORS
+    )
+
     # Register entities with coordinator
     coordinator.entities.extend(entities)
 
@@ -754,7 +804,7 @@ async def async_setup_entry(
 
 
 class HitachiYutakiSensor(
-    CoordinatorEntity[HitachiYutakiDataCoordinator], SensorEntity
+    CoordinatorEntity[HitachiYutakiDataCoordinator], SensorEntity, RestoreEntity
 ):
     """Representation of a Hitachi Yutaki Sensor."""
 
@@ -777,6 +827,19 @@ class HitachiYutakiSensor(
             self._last_measurement = 0
             self._energy_accumulator = EnergyAccumulator(COP_MEASUREMENTS_PERIOD)
 
+        # Initialize thermal energy tracking
+        if description.key in (
+            "thermal_power",
+            "daily_thermal_energy",
+            "total_thermal_energy",
+        ):
+            self._last_thermal_measurement = 0
+            self._last_power = 0.0
+            self._daily_energy = 0.0
+            self._total_energy = 0.0
+            self._last_reset = datetime.now().date()
+            self._daily_start_time = 0
+
         # Initialize compressor history
         if description.key in (
             "compressor_cycle_time",
@@ -787,6 +850,52 @@ class HitachiYutakiSensor(
             "r134a_resttime",
         ):
             self._compressor_history = CompressorHistory()
+
+    async def async_added_to_hass(self) -> None:
+        """Handle entity which will be added."""
+        await super().async_added_to_hass()
+
+        if last_state := await self.async_get_last_state():
+            if self.entity_description.key == "total_thermal_energy":
+                with suppress(ValueError):
+                    self._total_energy = float(last_state.state)
+                    _LOGGER.debug(
+                        "Restored total thermal energy: %.2f kWh",
+                        self._total_energy,
+                    )
+                if not hasattr(self, "_total_energy"):
+                    self._total_energy = 0.0
+                    _LOGGER.warning(
+                        "Could not restore total thermal energy from state: %s",
+                        last_state.state,
+                    )
+            elif self.entity_description.key == "daily_thermal_energy":
+                # Only restore daily energy if it's from the same day
+                last_reset = None
+                if last_state.attributes.get("last_reset"):
+                    with suppress(ValueError):
+                        last_reset = datetime.fromisoformat(
+                            last_state.attributes["last_reset"]
+                        ).date()
+
+                if last_reset == datetime.now().date():
+                    with suppress(ValueError):
+                        self._daily_energy = float(last_state.state)
+                        self._last_reset = last_reset
+                        if last_state.attributes.get("start_time"):
+                            self._daily_start_time = datetime.fromisoformat(
+                                last_state.attributes["start_time"]
+                            ).timestamp()
+                        _LOGGER.debug(
+                            "Restored daily thermal energy: %.2f kWh",
+                            self._daily_energy,
+                        )
+                    if not hasattr(self, "_daily_energy"):
+                        self._daily_energy = 0.0
+                        _LOGGER.warning(
+                            "Could not restore daily thermal energy from state: %s",
+                            last_state.state,
+                        )
 
     def _get_temperature(self, register_key: str, entity_key: str) -> float | None:
         """Get temperature from entity if configured, otherwise from register."""
@@ -1097,6 +1206,97 @@ class HitachiYutakiSensor(
                 )
             )
 
+    def _calculate_thermal_power(self) -> float | None:
+        """Calculate current thermal power output."""
+        # Get temperatures from entities if configured, otherwise from registers
+        water_inlet = self._get_temperature(
+            "water_inlet_temp", CONF_WATER_INLET_TEMP_ENTITY
+        )
+        water_outlet = self._get_temperature(
+            "water_outlet_temp", CONF_WATER_OUTLET_TEMP_ENTITY
+        )
+        water_flow_raw = self.coordinator.data.get("water_flow")
+        water_flow = self.coordinator.convert_water_flow(water_flow_raw)
+
+        if None in (water_inlet, water_outlet, water_flow):
+            _LOGGER.debug(
+                "Missing values for thermal power calculation: inlet=%.1f°C, outlet=%.1f°C, flow=%s m³/h",
+                water_inlet if water_inlet is not None else float("nan"),
+                water_outlet if water_outlet is not None else float("nan"),
+                water_flow if water_flow is not None else "None",
+            )
+            return None
+
+        # Convert water flow and calculate thermal power
+        water_flow_kgs = water_flow * WATER_FLOW_TO_KGS
+        delta_t = water_outlet - water_inlet
+        thermal_power = abs(
+            water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t
+        )  # Result is already in kW
+
+        _LOGGER.debug(
+            "Thermal power calculation: %.2f kW (%.2f kg/s * %.2f kJ/kg·K * %.1f K) [flow=%.1f m³/h]",
+            thermal_power,
+            water_flow_kgs,
+            WATER_SPECIFIC_HEAT,
+            abs(delta_t),
+            water_flow,
+        )
+
+        return thermal_power
+
+    def _update_thermal_energy(self) -> None:
+        """Update thermal energy calculations."""
+        current_time = time()
+        current_date = datetime.now().date()
+
+        # Reset daily counter at midnight
+        if current_date != self._last_reset:
+            self._daily_energy = 0.0
+            self._last_reset = current_date
+            self._daily_start_time = 0  # Reset start time for new day
+
+        # Check if compressor is running
+        system_status = self.coordinator.data.get("system_status")
+        if system_status is None or not bool(system_status & MASK_COMPRESSOR):
+            _LOGGER.debug("Compressor not running, skipping thermal energy calculation")
+            return
+
+        # Calculate thermal power
+        thermal_power = self._calculate_thermal_power()
+
+        if thermal_power is not None:
+            # Initialize daily start time if not set
+            if self._daily_start_time == 0:
+                self._daily_start_time = current_time
+                _LOGGER.debug(
+                    "Initializing daily start time to %s",
+                    datetime.fromtimestamp(self._daily_start_time).isoformat(),
+                )
+
+            # Calculate energy since last measurement
+            if self._last_thermal_measurement > 0:
+                time_diff = (
+                    current_time - self._last_thermal_measurement
+                ) / 3600  # Convert to hours
+                avg_power = (thermal_power + self._last_power) / 2
+                energy = avg_power * time_diff
+
+                self._daily_energy += energy
+                self._total_energy += energy
+
+                _LOGGER.debug(
+                    "Energy update: +%.3f kWh (%.2f kW * %.3f h), Daily: %.2f kWh, Total: %.2f kWh",
+                    energy,
+                    avg_power,
+                    time_diff,
+                    self._daily_energy,
+                    self._total_energy,
+                )
+
+            self._last_power = thermal_power
+            self._last_thermal_measurement = current_time
+
     @property
     def native_value(self) -> StateType:
         """Return the state of the sensor."""
@@ -1132,11 +1332,22 @@ class HitachiYutakiSensor(
             "cop_dhw",
             "cop_pool",
         ):
-            _LOGGER.debug(
-                "Calling _get_cop_value for %s",
-                self.entity_description.key,
-            )
             return self._get_cop_value()
+
+        # For thermal energy sensors
+        if self.entity_description.key in (
+            "thermal_power",
+            "daily_thermal_energy",
+            "total_thermal_energy",
+        ):
+            self._update_thermal_energy()
+
+            if self.entity_description.key == "thermal_power":
+                return round(self._last_power, 2) if self._last_power > 0 else 0
+            elif self.entity_description.key == "daily_thermal_energy":
+                return round(self._daily_energy, 2)
+            else:  # total_thermal_energy
+                return round(self._total_energy, 2)
 
         # For other sensors, use the standard value calculation
         value = self.coordinator.data.get(self.entity_description.register_key)
@@ -1193,6 +1404,73 @@ class HitachiYutakiSensor(
                 "quality": quality,
                 "measurements": num_measurements,
                 "time_span_minutes": round(time_span, 1),
+            }
+        elif self.entity_description.key == "thermal_power":
+            if self._last_thermal_measurement == 0:
+                return None
+
+            water_inlet = self._get_temperature(
+                "water_inlet_temp", CONF_WATER_INLET_TEMP_ENTITY
+            )
+            water_outlet = self._get_temperature(
+                "water_outlet_temp", CONF_WATER_OUTLET_TEMP_ENTITY
+            )
+            water_flow_raw = self.coordinator.data.get("water_flow")
+            water_flow = self.coordinator.convert_water_flow(water_flow_raw)
+
+            if None in (water_inlet, water_outlet, water_flow):
+                return None
+
+            return {
+                "last_update": datetime.fromtimestamp(
+                    self._last_thermal_measurement
+                ).isoformat(),
+                "delta_t": round(water_outlet - water_inlet, 2),
+                "water_flow": round(water_flow, 2),
+                "units": {"delta_t": "°C", "water_flow": "m³/h"},
+            }
+        elif self.entity_description.key == "daily_thermal_energy":
+            if self._last_thermal_measurement == 0 or self._daily_start_time == 0:
+                return None
+
+            time_span = (
+                datetime.now() - datetime.fromtimestamp(self._daily_start_time)
+            ).total_seconds() / 3600  # hours
+
+            avg_power = self._daily_energy / time_span if time_span > 0 else 0
+
+            return {
+                "last_reset": self._last_reset.isoformat(),
+                "start_time": datetime.fromtimestamp(
+                    self._daily_start_time
+                ).isoformat(),
+                "average_power": round(avg_power, 2),
+                "time_span_hours": round(time_span, 1),
+                "units": {"average_power": "kW", "time_span": "hours"},
+            }
+        elif self.entity_description.key == "total_thermal_energy":
+            if self._last_thermal_measurement == 0:
+                return None
+
+            start_date = datetime.fromtimestamp(self._last_thermal_measurement).date()
+            time_span = (
+                datetime.now() - datetime.combine(start_date, datetime.min.time())
+            ).total_seconds() / 3600  # hours
+
+            avg_power = (
+                self._total_energy
+                * 24
+                / (
+                    datetime.now() - datetime.combine(start_date, datetime.min.time())
+                ).total_seconds()
+                * 3600
+            )
+
+            return {
+                "start_date": start_date.isoformat(),
+                "average_power": round(avg_power, 2),
+                "time_span_days": round(time_span / 24, 1),
+                "units": {"average_power": "kW", "time_span": "days"},
             }
 
         return None
