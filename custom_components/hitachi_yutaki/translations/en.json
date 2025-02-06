@@ -368,6 +368,51 @@
       },
       "r134a_resttime": {
         "name": "R134a compressor rest time"
+      },
+      "thermal_power": {
+        "name": "Thermal Power",
+        "state_attributes": {
+          "last_update": {
+            "name": "Last Update"
+          },
+          "delta_t": {
+            "name": "Delta T"
+          },
+          "water_flow": {
+            "name": "Water Flow"
+          }
+        }
+      },
+      "daily_thermal_energy": {
+        "name": "Daily Thermal Energy",
+        "state_attributes": {
+          "last_reset": {
+            "name": "Last Reset"
+          },
+          "start_time": {
+            "name": "Start Time"
+          },
+          "average_power": {
+            "name": "Average Power"
+          },
+          "time_span_hours": {
+            "name": "Measurement Period (hours)"
+          }
+        }
+      },
+      "total_thermal_energy": {
+        "name": "Total Thermal Energy",
+        "state_attributes": {
+          "start_date": {
+            "name": "Start Date"
+          },
+          "average_power": {
+            "name": "Average Power"
+          },
+          "time_span_days": {
+            "name": "Measurement Period (days)"
+          }
+        }
       }
     },
     "binary_sensor": {
