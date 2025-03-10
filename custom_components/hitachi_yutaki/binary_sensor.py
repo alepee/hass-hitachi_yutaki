@@ -297,7 +297,8 @@ class HitachiYutakiBinarySensor(
         """Initialize the binary sensor."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._attr_unique_id = f"{coordinator.slave}_{description.key}"
+        entry_id = coordinator.config_entry.entry_id
+        self._attr_unique_id = f"{entry_id}_{coordinator.slave}_{description.key}"
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
