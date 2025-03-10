@@ -58,6 +58,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.dev_mode = entry.data.get("dev_mode", False)
         self.power_supply = entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY)
         self.entities = []
+        self.config_entry = entry
 
         super().__init__(
             hass,
