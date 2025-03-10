@@ -182,10 +182,11 @@ class HitachiYutakiSelect(
             if register_prefix
             else description.register_key
         )
+        entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
-            f"{coordinator.slave}_{register_prefix}_{description.key}"
+            f"{entry_id}_{coordinator.slave}_{register_prefix}_{description.key}"
             if register_prefix
-            else f"{coordinator.slave}_{description.key}"
+            else f"{entry_id}_{coordinator.slave}_{description.key}"
         )
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
