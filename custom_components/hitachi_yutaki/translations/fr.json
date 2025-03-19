@@ -339,22 +339,15 @@
         }
       },
       "cop_pool": {
-        "name": "COP Piscine",
+        "name": "Rendement Piscine (COP)",
         "state_attributes": {
           "quality": {
-            "name": "Qualité",
             "state": {
               "no_data": "Pas de données",
               "insufficient_data": "Données insuffisantes",
               "preliminary": "Préliminaire",
               "optimal": "Optimal"
             }
-          },
-          "measurements": {
-            "name": "Nombre de mesures"
-          },
-          "time_span_minutes": {
-            "name": "Période de mesure"
           }
         }
       },
@@ -568,21 +561,15 @@
             }
           }
         }
-      },
-      "dhw_climate": {
+      }
+    },
+    "water_heater": {
+      "dhw": {
         "name": "Contrôle ECS",
         "state": {
           "off": "Arrêt",
-          "heat": "Chauffage"
-        },
-        "state_attributes": {
-          "preset_mode": {
-            "state": {
-              "dhw_off": "Arrêt",
-              "dhw_standard": "Standard",
-              "dhw_high_demand": "Haute Demande"
-            }
-          }
+          "standard": "Standard",
+          "high_demand": "Haute Demande"
         }
       }
     }
