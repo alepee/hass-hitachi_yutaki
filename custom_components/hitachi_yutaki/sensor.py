@@ -295,6 +295,7 @@ DHW_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="dhw_current_temp",
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
+        entity_registry_enabled_default=False,
     ),
 )
 
@@ -1272,7 +1273,7 @@ class HitachiYutakiSensor(
                 self._daily_start_time = current_time
                 _LOGGER.debug(
                     "Initializing daily start time to %s",
-                    datetime.fromtimestamp(self._daily_start_time).isoformat(),
+                    datetime.fromtimestamp(self._daily_start_time).isoformat()
                 )
 
             # Calculate energy since last measurement

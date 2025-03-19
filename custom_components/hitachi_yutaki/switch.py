@@ -92,6 +92,7 @@ DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         icon="mdi:power",
         description="Power switch for domestic hot water production",
         register_key="power",
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiSwitchEntityDescription(
         key="boost",
