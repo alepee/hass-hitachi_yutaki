@@ -150,13 +150,22 @@ The integration automatically detects your heat pump model and available feature
 
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
+| dhw | water_heater | Main DHW control entity | - |
 | power | switch | Power switch for domestic hot water production | on/off |
 | boost | switch | Temporarily boost DHW production | on/off |
 | high_demand | switch | Enable high demand mode for increased DHW production | on/off |
-| target_temperature | number | Target temperature for domestic hot water | °C (30-80) |
+| target_temperature | number | Target temperature for domestic hot water | °C (30-60) |
 | current_temperature | sensor | Current DHW tank temperature | °C |
 | antilegionella | switch | Enable/disable periodic high temperature treatment | on/off |
 | antilegionella_temperature | number | Target temperature for anti-legionella treatment | °C (60-80) |
+
+The main DHW control entity (`water_heater`) provides:
+- Power control (on/off)
+- Operation modes (off, standard, high demand)
+- Temperature control (30-60°C)
+- Current temperature display
+
+Additional entities provide granular control over specific features.
 
 ### Swimming Pool Device (if configured)
 

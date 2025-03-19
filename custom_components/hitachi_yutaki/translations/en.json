@@ -564,21 +564,15 @@
             }
           }
         }
-      },
-      "dhw_climate": {
+      }
+    },
+    "water_heater": {
+      "dhw": {
         "name": "DHW Control",
         "state": {
           "off": "Off",
-          "heat": "Heat"
-        },
-        "state_attributes": {
-          "preset_mode": {
-            "state": {
-              "dhw_off": "Off",
-              "dhw_standard": "Standard",
-              "dhw_high_demand": "High Demand"
-            }
-          }
+          "standard": "Standard",
+          "high_demand": "High Demand"
         }
       }
     }
