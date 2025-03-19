@@ -148,6 +148,7 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         register_key="target_temp",
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
+        entity_registry_enabled_default=False,
     ),
     HitachiYutakiNumberEntityDescription(
         key="antilegionella_temp",

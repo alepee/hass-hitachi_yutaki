@@ -8,7 +8,7 @@ DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
-VERSION = "1.6.1"
+VERSION = "1.7.0"
 
 # Default values
 DEFAULT_NAME = "Hitachi Yutaki"
@@ -144,6 +144,7 @@ PLATFORMS = [
     Platform.SELECT,
     Platform.SENSOR,
     Platform.SWITCH,
+    Platform.WATER_HEATER,
 ]
 
 MODEL_NAMES = {
