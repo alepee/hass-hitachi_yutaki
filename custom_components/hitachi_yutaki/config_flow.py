@@ -287,8 +287,11 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             finally:
                 client.close()
 
-        except (ConnectionException, OSError):
-            _LOGGER.exception("Unexpected exception")
+        except ConnectionException:
+            _LOGGER.exception("Connection exception")
+            errors["base"] = "unknown"
+        except OSError:
+            _LOGGER.exception("OS error")
             errors["base"] = "unknown"
 
         return self.async_show_form(
