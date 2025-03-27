@@ -175,7 +175,7 @@ PRESET_ECO = "eco"
 
 # DHW presets
 PRESET_DHW_OFF = "off"
-PRESET_DHW_STANDARD = "standard"
+PRESET_DHW_HEAT_PUMP = "heat_pump"
 PRESET_DHW_HIGH_DEMAND = "high_demand"
 
 # Operation state values
