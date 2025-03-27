@@ -23,9 +23,9 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from .const import (
     DEVICE_DHW,
     DOMAIN,
+    PRESET_DHW_HEAT_PUMP,
     PRESET_DHW_HIGH_DEMAND,
     PRESET_DHW_OFF,
-    PRESET_DHW_STANDARD,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
@@ -106,7 +106,7 @@ class HitachiYutakiWaterHeater(
         )
         self._attr_operation_list = [
             PRESET_DHW_OFF,
-            PRESET_DHW_STANDARD,
+            PRESET_DHW_HEAT_PUMP,
             PRESET_DHW_HIGH_DEMAND,
         ]
 
@@ -148,7 +148,7 @@ class HitachiYutakiWaterHeater(
         if high_demand == 1:
             return PRESET_DHW_HIGH_DEMAND
 
-        return PRESET_DHW_STANDARD
+        return PRESET_DHW_HEAT_PUMP
 
     @property
     def icon(self) -> str:
@@ -185,7 +185,7 @@ class HitachiYutakiWaterHeater(
         # Then set the mode
         if operation_mode == PRESET_DHW_HIGH_DEMAND:
             await self.coordinator.async_write_register("dhw_high_demand", 1)
-        elif operation_mode == PRESET_DHW_STANDARD:
+        elif operation_mode == PRESET_DHW_HEAT_PUMP:
             await self.coordinator.async_write_register("dhw_high_demand", 0)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
