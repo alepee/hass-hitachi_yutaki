@@ -166,9 +166,7 @@ class HitachiYutakiWaterHeater(
         if temperature is None:
             return
 
-        await self.coordinator.async_write_register(
-            "dhw_target_temp", int(temperature)
-        )
+        await self.coordinator.async_write_register("dhw_target_temp", int(temperature))
 
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new operation mode."""
@@ -200,3 +198,29 @@ class HitachiYutakiWaterHeater(
         await self.coordinator.async_write_register("dhw_high_demand", 0)
         # Then turn off DHW
         await self.coordinator.async_write_register("dhw_power", 0)
+
+    def set_temperature(self, **kwargs: Any) -> None:
+        """Set new target temperature."""
+        return self.hass.async_add_executor_job(self.async_set_temperature, **kwargs)
+
+    def turn_on(self, **kwargs: Any) -> None:
+        """Turn the water heater on."""
+        return self.hass.async_add_executor_job(self.async_turn_on, **kwargs)
+
+    def turn_off(self, **kwargs: Any) -> None:
+        """Turn the water heater off."""
+        return self.hass.async_add_executor_job(self.async_turn_off, **kwargs)
+
+    def set_operation_mode(self, operation_mode: str) -> None:
+        """Set new operation mode."""
+        return self.hass.async_add_executor_job(
+            self.async_set_operation_mode, operation_mode
+        )
+
+    def turn_away_mode_off(self, **kwargs: Any) -> None:
+        """Turn away mode off - Not supported."""
+        raise NotImplementedError("Away mode is not supported")
+
+    def turn_away_mode_on(self, **kwargs: Any) -> None:
+        """Turn away mode on - Not supported."""
+        raise NotImplementedError("Away mode is not supported")

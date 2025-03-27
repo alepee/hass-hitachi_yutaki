@@ -233,6 +233,7 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     native_unit_of_measurement: str | None = None
     entity_category: EntityCategory | None = None
     icon: str | None = None
+    entity_registry_enabled_default: bool = True
 
     register_key: str | None = None
     translation_key: str | None = None
@@ -1273,7 +1274,7 @@ class HitachiYutakiSensor(
                 self._daily_start_time = current_time
                 _LOGGER.debug(
                     "Initializing daily start time to %s",
-                    datetime.fromtimestamp(self._daily_start_time).isoformat()
+                    datetime.fromtimestamp(self._daily_start_time).isoformat(),
                 )
 
             # Calculate energy since last measurement
