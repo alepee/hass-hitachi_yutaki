@@ -11,6 +11,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The integration now allows configuration with central control modes Air (1), Water (2), or Total (3). Only Local (0) is forbidden.
 - Error messages and documentation updated to reflect this change.
 - The documentation now recommends using Air (1) mode for most installations.
+- Support for Hitachi Yutampo R32 machines (requires 'Total' (3) mode).
+- Bump ruff from 0.11.2 to 0.11.8 ([#50](https://github.com/alepee/hass-hitachi_yutaki/pull/50))
+- Updated development dependencies and minor fixes.
 
 ## [1.7.1] - 2025-03-27
 
