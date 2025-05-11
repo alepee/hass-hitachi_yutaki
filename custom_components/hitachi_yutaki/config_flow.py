@@ -261,7 +261,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         errors=errors,
                     )
 
-                if mode_result.registers[0] != CENTRAL_CONTROL_MODE_MAP["air"]:
+                if mode_result.registers[0] == CENTRAL_CONTROL_MODE_MAP["local"]:
                     errors["base"] = "invalid_central_control_mode"
                     return self.async_show_form(
                         step_id="advanced" if "show_advanced" in config else "user",

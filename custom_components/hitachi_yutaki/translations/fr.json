@@ -104,7 +104,7 @@
       "invalid_slave": "ID esclave Modbus invalide",
       "modbus_error": "Erreur de communication Modbus",
       "unknown": "Erreur inattendue",
-      "invalid_central_control_mode": "La pompe à chaleur doit être configurée en mode Central 'Air' (1). Modes possibles : Local (0), Air (1), Water (2), Total (3). Veuillez modifier ce réglage dans les paramètres de votre pompe à chaleur (Configuration du système > Options générales > Option commande externe > Mode de controle = Air)."
+      "invalid_central_control_mode": "La pompe à chaleur ne doit pas être configurée en mode Local (0). Modes possibles : Air (1), Water (2), Total (3). Veuillez modifier ce réglage dans les paramètres de votre pompe à chaleur (Configuration du système > Options générales > Option commande externe > Mode de controle)."
     },
     "abort": {
       "already_configured": "L'appareil est déjà configuré"

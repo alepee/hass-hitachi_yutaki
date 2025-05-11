@@ -203,6 +203,8 @@ Additional entities provide granular control over specific features.
 
 ## Configuration
 
+> **Note:** The heat pump's central control mode must NOT be set to 'Local' (0). Accepted modes are: Air (1), Water (2), or Total (3). **The 'Air' (1) mode is recommended for most installations.** Please check this setting in your heat pump parameters (System Configuration > General Options > External Control Option > Control Mode).
+
 1. Go to Settings -> Devices & Services
 2. Click "Add Integration"
 3. Search for "Hitachi Yutaki"
