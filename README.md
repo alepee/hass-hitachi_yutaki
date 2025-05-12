@@ -1,20 +1,15 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
-# Hitachi Yutaki Integration for Home Assistant
+# Hitachi air-to-water heat pumps Integration for Home Assistant
 
-This custom integration allows you to control and monitor your Hitachi Yutaki heat pump through Home Assistant using a Modbus ATW-MBS-02 gateway.
+This custom integration allows you to control and monitor your Hitachi **Yutaki** and **Yutampo** air-to-water heat pumps through Home Assistant using a Modbus ATW-MBS-02 gateway.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=alepee&repository=hass-hitachi_yutaki)
 
-> ⚠️ **Beta Version - Under Development**
-> This integration is currently in active development and should be considered experimental. While it is functional, you may encounter bugs or incomplete features. Use at your own risk and please report any issues you find.
->
-> Currently tested with Yutaki S80 and S models. Testing with other models is in progress.
-
 ## Compatibility
 
-- **Compatible Models**: 2016 and newer Hitachi Yutaki heat pumps (S, S Combi, S80, M series)
-- **Tested With**: Yutaki S80, Yutaki S
+- **Compatible Models**: 2016 and newer Hitachi air-to-water heat pumps
+- **Tested With**: Yutaki S80, Yutaki S, Yutaki S Combi, Yutampo R32
 - **Required Hardware**: ATW-MBS-02 Modbus gateway
 
 > **Important**: Models manufactured before 2016 use different Modbus registers and are not compatible. If you do have an older Heat Pump already equiped with a Modbus gateway, you can [open an issue](https://github.com/alepee/hass-hitachi_yutaki/issues/new?title=Pre-2016%20Heat%20Pump%20support%20request) if your have time to help me add support for your model.
