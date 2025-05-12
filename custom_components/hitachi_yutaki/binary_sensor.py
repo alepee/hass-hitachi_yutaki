@@ -19,6 +19,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
     DEVICE_CONTROL_UNIT,
+    DEVICE_DHW,
     DEVICE_GATEWAY,
     DEVICE_PRIMARY_COMPRESSOR,
     DEVICE_SECONDARY_COMPRESSOR,
@@ -213,6 +214,20 @@ SECONDARY_COMPRESSOR_BINARY_SENSORS: Final[
     ),
 )
 
+DHW_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, ...]] = (
+    HitachiYutakiBinarySensorEntityDescription(
+        key="antilegionella_cycle",
+        translation_key="antilegionella_cycle",
+        icon="mdi:biohazard",
+        description="Indicates if an anti-legionella cycle is currently running",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        register_key="dhw_antilegionella_status",
+        value_fn=lambda value, _: value == 1,
+        condition=lambda c: c.has_dhw(),
+    ),
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
@@ -275,6 +290,19 @@ async def async_setup_entry(
             ),
         )
         for description in SECONDARY_COMPRESSOR_BINARY_SENSORS
+        if description.condition is None or description.condition(coordinator)
+    )
+
+    # Add DHW binary sensors if configured
+    entities.extend(
+        HitachiYutakiBinarySensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_DHW}")},
+            ),
+        )
+        for description in DHW_BINARY_SENSORS
         if description.condition is None or description.condition(coordinator)
     )
 

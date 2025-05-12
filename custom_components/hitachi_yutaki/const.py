@@ -8,7 +8,7 @@ DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
-VERSION = "1.8.0"
+VERSION = "1.8.1"
 
 # Default values
 DEFAULT_NAME = "Hitachi Yutaki"
@@ -123,6 +123,7 @@ REGISTER_SENSOR = {
     "compressor_current": 1214,
     "power_consumption": 1098,
     "alarm_code": 1223,
+    "dhw_antilegionella_status": 1030,
 }
 
 # R134a specific registers (S80 only)
@@ -145,6 +146,7 @@ PLATFORMS = [
     Platform.SENSOR,
     Platform.SWITCH,
     Platform.WATER_HEATER,
+    Platform.BUTTON,
 ]
 
 MODEL_NAMES = {

@@ -342,12 +342,19 @@
         "name": "Rendement Piscine (COP)",
         "state_attributes": {
           "quality": {
+            "name": "Qualité",
             "state": {
               "no_data": "Pas de données",
               "insufficient_data": "Données insuffisantes",
               "preliminary": "Préliminaire",
               "optimal": "Optimal"
             }
+          },
+          "measurements": {
+            "name": "Nombre de mesures"
+          },
+          "time_span_minutes": {
+            "name": "Période de mesure"
           }
         }
       },
@@ -451,6 +458,10 @@
       },
       "r134a_compressor_running": {
         "name": "Compresseur R134a en marche"
+      },
+      "antilegionella_cycle": {
+        "name": "Cycle anti-légionelle",
+        "description": "Indique si un cycle anti-légionelle est en cours"
       }
     },
     "select": {
@@ -499,12 +510,12 @@
       },
       "boost": {
         "name": "Forçage ECS"
-      },
-      "high_demand": {
-        "name": "Demande intense"
-      },
+      }
+    },
+    "button": {
       "antilegionella": {
-        "name": "Anti-légionelle"
+        "name": "Démarrer le cycle anti-légionelle",
+        "description": "Démarre un cycle de traitement anti-légionelle à haute température. Une fois démarré, le cycle ne peut pas être arrêté."
       }
     },
     "number": {
@@ -524,12 +535,6 @@
         "name": "Température Ambiante"
       },
       "target_temp": {
-        "name": "Température Cible"
-      },
-      "dhw_current_temperature": {
-        "name": "Température Actuelle"
-      },
-      "dhw_target_temperature": {
         "name": "Température Cible"
       },
       "pool_current_temperature": {
