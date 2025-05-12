@@ -61,13 +61,6 @@ UNIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
 
 CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
-        key="power",
-        translation_key="power",
-        icon="mdi:power",
-        description="Power switch for this heating/cooling circuit",
-        register_key="power",
-    ),
-    HitachiYutakiSwitchEntityDescription(
         key="thermostat",
         translation_key="thermostat",
         description="Enable/disable the Modbus thermostat function for this circuit",
@@ -87,34 +80,10 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
 
 DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     HitachiYutakiSwitchEntityDescription(
-        key="power",
-        translation_key="power",
-        icon="mdi:power",
-        description="Power switch for domestic hot water production",
-        register_key="power",
-        entity_registry_enabled_default=False,
-    ),
-    HitachiYutakiSwitchEntityDescription(
         key="boost",
         translation_key="boost",
         description="Temporarily boost DHW production",
         register_key="boost",
-    ),
-    HitachiYutakiSwitchEntityDescription(
-        key="high_demand",
-        translation_key="high_demand",
-        icon="mdi:crowd",
-        description="Enable high demand mode for increased DHW production",
-        register_key="high_demand",
-        entity_registry_enabled_default=False,
-    ),
-    HitachiYutakiSwitchEntityDescription(
-        key="antilegionella",
-        translation_key="antilegionella",
-        description="Enable/disable periodic high temperature treatment to prevent legionella",
-        register_key="antilegionella",
-        entity_category=EntityCategory.CONFIG,
-        entity_registry_enabled_default=False,
     ),
 )
 
