@@ -460,8 +460,7 @@
         "name": "R134a compressor running"
       },
       "antilegionella_cycle": {
-        "name": "Anti-legionella cycle",
-        "description": "Indicates if an anti-legionella cycle is currently running"
+        "name": "Anti-legionella cycle"
       }
     },
     "select": {
@@ -517,8 +516,7 @@
     },
     "button": {
       "antilegionella": {
-        "name": "Start Anti-legionella Cycle",
-        "description": "Start a high temperature anti-legionella treatment cycle. Once started, the cycle cannot be stopped."
+        "name": "Start Anti-legionella Cycle"
       }
     },
     "number": {

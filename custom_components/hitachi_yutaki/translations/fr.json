@@ -460,8 +460,7 @@
         "name": "Compresseur R134a en marche"
       },
       "antilegionella_cycle": {
-        "name": "Cycle anti-légionelle",
-        "description": "Indique si un cycle anti-légionelle est en cours"
+        "name": "Cycle anti-légionelle"
       }
     },
     "select": {
@@ -514,8 +513,7 @@
     },
     "button": {
       "antilegionella": {
-        "name": "Démarrer le cycle anti-légionelle",
-        "description": "Démarre un cycle de traitement anti-légionelle à haute température. Une fois démarré, le cycle ne peut pas être arrêté."
+        "name": "Démarrer le cycle anti-légionelle"
       }
     },
     "number": {
