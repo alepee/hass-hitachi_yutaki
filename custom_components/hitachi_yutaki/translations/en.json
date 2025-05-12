@@ -41,11 +41,15 @@
           "host": "Gateway IP address",
           "port": "Gateway port",
           "voltage_entity": "Voltage entity (optional)",
-          "power_entity": "Power entity (optional)"
+          "power_entity": "Power entity (optional)",
+          "water_inlet_temp_entity": "Water inlet temperature entity (optional)",
+          "water_outlet_temp_entity": "Water outlet temperature entity (optional)"
         },
         "data_description": {
           "voltage_entity": "Entity providing real-time voltage measurements. If not set, default values will be used",
-          "power_entity": "Entity providing real-time power consumption measurements. If not set, power will be calculated"
+          "power_entity": "Entity providing real-time power consumption measurements. If not set, power will be calculated",
+          "water_inlet_temp_entity": "Entity providing more precise water inlet temperature measurements. If not set, internal measurements will be used",
+          "water_outlet_temp_entity": "Entity providing more precise water outlet temperature measurements. If not set, internal measurements will be used"
         },
         "description": "Modify your Hitachi Yutaki heat pump settings"
       }
@@ -454,6 +458,9 @@
       },
       "r134a_compressor_running": {
         "name": "R134a compressor running"
+      },
+      "antilegionella_cycle": {
+        "name": "Anti-legionella cycle"
       }
     },
     "select": {
@@ -505,9 +512,11 @@
       },
       "high_demand": {
         "name": "High Demand"
-      },
+      }
+    },
+    "button": {
       "antilegionella": {
-        "name": "Anti-legionella"
+        "name": "Start Anti-legionella Cycle"
       }
     },
     "number": {
@@ -527,12 +536,6 @@
         "name": "Current Temperature"
       },
       "target_temp": {
-        "name": "Target Temperature"
-      },
-      "dhw_current_temperature": {
-        "name": "Current Temperature"
-      },
-      "dhw_target_temperature": {
         "name": "Target Temperature"
       },
       "pool_current_temperature": {
