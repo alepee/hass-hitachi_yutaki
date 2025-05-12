@@ -138,19 +138,6 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
 
 DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     HitachiYutakiNumberEntityDescription(
-        key="target_temp",
-        translation_key="dhw_target_temperature",
-        description="Target temperature for domestic hot water",
-        native_min_value=30,
-        native_max_value=60,
-        native_step=1,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="target_temp",
-        mode=NumberMode.BOX,
-        entity_category=EntityCategory.CONFIG,
-        entity_registry_enabled_default=False,
-    ),
-    HitachiYutakiNumberEntityDescription(
         key="antilegionella_temp",
         translation_key="antilegionella_temp",
         description="Target temperature for anti-legionella treatment",

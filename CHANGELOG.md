@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2025-05-12
+
+### Added
+- New "Anti-legionella Cycle" button entity to manually start a high temperature anti-legionella treatment cycle.
+- New binary sensor entity (`antilegionella_cycle`) indicating if an anti-legionella cycle is currently running.
+
+### Changed
+- Removed unused or redundant Domestic Hot Water (DHW) entities: DHW current temperature sensor, DHW target temperature number, DHW power switch, high demand switch, and periodic anti-legionella switch.
+- Improved English and French translations for new entities and advanced configuration (water inlet/outlet temperature entities).
+
 ## [1.8.0] - 2025-05-11
 
 ### Changed

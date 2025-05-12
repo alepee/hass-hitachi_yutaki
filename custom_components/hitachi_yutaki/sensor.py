@@ -286,19 +286,7 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
 )
 
-DHW_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
-    HitachiYutakiSensorEntityDescription(
-        key="dhw_current_temp",
-        translation_key="dhw_current_temperature",
-        description="Current temperature of the domestic hot water",
-        device_class=SensorDeviceClass.TEMPERATURE,
-        state_class=SensorStateClass.MEASUREMENT,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="dhw_current_temp",
-        value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
-        entity_registry_enabled_default=False,
-    ),
-)
+DHW_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = ()
 
 POOL_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
