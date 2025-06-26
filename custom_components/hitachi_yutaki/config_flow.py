@@ -5,6 +5,8 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+from pymodbus.client import ModbusTcpClient
+from pymodbus.exceptions import ConnectionException, ModbusException
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -204,9 +206,6 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         try:
-            from pymodbus.client import ModbusTcpClient
-            from pymodbus.exceptions import ConnectionException, ModbusException
-
             client = ModbusTcpClient(
                 host=config[CONF_HOST],
                 port=config[CONF_PORT],
