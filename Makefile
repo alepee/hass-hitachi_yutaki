@@ -1,4 +1,4 @@
-__VERSION__ = "1.8.2"
+__VERSION__ = "1.9.0"
 
 bump:
 	bump2version --allow-dirty --current-version $(__VERSION__) patch Makefile custom_components/hitachi_yutaki/const.py custom_components/hitachi_yutaki/manifest.json
