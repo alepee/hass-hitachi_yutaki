@@ -33,6 +33,7 @@ REGISTER_UNIT_MODEL = 1218
 REGISTER_CENTRAL_CONTROL_MODE = 1088
 REGISTER_SYSTEM_CONFIG = 1089
 REGISTER_SYSTEM_STATUS = 1222
+REGISTER_SYSTEM_STATE = 1094
 
 # Unit models
 UNIT_MODEL_YUTAKI_S = 0
@@ -136,6 +137,8 @@ REGISTER_R134A = {
     "r134a_valve_opening": 1229,
     "r134a_compressor_current": 1230,
     "r134a_retry_code": 1231,
+    "r134a_hp_pressure": 1150,
+    "r134a_lp_pressure": 1151,
 }
 
 PLATFORMS = [
@@ -179,6 +182,13 @@ PRESET_ECO = "eco"
 PRESET_DHW_OFF = "off"
 PRESET_DHW_HEAT_PUMP = "heat_pump"
 PRESET_DHW_HIGH_DEMAND = "high_demand"
+
+# System state values
+SYSTEM_STATE_MAP = {
+    0: "synchronized",
+    1: "desynchronized",
+    2: "initializing",
+}
 
 # Operation state values
 OPERATION_STATE_MAP = {

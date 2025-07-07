@@ -37,6 +37,8 @@ from .const import (
     DEFAULT_SLAVE,
     DOMAIN,
     REGISTER_CENTRAL_CONTROL_MODE,
+    REGISTER_SYSTEM_CONFIG,
+    REGISTER_SYSTEM_STATE,
     REGISTER_UNIT_MODEL,
 )
 
@@ -111,7 +113,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     def __init__(self):
         """Initialize the config flow."""
-        self.basic_config = None
+        self.basic_config: dict[str, Any] = {}
         self.show_advanced = False
 
     @staticmethod
@@ -222,6 +224,47 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
             try:
+                # Preflight check for system state
+                preflight_result = await self.hass.async_add_executor_job(
+                    lambda addr=REGISTER_SYSTEM_STATE: client.read_holding_registers(
+                        address=addr,
+                        count=1,
+                        slave=config[CONF_SLAVE],
+                    )
+                )
+
+                if preflight_result.isError():
+                    errors["base"] = "invalid_slave"
+                    return self.async_show_form(
+                        step_id="advanced" if "show_advanced" in config else "user",
+                        data_schema=ADVANCED_SCHEMA
+                        if "show_advanced" in config
+                        else GATEWAY_SCHEMA,
+                        errors=errors,
+                    )
+
+                system_state = preflight_result.registers[0]
+
+                if system_state == 2:  # Data init
+                    errors["base"] = "system_initializing"
+                    return self.async_show_form(
+                        step_id="advanced" if "show_advanced" in config else "user",
+                        data_schema=ADVANCED_SCHEMA
+                        if "show_advanced" in config
+                        else GATEWAY_SCHEMA,
+                        errors=errors,
+                    )
+
+                if system_state == 1:  # Desync
+                    errors["base"] = "desync_error"
+                    return self.async_show_form(
+                        step_id="advanced" if "show_advanced" in config else "user",
+                        data_schema=ADVANCED_SCHEMA
+                        if "show_advanced" in config
+                        else GATEWAY_SCHEMA,
+                        errors=errors,
+                    )
+
                 # Verify the device by checking unit model
                 result = await self.hass.async_add_executor_job(
                     lambda addr=REGISTER_UNIT_MODEL: client.read_holding_registers(
@@ -240,6 +283,8 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         else GATEWAY_SCHEMA,
                         errors=errors,
                     )
+
+                unit_model = result.registers[0]
 
                 # Check central control mode
                 mode_result = await self.hass.async_add_executor_job(
@@ -270,11 +315,35 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         errors=errors,
                     )
 
+                # Read system configuration to store it
+                system_config_result = await self.hass.async_add_executor_job(
+                    lambda addr=REGISTER_SYSTEM_CONFIG: client.read_holding_registers(
+                        address=addr,
+                        count=1,
+                        slave=config[CONF_SLAVE],
+                    )
+                )
+
+                if system_config_result.isError():
+                    errors["base"] = "modbus_error"
+                    return self.async_show_form(
+                        step_id="advanced" if "show_advanced" in config else "user",
+                        data_schema=ADVANCED_SCHEMA
+                        if "show_advanced" in config
+                        else GATEWAY_SCHEMA,
+                        errors=errors,
+                    )
+
+                system_config = system_config_result.registers[0]
+
                 # Create entry if all validations pass
                 await self.async_set_unique_id(
                     f"{config[CONF_HOST]}_{config[CONF_SLAVE]}"
                 )
                 self._abort_if_unique_id_configured()
+
+                config["unit_model"] = unit_model
+                config["system_config"] = system_config
 
                 return self.async_create_entry(
                     title=config[CONF_NAME],
@@ -316,16 +385,26 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
+        config_data = self.config_entry.data
+        options_data = self.config_entry.options
+
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
-                    vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.port,
+                    vol.Required(
+                        CONF_HOST,
+                        default=options_data.get(CONF_HOST, config_data.get(CONF_HOST)),
+                    ): str,
+                    vol.Required(
+                        CONF_PORT,
+                        default=options_data.get(CONF_PORT, config_data.get(CONF_PORT)),
+                    ): cv.port,
                     vol.Required(
                         CONF_POWER_SUPPLY,
-                        default=self.config_entry.data.get(
-                            CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY
+                        default=options_data.get(
+                            CONF_POWER_SUPPLY,
+                            config_data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
                         ),
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
@@ -333,25 +412,45 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                             translation_key="power_supply",
                         ),
                     ),
-                    vol.Optional(CONF_VOLTAGE_ENTITY): selector.EntitySelector(
+                    vol.Optional(
+                        CONF_VOLTAGE_ENTITY,
+                        default=options_data.get(
+                            CONF_VOLTAGE_ENTITY, config_data.get(CONF_VOLTAGE_ENTITY)
+                        ),
+                    ): selector.EntitySelector(
                         selector.EntitySelectorConfig(
                             domain=["sensor", "number", "input_number"],
                         ),
                     ),
-                    vol.Optional(CONF_POWER_ENTITY): selector.EntitySelector(
+                    vol.Optional(
+                        CONF_POWER_ENTITY,
+                        default=options_data.get(
+                            CONF_POWER_ENTITY, config_data.get(CONF_POWER_ENTITY)
+                        ),
+                    ): selector.EntitySelector(
                         selector.EntitySelectorConfig(
                             domain=["sensor"],
                             device_class=["power"],
                         ),
                     ),
-                    vol.Optional(CONF_WATER_INLET_TEMP_ENTITY): selector.EntitySelector(
+                    vol.Optional(
+                        CONF_WATER_INLET_TEMP_ENTITY,
+                        default=options_data.get(
+                            CONF_WATER_INLET_TEMP_ENTITY,
+                            config_data.get(CONF_WATER_INLET_TEMP_ENTITY),
+                        ),
+                    ): selector.EntitySelector(
                         selector.EntitySelectorConfig(
                             domain=["sensor", "number", "input_number"],
                             device_class=["temperature"],
                         ),
                     ),
                     vol.Optional(
-                        CONF_WATER_OUTLET_TEMP_ENTITY
+                        CONF_WATER_OUTLET_TEMP_ENTITY,
+                        default=options_data.get(
+                            CONF_WATER_OUTLET_TEMP_ENTITY,
+                            config_data.get(CONF_WATER_OUTLET_TEMP_ENTITY),
+                        ),
                     ): selector.EntitySelector(
                         selector.EntitySelectorConfig(
                             domain=["sensor", "number", "input_number"],
