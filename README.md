@@ -17,6 +17,8 @@ This custom integration allows you to control and monitor your Hitachi **Yutaki*
 
 The integration provides:
 - Automatic model detection and configuration
+- Resilient to gateway connection issues at startup
+- Gateway synchronization status monitoring with automated repair suggestions
 - Multi-language support (English, French)
 - Real-time performance monitoring (COP calculation)
 - Comprehensive alarm descriptions with translations
@@ -43,6 +45,7 @@ The integration automatically detects your heat pump model and available feature
 | Entity | Type | Description | Unit |
 |--------|------|-------------|------|
 | connectivity | binary_sensor | Indicates if the gateway is connected and responding | - |
+| sync_state   | sensor        | Indicates the gateway synchronization state with the heat pump | - |
 
 ### Heat Pump Control Unit Device
 

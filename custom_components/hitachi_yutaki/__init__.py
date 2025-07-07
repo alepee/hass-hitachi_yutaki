@@ -10,6 +10,7 @@ from homeassistant.const import (
     CONF_NAME,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
 from .const import (
@@ -47,14 +48,23 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("Setting up Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
 
     coordinator = HitachiYutakiDataCoordinator(hass, entry)
-    await coordinator.async_config_entry_first_refresh()
-    _LOGGER.debug("Data coordinator initialized and first refresh completed")
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except ConfigEntryNotReady:
+        _LOGGER.warning(
+            "Initial connection to Hitachi Yutaki failed. "
+            "The integration will retry in the background, and entities will be unavailable."
+        )
+
+    _LOGGER.debug("Data coordinator initialized")
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
     # Get unit model
-    unit_model = coordinator.data.get("unit_model")
-    model_name = MODEL_NAMES.get(unit_model, "Unknown Model")
+    unit_model = coordinator.model
+    model_name = "Unknown Model"
+    if unit_model is not None:
+        model_name = MODEL_NAMES.get(unit_model, "Unknown Model")
     _LOGGER.info("Detected Hitachi unit model: %s", model_name)
 
     # Register devices
