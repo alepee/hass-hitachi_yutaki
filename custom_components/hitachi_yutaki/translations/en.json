@@ -36,78 +36,64 @@
   "options": {
     "step": {
       "init": {
+        "title": "Hitachi Yutaki Options",
+        "description": "Update your Hitachi Yutaki configuration.",
         "data": {
-          "power_supply": "Power supply",
-          "host": "Gateway IP address",
-          "port": "Gateway port",
-          "voltage_entity": "Voltage entity (optional)",
-          "power_entity": "Power entity (optional)",
-          "water_inlet_temp_entity": "Water inlet temperature entity (optional)",
-          "water_outlet_temp_entity": "Water outlet temperature entity (optional)"
-        },
-        "data_description": {
-          "voltage_entity": "Entity providing real-time voltage measurements. If not set, default values will be used",
-          "power_entity": "Entity providing real-time power consumption measurements. If not set, power will be calculated",
-          "water_inlet_temp_entity": "Entity providing more precise water inlet temperature measurements. If not set, internal measurements will be used",
-          "water_outlet_temp_entity": "Entity providing more precise water outlet temperature measurements. If not set, internal measurements will be used"
-        },
-        "description": "Modify your Hitachi Yutaki heat pump settings"
+          "host": "Host/IP Address",
+          "port": "Port",
+          "power_supply": "Power Supply",
+          "voltage_entity": "Voltage Sensor (Optional)",
+          "power_entity": "Power Sensor (Optional)",
+          "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
+          "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
+        }
       }
     }
   },
   "config": {
     "step": {
       "user": {
+        "title": "Hitachi Yutaki Gateway",
+        "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
         "data": {
           "name": "Name",
-          "host": "Gateway IP address",
-          "port": "Gateway port",
-          "show_advanced": "Show advanced settings"
-        },
-        "data_description": {
-          "host": "IP address of the ATW-MBS-02 gateway",
-          "port": "Modbus TCP communication port (default: 502)"
-        },
-        "description": "Configure your Hitachi Yutaki heat pump via the Modbus TCP/IP interface exposed by the ATW-MBS-02 gateway.",
-        "title": "Gateway Configuration"
+          "host": "Host/IP Address",
+          "port": "Port",
+          "show_advanced": "Show advanced options"
+        }
       },
       "power": {
+        "title": "Power Configuration",
+        "description": "Configure power and external temperature sensors.",
         "data": {
-          "power_supply": "Power supply",
-          "voltage_entity": "Voltage entity (optional)",
-          "power_entity": "Power entity (optional)",
-          "water_inlet_temp_entity": "Water inlet temperature entity (optional)",
-          "water_outlet_temp_entity": "Water outlet temperature entity (optional)"
-        },
-        "data_description": {
-          "power_supply": "Type of power supply for the heat pump",
-          "voltage_entity": "Entity providing the mains voltage measurements. If not set, default values will be used",
-          "power_entity": "Entity providing real-time power consumption measurements. If not set, power will be calculated",
-          "water_inlet_temp_entity": "Entity providing more precise water inlet temperature measurements. If not set, internal measurements will be used",
-          "water_outlet_temp_entity": "Entity providing more precise water outlet temperature measurements. If not set, internal measurements will be used"
-        },
-        "description": "Power supply configuration",
-        "title": "Power Supply"
+          "power_supply": "Power Supply",
+          "voltage_entity": "Voltage Sensor (Optional)",
+          "power_entity": "Power Sensor (Optional)",
+          "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
+          "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
+        }
       },
       "advanced": {
+        "title": "Advanced Settings",
+        "description": "Configure advanced Modbus and integration settings.",
         "data": {
-          "slave": "Modbus slave ID",
-          "scan_interval": "Scan interval (seconds)",
-          "dev_mode": "Developer mode"
-        },
-        "description": "Advanced settings are intended for developers and users with custom Modbus configurations.",
-        "title": "Advanced Settings"
+          "slave": "Modbus Slave ID",
+          "scan_interval": "Polling Interval (seconds)",
+          "dev_mode": "Development Mode (enables all entities)"
+        }
       }
     },
     "error": {
-      "cannot_connect": "Failed to connect",
-      "invalid_slave": "Invalid Modbus slave ID",
-      "modbus_error": "Modbus communication error",
-      "unknown": "Unexpected error",
-      "invalid_central_control_mode": "The heat pump must not be configured in Local mode (0). Possible modes: Air (1), Water (2), Total (3). Please change this setting in your heat pump parameters (System Configuration > General Options > External Control Option > Control Mode)."
+      "cannot_connect": "Failed to connect to the gateway. Please check the host and port.",
+      "invalid_slave": "Invalid Modbus slave ID. Please check the ID and try again.",
+      "modbus_error": "A Modbus error occurred. Check the logs for more details.",
+      "invalid_central_control_mode": "The gateway must be in 'Central' control mode. Please change it in the gateway settings.",
+      "unknown": "An unknown error occurred. Please check the logs.",
+      "system_initializing": "The Hitachi Yutaki gateway is initializing. Please wait a moment and try again.",
+      "desync_error": "The gateway is out of sync with the heat pump. Ensure the heat pump is powered on and the connection between the two devices is correct."
     },
     "abort": {
-      "already_configured": "Device is already configured"
+      "already_configured": "This Hitachi Yutaki gateway is already configured."
     }
   },
   "entity": {
@@ -417,6 +403,14 @@
             "name": "Measurement Period (days)"
           }
         }
+      },
+      "system_state": {
+        "name": "Gateway Sync State",
+        "state": {
+          "synchronized": "Synchronized",
+          "desynchronized": "Desynchronized",
+          "initializing": "Initializing"
+        }
       }
     },
     "binary_sensor": {
@@ -578,6 +572,16 @@
           "high_demand": "High Demand"
         }
       }
+    }
+  },
+  "issues": {
+    "desync_warning": {
+      "title": "Hitachi Gateway Desynchronized",
+      "description": "The Hitachi gateway has lost synchronization with the heat pump for over 3 minutes. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check the physical connection between the gateway and the heat pump.\n2. Ensure the heat pump is powered on.\n3. Restart the heat pump and the gateway if the issue persists."
+    },
+    "connection_error": {
+      "title": "Hitachi Gateway Unreachable",
+      "description": "The integration could not connect to the Hitachi Yutaki gateway. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check if the gateway is powered on and connected to the network.\n2. Verify that the IP address and port configured in Home Assistant are correct."
     }
   }
 }

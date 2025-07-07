@@ -48,6 +48,7 @@ from .const import (
     COP_OPTIMAL_TIME_SPAN,
     DEVICE_CONTROL_UNIT,
     DEVICE_DHW,
+    DEVICE_GATEWAY,
     DEVICE_POOL,
     DEVICE_PRIMARY_COMPRESSOR,
     DEVICE_SECONDARY_COMPRESSOR,
@@ -55,6 +56,7 @@ from .const import (
     MASK_COMPRESSOR,
     OPERATION_STATE_MAP,
     POWER_FACTOR,
+    SYSTEM_STATE_MAP,
     THREE_PHASE_FACTOR,
     VOLTAGE_SINGLE_PHASE,
     VOLTAGE_THREE_PHASE,
@@ -242,6 +244,19 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
     value_fn: Callable[[Any, HitachiYutakiDataCoordinator], Any] | None = None
 
+
+GATEWAY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
+    HitachiYutakiSensorEntityDescription(
+        key="system_state",
+        translation_key="system_state",
+        description="System state",
+        device_class=SensorDeviceClass.ENUM,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:state-machine",
+        register_key="system_state",
+        value_fn=lambda value, _: SYSTEM_STATE_MAP.get(value, "unknown"),
+    ),
+)
 
 TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     HitachiYutakiSensorEntityDescription(
@@ -680,6 +695,18 @@ async def async_setup_entry(
     coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities: list[HitachiYutakiSensor] = []
+
+    # Add gateway sensors
+    entities.extend(
+        HitachiYutakiSensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}")},
+            ),
+        )
+        for description in GATEWAY_SENSORS
+    )
 
     # Add temperature sensors (always added as they are basic measurements)
     entities.extend(

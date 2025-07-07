@@ -17,6 +17,7 @@ from homeassistant.const import (
     CONF_SLAVE,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -36,6 +37,7 @@ from .const import (
     REGISTER_R134A,
     REGISTER_SENSOR,
     REGISTER_SYSTEM_CONFIG,
+    REGISTER_SYSTEM_STATE,
     REGISTER_SYSTEM_STATUS,
     REGISTER_UNIT_MODEL,
 )
@@ -53,8 +55,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             port=entry.data[CONF_PORT],
         )
         self.slave = entry.data[CONF_SLAVE]
-        self.model = None
-        self.system_config = 0
+        self.model = entry.data.get("unit_model")
+        self.system_config = entry.data.get("system_config", 0)
         self.dev_mode = entry.data.get("dev_mode", False)
         self.power_supply = entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY)
         self.entities = []
@@ -73,7 +75,51 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             if not self.modbus_client.connected:
                 await self.hass.async_add_executor_job(self.modbus_client.connect)
 
-            data = {"is_available": True}  # Initialize with connected state
+            data: dict[str, Any] = {"is_available": True}
+
+            # Preflight check
+            try:
+                preflight_result = await self.hass.async_add_executor_job(
+                    lambda addr=REGISTER_SYSTEM_STATE: self.modbus_client.read_holding_registers(
+                        address=addr,
+                        count=1,
+                        slave=self.slave,
+                    )
+                )
+
+                if preflight_result.isError():
+                    raise UpdateFailed(
+                        "Failed to read system state for preflight check"
+                    )
+
+                system_state = preflight_result.registers[0]
+                data["system_state"] = system_state
+
+                if system_state == 2:  # Data init
+                    _LOGGER.info(
+                        "Hitachi Yutaki is initializing, waiting for it to be ready..."
+                    )
+                    return data
+
+                if system_state == 1:  # Desync
+                    _LOGGER.warning(
+                        "The gateway is out of sync with the heat pump. Check the connection."
+                    )
+                    ir.async_create_issue(
+                        self.hass,
+                        DOMAIN,
+                        "desync_warning",
+                        is_fixable=False,
+                        severity=ir.IssueSeverity.WARNING,
+                        translation_key="desync_warning",
+                    )
+                    return data
+
+                # If we are here, system_state is 0, so we can clear any previous issue
+                ir.async_delete_issue(self.hass, DOMAIN, "desync_warning")
+
+            except ModbusException as error:
+                raise UpdateFailed("Modbus error during preflight check") from error
 
             # Read all required registers
             registers_to_read = {
@@ -127,7 +173,19 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         except (ModbusException, ConnectionError):
             # Set is_available to False on any error
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                "connection_error",
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="connection_error",
+            )
             return {"is_available": False}
+        finally:
+            # Clear connection error issue if connection succeeds on next update
+            if self.last_update_success:
+                ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
 
     async def async_write_register(self, register_key: str, value: int) -> bool:
         """Write a value to a register."""
