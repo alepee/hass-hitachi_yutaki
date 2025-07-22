@@ -336,6 +336,7 @@ class HitachiYutakiBinarySensor(
         if (
             self.coordinator.data is None
             or self.entity_description.register_key is None
+            or not self.coordinator.last_update_success
         ):
             return None
 
@@ -352,3 +353,8 @@ class HitachiYutakiBinarySensor(
             return bool(value & self.entity_description.mask)
 
         return None
+
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success

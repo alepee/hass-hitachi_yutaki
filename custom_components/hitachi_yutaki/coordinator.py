@@ -149,6 +149,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     )
 
                     if result.isError():
+                        _LOGGER.warning(
+                            "Error reading register %s",
+                            register_address,
+                        )
                         raise UpdateFailed(f"Error reading register {register_address}")
 
                     # Update model if reading unit model register
@@ -162,6 +166,12 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     data[register_name] = result.registers[0]
 
                 except ModbusException as error:
+                    _LOGGER.warning(
+                        "Modbus error reading register %s: %s",
+                        register_name,
+                        error,
+                        exc_info=True,
+                    )
                     raise UpdateFailed(f"Error reading {register_name}") from error
 
             # Update timing sensors
@@ -171,8 +181,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             return data
 
-        except (ModbusException, ConnectionError):
+        except (ModbusException, ConnectionError, OSError) as exc:
             # Set is_available to False on any error
+            _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -181,13 +192,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 severity=ir.IssueSeverity.WARNING,
                 translation_key="connection_error",
             )
-            return {"is_available": False}
+            raise UpdateFailed("Failed to communicate with device") from exc
         finally:
             # Clear connection error issue if connection succeeds on next update
             if self.last_update_success:
                 ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
 
-    async def async_write_register(self, register_key: str, value: int) -> bool:
+    async def async_write_register(self, register_key: str, value: int) -> None:
         """Write a value to a register."""
         try:
             if not self.modbus_client.connected:
@@ -196,7 +207,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             # Get the register address from REGISTER_CONTROL
             if register_key not in REGISTER_CONTROL:
                 _LOGGER.error("Unknown register key: %s", register_key)
-                return False
+                return
 
             register_address = REGISTER_CONTROL[register_key]
             _LOGGER.debug(
@@ -217,23 +228,16 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             if result.isError():
                 _LOGGER.error("Error writing to register %s: %s", register_key, result)
-                return False
+                raise UpdateFailed(
+                    f"Error writing to register {register_key}"
+                ) from result
 
             # Trigger an immediate update to refresh values
             await self.async_request_refresh()
 
-            return True
-
-        except ModbusException as error:
-            _LOGGER.error(
-                "ModbusException writing to register %s: %s", register_key, error
-            )
-            return False
-        except (ConnectionError, OSError) as error:
-            _LOGGER.error(
-                "Unexpected error writing to register %s: %s", register_key, error
-            )
-            return False
+        except (ModbusException, ConnectionError, OSError) as error:
+            _LOGGER.error("Error writing to register %s: %s", register_key, error)
+            raise UpdateFailed(f"Error writing to register {register_key}") from error
 
     def convert_temperature(self, value: int | None) -> int | None:
         """Convert a raw temperature value."""
