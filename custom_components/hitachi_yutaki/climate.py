@@ -149,6 +149,11 @@ class HitachiYutakiClimate(
         self._attr_preset_modes = [PRESET_COMFORT, PRESET_ECO]
 
     @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success
+
+    @property
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
         if self.coordinator.data is None:
@@ -195,12 +200,11 @@ class HitachiYutakiClimate(
     @property
     def hvac_action(self) -> HVACAction | None:
         """Return the current running hvac operation."""
+        if self.hvac_mode == HVACAction.OFF:
+            return HVACAction.OFF
+
         if self.coordinator.data is None:
             return None
-
-        power = self.coordinator.data.get(f"{self._register_prefix}_power")
-        if power == 0:
-            return HVACAction.OFF
 
         system_status = self.coordinator.data.get("system_status", 0)
 

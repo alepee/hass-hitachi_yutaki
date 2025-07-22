@@ -108,6 +108,11 @@ class HitachiYutakiButton(
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
+    @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success
+
     async def async_press(self) -> None:
         """Handle the button press."""
         if self._register_key is None:

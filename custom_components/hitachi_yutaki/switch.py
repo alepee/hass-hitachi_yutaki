@@ -221,6 +221,11 @@ class HitachiYutakiSwitch(
         self._attr_has_entity_name = True
 
     @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success
+
+    @property
     def is_on(self) -> bool | None:
         """Return true if the switch is on."""
         if self.coordinator.data is None or self._register_key is None:
@@ -273,12 +278,5 @@ class HitachiYutakiSwitch(
                 "Failed to turn off %s: invalid value %s - Error: %s",
                 self.entity_id,
                 self.entity_description.state_off,
-                str(e),
-            )
-        except Exception as e:
-            _LOGGER.error(
-                "Unexpected error turning off %s: %s - %s",
-                self.entity_id,
-                type(e).__name__,
                 str(e),
             )

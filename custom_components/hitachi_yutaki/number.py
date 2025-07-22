@@ -276,6 +276,11 @@ class HitachiYutakiNumber(
         self._attr_has_entity_name = True
 
     @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success
+
+    @property
     def native_value(self) -> float | None:
         """Return the entity value to represent the entity state."""
         if self.coordinator.data is None or self._register_key is None:
