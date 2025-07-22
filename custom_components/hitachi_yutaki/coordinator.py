@@ -78,48 +78,45 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             data: dict[str, Any] = {"is_available": True}
 
             # Preflight check
-            try:
-                preflight_result = await self.hass.async_add_executor_job(
-                    lambda addr=REGISTER_SYSTEM_STATE: self.modbus_client.read_holding_registers(
-                        address=addr,
-                        count=1,
-                        slave=self.slave,
-                    )
+            preflight_result = await self.hass.async_add_executor_job(
+                lambda addr=REGISTER_SYSTEM_STATE: self.modbus_client.read_holding_registers(
+                    address=addr,
+                    count=1,
+                    slave=self.slave,
                 )
+            )
 
-                if preflight_result.isError():
-                    raise UpdateFailed(
-                        "Failed to read system state for preflight check"
-                    )
+            if preflight_result.isError():
+                _LOGGER.warning(
+                    "Modbus error during preflight check: %s", preflight_result
+                )
+                raise UpdateFailed("Modbus error during preflight check")
 
-                system_state = preflight_result.registers[0]
-                data["system_state"] = system_state
+            system_state = preflight_result.registers[0]
+            data["system_state"] = system_state
 
-                if system_state == 2:  # Data init
-                    _LOGGER.info(
-                        "Hitachi Yutaki is initializing, waiting for it to be ready..."
-                    )
-                    return data
+            if system_state == 1:  # Desync
+                _LOGGER.warning(
+                    "The gateway is out of sync with the heat pump. Check the connection."
+                )
+                ir.async_create_issue(
+                    self.hass,
+                    DOMAIN,
+                    "desync_warning",
+                    is_fixable=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="desync_warning",
+                )
+                return data
 
-                if system_state == 1:  # Desync
-                    _LOGGER.warning(
-                        "The gateway is out of sync with the heat pump. Check the connection."
-                    )
-                    ir.async_create_issue(
-                        self.hass,
-                        DOMAIN,
-                        "desync_warning",
-                        is_fixable=False,
-                        severity=ir.IssueSeverity.WARNING,
-                        translation_key="desync_warning",
-                    )
-                    return data
+            # If we are here, system_state is 0, so we can clear any previous issue
+            ir.async_delete_issue(self.hass, DOMAIN, "desync_warning")
 
-                # If we are here, system_state is 0, so we can clear any previous issue
-                ir.async_delete_issue(self.hass, DOMAIN, "desync_warning")
-
-            except ModbusException as error:
-                raise UpdateFailed("Modbus error during preflight check") from error
+            if system_state == 2:  # Data init
+                _LOGGER.info(
+                    "Hitachi Yutaki is initializing, waiting for it to be ready..."
+                )
+                return data
 
             # Read all required registers
             registers_to_read = {
@@ -165,14 +162,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     # Store the register value
                     data[register_name] = result.registers[0]
 
-                except ModbusException as error:
+                except ModbusException:
                     _LOGGER.warning(
-                        "Modbus error reading register %s: %s",
+                        "Modbus error reading register %s",
                         register_name,
-                        error,
                         exc_info=True,
                     )
-                    raise UpdateFailed(f"Error reading {register_name}") from error
+                    raise
 
             # Update timing sensors
             for entity in self.entities:
