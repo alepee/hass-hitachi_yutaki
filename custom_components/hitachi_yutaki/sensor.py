@@ -927,6 +927,9 @@ class HitachiYutakiSensor(
                 except ValueError:
                     pass
 
+        if self.coordinator.data is None or not self.coordinator.last_update_success:
+            return None
+
         # Fall back to register value
         value = self.coordinator.data.get(register_key)
         if value is not None:
@@ -1020,7 +1023,7 @@ class HitachiYutakiSensor(
 
     def _calculate_cop_values(self) -> tuple[float | None, float | None]:
         """Calculate thermal and electrical power for COP."""
-        if self.coordinator.data is None:
+        if self.coordinator.data is None or not self.coordinator.last_update_success:
             return None, None
 
         # Check if compressor is running
@@ -1130,6 +1133,8 @@ class HitachiYutakiSensor(
 
     def _is_compressor_running(self, is_r134a: bool = False) -> bool:
         """Check if a compressor is running based on its frequency."""
+        if self.coordinator.data is None:
+            return False
         freq_key = "r134a_compressor_frequency" if is_r134a else "compressor_frequency"
         frequency = self.coordinator.data.get(freq_key)
         return frequency is not None and frequency > 0
@@ -1137,6 +1142,9 @@ class HitachiYutakiSensor(
     def _get_cop_value(self) -> StateType:
         """Calculate and return COP value."""
         _LOGGER.debug("Starting COP calculation for %s", self.entity_description.key)
+
+        if self.coordinator.data is None:
+            return None
 
         # Check if primary compressor is running
         if not self._is_compressor_running(False):
@@ -1226,6 +1234,9 @@ class HitachiYutakiSensor(
 
     def _calculate_thermal_power(self) -> float | None:
         """Calculate current thermal power output."""
+        if self.coordinator.data is None or not self.coordinator.last_update_success:
+            return None
+
         # Get temperatures from entities if configured, otherwise from registers
         water_inlet = self._get_temperature(
             "water_inlet_temp", CONF_WATER_INLET_TEMP_ENTITY
@@ -1273,6 +1284,9 @@ class HitachiYutakiSensor(
             self._daily_energy = 0.0
             self._last_reset = current_date
             self._daily_start_time = 0  # Reset start time for new day
+
+        if self.coordinator.data is None:
+            return
 
         # Check if compressor is running
         system_status = self.coordinator.data.get("system_status")
@@ -1379,9 +1393,16 @@ class HitachiYutakiSensor(
         return value
 
     @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes of the sensor."""
         if self.entity_description.key == "alarm_code":
+            if self.coordinator.data is None:
+                return None
             value = self.coordinator.data.get(self.entity_description.register_key)
             if value is not None:
                 alarm_code = str(value)
@@ -1427,6 +1448,9 @@ class HitachiYutakiSensor(
             if self._last_thermal_measurement == 0:
                 return None
 
+            if self.coordinator.data is None:
+                return None
+
             water_inlet = self._get_temperature(
                 "water_inlet_temp", CONF_WATER_INLET_TEMP_ENTITY
             )
@@ -1468,6 +1492,9 @@ class HitachiYutakiSensor(
             }
         elif self.entity_description.key == "total_thermal_energy":
             if self._last_thermal_measurement == 0:
+                return None
+
+            if self.coordinator.data is None:
                 return None
 
             start_date = datetime.fromtimestamp(self._last_thermal_measurement).date()

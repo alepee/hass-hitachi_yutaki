@@ -111,6 +111,11 @@ class HitachiYutakiWaterHeater(
         ]
 
     @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success
+
+    @property
     def current_temperature(self) -> float | None:
         """Return the current temperature."""
         if self.coordinator.data is None:

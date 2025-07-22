@@ -192,6 +192,11 @@ class HitachiYutakiSelect(
         self._attr_has_entity_name = True
 
     @property
+    def available(self) -> bool:
+        """Return True if entity is available."""
+        return self.coordinator.last_update_success
+
+    @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
         if (
