@@ -33,14 +33,8 @@ from .const import (
     MASK_CIRCUIT2_HEATING,
     MASK_DHW,
     MASK_POOL,
-    REGISTER_CONTROL,
-    REGISTER_R134A,
-    REGISTER_SENSOR,
-    REGISTER_SYSTEM_CONFIG,
-    REGISTER_SYSTEM_STATE,
-    REGISTER_SYSTEM_STATUS,
-    REGISTER_UNIT_MODEL,
 )
+from .registers import ATW_MBS_02_RegisterMap, HitachiRegisterMap
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -62,6 +56,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.entities = []
         self.config_entry = entry
 
+        # For now, we instantiate the map directly. This will be injected later.
+        self.register_map: HitachiRegisterMap = ATW_MBS_02_RegisterMap()
+
         super().__init__(
             hass,
             _LOGGER,
@@ -79,7 +76,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             # Preflight check
             preflight_result = await self.hass.async_add_executor_job(
-                lambda addr=REGISTER_SYSTEM_STATE: self.modbus_client.read_holding_registers(
+                lambda addr=self.register_map.system["system_state"]: self.modbus_client.read_holding_registers(
                     address=addr,
                     count=1,
                     slave=self.slave,
@@ -121,18 +118,20 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             # Read all required registers
             registers_to_read = {
                 # Basic configuration registers
-                "unit_model": REGISTER_UNIT_MODEL,
-                "system_config": REGISTER_SYSTEM_CONFIG,
-                "system_status": REGISTER_SYSTEM_STATUS,
+                **self.register_map.system,
                 # Add all control registers
-                **REGISTER_CONTROL,
-                # Add all sensor registers
-                **REGISTER_SENSOR,
+                **self.register_map.control_unit,
+                **self.register_map.control_circuit1,
+                **self.register_map.control_circuit2,
+                # Add all device-specific registers
+                **self.register_map.dhw,
+                **self.register_map.compressor,
+                **self.register_map.pool,
             }
 
-            # If it's an S80 model, add R134a registers
+            # If it's an S80 model, add secondary compressor registers
             if self.model == 2:  # S80
-                registers_to_read.update(REGISTER_R134A)
+                registers_to_read.update(self.register_map.secondary_compressor)
 
             # Read registers in batches to optimize Modbus communication
             for register_name, register_address in registers_to_read.items():
@@ -200,12 +199,22 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             if not self.modbus_client.connected:
                 await self.hass.async_add_executor_job(self.modbus_client.connect)
 
-            # Get the register address from REGISTER_CONTROL
-            if register_key not in REGISTER_CONTROL:
+            # Get the register address from control registers
+            # Check all control device mappings
+            register_address = None
+            for device_map in [
+                self.register_map.control_unit,
+                self.register_map.control_circuit1,
+                self.register_map.control_circuit2,
+            ]:
+                if register_key in device_map:
+                    register_address = device_map[register_key]
+                    break
+
+            if register_address is None:
                 _LOGGER.error("Unknown register key: %s", register_key)
                 return
 
-            register_address = REGISTER_CONTROL[register_key]
             _LOGGER.debug(
                 "Writing value %s to register %s (address: %s)",
                 value,

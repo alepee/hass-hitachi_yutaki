@@ -36,11 +36,8 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
     DOMAIN,
-    REGISTER_CENTRAL_CONTROL_MODE,
-    REGISTER_SYSTEM_CONFIG,
-    REGISTER_SYSTEM_STATE,
-    REGISTER_UNIT_MODEL,
 )
+from .registers import ATW_MBS_02_RegisterMap
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -224,9 +221,14 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 )
 
             try:
+                # This will be dynamic based on user selection later
+                register_map = ATW_MBS_02_RegisterMap()
+
                 # Preflight check for system state
                 preflight_result = await self.hass.async_add_executor_job(
-                    lambda addr=REGISTER_SYSTEM_STATE: client.read_holding_registers(
+                    lambda addr=register_map.system[
+                        "system_state"
+                    ]: client.read_holding_registers(
                         address=addr,
                         count=1,
                         slave=config[CONF_SLAVE],
@@ -267,7 +269,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # Verify the device by checking unit model
                 result = await self.hass.async_add_executor_job(
-                    lambda addr=REGISTER_UNIT_MODEL: client.read_holding_registers(
+                    lambda addr=register_map.system[
+                        "unit_model"
+                    ]: client.read_holding_registers(
                         address=addr,
                         count=1,
                         slave=config[CONF_SLAVE],
@@ -288,7 +292,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # Check central control mode
                 mode_result = await self.hass.async_add_executor_job(
-                    lambda addr=REGISTER_CENTRAL_CONTROL_MODE: client.read_holding_registers(
+                    lambda addr=register_map.system[
+                        "central_control_mode"
+                    ]: client.read_holding_registers(
                         address=addr,
                         count=1,
                         slave=config[CONF_SLAVE],
@@ -317,7 +323,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # Read system configuration to store it
                 system_config_result = await self.hass.async_add_executor_job(
-                    lambda addr=REGISTER_SYSTEM_CONFIG: client.read_holding_registers(
+                    lambda addr=register_map.system[
+                        "system_config"
+                    ]: client.read_holding_registers(
                         address=addr,
                         count=1,
                         slave=config[CONF_SLAVE],
