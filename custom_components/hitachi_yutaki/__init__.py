@@ -8,11 +8,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
+    CONF_PORT,
+    CONF_SLAVE,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
+from .api import HitachiModbusApiClient
 from .const import (
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
@@ -32,6 +35,7 @@ from .const import (
     UNIT_MODEL_YUTAKI_S_COMBI,
 )
 from .coordinator import HitachiYutakiDataCoordinator
+from .registers import ATW_MBS_02_RegisterMap
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +51,27 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Hitachi Yutaki from a config entry."""
     _LOGGER.info("Setting up Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
 
-    coordinator = HitachiYutakiDataCoordinator(hass, entry)
+    # For now, we use the ATW-MBS-02 register map. This will be dynamic later.
+    register_map = ATW_MBS_02_RegisterMap()
+
+    # Create Modbus client
+    from pymodbus.client import ModbusTcpClient
+    
+    modbus_client = ModbusTcpClient(
+        host=entry.data[CONF_HOST],
+        port=entry.data[CONF_PORT],
+    )
+
+    # Create API client
+    api_client = HitachiModbusApiClient(
+        client=modbus_client,
+        register_map=register_map,
+        slave=entry.data[CONF_SLAVE],
+        hass=hass,
+    )
+
+    # Create coordinator with injected API client
+    coordinator = HitachiYutakiDataCoordinator(hass, entry, api_client)
     try:
         await coordinator.async_config_entry_first_refresh()
     except ConfigEntryNotReady:
@@ -184,10 +208,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-        # Close Modbus connection
-        if coordinator.modbus_client.connected:
-            _LOGGER.debug("Closing Modbus connection")
-            coordinator.modbus_client.close()
+        # Close API client connection
+        await coordinator.api_client.async_disconnect()
 
         hass.data[DOMAIN].pop(entry.entry_id)
         _LOGGER.info("Hitachi Yutaki integration unloaded successfully")

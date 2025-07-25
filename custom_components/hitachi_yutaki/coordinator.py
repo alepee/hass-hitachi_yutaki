@@ -6,9 +6,6 @@ from datetime import timedelta
 import logging
 from typing import Any
 
-from pymodbus.client import ModbusTcpClient
-from pymodbus.exceptions import ModbusException
-
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_HOST,
@@ -23,6 +20,7 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
+from .api import ApiError, HitachiYutakiApiClient
 from .const import (
     CONF_POWER_SUPPLY,
     DEFAULT_POWER_SUPPLY,
@@ -34,7 +32,6 @@ from .const import (
     MASK_DHW,
     MASK_POOL,
 )
-from .registers import ATW_MBS_02_RegisterMap, HitachiRegisterMap
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -42,12 +39,11 @@ _LOGGER = logging.getLogger(__name__)
 class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     """Class to manage fetching data from Hitachi Yutaki heat pump."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
+    def __init__(
+        self, hass: HomeAssistant, entry: ConfigEntry, api_client: HitachiYutakiApiClient
+    ) -> None:
         """Initialize."""
-        self.modbus_client = ModbusTcpClient(
-            host=entry.data[CONF_HOST],
-            port=entry.data[CONF_PORT],
-        )
+        self.api_client = api_client
         self.slave = entry.data[CONF_SLAVE]
         self.model = entry.data.get("unit_model")
         self.system_config = entry.data.get("system_config", 0)
@@ -55,9 +51,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.power_supply = entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY)
         self.entities = []
         self.config_entry = entry
-
-        # For now, we instantiate the map directly. This will be injected later.
-        self.register_map: HitachiRegisterMap = ATW_MBS_02_RegisterMap()
 
         super().__init__(
             hass,
@@ -69,29 +62,16 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Hitachi Yutaki."""
         try:
-            if not self.modbus_client.connected:
-                await self.hass.async_add_executor_job(self.modbus_client.connect)
+            data = await self.api_client.async_get_data()
 
-            data: dict[str, Any] = {"is_available": True}
+            # Update model and system_config if available
+            if "unit_model" in data:
+                self.model = data["unit_model"]
+            if "system_config" in data:
+                self.system_config = data["system_config"]
 
-            # Preflight check
-            preflight_result = await self.hass.async_add_executor_job(
-                lambda addr=self.register_map.system["system_state"]: self.modbus_client.read_holding_registers(
-                    address=addr,
-                    count=1,
-                    slave=self.slave,
-                )
-            )
-
-            if preflight_result.isError():
-                _LOGGER.warning(
-                    "Modbus error during preflight check: %s", preflight_result
-                )
-                raise UpdateFailed("Modbus error during preflight check")
-
-            system_state = preflight_result.registers[0]
-            data["system_state"] = system_state
-
+            # Handle system state issues
+            system_state = data.get("system_state")
             if system_state == 1:  # Desync
                 _LOGGER.warning(
                     "The gateway is out of sync with the heat pump. Check the connection."
@@ -104,70 +84,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     severity=ir.IssueSeverity.WARNING,
                     translation_key="desync_warning",
                 )
-                return data
-
-            # If we are here, system_state is 0, so we can clear any previous issue
-            ir.async_delete_issue(self.hass, DOMAIN, "desync_warning")
-
-            if system_state == 2:  # Data init
-                _LOGGER.info(
-                    "Hitachi Yutaki is initializing, waiting for it to be ready..."
-                )
-                return data
-
-            # Read all required registers
-            registers_to_read = {
-                # Basic configuration registers
-                **self.register_map.system,
-                # Add all control registers
-                **self.register_map.control_unit,
-                **self.register_map.control_circuit1,
-                **self.register_map.control_circuit2,
-                # Add all device-specific registers
-                **self.register_map.dhw,
-                **self.register_map.compressor,
-                **self.register_map.pool,
-            }
-
-            # If it's an S80 model, add secondary compressor registers
-            if self.model == 2:  # S80
-                registers_to_read.update(self.register_map.secondary_compressor)
-
-            # Read registers in batches to optimize Modbus communication
-            for register_name, register_address in registers_to_read.items():
-                try:
-                    result = await self.hass.async_add_executor_job(
-                        lambda addr=register_address: self.modbus_client.read_holding_registers(
-                            address=addr,
-                            count=1,
-                            slave=self.slave,
-                        )
-                    )
-
-                    if result.isError():
-                        _LOGGER.warning(
-                            "Error reading register %s",
-                            register_address,
-                        )
-                        raise UpdateFailed(f"Error reading register {register_address}")
-
-                    # Update model if reading unit model register
-                    if register_name == "unit_model":
-                        self.model = result.registers[0]
-                    # Update system configuration if reading system config register
-                    elif register_name == "system_config":
-                        self.system_config = result.registers[0]
-
-                    # Store the register value
-                    data[register_name] = result.registers[0]
-
-                except ModbusException:
-                    _LOGGER.warning(
-                        "Modbus error reading register %s",
-                        register_name,
-                        exc_info=True,
-                    )
-                    raise
+            else:
+                # Clear desync issue if system is synchronized
+                ir.async_delete_issue(self.hass, DOMAIN, "desync_warning")
 
             # Update timing sensors
             for entity in self.entities:
@@ -176,7 +95,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             return data
 
-        except (ModbusException, ConnectionError, OSError) as exc:
+        except ApiError as exc:
             # Set is_available to False on any error
             _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
             ir.async_create_issue(
@@ -196,51 +115,12 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     async def async_write_register(self, register_key: str, value: int) -> None:
         """Write a value to a register."""
         try:
-            if not self.modbus_client.connected:
-                await self.hass.async_add_executor_job(self.modbus_client.connect)
-
-            # Get the register address from control registers
-            # Check all control device mappings
-            register_address = None
-            for device_map in [
-                self.register_map.control_unit,
-                self.register_map.control_circuit1,
-                self.register_map.control_circuit2,
-            ]:
-                if register_key in device_map:
-                    register_address = device_map[register_key]
-                    break
-
-            if register_address is None:
-                _LOGGER.error("Unknown register key: %s", register_key)
-                return
-
-            _LOGGER.debug(
-                "Writing value %s to register %s (address: %s)",
-                value,
-                register_key,
-                register_address,
-            )
-
-            result = await self.hass.async_add_executor_job(
-                lambda addr=register_address,
-                val=value: self.modbus_client.write_register(
-                    address=addr,
-                    value=val,
-                    slave=self.slave,
-                )
-            )
-
-            if result.isError():
-                _LOGGER.error("Error writing to register %s: %s", register_key, result)
-                raise UpdateFailed(
-                    f"Error writing to register {register_key}"
-                ) from result
+            await self.api_client.async_write_register(register_key, value)
 
             # Trigger an immediate update to refresh values
             await self.async_request_refresh()
 
-        except (ModbusException, ConnectionError, OSError) as error:
+        except ApiError as error:
             _LOGGER.error("Error writing to register %s: %s", register_key, error)
             raise UpdateFailed(f"Error writing to register {register_key}") from error
 

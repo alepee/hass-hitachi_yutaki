@@ -22,6 +22,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 import homeassistant.helpers.config_validation as cv
 
+from .api import HitachiModbusApiClient
 from .const import (
     CENTRAL_CONTROL_MODE_MAP,
     CONF_POWER_ENTITY,
@@ -223,72 +224,17 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             try:
                 # This will be dynamic based on user selection later
                 register_map = ATW_MBS_02_RegisterMap()
-
-                # Preflight check for system state
-                preflight_result = await self.hass.async_add_executor_job(
-                    lambda addr=register_map.system[
-                        "system_state"
-                    ]: client.read_holding_registers(
-                        address=addr,
-                        count=1,
-                        slave=config[CONF_SLAVE],
-                    )
+                api_client = HitachiModbusApiClient(
+                    client=client,
+                    register_map=register_map,
+                    slave=config[CONF_SLAVE],
+                    hass=self.hass,
                 )
 
-                if preflight_result.isError():
-                    errors["base"] = "invalid_slave"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                system_state = preflight_result.registers[0]
-
-                if system_state == 2:  # Data init
-                    errors["base"] = "system_initializing"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                if system_state == 1:  # Desync
-                    errors["base"] = "desync_error"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                # Verify the device by checking unit model
-                result = await self.hass.async_add_executor_job(
-                    lambda addr=register_map.system[
-                        "unit_model"
-                    ]: client.read_holding_registers(
-                        address=addr,
-                        count=1,
-                        slave=config[CONF_SLAVE],
-                    )
-                )
-
-                if result.isError():
-                    errors["base"] = "invalid_slave"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                unit_model = result.registers[0]
+                # Get device info using the API client
+                device_info = await api_client.async_get_device_info()
+                unit_model = device_info["unit_model"]
+                system_config = device_info["system_config"]
 
                 # Check central control mode
                 mode_result = await self.hass.async_add_executor_job(
@@ -321,29 +267,6 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         errors=errors,
                     )
 
-                # Read system configuration to store it
-                system_config_result = await self.hass.async_add_executor_job(
-                    lambda addr=register_map.system[
-                        "system_config"
-                    ]: client.read_holding_registers(
-                        address=addr,
-                        count=1,
-                        slave=config[CONF_SLAVE],
-                    )
-                )
-
-                if system_config_result.isError():
-                    errors["base"] = "modbus_error"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                system_config = system_config_result.registers[0]
-
                 # Create entry if all validations pass
                 await self.async_set_unique_id(
                     f"{config[CONF_HOST]}_{config[CONF_SLAVE]}"
@@ -358,7 +281,8 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data={k: v for k, v in config.items() if k != "show_advanced"},
                 )
 
-            except ModbusException:
+            except Exception as api_error:
+                _LOGGER.error("API error during validation: %s", api_error)
                 errors["base"] = "modbus_error"
             finally:
                 client.close()
