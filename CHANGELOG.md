@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **Major refactoring for multi-gateway support**: Introduced abstraction layers to support different Modbus gateways (ATW-MBS-02, HC-A8MB, etc.) and future communication protocols
+- **Register mapping abstraction**: Created `registers.py` with device-based organization of Modbus registers
+- **API client abstraction layer**: Introduced `HitachiYutakiApiClient` interface and `HitachiModbusApiClient` implementation
+- **Dependency injection**: Refactored coordinator to accept API client via dependency injection
+- **Enhanced error handling**: Added custom `ApiError` exception for better error management
+
+### Changed
+- **Architecture overhaul**: Decoupled register definitions, communication protocol, and data coordination
+- **Device-based register organization**: Reorganized registers by device types (system, control_unit, control_circuit1, control_circuit2, dhw, compressor, secondary_compressor, pool)
+- **Improved testability**: Architecture now supports easy mocking and unit testing
+- **Enhanced maintainability**: Clear separation of concerns between layers
+
+### Fixed
+- **Control functionality**: Fixed `async_write_register` method to properly handle DHW and pool control registers that were missing from the search mappings
+- **Register access**: Ensured all control registers (unit, circuits, DHW, pool) are accessible for writing operations
+
+### Technical
+- **Code organization**: Moved register definitions from `const.py` to dedicated mapping classes
+- **Protocol abstraction**: Prepared foundation for supporting other communication protocols (ESPHome, etc.)
+- **Gateway flexibility**: Architecture now supports dynamic gateway detection and register mapping selection
+
 ## [1.9.1] - 2025-07-22
 
 ### Changed
