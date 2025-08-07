@@ -157,8 +157,10 @@ async def async_setup_entry(
                 )
             )
 
-    # Add DHW switches if configured
-    if coordinator.has_dhw():
+    # Add DHW switches if configured and supported by profile (if any)
+    if coordinator.has_dhw() and (
+        coordinator.profile is None or getattr(coordinator.profile, "supports_dhw", True)
+    ):
         entities.extend(
             HitachiYutakiSwitch(
                 coordinator=coordinator,
@@ -171,8 +173,10 @@ async def async_setup_entry(
             for description in DHW_SWITCHES
         )
 
-    # Add pool switches if configured
-    if coordinator.has_pool():
+    # Add pool switches if configured and supported by profile (if any)
+    if coordinator.has_pool() and (
+        coordinator.profile is None or getattr(coordinator.profile, "supports_pool", True)
+    ):
         entities.extend(
             HitachiYutakiSwitch(
                 coordinator=coordinator,

@@ -212,8 +212,10 @@ async def async_setup_entry(
                 )
             )
 
-    # Add DHW numbers if configured
-    if coordinator.has_dhw():
+    # Add DHW numbers if configured and supported by profile (if any)
+    if coordinator.has_dhw() and (
+        coordinator.profile is None or getattr(coordinator.profile, "supports_dhw", True)
+    ):
         entities.extend(
             HitachiYutakiNumber(
                 coordinator=coordinator,

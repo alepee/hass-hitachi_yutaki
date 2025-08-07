@@ -229,7 +229,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_SYSTEM_STATE: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        slave=config[CONF_SLAVE],
+                        device_id=config[CONF_SLAVE],
                     )
                 )
 
@@ -270,7 +270,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_UNIT_MODEL: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        slave=config[CONF_SLAVE],
+                        device_id=config[CONF_SLAVE],
                     )
                 )
 
@@ -291,7 +291,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_CENTRAL_CONTROL_MODE: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        slave=config[CONF_SLAVE],
+                        device_id=config[CONF_SLAVE],
                     )
                 )
 
@@ -320,7 +320,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_SYSTEM_CONFIG: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        slave=config[CONF_SLAVE],
+                        device_id=config[CONF_SLAVE],
                     )
                 )
 

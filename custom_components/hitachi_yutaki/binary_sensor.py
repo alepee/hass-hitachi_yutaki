@@ -34,6 +34,7 @@ from .const import (
     MASK_SMART_FUNCTION,
     MASK_SOLAR,
     MASK_SPACE_HEATER,
+    UNIT_MODEL_S80,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
@@ -147,7 +148,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_BOILER,
-        condition=lambda c: c.is_s80_model() is False,
+        condition=lambda c: not c.is_s80_model(),
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="dhw_heater",

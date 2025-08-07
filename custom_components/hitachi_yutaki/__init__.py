@@ -60,11 +60,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
-    # Get unit model
-    unit_model = coordinator.model
-    model_name = "Unknown Model"
-    if unit_model is not None:
-        model_name = MODEL_NAMES.get(unit_model, "Unknown Model")
+    # Determine model name from selected profile (string identifier)
+    model_name = coordinator.profile.name if coordinator.profile else "Unknown Model"
     _LOGGER.info("Detected Hitachi unit model: %s", model_name)
 
     # Register devices

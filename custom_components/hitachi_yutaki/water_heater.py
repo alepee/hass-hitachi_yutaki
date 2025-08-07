@@ -58,8 +58,10 @@ async def async_setup_entry(
 
     entities: list[HitachiYutakiWaterHeater] = []
 
-    # Add DHW water heater if configured
-    if coordinator.has_dhw():
+    # Add DHW water heater if configured and supported by profile (if any)
+    if coordinator.has_dhw() and (
+        coordinator.profile is None or getattr(coordinator.profile, "supports_dhw", True)
+    ):
         entities.extend(
             HitachiYutakiWaterHeater(
                 coordinator=coordinator,

@@ -58,6 +58,7 @@ from .const import (
     POWER_FACTOR,
     SYSTEM_STATE_MAP,
     THREE_PHASE_FACTOR,
+    UNIT_MODEL_S80,
     VOLTAGE_SINGLE_PHASE,
     VOLTAGE_THREE_PHASE,
     WATER_FLOW_TO_KGS,
@@ -720,7 +721,9 @@ async def async_setup_entry(
         for description in TEMPERATURE_SENSORS
     )
 
-    if coordinator.has_dhw():
+    if coordinator.has_dhw() and (
+        coordinator.profile is None or getattr(coordinator.profile, "supports_dhw", True)
+    ):
         entities.extend(
             HitachiYutakiSensor(
                 coordinator=coordinator,
@@ -732,7 +735,9 @@ async def async_setup_entry(
             for description in DHW_SENSORS
         )
 
-    if coordinator.has_pool():
+    if coordinator.has_pool() and (
+        coordinator.profile is None or getattr(coordinator.profile, "supports_pool", True)
+    ):
         entities.extend(
             HitachiYutakiSensor(
                 coordinator=coordinator,
