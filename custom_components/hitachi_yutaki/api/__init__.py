@@ -10,8 +10,9 @@ This interface is scaffolding to enable a progressive refactor without behavior 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any, Mapping, Dict
+from typing import Any
 
 
 class HitachiApiError(Exception):
@@ -20,15 +21,19 @@ class HitachiApiError(Exception):
 
 @dataclass(frozen=True)
 class CircuitCapabilities:
+    """Per-circuit feature flags (heating/cooling)."""
+
     heating: bool
     cooling: bool
 
 
 @dataclass(frozen=True)
 class GatewayCapabilities:
+    """Gateway-level feature support and circuit capabilities."""
+
     dhw: bool
     pool: bool
-    circuits: Dict[int, CircuitCapabilities]
+    circuits: dict[int, CircuitCapabilities]
 
 
 class HitachiApiClient(ABC):

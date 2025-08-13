@@ -6,16 +6,17 @@ Currently unused; kept as a placeholder to migrate coordinator Modbus calls.
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
 
 from .. import (
+    CircuitCapabilities,
+    GatewayCapabilities,
     HitachiApiClient,
     HitachiApiError,
-    GatewayCapabilities,
-    CircuitCapabilities,
 )
 from .registers import HitachiRegisterMap
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
@@ -31,18 +32,22 @@ class ModbusApiClient(HitachiApiClient):
         slave: int,
         register_map: HitachiRegisterMap | None = None,
     ):
+        """Initialize the Modbus client and register map."""
         self._client: ModbusTcpClient = ModbusTcpClient(host=host, port=port)
         self._slave: int = slave
         self._map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
 
     def connect(self) -> bool:
+        """Open the TCP connection to the Modbus gateway."""
         return self._client.connect()
 
     def close(self) -> None:
+        """Close the TCP connection to the Modbus gateway."""
         self._client.close()
 
     @property
     def connected(self) -> bool:
+        """Return True if the client is connected to the gateway."""
         return bool(self._client.connected)
 
     @property
@@ -52,6 +57,7 @@ class ModbusApiClient(HitachiApiClient):
 
     @property
     def capabilities(self) -> GatewayCapabilities:
+        """Return supported features inferred from the available logical keys."""
         # Derive support purely from logical keys exposed by the map
         circuits = {
             1: CircuitCapabilities(
@@ -81,6 +87,7 @@ class ModbusApiClient(HitachiApiClient):
             raise HitachiApiError(f"Unknown key: {key}") from exc
 
     def read_value(self, key: str, *, context: Mapping[str, Any] | None = None) -> int:
+        """Read a single holding register by logical key and return its value."""
         try:
             address = self._key_to_address(key)
             result = self._client.read_holding_registers(
@@ -97,6 +104,7 @@ class ModbusApiClient(HitachiApiClient):
     def write_value(
         self, key: str, value: int, *, context: Mapping[str, Any] | None = None
     ) -> None:
+        """Write a single holding register by logical key with the given value."""
         try:
             address = self._key_to_address(key)
             result = self._client.write_register(
@@ -113,11 +121,18 @@ class ModbusApiClient(HitachiApiClient):
         """Read the model via unit_model and translate to canonical key."""
         try:
             address = self._key_to_address("unit_model")
-            result = self._client.read_holding_registers(address=address, count=1, device_id=self._slave)
+            result = self._client.read_holding_registers(
+                address=address, count=1, device_id=self._slave
+            )
             if result.isError():
                 return None
             model_num = int(result.registers[0])
-            numeric_to_key = {0: "yutaki_s", 1: "yutaki_s_combi", 2: "yutaki_s80", 3: "yutaki_m"}
+            numeric_to_key = {
+                0: "yutaki_s",
+                1: "yutaki_s_combi",
+                2: "yutaki_s80",
+                3: "yutaki_m",
+            }
             return numeric_to_key.get(model_num)
         except (ModbusException, OSError, HitachiApiError):
             return None

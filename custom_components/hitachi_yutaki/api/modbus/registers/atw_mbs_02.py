@@ -3,15 +3,21 @@
 For now, we aggregate the const.py REGISTER_* dictionaries into a single logical
 key space so the coordinator can keep using the same keys in self.data.
 """
-from __future__ import annotations
 
-from typing import Dict
+from __future__ import annotations
 
 from . import HitachiRegisterMap
 
 
 class AtwMbs02RegisterMap(HitachiRegisterMap):
+    """Register map for the ATW-MBS-02 gateway.
+
+    Aggregates control, sensor, R134a-specific and config keys into a single
+    logical key space used by the coordinator.
+    """
+
     def __init__(self) -> None:
+        """Initialize internal key maps."""
         # Imported 1:1 from const.py to keep behavior identical
         self._control = {
             # Control registers
@@ -93,26 +99,36 @@ class AtwMbs02RegisterMap(HitachiRegisterMap):
             "central_control_mode": 1088,
         }
         # Global index for quick lookup
-        self._map: Dict[str, int] = {**self._control, **self._sensor, **self._r134a, **self._config}
+        self._map: dict[str, int] = {
+            **self._control,
+            **self._sensor,
+            **self._r134a,
+            **self._config,
+        }
 
     def address_for_key(self, key: str) -> int:
+        """Return Modbus address for a given logical key, or raise KeyError."""
         try:
             return self._map[key]
-        except KeyError:
-            raise KeyError(f"Unknown logical key: {key}")
+        except KeyError as err:
+            raise KeyError(f"Unknown logical key: {key}") from err
 
     def keys(self):
+        """Return all logical keys."""
         return self._map.keys()
 
     def control_keys(self):
+        """Return control logical keys."""
         return self._control.keys()
 
     def sensor_keys(self):
+        """Return sensor logical keys."""
         return self._sensor.keys()
 
     def r134a_keys(self):
+        """Return R134a-specific logical keys (S80 only)."""
         return self._r134a.keys()
 
     def config_keys(self):
+        """Return configuration/status logical keys."""
         return self._config.keys()
-

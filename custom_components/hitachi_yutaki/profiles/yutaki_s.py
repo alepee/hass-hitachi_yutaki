@@ -5,52 +5,44 @@ Encodes model-specific capabilities and rules for the Yutaki S variant.
 
 from __future__ import annotations
 
-from typing import Iterable
+from collections.abc import Iterable
 
-from . import HitachiHeatPumpProfile
+from .base import HitachiHeatPumpProfile
 
 
 class YutakiSProfile(HitachiHeatPumpProfile):
+    """Profile for Hitachi Yutaki S models."""
+
     @property
     def model_key(self) -> str:
+        """Canonical model key for this profile."""
         return "yutaki_s"
 
     @property
     def name(self) -> str:
+        """Human-readable model name."""
         return "Yutaki S"
 
     @property
     def supports_dhw(self) -> bool:
-        # Yutaki S typically supports DHW (direct or via external tank)
-        # Final availability still depends on configuration bits and gateway caps
+        """Whether DHW is supported by the model family."""
         return True
 
     @property
     def supports_pool(self) -> bool:
-        # Pool support depends on system configuration; profile allows it
+        """Whether pool mode is allowed by the model family."""
         return True
 
     @property
-    def supports_circuit1_heating(self) -> bool:
-        # Allow circuit 1 heating; final availability depends on gateway/config
+    def supports_circuit1(self) -> bool:
+        """Whether circuit 1 is supported by the model family."""
         return True
 
     @property
-    def supports_circuit1_cooling(self) -> bool:
-        # Allow circuit 1 cooling; final availability depends on gateway/config
-        return True
-
-    @property
-    def supports_circuit2_heating(self) -> bool:
-        # Allow circuit 2 heating; final availability depends on gateway/config
-        return True
-
-    @property
-    def supports_circuit2_cooling(self) -> bool:
-        # Allow circuit 2 cooling; final availability depends on gateway/config
+    def supports_circuit2(self) -> bool:
+        """Whether circuit 2 is supported by the model family."""
         return True
 
     def extra_register_keys(self) -> Iterable[str]:
-        # No additional protocol-agnostic keys required beyond the standard map
+        """Additional logical register keys required by this profile."""
         return ()
-

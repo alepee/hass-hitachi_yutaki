@@ -2,10 +2,11 @@
 
 This layer is Modbus-specific and translates logical keys to register addresses.
 """
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Iterable, Container
+from collections.abc import Container, Iterable
 
 
 class HitachiRegisterMap(ABC):
@@ -24,6 +25,7 @@ class HitachiRegisterMap(ABC):
         """
 
     def has_key(self, key: str) -> bool:
+        """Check if a key is known for this map."""
         try:
             self.address_for_key(key)
             return True
@@ -50,4 +52,3 @@ class HitachiRegisterMap(ABC):
     @abstractmethod
     def config_keys(self) -> Container[str]:
         """Keys for basic configuration/status used broadly (unit_model, system_config, system_status, system_state, central_control_mode)."""
-

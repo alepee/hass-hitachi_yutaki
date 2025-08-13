@@ -25,7 +25,6 @@ from homeassistant.helpers.update_coordinator import (
 from .api import HitachiApiClient
 from .api.modbus import ModbusApiClient
 from .api.modbus.registers.atw_mbs_02 import AtwMbs02RegisterMap
-from .profiles import get_heat_pump_profile, HitachiHeatPumpProfile
 from .const import (
     CONF_POWER_SUPPLY,
     DEFAULT_POWER_SUPPLY,
@@ -37,6 +36,7 @@ from .const import (
     MASK_DHW,
     MASK_POOL,
 )
+from .profiles import HitachiHeatPumpProfile, get_heat_pump_profile
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -93,7 +93,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             # Determine model_key/profile once we have a connection
             if self.model_key is None:
-                self.model_key = await self.hass.async_add_executor_job(self.api_client.get_model_key)
+                self.model_key = await self.hass.async_add_executor_job(
+                    self.api_client.get_model_key
+                )
                 if self.model_key:
                     self.profile = get_heat_pump_profile(self.model_key)
 
@@ -255,7 +257,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             gateway_ok = (
                 caps.circuits.get(1, None).heating if 1 in caps.circuits else False
             )
-        profile_ok = True if self.profile is None else self.profile.supports_circuit1_heating
+        profile_ok = True if self.profile is None else self.profile.supports_circuit1
         config_ok = self.dev_mode or bool(self.system_config & MASK_CIRCUIT1_HEATING)
         return profile_ok and config_ok and gateway_ok
 
@@ -267,7 +269,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             gateway_ok = (
                 caps.circuits.get(2, None).heating if 2 in caps.circuits else False
             )
-        profile_ok = True if self.profile is None else self.profile.supports_circuit2_heating
+        profile_ok = True if self.profile is None else self.profile.supports_circuit2
         config_ok = self.dev_mode or bool(self.system_config & MASK_CIRCUIT2_HEATING)
         return profile_ok and config_ok and gateway_ok
 
@@ -279,7 +281,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             gateway_ok = (
                 caps.circuits.get(1, None).cooling if 1 in caps.circuits else False
             )
-        profile_ok = True if self.profile is None else self.profile.supports_circuit1_cooling
+        profile_ok = True if self.profile is None else self.profile.supports_circuit1
         config_ok = self.dev_mode or bool(self.system_config & MASK_CIRCUIT1_COOLING)
         return profile_ok and config_ok and gateway_ok
 
@@ -291,7 +293,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             gateway_ok = (
                 caps.circuits.get(2, None).cooling if 2 in caps.circuits else False
             )
-        profile_ok = True if self.profile is None else self.profile.supports_circuit2_cooling
+        profile_ok = True if self.profile is None else self.profile.supports_circuit2
         config_ok = self.dev_mode or bool(self.system_config & MASK_CIRCUIT2_COOLING)
         return profile_ok and config_ok and gateway_ok
 

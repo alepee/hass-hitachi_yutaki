@@ -34,7 +34,6 @@ from .const import (
     MASK_SMART_FUNCTION,
     MASK_SOLAR,
     MASK_SPACE_HEATER,
-    UNIT_MODEL_S80,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
