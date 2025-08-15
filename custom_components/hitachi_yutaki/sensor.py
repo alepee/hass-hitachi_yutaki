@@ -721,7 +721,8 @@ async def async_setup_entry(
     )
 
     if coordinator.has_dhw() and (
-        coordinator.profile is None or getattr(coordinator.profile, "supports_dhw", True)
+        coordinator.profile is None
+        or getattr(coordinator.profile, "supports_dhw", True)
     ):
         entities.extend(
             HitachiYutakiSensor(
@@ -735,7 +736,8 @@ async def async_setup_entry(
         )
 
     if coordinator.has_pool() and (
-        coordinator.profile is None or getattr(coordinator.profile, "supports_pool", True)
+        coordinator.profile is None
+        or getattr(coordinator.profile, "supports_pool", True)
     ):
         entities.extend(
             HitachiYutakiSensor(
@@ -839,7 +841,7 @@ class HitachiYutakiSensor(
         super().__init__(coordinator)
         self.entity_description = description
         entry_id = coordinator.config_entry.entry_id
-        self._attr_unique_id = f"{entry_id}_{coordinator.slave}_{description.key}"
+        self._attr_unique_id = f"{entry_id}_{coordinator.device_id}_{description.key}"
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
         self._timing_values = {}

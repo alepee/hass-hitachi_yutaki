@@ -29,12 +29,12 @@ class ModbusApiClient(HitachiApiClient):
         self,
         host: str,
         port: int,
-        slave: int,
+        device_id: int,
         register_map: HitachiRegisterMap | None = None,
     ):
         """Initialize the Modbus client and register map."""
         self._client: ModbusTcpClient = ModbusTcpClient(host=host, port=port)
-        self._slave: int = slave
+        self._device_id: int = device_id
         self._map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
 
     def connect(self) -> bool:
@@ -91,7 +91,7 @@ class ModbusApiClient(HitachiApiClient):
         try:
             address = self._key_to_address(key)
             result = self._client.read_holding_registers(
-                address=address, count=1, device_id=self._slave
+                address=address, count=1, device_id=self._device_id
             )
             if result.isError():
                 raise HitachiApiError(
@@ -108,7 +108,7 @@ class ModbusApiClient(HitachiApiClient):
         try:
             address = self._key_to_address(key)
             result = self._client.write_register(
-                address=address, value=value, device_id=self._slave
+                address=address, value=value, device_id=self._device_id
             )
             if result.isError():
                 raise HitachiApiError(
@@ -122,7 +122,7 @@ class ModbusApiClient(HitachiApiClient):
         try:
             address = self._key_to_address("unit_model")
             result = self._client.read_holding_registers(
-                address=address, count=1, device_id=self._slave
+                address=address, count=1, device_id=self._device_id
             )
             if result.isError():
                 return None

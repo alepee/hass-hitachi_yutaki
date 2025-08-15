@@ -101,9 +101,9 @@ class HitachiYutakiButton(
         )
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
-            f"{entry_id}_{coordinator.slave}_{register_prefix}_{description.key}"
+            f"{entry_id}_{coordinator.device_id}_{register_prefix}_{description.key}"
             if register_prefix
-            else f"{entry_id}_{coordinator.slave}_{description.key}"
+            else f"{entry_id}_{coordinator.device_id}_{description.key}"
         )
         self._attr_device_info = device_info
         self._attr_has_entity_name = True

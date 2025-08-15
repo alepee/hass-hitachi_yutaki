@@ -13,7 +13,7 @@ VERSION = "2.0.0-beta.1"
 # Default values
 DEFAULT_NAME = "Hitachi Yutaki"
 DEFAULT_HOST = "192.168.0.4"
-DEFAULT_SLAVE = 1
+DEFAULT_DEVICE_ID = 1
 DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
 DEFAULT_POWER_SUPPLY = "single"
@@ -142,7 +142,7 @@ OPERATION_STATE_MAP = {
 }
 
 # Configuration options
-CONF_SLAVE = "slave"
+CONF_DEVICE_ID = "device_id"
 CONF_POWER_SUPPLY = "power_supply"
 CONF_VOLTAGE_ENTITY = "voltage_entity"
 CONF_POWER_ENTITY = "power_entity"

@@ -60,7 +60,8 @@ async def async_setup_entry(
 
     # Add DHW water heater if configured and supported by profile (if any)
     if coordinator.has_dhw() and (
-        coordinator.profile is None or getattr(coordinator.profile, "supports_dhw", True)
+        coordinator.profile is None
+        or getattr(coordinator.profile, "supports_dhw", True)
     ):
         entities.extend(
             HitachiYutakiWaterHeater(
@@ -94,7 +95,7 @@ class HitachiYutakiWaterHeater(
         self.entity_description = description
         self._register_prefix = "dhw"
         entry_id = coordinator.config_entry.entry_id
-        self._attr_unique_id = f"{entry_id}_{coordinator.slave}_{description.key}"
+        self._attr_unique_id = f"{entry_id}_{coordinator.device_id}_{description.key}"
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS

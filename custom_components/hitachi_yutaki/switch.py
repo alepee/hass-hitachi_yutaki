@@ -159,7 +159,8 @@ async def async_setup_entry(
 
     # Add DHW switches if configured and supported by profile (if any)
     if coordinator.has_dhw() and (
-        coordinator.profile is None or getattr(coordinator.profile, "supports_dhw", True)
+        coordinator.profile is None
+        or getattr(coordinator.profile, "supports_dhw", True)
     ):
         entities.extend(
             HitachiYutakiSwitch(
@@ -175,7 +176,8 @@ async def async_setup_entry(
 
     # Add pool switches if configured and supported by profile (if any)
     if coordinator.has_pool() and (
-        coordinator.profile is None or getattr(coordinator.profile, "supports_pool", True)
+        coordinator.profile is None
+        or getattr(coordinator.profile, "supports_pool", True)
     ):
         entities.extend(
             HitachiYutakiSwitch(
@@ -217,9 +219,9 @@ class HitachiYutakiSwitch(
         )
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
-            f"{entry_id}_{coordinator.slave}_{register_prefix}_{description.key}"
+            f"{entry_id}_{coordinator.device_id}_{register_prefix}_{description.key}"
             if register_prefix
-            else f"{entry_id}_{coordinator.slave}_{description.key}"
+            else f"{entry_id}_{coordinator.device_id}_{description.key}"
         )
         self._attr_device_info = device_info
         self._attr_has_entity_name = True

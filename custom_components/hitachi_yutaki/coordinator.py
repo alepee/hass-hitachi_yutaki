@@ -10,10 +10,10 @@ from pymodbus.exceptions import ModbusException
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
+    CONF_DEVICE_ID,
     CONF_HOST,
     CONF_PORT,
     CONF_SCAN_INTERVAL,
-    CONF_SLAVE,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
@@ -56,12 +56,12 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.api_client: HitachiApiClient = api_client or ModbusApiClient(
             host=entry.data[CONF_HOST],
             port=entry.data[CONF_PORT],
-            slave=entry.data[CONF_SLAVE],
+            device_id=entry.data[CONF_DEVICE_ID],
             register_map=AtwMbs02RegisterMap(),
         )
         # Keep legacy attribute for unload logic compatibility
         self.modbus_client = getattr(self.api_client, "_client", None)
-        self.slave = entry.data[CONF_SLAVE]
+        self.device_id = entry.data[CONF_DEVICE_ID]
         self.model_key: str | None = None
         self.system_config = entry.data.get("system_config", 0)
         self.dev_mode = entry.data.get("dev_mode", False)

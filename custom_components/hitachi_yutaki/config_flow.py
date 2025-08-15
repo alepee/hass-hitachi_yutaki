@@ -11,11 +11,11 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import (
+    CONF_DEVICE_ID,
     CONF_HOST,
     CONF_NAME,
     CONF_PORT,
     CONF_SCAN_INTERVAL,
-    CONF_SLAVE,
 )
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
@@ -29,12 +29,12 @@ from .const import (
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
+    DEFAULT_DEVICE_ID,
     DEFAULT_HOST,
     DEFAULT_NAME,
     DEFAULT_PORT,
     DEFAULT_POWER_SUPPLY,
     DEFAULT_SCAN_INTERVAL,
-    DEFAULT_SLAVE,
     DOMAIN,
     REGISTER_CENTRAL_CONTROL_MODE,
     REGISTER_SYSTEM_CONFIG,
@@ -94,7 +94,7 @@ POWER_SCHEMA = vol.Schema(
 # Advanced schema
 ADVANCED_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): vol.All(
+        vol.Required(CONF_DEVICE_ID, default=DEFAULT_DEVICE_ID): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=247)
         ),
         vol.Optional(
@@ -171,7 +171,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_validate_connection(
                 {
                     **self.basic_config,
-                    CONF_SLAVE: DEFAULT_SLAVE,
+                    CONF_DEVICE_ID: DEFAULT_DEVICE_ID,
                     CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
                     "dev_mode": False,
                 }
@@ -229,12 +229,12 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_SYSTEM_STATE: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        device_id=config[CONF_SLAVE],
+                        device_id=config[CONF_DEVICE_ID],
                     )
                 )
 
                 if preflight_result.isError():
-                    errors["base"] = "invalid_slave"
+                    errors["base"] = "invalid_device_id"
                     return self.async_show_form(
                         step_id="advanced" if "show_advanced" in config else "user",
                         data_schema=ADVANCED_SCHEMA
@@ -270,12 +270,12 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_UNIT_MODEL: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        device_id=config[CONF_SLAVE],
+                        device_id=config[CONF_DEVICE_ID],
                     )
                 )
 
                 if result.isError():
-                    errors["base"] = "invalid_slave"
+                    errors["base"] = "invalid_device_id"
                     return self.async_show_form(
                         step_id="advanced" if "show_advanced" in config else "user",
                         data_schema=ADVANCED_SCHEMA
@@ -291,7 +291,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_CENTRAL_CONTROL_MODE: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        device_id=config[CONF_SLAVE],
+                        device_id=config[CONF_DEVICE_ID],
                     )
                 )
 
@@ -320,7 +320,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_SYSTEM_CONFIG: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        device_id=config[CONF_SLAVE],
+                        device_id=config[CONF_DEVICE_ID],
                     )
                 )
 
@@ -338,7 +338,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                 # Create entry if all validations pass
                 await self.async_set_unique_id(
-                    f"{config[CONF_HOST]}_{config[CONF_SLAVE]}"
+                    f"{config[CONF_HOST]}_{config[CONF_DEVICE_ID]}"
                 )
                 self._abort_if_unique_id_configured()
 
