@@ -109,7 +109,7 @@ class HitachiYutakiClimate(
         self._register_prefix = f"circuit{circuit_id}"
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
-            f"{entry_id}_{coordinator.slave}_{self._register_prefix}_climate"
+            f"{entry_id}_{coordinator.device_id}_{self._register_prefix}_climate"
         )
         self._attr_device_info = device_info
         self._attr_has_entity_name = True

@@ -77,7 +77,7 @@
         "title": "Paramètres avancés",
         "description": "Configurez les paramètres avancés de Modbus et de l'intégration.",
         "data": {
-          "slave": "ID Esclave Modbus",
+          "device_id": "ID de l'appareil Modbus",
           "scan_interval": "Intervalle d'interrogation (secondes)",
           "dev_mode": "Mode développeur (active toutes les entités)"
         }
@@ -85,7 +85,7 @@
     },
     "error": {
       "cannot_connect": "Échec de la connexion à la passerelle. Veuillez vérifier l'hôte et le port.",
-      "invalid_slave": "ID d'esclave Modbus invalide. Veuillez vérifier l'ID et réessayer.",
+      "invalid_device_id": "ID d'appareil Modbus invalide. Veuillez vérifier l'ID et réessayer.",
       "modbus_error": "Une erreur Modbus s'est produite. Consultez les journaux pour plus de détails.",
       "invalid_central_control_mode": "La passerelle doit être en mode de contrôle 'Central'. Veuillez modifier ce paramètre dans les réglages de la passerelle.",
       "unknown": "Une erreur inconnue s'est produite. Veuillez consulter les journaux.",

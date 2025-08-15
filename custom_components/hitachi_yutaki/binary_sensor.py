@@ -147,7 +147,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_BOILER,
-        condition=lambda c: c.is_s80_model() is False,
+        condition=lambda c: not c.is_s80_model(),
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="dhw_heater",
@@ -326,7 +326,7 @@ class HitachiYutakiBinarySensor(
         super().__init__(coordinator)
         self.entity_description = description
         entry_id = coordinator.config_entry.entry_id
-        self._attr_unique_id = f"{entry_id}_{coordinator.slave}_{description.key}"
+        self._attr_unique_id = f"{entry_id}_{coordinator.device_id}_{description.key}"
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
