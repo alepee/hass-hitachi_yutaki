@@ -5,6 +5,46 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0-beta.2] - 2025-08-17
+
+### Added
+- **PyModbus Version Compatibility**: Added compatibility shim (`ModbusClientShim`) that automatically detects and adapts to PyModbus versions 3.9.2 (current Home Assistant) and 3.11.1+ (Home Assistant 2025.9.0+). The shim handles the transition from `slave` to `device_id` parameter seamlessly.
+- **Integration Rename**: Renamed the integration from "Hitachi Yutaki" to "Hitachi Heat Pump" to better represent support for the broader Hitachi heat pump product line, including Yutaki and Yutampo models.
+
+### Changed
+- **Smart Parameter Detection**: Device addressing logic is now centralized in a dedicated compatibility module, making the codebase more maintainable and future-proof.
+- **Backward Compatibility**: Existing configurations continue to work without any changes. The integration rename is purely cosmetic and doesn't affect functionality.
+
+### Technical
+- **Future-Proof Architecture**: The compatibility layer ensures the integration will work with future PyModbus versions without requiring code changes.
+- **Clean Separation**: Device addressing logic centralized in `ModbusClientShim` module.
+
+## [2.0.0-beta.1] - 2025-08-13
+
+### Added
+- **Protocol-agnostic API interface**: New `HitachiApiClient` defines a stable port for communication (connect/close, `capabilities`, `get_model_key`, `read_value`/`write_value`).
+- **Modbus adapter scaffolding**: New `ModbusApiClient` and a strongly-typed `HitachiRegisterMap` with the `AtwMbs02RegisterMap` grouping logical keys (control, sensor, R134a, config).
+- **Profile-driven domain**: New `HitachiHeatPumpProfile` (ABC) and concrete profiles:
+  - `YutakiS`, `YutakiS80`, `YutakiSCombi`, `YutakiM`, `YutampoR32`
+  - Profiles expose `supports_dhw`, `supports_pool`, `supports_circuit1/2`, optional `extra_register_keys`, and `entity_overrides`.
+- **Entity behavior improvements**: Water heater gating and temperature bounds provided via `entity_overrides` (e.g., Yutampo R32 clamps target temperature differently when boost is active).
+
+### Changed
+- **Coordinator migration**:
+  - Resolves a canonical `model_key` via the API and instantiates the appropriate profile.
+  - Reads grouped logical keys from the register map (+ optional profile extras).
+  - Capability checks unified with `supports_circuit1/2`, combined with gateway capabilities and configuration masks.
+- **Quality of life**: Typing modernization (`collections.abc`, built-in `dict`) and concise docstrings across the new modules.
+- **Model detection**: Now uses a canonical model key (e.g., `"yutaki_s80"`) rather than numeric IDs. This is internal and transparent for most users.
+
+### Breaking Changes (for developers and advanced setups)
+- **Profile interface**: Replaced `supports_circuit{1,2}_{heating,cooling}` with `supports_circuit1` and `supports_circuit2`.
+- **Numeric model IDs**: No longer used within profiles; code should rely on canonical model keys returned by the API client.
+
+### Technical
+- **Hexagonal Architecture**: Major internal refactor towards ports/adapters architecture, laying groundwork for future gateways and protocols.
+- **Final feature availability**: Still depends on a combination of profile support, gateway capabilities, and configuration bits—behavior remains consistent with previous releases.
+
 ## [1.9.1] - 2025-07-22
 
 ### Changed

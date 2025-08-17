@@ -8,7 +8,7 @@ DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
-VERSION = "2.0.0-beta.1"
+VERSION = "2.0.0-beta.2"
 
 # Default values
 DEFAULT_NAME = "Hitachi Heat Pump"
