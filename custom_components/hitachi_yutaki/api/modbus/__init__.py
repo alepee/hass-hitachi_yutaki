@@ -9,7 +9,6 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
 
 from .. import (
@@ -18,6 +17,7 @@ from .. import (
     HitachiApiClient,
     HitachiApiError,
 )
+from .client import ModbusClientShim
 from .registers import HitachiRegisterMap
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
@@ -33,7 +33,7 @@ class ModbusApiClient(HitachiApiClient):
         register_map: HitachiRegisterMap | None = None,
     ):
         """Initialize the Modbus client and register map."""
-        self._client: ModbusTcpClient = ModbusTcpClient(host=host, port=port)
+        self._client = ModbusClientShim(host=host, port=port)
         self._device_id: int = device_id
         self._map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
 
