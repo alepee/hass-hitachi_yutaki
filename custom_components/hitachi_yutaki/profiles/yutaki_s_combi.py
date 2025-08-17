@@ -11,7 +11,7 @@ from .base import HitachiHeatPumpProfile
 
 
 class YutakiSCombiProfile(HitachiHeatPumpProfile):
-    """Profile for Hitachi Yutaki S Combi models."""
+    """Profile for Hitachi Heat Pump S Combi models."""
 
     @property
     def model_key(self) -> str:

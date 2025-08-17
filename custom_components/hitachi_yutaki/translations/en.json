@@ -36,8 +36,8 @@
   "options": {
     "step": {
       "init": {
-        "title": "Hitachi Yutaki Options",
-        "description": "Update your Hitachi Yutaki configuration.",
+        "title": "Hitachi Heat Pump Options",
+        "description": "Update your Hitachi Heat Pump configuration.",
         "data": {
           "host": "Host/IP Address",
           "port": "Port",
@@ -53,8 +53,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "Hitachi Yutaki Gateway",
-        "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
+        "title": "Hitachi Heat Pump Gateway",
+        "description": "Enter the connection details for your Hitachi Heat Pump heat pump gateway.",
         "data": {
           "name": "Name",
           "host": "Host/IP Address",
@@ -89,11 +89,11 @@
       "modbus_error": "A Modbus error occurred. Check the logs for more details.",
       "invalid_central_control_mode": "The gateway must be in 'Central' control mode. Please change it in the gateway settings.",
       "unknown": "An unknown error occurred. Please check the logs.",
-      "system_initializing": "The Hitachi Yutaki gateway is initializing. Please wait a moment and try again.",
+      "system_initializing": "The Hitachi Heat Pump gateway is initializing. Please wait a moment and try again.",
       "desync_error": "The gateway is out of sync with the heat pump. Ensure the heat pump is powered on and the connection between the two devices is correct."
     },
     "abort": {
-      "already_configured": "This Hitachi Yutaki gateway is already configured."
+      "already_configured": "This Hitachi Heat Pump gateway is already configured."
     }
   },
   "entity": {
@@ -581,7 +581,7 @@
     },
     "connection_error": {
       "title": "Hitachi Gateway Unreachable",
-      "description": "The integration could not connect to the Hitachi Yutaki gateway. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check if the gateway is powered on and connected to the network.\n2. Verify that the IP address and port configured in Home Assistant are correct."
+      "description": "The integration could not connect to the Hitachi Heat Pump gateway. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check if the gateway is powered on and connected to the network.\n2. Verify that the IP address and port configured in Home Assistant are correct."
     }
   }
 }

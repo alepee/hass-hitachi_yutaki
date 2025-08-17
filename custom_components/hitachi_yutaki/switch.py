@@ -1,4 +1,4 @@
-"""Switch platform for Hitachi Yutaki."""
+"""Switch platform for Hitachi Heat Pump."""
 
 from __future__ import annotations
 
@@ -27,14 +27,14 @@ from .const import (
     DEVICE_POOL,
     DOMAIN,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import HitachiHeatPumpDataCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
-class HitachiYutakiSwitchEntityDescription(SwitchEntityDescription):
-    """Class describing Hitachi Yutaki switch entities."""
+class HitachiHeatPumpSwitchEntityDescription(SwitchEntityDescription):
+    """Class describing Hitachi Heat Pump switch entities."""
 
     key: str
     translation_key: str
@@ -49,8 +49,8 @@ class HitachiYutakiSwitchEntityDescription(SwitchEntityDescription):
     description: str | None = None
 
 
-UNIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
-    HitachiYutakiSwitchEntityDescription(
+UNIT_SWITCHES: Final[tuple[HitachiHeatPumpSwitchEntityDescription, ...]] = (
+    HitachiHeatPumpSwitchEntityDescription(
         key="power",
         translation_key="power",
         icon="mdi:power",
@@ -59,15 +59,15 @@ UNIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     ),
 )
 
-CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
-    HitachiYutakiSwitchEntityDescription(
+CIRCUIT_SWITCHES: Final[tuple[HitachiHeatPumpSwitchEntityDescription, ...]] = (
+    HitachiHeatPumpSwitchEntityDescription(
         key="thermostat",
         translation_key="thermostat",
         description="Enable/disable the Modbus thermostat function for this circuit",
         register_key="thermostat",
         entity_category=EntityCategory.CONFIG,
     ),
-    HitachiYutakiSwitchEntityDescription(
+    HitachiHeatPumpSwitchEntityDescription(
         key="eco_mode",
         translation_key="eco_mode",
         icon="mdi:leaf",
@@ -78,8 +78,8 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     ),
 )
 
-DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
-    HitachiYutakiSwitchEntityDescription(
+DHW_SWITCHES: Final[tuple[HitachiHeatPumpSwitchEntityDescription, ...]] = (
+    HitachiHeatPumpSwitchEntityDescription(
         key="boost",
         translation_key="boost",
         description="Temporarily boost DHW production",
@@ -87,8 +87,8 @@ DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
     ),
 )
 
-POOL_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
-    HitachiYutakiSwitchEntityDescription(
+POOL_SWITCHES: Final[tuple[HitachiHeatPumpSwitchEntityDescription, ...]] = (
+    HitachiHeatPumpSwitchEntityDescription(
         key="power",
         translation_key="power",
         description="Power switch for swimming pool heating",
@@ -103,13 +103,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the switches."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: HitachiHeatPumpDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities: list[HitachiYutakiSwitch] = []
+    entities: list[HitachiHeatPumpSwitch] = []
 
     # Add unit switches
     entities.extend(
-        HitachiYutakiSwitch(
+        HitachiHeatPumpSwitch(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -128,7 +128,7 @@ async def async_setup_entry(
             ):
                 continue
             entities.append(
-                HitachiYutakiSwitch(
+                HitachiHeatPumpSwitch(
                     coordinator=coordinator,
                     description=description,
                     device_info=DeviceInfo(
@@ -147,7 +147,7 @@ async def async_setup_entry(
             ):
                 continue
             entities.append(
-                HitachiYutakiSwitch(
+                HitachiHeatPumpSwitch(
                     coordinator=coordinator,
                     description=description,
                     device_info=DeviceInfo(
@@ -163,7 +163,7 @@ async def async_setup_entry(
         or getattr(coordinator.profile, "supports_dhw", True)
     ):
         entities.extend(
-            HitachiYutakiSwitch(
+            HitachiHeatPumpSwitch(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -180,7 +180,7 @@ async def async_setup_entry(
         or getattr(coordinator.profile, "supports_pool", True)
     ):
         entities.extend(
-            HitachiYutakiSwitch(
+            HitachiHeatPumpSwitch(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -194,17 +194,17 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiSwitch(
-    CoordinatorEntity[HitachiYutakiDataCoordinator], SwitchEntity
+class HitachiHeatPumpSwitch(
+    CoordinatorEntity[HitachiHeatPumpDataCoordinator], SwitchEntity
 ):
-    """Representation of a Hitachi Yutaki Switch."""
+    """Representation of a Hitachi Heat Pump Switch."""
 
-    entity_description: HitachiYutakiSwitchEntityDescription
+    entity_description: HitachiHeatPumpSwitchEntityDescription
 
     def __init__(
         self,
-        coordinator: HitachiYutakiDataCoordinator,
-        description: HitachiYutakiSwitchEntityDescription,
+        coordinator: HitachiHeatPumpDataCoordinator,
+        description: HitachiHeatPumpSwitchEntityDescription,
         device_info: DeviceInfo,
         register_prefix: str | None = None,
     ) -> None:

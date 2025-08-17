@@ -36,8 +36,8 @@
   "options": {
     "step": {
       "init": {
-        "title": "Options Hitachi Yutaki",
-        "description": "Mettez à jour votre configuration Hitachi Yutaki.",
+        "title": "Options Hitachi Heat Pump",
+        "description": "Mettez à jour votre configuration Hitachi Heat Pump.",
         "data": {
           "host": "Hôte/Adresse IP",
           "port": "Port",
@@ -53,8 +53,8 @@
   "config": {
     "step": {
       "user": {
-        "title": "Passerelle Hitachi Yutaki",
-        "description": "Entrez les détails de connexion pour votre passerelle de pompe à chaleur Hitachi Yutaki.",
+        "title": "Passerelle Hitachi Heat Pump",
+        "description": "Entrez les détails de connexion pour votre passerelle de pompe à chaleur Hitachi Heat Pump.",
         "data": {
           "name": "Nom",
           "host": "Hôte/Adresse IP",
@@ -89,11 +89,11 @@
       "modbus_error": "Une erreur Modbus s'est produite. Consultez les journaux pour plus de détails.",
       "invalid_central_control_mode": "La passerelle doit être en mode de contrôle 'Central'. Veuillez modifier ce paramètre dans les réglages de la passerelle.",
       "unknown": "Une erreur inconnue s'est produite. Veuillez consulter les journaux.",
-      "system_initializing": "La passerelle Hitachi Yutaki est en cours d'initialisation. Veuillez patienter quelques instants et réessayer.",
+      "system_initializing": "La passerelle Hitachi Heat Pump est en cours d'initialisation. Veuillez patienter quelques instants et réessayer.",
       "desync_error": "La passerelle est désynchronisée de la pompe à chaleur. Assurez-vous que la pompe à chaleur est sous tension et que la connexion entre les deux appareils est correcte."
     },
     "abort": {
-      "already_configured": "Cette passerelle Hitachi Yutaki est déjà configurée."
+      "already_configured": "Cette passerelle Hitachi Heat Pump est déjà configurée."
     }
   },
   "entity": {
@@ -578,7 +578,7 @@
     },
     "connection_error": {
       "title": "Passerelle Hitachi Inaccessible",
-      "description": "L'intégration n'a pas pu se connecter à la passerelle Hitachi Yutaki. Les entités seront indisponibles jusqu'à ce que la connexion soit rétablie.\n\n**Pour résoudre ce problème :**\n1. Vérifiez si la passerelle est sous tension et connectée au réseau.\n2. Vérifiez que l'adresse IP et le port configurés dans Home Assistant sont corrects."
+      "description": "L'intégration n'a pas pu se connecter à la passerelle Hitachi Heat Pump. Les entités seront indisponibles jusqu'à ce que la connexion soit rétablie.\n\n**Pour résoudre ce problème :**\n1. Vérifiez si la passerelle est sous tension et connectée au réseau.\n2. Vérifiez que l'adresse IP et le port configurés dans Home Assistant sont corrects."
     }
   }
 }

@@ -1,4 +1,4 @@
-"""API interfaces for Hitachi Yutaki integration.
+"""API interfaces for Hitachi Heat Pump integration.
 
 This module defines the abstract API client used by the application/domain layers.
 Concrete protocol adapters (e.g., Modbus TCP) must implement this interface.

@@ -1,4 +1,4 @@
-"""Binary sensor platform for Hitachi Yutaki."""
+"""Binary sensor platform for Hitachi Heat Pump."""
 
 from __future__ import annotations
 
@@ -35,12 +35,12 @@ from .const import (
     MASK_SOLAR,
     MASK_SPACE_HEATER,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import HitachiHeatPumpDataCoordinator
 
 
 @dataclass
-class HitachiYutakiBinarySensorEntityDescription(BinarySensorEntityDescription):
-    """Class describing Hitachi Yutaki binary sensor entities."""
+class HitachiHeatPumpBinarySensorEntityDescription(BinarySensorEntityDescription):
+    """Class describing Hitachi Heat Pump binary sensor entities."""
 
     key: str
     device_class: BinarySensorDeviceClass | None = None
@@ -51,16 +51,16 @@ class HitachiYutakiBinarySensorEntityDescription(BinarySensorEntityDescription):
 
     register_key: str | None = None
     mask: int | None = None
-    value_fn: Callable[[Any, HitachiYutakiDataCoordinator], bool] | None = None
-    condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
+    value_fn: Callable[[Any, HitachiHeatPumpDataCoordinator], bool] | None = None
+    condition: Callable[[HitachiHeatPumpDataCoordinator], bool] | None = None
     translation_key: str | None = None
     description: str | None = None
 
 
 GATEWAY_BINARY_SENSORS: Final[
-    tuple[HitachiYutakiBinarySensorEntityDescription, ...]
+    tuple[HitachiHeatPumpBinarySensorEntityDescription, ...]
 ] = (
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="connectivity",
         translation_key="connectivity",
         description="Indicates if the gateway is connected and responding",
@@ -72,9 +72,9 @@ GATEWAY_BINARY_SENSORS: Final[
 )
 
 CONTROL_UNIT_BINARY_SENSORS: Final[
-    tuple[HitachiYutakiBinarySensorEntityDescription, ...]
+    tuple[HitachiHeatPumpBinarySensorEntityDescription, ...]
 ] = (
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="defrost",
         translation_key="defrost",
         icon="mdi:snowflake",
@@ -84,7 +84,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         register_key="system_status",
         mask=MASK_DEFROST,
     ),
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="solar",
         translation_key="solar",
         icon="mdi:solar-power",
@@ -95,7 +95,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         mask=MASK_SOLAR,
         entity_registry_enabled_default=False,
     ),
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="pump1",
         translation_key="pump1",
         icon="mdi:pump",
@@ -106,7 +106,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         mask=MASK_PUMP1,
         entity_registry_enabled_default=False,
     ),
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="pump2",
         translation_key="pump2",
         icon="mdi:pump",
@@ -117,7 +117,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         mask=MASK_PUMP2,
         entity_registry_enabled_default=False,
     ),
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="pump3",
         translation_key="pump3",
         icon="mdi:pump",
@@ -128,7 +128,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         mask=MASK_PUMP3,
         entity_registry_enabled_default=False,
     ),
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="compressor",
         translation_key="compressor",
         icon="mdi:heat-pump",
@@ -138,7 +138,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         register_key="system_status",
         mask=MASK_COMPRESSOR,
     ),
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="boiler",
         translation_key="boiler",
         icon="mdi:resistor",
@@ -149,7 +149,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         mask=MASK_BOILER,
         condition=lambda c: not c.is_s80_model(),
     ),
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="dhw_heater",
         translation_key="dhw_heater",
         icon="mdi:water-boiler",
@@ -160,7 +160,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         mask=MASK_DHW_HEATER,
         condition=lambda c: c.has_dhw(),
     ),
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="space_heater",
         translation_key="space_heater",
         description="Indicates if the space heating electric heater is active",
@@ -170,7 +170,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         mask=MASK_SPACE_HEATER,
         entity_registry_enabled_default=False,
     ),
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="smart_function",
         translation_key="smart_function",
         icon="mdi:home-automation",
@@ -184,9 +184,9 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
 )
 
 PRIMARY_COMPRESSOR_BINARY_SENSORS: Final[
-    tuple[HitachiYutakiBinarySensorEntityDescription, ...]
+    tuple[HitachiHeatPumpBinarySensorEntityDescription, ...]
 ] = (
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="compressor_running",
         translation_key="compressor_running",
         description="Indicates if the primary compressor is running",
@@ -199,9 +199,9 @@ PRIMARY_COMPRESSOR_BINARY_SENSORS: Final[
 )
 
 SECONDARY_COMPRESSOR_BINARY_SENSORS: Final[
-    tuple[HitachiYutakiBinarySensorEntityDescription, ...]
+    tuple[HitachiHeatPumpBinarySensorEntityDescription, ...]
 ] = (
-    HitachiYutakiBinarySensorEntityDescription(
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="r134a_compressor_running",
         translation_key="r134a_compressor_running",
         description="Indicates if the R134a compressor is running",
@@ -214,8 +214,8 @@ SECONDARY_COMPRESSOR_BINARY_SENSORS: Final[
     ),
 )
 
-DHW_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, ...]] = (
-    HitachiYutakiBinarySensorEntityDescription(
+DHW_BINARY_SENSORS: Final[tuple[HitachiHeatPumpBinarySensorEntityDescription, ...]] = (
+    HitachiHeatPumpBinarySensorEntityDescription(
         key="antilegionella_cycle",
         translation_key="antilegionella_cycle",
         icon="mdi:biohazard",
@@ -235,13 +235,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the binary sensors."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: HitachiHeatPumpDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities: list[HitachiYutakiBinarySensor] = []
+    entities: list[HitachiHeatPumpBinarySensor] = []
 
     # Add gateway binary sensors (always added)
     entities.extend(
-        HitachiYutakiBinarySensor(
+        HitachiHeatPumpBinarySensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -254,7 +254,7 @@ async def async_setup_entry(
 
     # Add control unit binary sensors based on configuration
     entities.extend(
-        HitachiYutakiBinarySensor(
+        HitachiHeatPumpBinarySensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -267,7 +267,7 @@ async def async_setup_entry(
 
     # Add primary compressor binary sensors
     entities.extend(
-        HitachiYutakiBinarySensor(
+        HitachiHeatPumpBinarySensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -280,7 +280,7 @@ async def async_setup_entry(
 
     # Add secondary compressor binary sensors
     entities.extend(
-        HitachiYutakiBinarySensor(
+        HitachiHeatPumpBinarySensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -295,7 +295,7 @@ async def async_setup_entry(
 
     # Add DHW binary sensors if configured
     entities.extend(
-        HitachiYutakiBinarySensor(
+        HitachiHeatPumpBinarySensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -309,17 +309,17 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiBinarySensor(
-    CoordinatorEntity[HitachiYutakiDataCoordinator], BinarySensorEntity
+class HitachiHeatPumpBinarySensor(
+    CoordinatorEntity[HitachiHeatPumpDataCoordinator], BinarySensorEntity
 ):
-    """Representation of a Hitachi Yutaki Binary Sensor."""
+    """Representation of a Hitachi Heat Pump Binary Sensor."""
 
-    entity_description: HitachiYutakiBinarySensorEntityDescription
+    entity_description: HitachiHeatPumpBinarySensorEntityDescription
 
     def __init__(
         self,
-        coordinator: HitachiYutakiDataCoordinator,
-        description: HitachiYutakiBinarySensorEntityDescription,
+        coordinator: HitachiHeatPumpDataCoordinator,
+        description: HitachiHeatPumpBinarySensorEntityDescription,
         device_info: DeviceInfo,
     ) -> None:
         """Initialize the binary sensor."""

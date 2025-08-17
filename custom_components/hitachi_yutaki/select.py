@@ -1,4 +1,4 @@
-"""Select platform for Hitachi Yutaki."""
+"""Select platform for Hitachi Heat Pump."""
 
 from __future__ import annotations
 
@@ -19,12 +19,12 @@ from .const import (
     DEVICE_CONTROL_UNIT,
     DOMAIN,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import HitachiHeatPumpDataCoordinator
 
 
 @dataclass
-class HitachiYutakiSelectEntityDescription(SelectEntityDescription):
-    """Class describing Hitachi Yutaki select entities."""
+class HitachiHeatPumpSelectEntityDescription(SelectEntityDescription):
+    """Class describing Hitachi Heat Pump select entities."""
 
     key: str
     translation_key: str
@@ -38,8 +38,8 @@ class HitachiYutakiSelectEntityDescription(SelectEntityDescription):
     description: str | None = None
 
 
-UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
-    HitachiYutakiSelectEntityDescription(
+UNIT_SELECTS: Final[tuple[HitachiHeatPumpSelectEntityDescription, ...]] = (
+    HitachiHeatPumpSelectEntityDescription(
         key="operation_mode_heat",
         translation_key="operation_mode_heat",
         description="Operating mode of the heat pump (heating only unit)",
@@ -53,7 +53,7 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
             coordinator.has_cooling_circuit1() or coordinator.has_cooling_circuit2()
         ),
     ),
-    HitachiYutakiSelectEntityDescription(
+    HitachiHeatPumpSelectEntityDescription(
         key="operation_mode_full",
         translation_key="operation_mode_full",
         description="Operating mode of the heat pump (heating and cooling unit)",
@@ -69,8 +69,8 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
     ),
 )
 
-CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
-    HitachiYutakiSelectEntityDescription(
+CIRCUIT_SELECTS: Final[tuple[HitachiHeatPumpSelectEntityDescription, ...]] = (
+    HitachiHeatPumpSelectEntityDescription(
         key="otc_calculation_method_heating",
         translation_key="otc_calculation_method_heating",
         description="Method used to calculate the heating water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation)",
@@ -85,7 +85,7 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
-    HitachiYutakiSelectEntityDescription(
+    HitachiHeatPumpSelectEntityDescription(
         key="otc_calculation_method_cooling",
         translation_key="otc_calculation_method_cooling",
         description="Method used to calculate the cooling water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation)",
@@ -111,12 +111,12 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the selects."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entities: list[HitachiYutakiSelect] = []
+    coordinator: HitachiHeatPumpDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    entities: list[HitachiHeatPumpSelect] = []
 
     # Add unit selects
     entities.extend(
-        HitachiYutakiSelect(
+        HitachiHeatPumpSelect(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -130,7 +130,7 @@ async def async_setup_entry(
     # Add circuit selects only if the circuits are configured
     if coordinator.has_heating_circuit1():
         entities.extend(
-            HitachiYutakiSelect(
+            HitachiHeatPumpSelect(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -144,7 +144,7 @@ async def async_setup_entry(
 
     if coordinator.has_heating_circuit2():
         entities.extend(
-            HitachiYutakiSelect(
+            HitachiHeatPumpSelect(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -159,17 +159,17 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiSelect(
-    CoordinatorEntity[HitachiYutakiDataCoordinator], SelectEntity
+class HitachiHeatPumpSelect(
+    CoordinatorEntity[HitachiHeatPumpDataCoordinator], SelectEntity
 ):
-    """Representation of a Hitachi Yutaki Select."""
+    """Representation of a Hitachi Heat Pump Select."""
 
-    entity_description: HitachiYutakiSelectEntityDescription
+    entity_description: HitachiHeatPumpSelectEntityDescription
 
     def __init__(
         self,
-        coordinator: HitachiYutakiDataCoordinator,
-        description: HitachiYutakiSelectEntityDescription,
+        coordinator: HitachiHeatPumpDataCoordinator,
+        description: HitachiHeatPumpSelectEntityDescription,
         device_info: DeviceInfo,
         register_prefix: str | None = None,
     ) -> None:

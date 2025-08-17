@@ -11,7 +11,7 @@ from .base import HitachiHeatPumpProfile
 
 
 class YutakiMProfile(HitachiHeatPumpProfile):
-    """Profile for Hitachi Yutaki M models."""
+    """Profile for Hitachi Heat Pump M models."""
 
     @property
     def model_key(self) -> str:

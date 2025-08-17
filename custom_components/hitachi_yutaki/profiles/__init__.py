@@ -1,4 +1,4 @@
-"""Profiles (domain layer) for Hitachi Yutaki integration.
+"""Profiles (domain layer) for Hitachi Heat Pump integration.
 
 Defines the abstract model profile and a simple factory placeholder.
 This scaffolding enables moving business logic out of the coordinator incrementally.

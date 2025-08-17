@@ -1,4 +1,4 @@
-"""Sensor platform for Hitachi Yutaki integration."""
+"""Sensor platform for Hitachi Heat Pump integration."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ from .const import (
     WATER_FLOW_TO_KGS,
     WATER_SPECIFIC_HEAT,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import HitachiHeatPumpDataCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -226,8 +226,8 @@ class CompressorHistory:
 
 
 @dataclass
-class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
-    """Class describing Hitachi Yutaki sensor entities."""
+class HitachiHeatPumpSensorEntityDescription(SensorEntityDescription):
+    """Class describing Hitachi Heat Pump sensor entities."""
 
     key: str
     device_class: SensorDeviceClass | None = None
@@ -241,12 +241,12 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     translation_key: str | None = None
     description: str | None = None
     fallback_translation_key: str | None = None
-    condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
-    value_fn: Callable[[Any, HitachiYutakiDataCoordinator], Any] | None = None
+    condition: Callable[[HitachiHeatPumpDataCoordinator], bool] | None = None
+    value_fn: Callable[[Any, HitachiHeatPumpDataCoordinator], Any] | None = None
 
 
-GATEWAY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
-    HitachiYutakiSensorEntityDescription(
+GATEWAY_SENSORS: Final[tuple[HitachiHeatPumpSensorEntityDescription, ...]] = (
+    HitachiHeatPumpSensorEntityDescription(
         key="system_state",
         translation_key="system_state",
         description="System state",
@@ -258,8 +258,8 @@ GATEWAY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
 )
 
-TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
-    HitachiYutakiSensorEntityDescription(
+TEMPERATURE_SENSORS: Final[tuple[HitachiHeatPumpSensorEntityDescription, ...]] = (
+    HitachiHeatPumpSensorEntityDescription(
         key="outdoor_temp",
         translation_key="outdoor_temp",
         description="Outdoor ambient temperature measurement",
@@ -269,7 +269,7 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         register_key="outdoor_temp",
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="water_inlet_temp",
         translation_key="water_inlet_temp",
         description="Water inlet temperature measurement",
@@ -279,7 +279,7 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         register_key="water_inlet_temp",
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="water_outlet_temp",
         translation_key="water_outlet_temp",
         description="Water outlet temperature measurement",
@@ -289,7 +289,7 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         register_key="water_outlet_temp",
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="water_target_temp",
         translation_key="water_target_temp",
         description="Target water temperature",
@@ -301,10 +301,10 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
 )
 
-DHW_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = ()
+DHW_SENSORS: Final[tuple[HitachiHeatPumpSensorEntityDescription, ...]] = ()
 
-POOL_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
-    HitachiYutakiSensorEntityDescription(
+POOL_SENSORS: Final[tuple[HitachiHeatPumpSensorEntityDescription, ...]] = (
+    HitachiHeatPumpSensorEntityDescription(
         key="pool_current_temp",
         translation_key="pool_current_temperature",
         description="Current temperature of the pool",
@@ -316,8 +316,8 @@ POOL_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
 )
 
-CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
-    HitachiYutakiSensorEntityDescription(
+CONTROL_UNIT_SENSORS: Final[tuple[HitachiHeatPumpSensorEntityDescription, ...]] = (
+    HitachiHeatPumpSensorEntityDescription(
         key="water_flow",
         translation_key="water_flow",
         description="Current water flow rate through the system",
@@ -328,7 +328,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         value_fn=lambda value, coordinator: coordinator.convert_water_flow(value),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="pump_speed",
         translation_key="pump_speed",
         description="Current speed of the water circulation pump",
@@ -338,7 +338,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         register_key="pump_speed",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="power_consumption",
         translation_key="power_consumption",
         description="Total electrical energy consumed by the unit",
@@ -348,7 +348,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         register_key="power_consumption",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="alarm_code",
         translation_key="alarm_code",
         description="Alarm code",
@@ -357,7 +357,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         register_key="alarm_code",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="operation_state",
         translation_key="operation_state",
         description="Current operation state of the heat pump",
@@ -369,8 +369,8 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
     ),
 )
 
-PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
-    HitachiYutakiSensorEntityDescription(
+PERFORMANCE_SENSORS: Final[tuple[HitachiHeatPumpSensorEntityDescription, ...]] = (
+    HitachiHeatPumpSensorEntityDescription(
         key="cop_heating",
         translation_key="cop_heating",
         description="Coefficient of Performance for Space Heating",
@@ -381,7 +381,7 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         icon="mdi:heat-pump",
         condition=lambda c: c.has_heating_circuit1() or c.has_heating_circuit2(),
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="cop_cooling",
         translation_key="cop_cooling",
         description="Coefficient of Performance for Space Cooling",
@@ -392,7 +392,7 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         icon="mdi:heat-pump-outline",
         condition=lambda c: c.has_cooling_circuit1() or c.has_cooling_circuit2(),
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="cop_dhw",
         translation_key="cop_dhw",
         description="Coefficient of Performance for Domestic Hot Water",
@@ -403,7 +403,7 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         icon="mdi:water-boiler",
         condition=lambda c: c.has_dhw(),
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="cop_pool",
         translation_key="cop_pool",
         description="Coefficient of Performance for Pool Heating",
@@ -416,8 +416,8 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
     ),
 )
 
-THERMAL_ENERGY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
-    HitachiYutakiSensorEntityDescription(
+THERMAL_ENERGY_SENSORS: Final[tuple[HitachiHeatPumpSensorEntityDescription, ...]] = (
+    HitachiHeatPumpSensorEntityDescription(
         key="thermal_power",
         translation_key="thermal_power",
         description="Current thermal power output",
@@ -428,7 +428,7 @@ THERMAL_ENERGY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] 
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-wave",
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="daily_thermal_energy",
         translation_key="daily_thermal_energy",
         description="Daily thermal energy production (resets at midnight)",
@@ -439,7 +439,7 @@ THERMAL_ENERGY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] 
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-wave",
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="total_thermal_energy",
         translation_key="total_thermal_energy",
         description="Total thermal energy production",
@@ -452,8 +452,10 @@ THERMAL_ENERGY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] 
     ),
 )
 
-PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
-    HitachiYutakiSensorEntityDescription(
+PRIMARY_COMPRESSOR_SENSORS: Final[
+    tuple[HitachiHeatPumpSensorEntityDescription, ...]
+] = (
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_frequency",
         translation_key="compressor_frequency",
         description="Current operating frequency of the compressor",
@@ -464,7 +466,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         register_key="compressor_frequency",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_current",
         translation_key="compressor_current",
         description="Current electrical consumption of the compressor",
@@ -474,7 +476,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         register_key="compressor_current",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_tg_gas_temp",
         translation_key="compressor_tg_gas_temp",
         description="Gas temperature",
@@ -485,7 +487,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_ti_liquid_temp",
         translation_key="compressor_ti_liquid_temp",
         description="Liquid temperature",
@@ -496,7 +498,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_td_discharge_temp",
         translation_key="compressor_td_discharge_temp",
         description="Discharge temperature",
@@ -507,7 +509,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_te_evaporator_temp",
         translation_key="compressor_te_evaporator_temp",
         description="Evaporator temperature",
@@ -518,7 +520,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_evi_indoor_expansion_valve_opening",
         translation_key="compressor_evi_indoor_expansion_valve_opening",
         description="Indoor expansion valve opening",
@@ -528,7 +530,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         register_key="compressor_evi_indoor_expansion_valve_opening",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_evo_outdoor_expansion_valve_opening",
         translation_key="compressor_evo_outdoor_expansion_valve_opening",
         description="Outdoor expansion valve opening",
@@ -538,7 +540,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         register_key="compressor_evo_outdoor_expansion_valve_opening",
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_cycle_time",
         translation_key="compressor_cycle_time",
         description="Average time between compressor starts",
@@ -549,7 +551,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-outline",
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_runtime",
         translation_key="compressor_runtime",
         description="Average compressor runtime per cycle",
@@ -560,7 +562,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-play-outline",
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="compressor_resttime",
         translation_key="compressor_resttime",
         description="Average compressor rest time between cycles",
@@ -574,9 +576,9 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
 )
 
 SECONDARY_COMPRESSOR_SENSORS: Final[
-    tuple[HitachiYutakiSensorEntityDescription, ...]
+    tuple[HitachiHeatPumpSensorEntityDescription, ...]
 ] = (
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="r134a_discharge_temp",
         translation_key="r134a_discharge_temp",
         description="Temperature of the R134a refrigerant at compressor discharge",
@@ -588,7 +590,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="r134a_suction_temp",
         translation_key="r134a_suction_temp",
         description="Temperature of the R134a refrigerant at compressor suction",
@@ -600,7 +602,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="r134a_discharge_pressure",
         translation_key="r134a_discharge_pressure",
         description="Pressure of the R134a refrigerant at compressor discharge",
@@ -612,7 +614,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="r134a_suction_pressure",
         translation_key="r134a_suction_pressure",
         description="Pressure of the R134a refrigerant at compressor suction",
@@ -624,7 +626,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="r134a_compressor_frequency",
         translation_key="r134a_compressor_frequency",
         description="Operating frequency of the R134a compressor",
@@ -635,7 +637,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="r134a_compressor_current",
         translation_key="r134a_compressor_current",
         description="Electrical current drawn by the R134a compressor",
@@ -647,7 +649,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="r134a_cycle_time",
         translation_key="r134a_cycle_time",
         description="Average time between R134a compressor starts",
@@ -659,7 +661,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         icon="mdi:timer-outline",
         condition=lambda c: c.is_s80_model(),
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="r134a_runtime",
         translation_key="r134a_runtime",
         description="Average R134a compressor runtime per cycle",
@@ -671,7 +673,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         icon="mdi:timer-play-outline",
         condition=lambda c: c.is_s80_model(),
     ),
-    HitachiYutakiSensorEntityDescription(
+    HitachiHeatPumpSensorEntityDescription(
         key="r134a_resttime",
         translation_key="r134a_resttime",
         description="Average R134a compressor rest time between cycles",
@@ -692,13 +694,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the sensors."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: HitachiHeatPumpDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities: list[HitachiYutakiSensor] = []
+    entities: list[HitachiHeatPumpSensor] = []
 
     # Add gateway sensors
     entities.extend(
-        HitachiYutakiSensor(
+        HitachiHeatPumpSensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -710,7 +712,7 @@ async def async_setup_entry(
 
     # Add temperature sensors (always added as they are basic measurements)
     entities.extend(
-        HitachiYutakiSensor(
+        HitachiHeatPumpSensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -725,7 +727,7 @@ async def async_setup_entry(
         or getattr(coordinator.profile, "supports_dhw", True)
     ):
         entities.extend(
-            HitachiYutakiSensor(
+            HitachiHeatPumpSensor(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -740,7 +742,7 @@ async def async_setup_entry(
         or getattr(coordinator.profile, "supports_pool", True)
     ):
         entities.extend(
-            HitachiYutakiSensor(
+            HitachiHeatPumpSensor(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -759,7 +761,7 @@ async def async_setup_entry(
             continue
 
         entities.append(
-            HitachiYutakiSensor(
+            HitachiHeatPumpSensor(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -770,7 +772,7 @@ async def async_setup_entry(
 
     # Add primary compressor sensors
     entities.extend(
-        HitachiYutakiSensor(
+        HitachiHeatPumpSensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -782,7 +784,7 @@ async def async_setup_entry(
 
     # Add secondary compressor sensors
     entities.extend(
-        HitachiYutakiSensor(
+        HitachiHeatPumpSensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -797,7 +799,7 @@ async def async_setup_entry(
 
     # Add performance sensors
     entities.extend(
-        HitachiYutakiSensor(
+        HitachiHeatPumpSensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -810,7 +812,7 @@ async def async_setup_entry(
 
     # Add thermal energy sensors
     entities.extend(
-        HitachiYutakiSensor(
+        HitachiHeatPumpSensor(
             coordinator=coordinator,
             description=description,
             device_info=DeviceInfo(
@@ -826,15 +828,15 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiSensor(
-    CoordinatorEntity[HitachiYutakiDataCoordinator], SensorEntity, RestoreEntity
+class HitachiHeatPumpSensor(
+    CoordinatorEntity[HitachiHeatPumpDataCoordinator], SensorEntity, RestoreEntity
 ):
-    """Representation of a Hitachi Yutaki Sensor."""
+    """Representation of a Hitachi Heat Pump Sensor."""
 
     def __init__(
         self,
-        coordinator: HitachiYutakiDataCoordinator,
-        description: HitachiYutakiSensorEntityDescription,
+        coordinator: HitachiHeatPumpDataCoordinator,
+        description: HitachiHeatPumpSensorEntityDescription,
         device_info: DeviceInfo,
     ) -> None:
         """Initialize the sensor."""

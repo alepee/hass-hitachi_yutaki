@@ -1,4 +1,4 @@
-"""Constants for the Hitachi Yutaki integration."""
+"""Constants for the Hitachi Heat Pump integration."""
 
 from datetime import timedelta
 
@@ -11,7 +11,7 @@ GATEWAY_MODEL = "ATW-MBS-02"
 VERSION = "2.0.0-beta.1"
 
 # Default values
-DEFAULT_NAME = "Hitachi Yutaki"
+DEFAULT_NAME = "Hitachi Heat Pump"
 DEFAULT_HOST = "192.168.0.4"
 DEFAULT_DEVICE_ID = 1
 DEFAULT_PORT = 502

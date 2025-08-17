@@ -1,4 +1,4 @@
-"""Config flow for Hitachi Yutaki integration."""
+"""Config flow for Hitachi Heat Pump integration."""
 
 from __future__ import annotations
 
@@ -105,8 +105,8 @@ ADVANCED_SCHEMA = vol.Schema(
 )
 
 
-class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
-    """Handle a config flow for Hitachi Yutaki."""
+class HitachiHeatPumpConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle a config flow for Hitachi Heat Pump."""
 
     VERSION = 1
     MINOR_VERSION = 1
@@ -125,9 +125,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     @callback
     def async_get_options_flow(
         config_entry: config_entries.ConfigEntry,
-    ) -> HitachiYutakiOptionsFlow:
+    ) -> HitachiHeatPumpOptionsFlow:
         """Get the options flow for this handler."""
-        return HitachiYutakiOptionsFlow(config_entry)
+        return HitachiHeatPumpOptionsFlow(config_entry)
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -371,7 +371,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
 
-class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
+class HitachiHeatPumpOptionsFlow(config_entries.OptionsFlow):
     """Handle options."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:

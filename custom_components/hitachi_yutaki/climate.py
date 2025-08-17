@@ -1,4 +1,4 @@
-"""Climate platform for Hitachi Yutaki."""
+"""Climate platform for Hitachi Heat Pump."""
 
 from __future__ import annotations
 
@@ -31,19 +31,19 @@ from .const import (
     MASK_DEFROST,
     PRESET_COMFORT,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import HitachiHeatPumpDataCoordinator
 
 
 @dataclass
-class HitachiYutakiClimateEntityDescription(ClimateEntityDescription):
-    """Class describing Hitachi Yutaki climate entities."""
+class HitachiHeatPumpClimateEntityDescription(ClimateEntityDescription):
+    """Class describing Hitachi Heat Pump climate entities."""
 
     key: str
     translation_key: str
 
 
-CLIMATE_DESCRIPTIONS: Final[tuple[HitachiYutakiClimateEntityDescription, ...]] = (
-    HitachiYutakiClimateEntityDescription(
+CLIMATE_DESCRIPTIONS: Final[tuple[HitachiHeatPumpClimateEntityDescription, ...]] = (
+    HitachiHeatPumpClimateEntityDescription(
         key="climate",
         translation_key="climate",
     ),
@@ -56,13 +56,13 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the climate entities."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
-    entities: list[HitachiYutakiClimate] = []
+    coordinator: HitachiHeatPumpDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    entities: list[HitachiHeatPumpClimate] = []
 
     # Add circuit 1 climate if configured
     if coordinator.has_heating_circuit1():
         entities.append(
-            HitachiYutakiClimate(
+            HitachiHeatPumpClimate(
                 coordinator=coordinator,
                 description=CLIMATE_DESCRIPTIONS[0],
                 device_info=DeviceInfo(
@@ -75,7 +75,7 @@ async def async_setup_entry(
     # Add circuit 2 climate if configured
     if coordinator.has_heating_circuit2():
         entities.append(
-            HitachiYutakiClimate(
+            HitachiHeatPumpClimate(
                 coordinator=coordinator,
                 description=CLIMATE_DESCRIPTIONS[0],
                 device_info=DeviceInfo(
@@ -88,17 +88,17 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiClimate(
-    CoordinatorEntity[HitachiYutakiDataCoordinator], ClimateEntity
+class HitachiHeatPumpClimate(
+    CoordinatorEntity[HitachiHeatPumpDataCoordinator], ClimateEntity
 ):
-    """Representation of a Hitachi Yutaki Climate."""
+    """Representation of a Hitachi Heat Pump Climate."""
 
-    entity_description: HitachiYutakiClimateEntityDescription
+    entity_description: HitachiHeatPumpClimateEntityDescription
 
     def __init__(
         self,
-        coordinator: HitachiYutakiDataCoordinator,
-        description: HitachiYutakiClimateEntityDescription,
+        coordinator: HitachiHeatPumpDataCoordinator,
+        description: HitachiHeatPumpClimateEntityDescription,
         device_info: DeviceInfo,
         circuit_id: int,
     ) -> None:

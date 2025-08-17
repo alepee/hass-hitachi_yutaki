@@ -1,4 +1,4 @@
-"""DataUpdateCoordinator for Hitachi Yutaki integration."""
+"""DataUpdateCoordinator for Hitachi Heat Pump integration."""
 
 from __future__ import annotations
 
@@ -41,8 +41,8 @@ from .profiles import HitachiHeatPumpProfile, get_heat_pump_profile
 _LOGGER = logging.getLogger(__name__)
 
 
-class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from Hitachi Yutaki heat pump."""
+class HitachiHeatPumpDataCoordinator(DataUpdateCoordinator):
+    """Class to manage fetching data from Hitachi heat pump."""
 
     def __init__(
         self,
@@ -78,7 +78,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         )
 
     async def _async_update_data(self) -> dict[str, Any]:
-        """Fetch data from Hitachi Yutaki."""
+        """Fetch data from Hitachi Heat Pump."""
         try:
             if not self.api_client.connected:
                 await self.hass.async_add_executor_job(self.api_client.connect)
@@ -118,7 +118,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             if system_state == 2:  # Data init
                 _LOGGER.info(
-                    "Hitachi Yutaki is initializing, waiting for it to be ready..."
+                    "Hitachi Heat Pump is initializing, waiting for it to be ready..."
                 )
                 return data
 
@@ -171,7 +171,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         except (ModbusException, ConnectionError, OSError, Exception) as exc:
             # Set is_available to False on any error
-            _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
+            _LOGGER.warning(
+                "Error communicating with Hitachi Heat Pump gateway: %s", exc
+            )
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,

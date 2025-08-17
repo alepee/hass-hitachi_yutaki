@@ -1,4 +1,4 @@
-"""Number platform for Hitachi Yutaki."""
+"""Number platform for Hitachi Heat Pump."""
 
 from __future__ import annotations
 
@@ -27,12 +27,12 @@ from .const import (
     DEVICE_POOL,
     DOMAIN,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import HitachiHeatPumpDataCoordinator
 
 
 @dataclass
-class HitachiYutakiNumberEntityDescription(NumberEntityDescription):
-    """Class describing Hitachi Yutaki number entities."""
+class HitachiHeatPumpNumberEntityDescription(NumberEntityDescription):
+    """Class describing Hitachi Heat Pump number entities."""
 
     key: str
     translation_key: str
@@ -53,8 +53,8 @@ class HitachiYutakiNumberEntityDescription(NumberEntityDescription):
     description: str | None = None
 
 
-CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
-    HitachiYutakiNumberEntityDescription(
+CIRCUIT_NUMBERS: Final[tuple[HitachiHeatPumpNumberEntityDescription, ...]] = (
+    HitachiHeatPumpNumberEntityDescription(
         key="max_flow_temp_heating_otc",
         translation_key="max_flow_temp_heating_otc",
         description="Maximum heating water temperature used in outdoor temperature compensation (OTC) calculations",
@@ -67,7 +67,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
-    HitachiYutakiNumberEntityDescription(
+    HitachiHeatPumpNumberEntityDescription(
         key="max_flow_temp_cooling_otc",
         translation_key="max_flow_temp_cooling_otc",
         description="Maximum cooling water temperature used in outdoor temperature compensation (OTC) calculations",
@@ -80,7 +80,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
     ),
-    HitachiYutakiNumberEntityDescription(
+    HitachiHeatPumpNumberEntityDescription(
         key="heat_eco_offset",
         translation_key="heat_eco_offset",
         description="Temperature offset applied in ECO mode for heating",
@@ -92,7 +92,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
-    HitachiYutakiNumberEntityDescription(
+    HitachiHeatPumpNumberEntityDescription(
         key="cool_eco_offset",
         translation_key="cool_eco_offset",
         description="Temperature offset applied in ECO mode for cooling",
@@ -104,7 +104,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
-    HitachiYutakiNumberEntityDescription(
+    HitachiHeatPumpNumberEntityDescription(
         key="target_temp",
         translation_key="target_temp",
         description="Target room temperature when using the thermostat function",
@@ -119,7 +119,7 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         entity_registry_enabled_default=False,
         entity_registry_visible_default=False,
     ),
-    HitachiYutakiNumberEntityDescription(
+    HitachiHeatPumpNumberEntityDescription(
         key="current_temp",
         translation_key="current_temp",
         description="Measured room temperature for this circuit",
@@ -136,8 +136,8 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     ),
 )
 
-DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
-    HitachiYutakiNumberEntityDescription(
+DHW_NUMBERS: Final[tuple[HitachiHeatPumpNumberEntityDescription, ...]] = (
+    HitachiHeatPumpNumberEntityDescription(
         key="antilegionella_temp",
         translation_key="antilegionella_temp",
         description="Target temperature for anti-legionella treatment",
@@ -152,8 +152,8 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
     ),
 )
 
-POOL_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
-    HitachiYutakiNumberEntityDescription(
+POOL_NUMBERS: Final[tuple[HitachiHeatPumpNumberEntityDescription, ...]] = (
+    HitachiHeatPumpNumberEntityDescription(
         key="pool_target_temp",
         translation_key="pool_target_temperature",
         description="Target temperature for swimming pool water",
@@ -174,9 +174,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the number entities."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: HitachiHeatPumpDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities: list[HitachiYutakiNumber] = []
+    entities: list[HitachiHeatPumpNumber] = []
 
     # Add circuit 1 numbers if configured
     if coordinator.has_heating_circuit1():
@@ -185,7 +185,7 @@ async def async_setup_entry(
             if "cool" in description.key and not coordinator.has_cooling_circuit1():
                 continue
             entities.append(
-                HitachiYutakiNumber(
+                HitachiHeatPumpNumber(
                     coordinator=coordinator,
                     description=description,
                     device_info=DeviceInfo(
@@ -202,7 +202,7 @@ async def async_setup_entry(
             if "cool" in description.key and not coordinator.has_cooling_circuit2():
                 continue
             entities.append(
-                HitachiYutakiNumber(
+                HitachiHeatPumpNumber(
                     coordinator=coordinator,
                     description=description,
                     device_info=DeviceInfo(
@@ -218,7 +218,7 @@ async def async_setup_entry(
         or getattr(coordinator.profile, "supports_dhw", True)
     ):
         entities.extend(
-            HitachiYutakiNumber(
+            HitachiHeatPumpNumber(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -232,7 +232,7 @@ async def async_setup_entry(
     # Add pool numbers if configured
     if coordinator.has_pool():
         entities.extend(
-            HitachiYutakiNumber(
+            HitachiHeatPumpNumber(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -246,17 +246,17 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiNumber(
-    CoordinatorEntity[HitachiYutakiDataCoordinator], NumberEntity
+class HitachiHeatPumpNumber(
+    CoordinatorEntity[HitachiHeatPumpDataCoordinator], NumberEntity
 ):
-    """Representation of a Hitachi Yutaki Number."""
+    """Representation of a Hitachi Heat Pump Number."""
 
-    entity_description: HitachiYutakiNumberEntityDescription
+    entity_description: HitachiHeatPumpNumberEntityDescription
 
     def __init__(
         self,
-        coordinator: HitachiYutakiDataCoordinator,
-        description: HitachiYutakiNumberEntityDescription,
+        coordinator: HitachiHeatPumpDataCoordinator,
+        description: HitachiHeatPumpNumberEntityDescription,
         device_info: DeviceInfo,
         register_prefix: str | None = None,
     ) -> None:

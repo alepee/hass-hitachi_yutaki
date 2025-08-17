@@ -1,4 +1,4 @@
-"""Water heater platform for Hitachi Yutaki."""
+"""Water heater platform for Hitachi Heat Pump."""
 
 from __future__ import annotations
 
@@ -27,20 +27,20 @@ from .const import (
     PRESET_DHW_HIGH_DEMAND,
     PRESET_DHW_OFF,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import HitachiHeatPumpDataCoordinator
 
 
 @dataclass
-class HitachiYutakiWaterHeaterEntityDescription(WaterHeaterEntityDescription):
-    """Class describing Hitachi Yutaki water heater entities."""
+class HitachiHeatPumpWaterHeaterEntityDescription(WaterHeaterEntityDescription):
+    """Class describing Hitachi Heat Pump water heater entities."""
 
     key: str
     translation_key: str
     description: str | None = None
 
 
-WATER_HEATERS: Final[tuple[HitachiYutakiWaterHeaterEntityDescription, ...]] = (
-    HitachiYutakiWaterHeaterEntityDescription(
+WATER_HEATERS: Final[tuple[HitachiHeatPumpWaterHeaterEntityDescription, ...]] = (
+    HitachiHeatPumpWaterHeaterEntityDescription(
         key="dhw",
         translation_key="dhw",
         description="Domestic hot water production",
@@ -54,9 +54,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the water heater."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: HitachiHeatPumpDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities: list[HitachiYutakiWaterHeater] = []
+    entities: list[HitachiHeatPumpWaterHeater] = []
 
     # Add DHW water heater if configured and supported by profile (if any)
     if coordinator.has_dhw() and (
@@ -64,7 +64,7 @@ async def async_setup_entry(
         or getattr(coordinator.profile, "supports_dhw", True)
     ):
         entities.extend(
-            HitachiYutakiWaterHeater(
+            HitachiHeatPumpWaterHeater(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -77,17 +77,17 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiWaterHeater(
-    CoordinatorEntity[HitachiYutakiDataCoordinator], WaterHeaterEntity
+class HitachiHeatPumpWaterHeater(
+    CoordinatorEntity[HitachiHeatPumpDataCoordinator], WaterHeaterEntity
 ):
-    """Representation of a Hitachi Yutaki Water Heater."""
+    """Representation of a Hitachi Heat Pump Water Heater."""
 
-    entity_description: HitachiYutakiWaterHeaterEntityDescription
+    entity_description: HitachiHeatPumpWaterHeaterEntityDescription
 
     def __init__(
         self,
-        coordinator: HitachiYutakiDataCoordinator,
-        description: HitachiYutakiWaterHeaterEntityDescription,
+        coordinator: HitachiHeatPumpDataCoordinator,
+        description: HitachiHeatPumpWaterHeaterEntityDescription,
         device_info: DeviceInfo,
     ) -> None:
         """Initialize the water heater."""
