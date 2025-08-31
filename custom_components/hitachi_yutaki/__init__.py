@@ -1,4 +1,4 @@
-"""The Hitachi Yutaki integration."""
+"""The Hitachi Heat Pump integration."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ from .const import (
     UNIT_MODEL_YUTAKI_S,
     UNIT_MODEL_YUTAKI_S_COMBI,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import HitachiHeatPumpDataCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,15 +44,17 @@ MODEL_NAMES = {
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Hitachi Yutaki from a config entry."""
-    _LOGGER.info("Setting up Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
+    """Set up Hitachi Heat Pump from a config entry."""
+    _LOGGER.info(
+        "Setting up Hitachi Heat Pump integration for %s", entry.data[CONF_NAME]
+    )
 
-    coordinator = HitachiYutakiDataCoordinator(hass, entry)
+    coordinator = HitachiHeatPumpDataCoordinator(hass, entry)
     try:
         await coordinator.async_config_entry_first_refresh()
     except ConfigEntryNotReady:
         _LOGGER.warning(
-            "Initial connection to Hitachi Yutaki failed. "
+            "Initial connection to Hitachi Heat Pump failed. "
             "The integration will retry in the background, and entities will be unavailable."
         )
 
@@ -60,11 +62,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
-    # Get unit model
-    unit_model = coordinator.model
-    model_name = "Unknown Model"
-    if unit_model is not None:
-        model_name = MODEL_NAMES.get(unit_model, "Unknown Model")
+    # Determine model name from selected profile (string identifier)
+    model_name = coordinator.profile.name if coordinator.profile else "Unknown Model"
     _LOGGER.info("Detected Hitachi unit model: %s", model_name)
 
     # Register devices
@@ -171,7 +170,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.info(
-        "Hitachi Yutaki integration setup completed for %s", entry.data[CONF_NAME]
+        "Hitachi Heat Pump integration setup completed for %s", entry.data[CONF_NAME]
     )
 
     return True
@@ -179,10 +178,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
 async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Unload a config entry."""
-    _LOGGER.info("Unloading Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
+    _LOGGER.info(
+        "Unloading Hitachi Heat Pump integration for %s", entry.data[CONF_NAME]
+    )
 
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+        coordinator: HitachiHeatPumpDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
         # Close Modbus connection
         if coordinator.modbus_client.connected:
@@ -190,6 +191,6 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             coordinator.modbus_client.close()
 
         hass.data[DOMAIN].pop(entry.entry_id)
-        _LOGGER.info("Hitachi Yutaki integration unloaded successfully")
+        _LOGGER.info("Hitachi Heat Pump integration unloaded successfully")
 
     return unload_ok

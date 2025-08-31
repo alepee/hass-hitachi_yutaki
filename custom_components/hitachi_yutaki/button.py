@@ -1,4 +1,4 @@
-"""Button platform for Hitachi Yutaki."""
+"""Button platform for Hitachi Heat Pump."""
 
 from __future__ import annotations
 
@@ -20,12 +20,12 @@ from .const import (
     DEVICE_DHW,
     DOMAIN,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import HitachiHeatPumpDataCoordinator
 
 
 @dataclass
-class HitachiYutakiButtonEntityDescription(ButtonEntityDescription):
-    """Class describing Hitachi Yutaki button entities."""
+class HitachiHeatPumpButtonEntityDescription(ButtonEntityDescription):
+    """Class describing Hitachi Heat Pump button entities."""
 
     key: str
     translation_key: str
@@ -37,8 +37,8 @@ class HitachiYutakiButtonEntityDescription(ButtonEntityDescription):
     description: str | None = None
 
 
-DHW_BUTTONS: Final[tuple[HitachiYutakiButtonEntityDescription, ...]] = (
-    HitachiYutakiButtonEntityDescription(
+DHW_BUTTONS: Final[tuple[HitachiHeatPumpButtonEntityDescription, ...]] = (
+    HitachiHeatPumpButtonEntityDescription(
         key="antilegionella",
         translation_key="antilegionella",
         icon="mdi:biohazard",
@@ -55,14 +55,14 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the button entities."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator: HitachiHeatPumpDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-    entities: list[HitachiYutakiButton] = []
+    entities: list[HitachiHeatPumpButton] = []
 
     # Add DHW buttons if configured
     if coordinator.has_dhw():
         entities.extend(
-            HitachiYutakiButton(
+            HitachiHeatPumpButton(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -76,17 +76,17 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class HitachiYutakiButton(
-    CoordinatorEntity[HitachiYutakiDataCoordinator], ButtonEntity
+class HitachiHeatPumpButton(
+    CoordinatorEntity[HitachiHeatPumpDataCoordinator], ButtonEntity
 ):
-    """Representation of a Hitachi Yutaki Button."""
+    """Representation of a Hitachi Heat Pump Button."""
 
-    entity_description: HitachiYutakiButtonEntityDescription
+    entity_description: HitachiHeatPumpButtonEntityDescription
 
     def __init__(
         self,
-        coordinator: HitachiYutakiDataCoordinator,
-        description: HitachiYutakiButtonEntityDescription,
+        coordinator: HitachiHeatPumpDataCoordinator,
+        description: HitachiHeatPumpButtonEntityDescription,
         device_info: DeviceInfo,
         register_prefix: str | None = None,
     ) -> None:
@@ -101,9 +101,9 @@ class HitachiYutakiButton(
         )
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
-            f"{entry_id}_{coordinator.slave}_{register_prefix}_{description.key}"
+            f"{entry_id}_{coordinator.device_id}_{register_prefix}_{description.key}"
             if register_prefix
-            else f"{entry_id}_{coordinator.slave}_{description.key}"
+            else f"{entry_id}_{coordinator.device_id}_{description.key}"
         )
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
