@@ -40,6 +40,7 @@ from .const import (
     REGISTER_SYSTEM_STATE,
     REGISTER_SYSTEM_STATUS,
     REGISTER_UNIT_MODEL,
+    get_pymodbus_device_param,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -69,6 +70,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=entry.data[CONF_SCAN_INTERVAL]),
         )
 
+    def _get_device_param(self) -> str:
+        """Get the correct parameter name for pymodbus device/slave based on version."""
+        return get_pymodbus_device_param()
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Hitachi Yutaki."""
         try:
@@ -78,11 +83,12 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             data: dict[str, Any] = {"is_available": True}
 
             # Preflight check
+            device_param = self._get_device_param()
             preflight_result = await self.hass.async_add_executor_job(
                 lambda addr=REGISTER_SYSTEM_STATE: self.modbus_client.read_holding_registers(
                     address=addr,
                     count=1,
-                    slave=self.slave,
+                    **{device_param: self.slave},
                 )
             )
 
@@ -141,7 +147,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                         lambda addr=register_address: self.modbus_client.read_holding_registers(
                             address=addr,
                             count=1,
-                            slave=self.slave,
+                            **{device_param: self.slave},
                         )
                     )
 
@@ -213,12 +219,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 register_address,
             )
 
+            device_param = self._get_device_param()
             result = await self.hass.async_add_executor_job(
                 lambda addr=register_address,
                 val=value: self.modbus_client.write_register(
                     address=addr,
                     value=val,
-                    slave=self.slave,
+                    **{device_param: self.slave},
                 )
             )
 
