@@ -40,6 +40,7 @@ from .const import (
     REGISTER_SYSTEM_CONFIG,
     REGISTER_SYSTEM_STATE,
     REGISTER_UNIT_MODEL,
+    get_pymodbus_device_param,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -225,11 +226,12 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             try:
                 # Preflight check for system state
+                device_param = get_pymodbus_device_param()
                 preflight_result = await self.hass.async_add_executor_job(
                     lambda addr=REGISTER_SYSTEM_STATE: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        slave=config[CONF_SLAVE],
+                        **{device_param: config[CONF_SLAVE]},
                     )
                 )
 
@@ -270,7 +272,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_UNIT_MODEL: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        slave=config[CONF_SLAVE],
+                        **{device_param: config[CONF_SLAVE]},
                     )
                 )
 
@@ -291,7 +293,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_CENTRAL_CONTROL_MODE: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        slave=config[CONF_SLAVE],
+                        **{device_param: config[CONF_SLAVE]},
                     )
                 )
 
@@ -320,7 +322,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     lambda addr=REGISTER_SYSTEM_CONFIG: client.read_holding_registers(
                         address=addr,
                         count=1,
-                        slave=config[CONF_SLAVE],
+                        **{device_param: config[CONF_SLAVE]},
                     )
                 )
 
