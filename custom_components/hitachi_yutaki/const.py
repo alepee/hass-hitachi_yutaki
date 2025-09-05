@@ -2,13 +2,15 @@
 
 from datetime import timedelta
 
+from packaging import version
+
 from homeassistant.const import Platform
 
 DOMAIN = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
-VERSION = "1.9.1"
+VERSION = "1.9.2"
 
 # Default values
 DEFAULT_NAME = "Hitachi Yutaki"
@@ -235,3 +237,23 @@ COP_MIN_MEASUREMENTS = 6  # Minimum number of measurements for COP calculation
 COP_MIN_TIME_SPAN = 3  # Minimum time span in minutes for COP calculation
 COP_OPTIMAL_MEASUREMENTS = 10  # Number of measurements for optimal COP calculation
 COP_OPTIMAL_TIME_SPAN = 15  # Time span in minutes for optimal COP calculation
+
+
+def get_pymodbus_device_param():
+    """Get the correct parameter name for pymodbus device/slave based on version.
+
+    Returns:
+        str: 'device_id' for pymodbus >= 3.10.0, 'slave' for older versions
+
+    """
+    try:
+        import pymodbus  # noqa: PLC0415
+
+        pymodbus_version = version.parse(pymodbus.__version__)
+        if pymodbus_version >= version.parse("3.10.0"):
+            return "device_id"
+        else:
+            return "slave"
+    except (ImportError, AttributeError):
+        # Fallback to 'slave' if pymodbus is not available or version cannot be determined
+        return "slave"
