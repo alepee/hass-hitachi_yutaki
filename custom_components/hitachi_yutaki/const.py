@@ -3,6 +3,7 @@
 from datetime import timedelta
 
 from packaging import version
+import pymodbus
 
 from homeassistant.const import Platform
 
@@ -247,8 +248,6 @@ def get_pymodbus_device_param():
 
     """
     try:
-        import pymodbus  # noqa: PLC0415
-
         pymodbus_version = version.parse(pymodbus.__version__)
         if pymodbus_version >= version.parse("3.10.0"):
             return "device_id"
