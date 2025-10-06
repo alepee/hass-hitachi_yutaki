@@ -1165,24 +1165,23 @@ class HitachiYutakiSensor(
                             "Power value %.2f kW (from unit_of_measurement)",
                             power_value,
                         )
-                    else:
-                        # Fallback: detect based on value range
-                        # Residential heat pumps typically consume 1-20 kW
-                        if (
-                            power_value > 50
-                        ):  # Likely in watts (50W+ is unusual for kW in residential)
-                            electrical_power = power_value / 1000
-                            _LOGGER.debug(
-                                "Power value %.2f treated as watts, converted to %.3f kW (fallback detection)",
-                                power_value,
-                                electrical_power,
-                            )
-                        else:  # Already in kW (0-50 kW is reasonable range)
-                            electrical_power = power_value
-                            _LOGGER.debug(
-                                "Power value %.2f treated as kW (fallback detection)",
-                                power_value,
-                            )
+                    # Fallback: detect based on value range
+                    # Residential heat pumps typically consume 1-20 kW
+                    elif (
+                        power_value > 50
+                    ):  # Likely in watts (50W+ is unusual for kW in residential)
+                        electrical_power = power_value / 1000
+                        _LOGGER.debug(
+                            "Power value %.2f treated as watts, converted to %.3f kW (fallback detection)",
+                            power_value,
+                            electrical_power,
+                        )
+                    else:  # Already in kW (0-50 kW is reasonable range)
+                        electrical_power = power_value
+                        _LOGGER.debug(
+                            "Power value %.2f treated as kW (fallback detection)",
+                            power_value,
+                        )
 
                     if electrical_power <= 0:
                         _LOGGER.debug(
