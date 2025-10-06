@@ -378,7 +378,6 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -387,8 +386,10 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
-        config_data = self.config_entry.data
-        options_data = self.config_entry.options
+        # Access the current entry using the base class attribute
+        # available during option flows.
+        config_data = self.config_entry.data  # type: ignore[attr-defined]
+        options_data = self.config_entry.options  # type: ignore[attr-defined]
 
         return self.async_show_form(
             step_id="init",
@@ -416,8 +417,10 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     ),
                     vol.Optional(
                         CONF_VOLTAGE_ENTITY,
-                        default=options_data.get(
-                            CONF_VOLTAGE_ENTITY, config_data.get(CONF_VOLTAGE_ENTITY)
+                        default=(
+                            options_data[CONF_VOLTAGE_ENTITY]
+                            if options_data.get(CONF_VOLTAGE_ENTITY) is not None
+                            else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
                         selector.EntitySelectorConfig(
@@ -426,8 +429,10 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     ),
                     vol.Optional(
                         CONF_POWER_ENTITY,
-                        default=options_data.get(
-                            CONF_POWER_ENTITY, config_data.get(CONF_POWER_ENTITY)
+                        default=(
+                            options_data[CONF_POWER_ENTITY]
+                            if options_data.get(CONF_POWER_ENTITY) is not None
+                            else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
                         selector.EntitySelectorConfig(
@@ -437,9 +442,11 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     ),
                     vol.Optional(
                         CONF_WATER_INLET_TEMP_ENTITY,
-                        default=options_data.get(
-                            CONF_WATER_INLET_TEMP_ENTITY,
-                            config_data.get(CONF_WATER_INLET_TEMP_ENTITY),
+                        default=(
+                            options_data[CONF_WATER_INLET_TEMP_ENTITY]
+                            if options_data.get(CONF_WATER_INLET_TEMP_ENTITY)
+                            is not None
+                            else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
                         selector.EntitySelectorConfig(
@@ -449,9 +456,11 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     ),
                     vol.Optional(
                         CONF_WATER_OUTLET_TEMP_ENTITY,
-                        default=options_data.get(
-                            CONF_WATER_OUTLET_TEMP_ENTITY,
-                            config_data.get(CONF_WATER_OUTLET_TEMP_ENTITY),
+                        default=(
+                            options_data[CONF_WATER_OUTLET_TEMP_ENTITY]
+                            if options_data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
+                            is not None
+                            else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
                         selector.EntitySelectorConfig(
