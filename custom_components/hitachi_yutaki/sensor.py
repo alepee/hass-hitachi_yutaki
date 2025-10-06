@@ -137,14 +137,42 @@ class EnergyAccumulator:
         if electrical_energy <= 0:
             return None
 
+        # Validate energy values (reasonable ranges for residential heat pump)
+        if thermal_energy < 0.01 or thermal_energy > 100.0:
+            _LOGGER.warning(
+                "Accumulated thermal energy out of reasonable range: %.2f kWh",
+                thermal_energy,
+            )
+            return None
+
+        if electrical_energy < 0.01 or electrical_energy > 50.0:
+            _LOGGER.warning(
+                "Accumulated electrical energy out of reasonable range: %.2f kWh",
+                electrical_energy,
+            )
+            return None
+
+        cop_value = thermal_energy / electrical_energy
+
+        # Validate final COP value (reasonable range for heat pump)
+        if cop_value < 0.5 or cop_value > 8.0:
+            _LOGGER.warning(
+                "Calculated COP out of reasonable range: %.2f (thermal: %.2f kWh, electrical: %.2f kWh)",
+                cop_value,
+                thermal_energy,
+                electrical_energy,
+            )
+            return None
+
         _LOGGER.debug(
-            "Total energy over %d measurements: Thermal: %.2f kWh, Electrical: %.2f kWh",
+            "Total energy over %d measurements: Thermal: %.2f kWh, Electrical: %.2f kWh, COP: %.2f",
             len(self.measurements),
             thermal_energy,
             electrical_energy,
+            cop_value,
         )
 
-        return thermal_energy / electrical_energy
+        return cop_value
 
 
 class CompressorHistory:
@@ -1051,12 +1079,52 @@ class HitachiYutakiSensor(
             )
             return None, None
 
+        # Validate temperature values (reasonable range for heat pump operation)
+        if (
+            water_inlet < -10
+            or water_inlet > 60
+            or water_outlet < -10
+            or water_outlet > 80
+        ):
+            _LOGGER.warning(
+                "Temperature values out of reasonable range: inlet=%.1f°C, outlet=%.1f°C",
+                water_inlet,
+                water_outlet,
+            )
+            return None, None
+
+        # Validate water flow (reasonable range for residential heat pump)
+        if water_flow < 0.1 or water_flow > 10.0:
+            _LOGGER.warning(
+                "Water flow value out of reasonable range: %.2f m³/h", water_flow
+            )
+            return None, None
+
         # Convert water flow and calculate thermal power
         water_flow_kgs = water_flow * WATER_FLOW_TO_KGS
         delta_t = water_outlet - water_inlet
+
+        # Validate temperature difference (reasonable range for heat pump operation)
+        if abs(delta_t) < 0.5 or abs(delta_t) > 30:
+            _LOGGER.warning(
+                "Temperature difference out of reasonable range: %.1f K (inlet=%.1f°C, outlet=%.1f°C)",
+                abs(delta_t),
+                water_inlet,
+                water_outlet,
+            )
+            return None, None
+
         thermal_power = abs(
             water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t
         )  # Result is already in kW
+
+        # Validate thermal power (reasonable range for residential heat pump)
+        if thermal_power < 0.1 or thermal_power > 50.0:
+            _LOGGER.warning(
+                "Calculated thermal power out of reasonable range: %.2f kW",
+                thermal_power,
+            )
+            return None, None
 
         _LOGGER.debug(
             "Thermal power calculation: %.2f kW (%.2f kg/s * %.2f kJ/kg·K * %.1f K) [flow=%.1f m³/h]",
@@ -1077,9 +1145,44 @@ class HitachiYutakiSensor(
                 "unavailable",
             ):
                 try:
-                    electrical_power = (
-                        float(power_state.state) / 1000
-                    )  # Convert W to kW
+                    power_value = float(power_state.state)
+
+                    # Check unit from entity attributes first
+                    unit_of_measurement = power_state.attributes.get(
+                        "unit_of_measurement", ""
+                    )
+
+                    if unit_of_measurement in ["W", "watt", "watts"]:
+                        electrical_power = power_value / 1000  # Convert W to kW
+                        _LOGGER.debug(
+                            "Power value %.2f W converted to %.3f kW (from unit_of_measurement)",
+                            power_value,
+                            electrical_power,
+                        )
+                    elif unit_of_measurement in ["kW", "kilowatt", "kilowatts"]:
+                        electrical_power = power_value  # Already in kW
+                        _LOGGER.debug(
+                            "Power value %.2f kW (from unit_of_measurement)",
+                            power_value,
+                        )
+                    # Fallback: detect based on value range
+                    # Residential heat pumps typically consume 1-20 kW
+                    elif (
+                        power_value > 50
+                    ):  # Likely in watts (50W+ is unusual for kW in residential)
+                        electrical_power = power_value / 1000
+                        _LOGGER.debug(
+                            "Power value %.2f treated as watts, converted to %.3f kW (fallback detection)",
+                            power_value,
+                            electrical_power,
+                        )
+                    else:  # Already in kW (0-50 kW is reasonable range)
+                        electrical_power = power_value
+                        _LOGGER.debug(
+                            "Power value %.2f treated as kW (fallback detection)",
+                            power_value,
+                        )
+
                     if electrical_power <= 0:
                         _LOGGER.debug(
                             "Invalid electrical power from entity %s: %.2f kW",
@@ -1088,9 +1191,10 @@ class HitachiYutakiSensor(
                         )
                         return None, None
                     _LOGGER.debug(
-                        "Using electrical power %.2f kW from entity %s",
+                        "Using electrical power %.2f kW from entity %s (raw value: %s)",
                         electrical_power,
                         power_entity_id,
+                        power_state.state,
                     )
                     return thermal_power, electrical_power
                 except ValueError:
@@ -1128,6 +1232,25 @@ class HitachiYutakiSensor(
                         additional_power,
                         electrical_power,
                     )
+
+        # Validate electrical power (reasonable range for residential heat pump)
+        if electrical_power < 0.1 or electrical_power > 20.0:
+            _LOGGER.warning(
+                "Calculated electrical power out of reasonable range: %.2f kW",
+                electrical_power,
+            )
+            return None, None
+
+        # Validate COP calculation (reasonable range for heat pump)
+        cop_ratio = thermal_power / electrical_power
+        if cop_ratio < 0.5 or cop_ratio > 8.0:
+            _LOGGER.warning(
+                "Calculated COP ratio out of reasonable range: %.2f (thermal: %.2f kW, electrical: %.2f kW)",
+                cop_ratio,
+                thermal_power,
+                electrical_power,
+            )
+            return None, None
 
         return thermal_power, electrical_power
 
