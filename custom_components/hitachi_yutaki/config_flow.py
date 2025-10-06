@@ -418,7 +418,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_VOLTAGE_ENTITY,
                         default=(
-                            options_data[CONF_VOLTAGE_ENTITY]
+                            options_data.get(CONF_VOLTAGE_ENTITY)
                             if options_data.get(CONF_VOLTAGE_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
@@ -430,7 +430,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_POWER_ENTITY,
                         default=(
-                            options_data[CONF_POWER_ENTITY]
+                            options_data.get(CONF_POWER_ENTITY)
                             if options_data.get(CONF_POWER_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
@@ -443,7 +443,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_WATER_INLET_TEMP_ENTITY,
                         default=(
-                            options_data[CONF_WATER_INLET_TEMP_ENTITY]
+                            options_data.get(CONF_WATER_INLET_TEMP_ENTITY)
                             if options_data.get(CONF_WATER_INLET_TEMP_ENTITY)
                             is not None
                             else vol.UNDEFINED
@@ -457,7 +457,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_WATER_OUTLET_TEMP_ENTITY,
                         default=(
-                            options_data[CONF_WATER_OUTLET_TEMP_ENTITY]
+                            options_data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
                             if options_data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
                             is not None
                             else vol.UNDEFINED
