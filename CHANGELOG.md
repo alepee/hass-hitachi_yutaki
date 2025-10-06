@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Improved COP calculation accuracy by rejecting invalid data instead of producing incorrect values
 - Enhanced support for external power and voltage sensors with automatic unit detection
 - Updated power unit handling to seamlessly support both W and kW sensors
+- Options flow: avoid providing `default=None` to entity selectors to prevent the UI error "Entity None is neither a valid entity ID nor a valid UUID" when opening Options. ([#109](https://github.com/alepee/hass-hitachi_yutaki/issues/109))
+- Options flow: stop storing the `config_entry` on the options flow instance to comply with Home Assistant deprecation and silence the warning that will become an error in 2025.12. ([#109](https://github.com/alepee/hass-hitachi_yutaki/issues/109))
 
 ## [1.9.2] - 2025-09-05
 
