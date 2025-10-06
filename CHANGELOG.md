@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+- Fixed aberrant COP (Coefficient of Performance) values by implementing comprehensive data validation and intelligent unit detection for power sensors
+- Added robust validation for all input parameters: temperature ranges (-10°C to 80°C), water flow rates (0.1 to 10.0 m³/h), temperature differences (0.5 to 30 K), power ranges (0.1 to 50.0 kW thermal, 0.1 to 20.0 kW electrical), and final COP values (0.5 to 8.0)
+- Implemented automatic power unit detection (W vs kW) using `unit_of_measurement` attribute with intelligent fallback detection based on value ranges
+- Added validation for energy accumulation to prevent calculation errors in COP measurements
+- Enhanced debug logging for unit detection, validation failures, and COP calculations
+
+### Changed
+- Improved COP calculation accuracy by rejecting invalid data instead of producing incorrect values
+- Enhanced support for external power and voltage sensors with automatic unit detection
+- Updated power unit handling to seamlessly support both W and kW sensors
+
 ## [1.9.2] - 2025-09-05
 
 ### Fixed
