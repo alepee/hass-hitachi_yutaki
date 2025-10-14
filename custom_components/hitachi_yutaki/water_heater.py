@@ -141,7 +141,7 @@ class HitachiYutakiWaterHeater(
         if temp is None:
             return None
 
-        return float(self.coordinator.convert_temperature(temp))
+        return float(temp)
 
     @property
     def target_temperature(self) -> float | None:

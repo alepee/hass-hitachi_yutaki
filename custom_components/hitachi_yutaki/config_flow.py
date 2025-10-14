@@ -181,19 +181,32 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if not await api_client.connect():
                     errors["base"] = "cannot_connect"
                 else:
-                    await api_client.read_values(
-                        list(api_client.register_map.base_keys)
+                    _LOGGER.debug(
+                        "Fetching all values to allow profiles to detect device"
                     )
-                    self.all_data = {
-                        key: await api_client.read_value(key)
-                        for key in api_client.register_map.base_keys
+                    keys_to_read = api_client.register_map.base_keys
+                    await api_client.read_values(keys_to_read)
+                    all_data = {
+                        key: await api_client.read_value(key) for key in keys_to_read
                     }
-                    # Detect profiles
-                    self.detected_profiles = [
+
+                    # Decode the raw config to get boolean flags
+                    decoded_data = api_client.decode_config(all_data)
+
+                    _LOGGER.debug("Detecting profile with data: %s", decoded_data)
+                    detected_profiles = [
                         key
                         for key, profile in PROFILES.items()
-                        if profile.detect(self.all_data)
+                        if profile.detect(decoded_data)
                     ]
+
+                    _LOGGER.debug("Detected profiles: %s", detected_profiles)
+                    self.detected_profiles = detected_profiles
+
+                    if not detected_profiles:
+                        _LOGGER.warning(
+                            "No profile detected, showing all available profiles"
+                        )
                     return await self.async_step_profile()
             except (ModbusException, ConnectionException, OSError):
                 errors["base"] = "cannot_connect"
@@ -217,14 +230,11 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_power()
 
         # Schema for profile selection
-        profile_options = self.detected_profiles
-        if not profile_options:
-            profile_options = list(PROFILES.keys())
-
+        profile_options = list(PROFILES.keys())
         PROFILE_SCHEMA = vol.Schema(
             {
                 vol.Required(
-                    "profile", default=profile_options[0]
+                    "profile", default=self.detected_profiles[0]
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=profile_options,

@@ -1,5 +1,7 @@
 """Base profile for Hitachi heat pumps."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from typing import Any
 
@@ -45,11 +47,7 @@ class HitachiHeatPumpProfile(ABC):
 
     @property
     def extra_register_keys(self) -> list[str]:
-        """Return a list of extra register keys required by the profile.
-
-        These keys are in addition to the base keys read by the coordinator
-        and are used for model-specific sensors or controls.
-        """
+        """Return the extra register keys for the profile."""
         return []
 
     @property

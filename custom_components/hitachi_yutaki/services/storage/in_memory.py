@@ -3,7 +3,7 @@
 from collections import deque
 from typing import TypeVar
 
-from . import AbstractStorage
+from .interface import AbstractStorage
 
 T = TypeVar("T")
 
