@@ -14,12 +14,22 @@ from ..base import HitachiApiClient
 from .registers import HitachiRegisterMap, atw_mbs_02
 from .registers.atw_mbs_02 import (
     ALL_REGISTERS,
+    MASK_BOILER,
     MASK_CIRCUIT1_COOLING,
     MASK_CIRCUIT1_HEATING,
     MASK_CIRCUIT2_COOLING,
     MASK_CIRCUIT2_HEATING,
+    MASK_COMPRESSOR,
+    MASK_DEFROST,
     MASK_DHW,
+    MASK_DHW_HEATER,
     MASK_POOL,
+    MASK_PUMP1,
+    MASK_PUMP2,
+    MASK_PUMP3,
+    MASK_SMART_FUNCTION,
+    MASK_SOLAR,
+    MASK_SPACE_HEATER,
     SYSTEM_STATE_ISSUES,
     WRITABLE_KEYS,
 )
@@ -220,3 +230,63 @@ class ModbusApiClient(HitachiApiClient):
         except ModbusException as exc:
             _LOGGER.warning("Modbus error during read_values: %s", exc)
             raise
+
+    @property
+    def is_defrosting(self) -> bool:
+        """Return True if the unit is in defrost mode."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_DEFROST)
+
+    @property
+    def is_solar_active(self) -> bool:
+        """Return True if solar system is active."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_SOLAR)
+
+    @property
+    def is_pump1_running(self) -> bool:
+        """Return True if pump 1 is running."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_PUMP1)
+
+    @property
+    def is_pump2_running(self) -> bool:
+        """Return True if pump 2 is running."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_PUMP2)
+
+    @property
+    def is_pump3_running(self) -> bool:
+        """Return True if pump 3 is running."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_PUMP3)
+
+    @property
+    def is_compressor_running(self) -> bool:
+        """Return True if compressor is running."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_COMPRESSOR)
+
+    @property
+    def is_boiler_active(self) -> bool:
+        """Return True if backup boiler is active."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_BOILER)
+
+    @property
+    def is_dhw_heater_active(self) -> bool:
+        """Return True if DHW electric heater is active."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_DHW_HEATER)
+
+    @property
+    def is_space_heater_active(self) -> bool:
+        """Return True if space heating electric heater is active."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_SPACE_HEATER)
+
+    @property
+    def is_smart_function_active(self) -> bool:
+        """Return True if smart grid function is active."""
+        system_status = self._data.get("system_status", 0)
+        return bool(system_status & MASK_SMART_FUNCTION)

@@ -27,8 +27,6 @@ from .const import (
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
     DOMAIN,
-    MASK_COMPRESSOR,
-    MASK_DEFROST,
     PRESET_COMFORT,
 )
 from .coordinator import HitachiYutakiDataCoordinator
@@ -204,14 +202,12 @@ class HitachiYutakiClimate(
         if self.coordinator.data is None:
             return None
 
-        system_status = self.coordinator.data.get("system_status", 0)
-
         # Check if in defrost mode
-        if system_status & MASK_DEFROST:
+        if self.coordinator.api_client.is_defrosting:
             return HVACAction.DEFROSTING
 
         # Check if compressor is running
-        if not (system_status & MASK_COMPRESSOR):
+        if not self.coordinator.api_client.is_compressor_running:
             return HVACAction.IDLE
 
         unit_mode = self.coordinator.data.get("unit_mode")

@@ -79,3 +79,53 @@ class HitachiApiClient(ABC):
     @abstractmethod
     def decode_config(self, data: dict[str, Any]) -> dict[str, Any]:
         """Decode raw config data into a dictionary of boolean flags."""
+
+    @property
+    @abstractmethod
+    def is_defrosting(self) -> bool:
+        """Return True if the unit is in defrost mode."""
+
+    @property
+    @abstractmethod
+    def is_solar_active(self) -> bool:
+        """Return True if solar system is active."""
+
+    @property
+    @abstractmethod
+    def is_pump1_running(self) -> bool:
+        """Return True if pump 1 is running."""
+
+    @property
+    @abstractmethod
+    def is_pump2_running(self) -> bool:
+        """Return True if pump 2 is running."""
+
+    @property
+    @abstractmethod
+    def is_pump3_running(self) -> bool:
+        """Return True if pump 3 is running."""
+
+    @property
+    @abstractmethod
+    def is_compressor_running(self) -> bool:
+        """Return True if compressor is running."""
+
+    @property
+    @abstractmethod
+    def is_boiler_active(self) -> bool:
+        """Return True if backup boiler is active."""
+
+    @property
+    @abstractmethod
+    def is_dhw_heater_active(self) -> bool:
+        """Return True if DHW electric heater is active."""
+
+    @property
+    @abstractmethod
+    def is_space_heater_active(self) -> bool:
+        """Return True if space heating electric heater is active."""
+
+    @property
+    @abstractmethod
+    def is_smart_function_active(self) -> bool:
+        """Return True if smart grid function is active."""
