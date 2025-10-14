@@ -24,16 +24,6 @@ from .const import (
     DEVICE_PRIMARY_COMPRESSOR,
     DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
-    MASK_BOILER,
-    MASK_COMPRESSOR,
-    MASK_DEFROST,
-    MASK_DHW_HEATER,
-    MASK_PUMP1,
-    MASK_PUMP2,
-    MASK_PUMP3,
-    MASK_SMART_FUNCTION,
-    MASK_SOLAR,
-    MASK_SPACE_HEATER,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
@@ -82,7 +72,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_DEFROST,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_defrosting,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="solar",
@@ -92,7 +82,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_SOLAR,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_solar_active,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -103,7 +93,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_PUMP1,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_pump1_running,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -114,7 +104,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_PUMP2,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_pump2_running,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -125,7 +115,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_PUMP3,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_pump3_running,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -136,7 +126,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_COMPRESSOR,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_compressor_running,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="boiler",
@@ -146,7 +136,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_BOILER,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_boiler_active,
         condition=lambda c: not c.profile.supports_secondary_compressor,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -157,7 +147,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_DHW_HEATER,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_dhw_heater_active,
         condition=lambda c: c.has_dhw(),
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -167,7 +157,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_SPACE_HEATER,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_space_heater_active,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -178,7 +168,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
-        mask=MASK_SMART_FUNCTION,
+        value_fn=lambda _, coordinator: coordinator.api_client.is_smart_function_active,
         entity_registry_enabled_default=False,
     ),
 )

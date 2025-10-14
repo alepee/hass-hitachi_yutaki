@@ -10,13 +10,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Implemented a new hexagonal architecture (Ports and Adapters) to decouple core logic from communication protocols. This introduces a clear **dependency injection** pattern, making the integration modular and easier to extend with new gateways (e.g., HTTP-based) in the future.
 - Introduced a smart profile auto-detection mechanism. Each heat pump profile now contains its own **decentralized detection logic**, allowing for more complex and robust model identification without altering the core configuration flow.
+- Added abstract storage interface to prepare for future persistent storage solutions, making data persistence implementation-agnostic.
 
 ### Changed
 - Major refactoring of the entire integration to align with the new hexagonal architecture.
 - Refactored complex business logic (COP, thermal power, compressor timing, and electrical power) into a dedicated, testable service layer. This new service-oriented architecture uses Dependency Injection to manage dependencies like storage, improving modularity and preparing for future enhancements like data persistence.
-- Reorganized Modbus register maps by logical device (e.g., `gateway`, `control_unit`, `dhw`) for improved clarity and maintainability.
-- Renamed all `r134a_` entity identifiers to `secondary_compressor_` for better readability.
-- Improved the alarm sensor to display the alarm description as its state, moving the numeric code to an attribute for better user experience.
+- Centralized all data deserialization logic into the Modbus API layer, moving temperature, pressure, flow, and current conversions from entities and coordinator to register definitions with dedicated deserializer functions.
+- Fully decoupled domain entities from gateway implementation details by exposing system status (defrost, compressor running, pumps, heaters, etc.) through abstract properties in the API interface rather than raw Modbus masks.
+- Reorganized Modbus register maps by logical device (e.g., `gateway`, `control_unit`, `primary_compressor`, `secondary_compressor`, `circuit_1`, `circuit_2`, `dhw`, `pool`) for improved clarity and maintainability.
+- Moved all Modbus-specific constants (register addresses, bit masks for configuration and status) from shared `const.py` into the Modbus gateway layer (`api/modbus/registers/atw_mbs_02.py`).
+- Renamed all `r134a_` entity identifiers to `secondary_compressor_` for better readability and consistency.
+- Improved the alarm sensor to display the alarm description as its state (e.g., "Alarm 07"), moving the numeric code to an attribute for better user experience.
+- Enhanced system state reporting with proper deserialization (synchronized, desynchronized, initializing) and operation state mapping.
 
 ### Removed
 - Removed the redundant `target_temp` and `current_temp` number entities for climate circuits, as this functionality is now handled by the climate entity.
