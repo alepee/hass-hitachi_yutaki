@@ -202,11 +202,11 @@ SECONDARY_COMPRESSOR_BINARY_SENSORS: Final[
     tuple[HitachiYutakiBinarySensorEntityDescription, ...]
 ] = (
     HitachiYutakiBinarySensorEntityDescription(
-        key="r134a_compressor_running",
-        translation_key="r134a_compressor_running",
-        description="Indicates if the R134a compressor is running",
+        key="secondary_compressor_running",
+        translation_key="secondary_compressor_running",
+        description="Indicates if the secondary compressor is running",
         device_class=BinarySensorDeviceClass.RUNNING,
-        register_key="r134a_compressor_frequency",
+        register_key="secondary_compressor_frequency",
         icon="mdi:engine",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda value, coordinator: value is not None and value > 0,
@@ -326,7 +326,7 @@ class HitachiYutakiBinarySensor(
         super().__init__(coordinator)
         self.entity_description = description
         entry_id = coordinator.config_entry.entry_id
-        self._attr_unique_id = f"{entry_id}_{coordinator.slave}_{description.key}"
+        self._attr_unique_id = f"{entry_id}_{description.key}"
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 

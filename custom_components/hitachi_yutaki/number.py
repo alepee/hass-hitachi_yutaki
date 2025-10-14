@@ -104,36 +104,6 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
     ),
-    HitachiYutakiNumberEntityDescription(
-        key="target_temp",
-        translation_key="target_temp",
-        description="Target room temperature when using the thermostat function",
-        native_min_value=5.0,
-        native_max_value=35.0,
-        native_step=0.5,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="target_temp",
-        mode=NumberMode.BOX,
-        multiplier=10,
-        entity_category=EntityCategory.CONFIG,
-        entity_registry_enabled_default=False,
-        entity_registry_visible_default=False,
-    ),
-    HitachiYutakiNumberEntityDescription(
-        key="current_temp",
-        translation_key="current_temp",
-        description="Measured room temperature for this circuit",
-        native_min_value=0.0,
-        native_max_value=50.0,
-        native_step=0.5,
-        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="current_temp",
-        mode=NumberMode.BOX,
-        multiplier=10,
-        entity_category=EntityCategory.CONFIG,
-        entity_registry_enabled_default=False,
-        entity_registry_visible_default=False,
-    ),
 )
 
 DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
@@ -268,9 +238,9 @@ class HitachiYutakiNumber(
         )
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
-            f"{entry_id}_{coordinator.slave}_{register_prefix}_{description.key}"
+            f"{entry_id}_{register_prefix}_{description.key}"
             if register_prefix
-            else f"{entry_id}_{coordinator.slave}_{description.key}"
+            else f"{entry_id}_{description.key}"
         )
         self._attr_device_info = device_info
         self._attr_has_entity_name = True

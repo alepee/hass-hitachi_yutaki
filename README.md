@@ -67,7 +67,7 @@ The integration automatically detects your heat pump model and available feature
 | Entity | Type | Description | Values |
 |--------|------|-------------|---------|
 | operation_state | sensor | Current operation state with detailed description | - |
-| alarm_code | sensor | Current alarm code with description | - |
+| alarm | sensor | Current alarm status | - |
 | defrost | binary_sensor | Indicates if the unit is currently in defrost mode | on/off |
 | solar | binary_sensor | Indicates if the solar system is active | on/off |
 | pump1 | binary_sensor | Indicates if water pump 1 is running | on/off |
@@ -113,12 +113,15 @@ The integration automatically detects your heat pump model and available feature
 
 | Entity | Type | Description | Unit |
 |--------|------|-------------|------|
-| r134a_discharge_temp | sensor | R134a discharge temperature | °C |
-| r134a_suction_temp | sensor | R134a suction temperature | °C |
-| r134a_discharge_pressure | sensor | R134a discharge pressure | mbar |
-| r134a_suction_pressure | sensor | R134a suction pressure | mbar |
-| r134a_compressor_frequency | sensor | R134a compressor frequency | Hz |
-| r134a_compressor_current | sensor | R134a compressor current | A |
+| secondary_compressor_discharge_temp | sensor | Discharge temperature | °C |
+| secondary_compressor_suction_temp | sensor | Suction temperature | °C |
+| secondary_compressor_discharge_pressure | sensor | Discharge pressure | mbar |
+| secondary_compressor_suction_pressure | sensor | Suction pressure | mbar |
+| secondary_compressor_frequency | sensor | Operating frequency | Hz |
+| secondary_compressor_current | sensor | Electrical current draw | A |
+| secondary_compressor_cycle_time | sensor | Average time between compressor starts | min |
+| secondary_compressor_runtime | sensor | Compressor runtime | min |
+| secondary_compressor_resttime | sensor | Compressor rest time | min |
 
 ### Climate Device (up to 2 circuits)
 
@@ -127,8 +130,6 @@ The integration automatically detects your heat pump model and available feature
 |--------|------|-------------|-------------|
 | power | switch | Power switch for the circuit | on/off |
 | operation_mode | select | Operating mode selection | heat/cool/auto |
-| target_temperature | number | Target temperature setpoint | °C (5.0-35.0) |
-| current_temperature | sensor | Current measured temperature | °C |
 | preset_mode | select | Energy saving mode selection | comfort/eco |
 | hvac_action | sensor | Current operation status | off/idle/heating/cooling/defrost |
 
@@ -308,9 +309,12 @@ hitachi_yutaki/
 │   └── workflows/           # CI/CD workflows
 ├── custom_components/       # The actual integration
 │   └── hitachi_yutaki/
+│       ├── api/             # API clients (Ports and Adapters)
+│       ├── profiles/        # Heat pump profiles
 │       ├── translations/    # Language files (en.json, fr.json)
 │       ├── __init__.py     # Integration setup
 │       ├── binary_sensor.py # Binary sensor platform
+│       ├── button.py       # Button platform
 │       ├── climate.py      # Climate platform
 │       ├── config_flow.py  # Configuration flow
 │       ├── const.py        # Constants
@@ -319,7 +323,8 @@ hitachi_yutaki/
 │       ├── number.py       # Number platform
 │       ├── select.py       # Select platform
 │       ├── sensor.py       # Sensor platform
-│       └── switch.py       # Switch platform
+│       ├── switch.py       # Switch platform
+│       └── water_heater.py # Water heater platform
 ├── scripts/                # Development scripts
 │   ├── dev-branch         # Install dev branch of Home Assistant
 │   ├── develop           # Run Home Assistant with debug config
