@@ -87,7 +87,7 @@ class ModbusApiClient(HitachiApiClient):
             _LOGGER.error("Unknown or non-writable register key: %s", key)
             return False
 
-        register_address = ALL_REGISTERS[key]
+        register_address = ALL_REGISTERS[key].address
         device_param = get_pymodbus_device_param()
 
         result = await self._hass.async_add_executor_job(
@@ -114,7 +114,7 @@ class ModbusApiClient(HitachiApiClient):
             # Always perform a preflight check
             preflight_result = await self._hass.async_add_executor_job(
                 lambda: self._client.read_holding_registers(
-                    address=ALL_REGISTERS["system_state"],
+                    address=ALL_REGISTERS["system_state"].address,
                     count=1,
                     **{device_param: self._slave},
                 )
@@ -145,16 +145,22 @@ class ModbusApiClient(HitachiApiClient):
                 else:
                     ir.async_delete_issue(self._hass, DOMAIN, issue_key)
 
-            for name, address in registers_to_read.items():
+            for name, definition in registers_to_read.items():
                 result = await self._hass.async_add_executor_job(
-                    lambda addr=address: self._client.read_holding_registers(
+                    lambda addr=definition.address: self._client.read_holding_registers(
                         address=addr, count=1, **{device_param: self._slave}
                     )
                 )
                 if not result.isError():
-                    self._data[name] = result.registers[0]
+                    value = result.registers[0]
+                    if definition.deserializer:
+                        self._data[name] = definition.deserializer(value)
+                    else:
+                        self._data[name] = value
                 else:
-                    _LOGGER.debug("Error reading register %s at %s", name, address)
+                    _LOGGER.debug(
+                        "Error reading register %s at %s", name, definition.address
+                    )
 
         except ModbusException as exc:
             _LOGGER.warning("Modbus error during read_values: %s", exc)

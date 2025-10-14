@@ -1,13 +1,13 @@
 """Constants for the Hitachi Yutaki integration."""
 
-from datetime import timedelta
+from typing import Final
 
 from packaging import version
 import pymodbus
 
 from homeassistant.const import Platform
 
-DOMAIN = "hitachi_yutaki"
+DOMAIN: Final = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
 GATEWAY_MODEL = "ATW-MBS-02"
 
@@ -105,29 +105,6 @@ PRESET_DHW_OFF = "off"
 PRESET_DHW_HEAT_PUMP = "heat_pump"
 PRESET_DHW_HIGH_DEMAND = "high_demand"
 
-# System state values
-SYSTEM_STATE_MAP = {
-    0: "synchronized",
-    1: "desynchronized",
-    2: "initializing",
-}
-
-# Operation state values
-OPERATION_STATE_MAP = {
-    0: "off",
-    1: "cool_demand_off",
-    2: "cool_thermo_off",
-    3: "cool_thermo_on",
-    4: "heat_demand_off",
-    5: "heat_thermo_off",
-    6: "heat_thermo_on",
-    7: "dhw_off",
-    8: "dhw_on",
-    9: "pool_off",
-    10: "pool_on",
-    11: "alarm",
-}
-
 # Configuration options
 CONF_SLAVE = "slave"
 CONF_POWER_SUPPLY = "power_supply"
@@ -137,26 +114,24 @@ CONF_WATER_INLET_TEMP_ENTITY = "water_inlet_temp_entity"
 CONF_WATER_OUTLET_TEMP_ENTITY = "water_outlet_temp_entity"
 CONF_DEV_MODE = "dev_mode"
 
+# COP calculation parameters
+COP_MEASUREMENTS_INTERVAL = 60  # seconds
+COP_MEASUREMENTS_PERIOD = 30  # minutes
+COP_MIN_MEASUREMENTS = 5
+COP_OPTIMAL_MEASUREMENTS = 15
+COP_MIN_TIME_SPAN = 5  # minutes
+COP_OPTIMAL_TIME_SPAN = 15  # minutes
+COP_MEASUREMENTS_HISTORY_SIZE = 100
+
 # Electrical constants
-VOLTAGE_SINGLE_PHASE = 230  # Volts
-VOLTAGE_THREE_PHASE = 400  # Volts
-POWER_FACTOR = 0.85  # cos φ
-THREE_PHASE_FACTOR = 1.732  # √3
+POWER_FACTOR = 0.9
+THREE_PHASE_FACTOR = 1.732
+VOLTAGE_SINGLE_PHASE = 230.0
+VOLTAGE_THREE_PHASE = 400.0
 
 # Water constants
-WATER_SPECIFIC_HEAT = 4.18  # kJ/kg·K
-WATER_FLOW_TO_KGS = 1000 / 3600  # Conversion from m³/h to kg/s
-
-# COP calculation constants
-COP_MEASUREMENTS_INTERVAL = 30  # Seconds between COP measurements
-COP_MEASUREMENTS_HISTORY_SIZE = 60  # Number of measurements to keep in history
-COP_MEASUREMENTS_PERIOD = timedelta(minutes=30)  # Period for energy accumulation
-
-# COP quality thresholds
-COP_MIN_MEASUREMENTS = 6  # Minimum number of measurements for COP calculation
-COP_MIN_TIME_SPAN = 3  # Minimum time span in minutes for COP calculation
-COP_OPTIMAL_MEASUREMENTS = 10  # Number of measurements for optimal COP calculation
-COP_OPTIMAL_TIME_SPAN = 15  # Time span in minutes for optimal COP calculation
+WATER_FLOW_TO_KGS = 0.277778  # 1 m³/h = 1000 L/h = 1000 kg/h = 0.277778 kg/s
+WATER_SPECIFIC_HEAT = 4.185  # kJ/kg·K
 
 
 def get_pymodbus_device_param():

@@ -114,35 +114,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             _LOGGER.error("Error writing to register %s: %s", register_key, error)
             raise UpdateFailed(f"Error writing to register {register_key}") from error
 
-    def convert_temperature(self, value: int | None) -> int | None:
-        """Convert a raw temperature value."""
-        if value is None:
-            return None
-        if value == 0xFFFF:  # Special value for sensor error
-            return None
-        if value > 32767:  # Handle negative values (2's complement)
-            value -= 65536
-        return int(value)  # Temperature is already in °C
-
-    def convert_water_flow(self, value: int | None) -> float | None:
-        """Convert a raw water flow value to m³/h."""
-        if value is None:
-            return None
-        return float(value) / 10.0  # Convert from tenths of m³/h to m³/h
-
-    def convert_current(self, value: int | None) -> float | None:
-        """Convert a raw current value to amperes."""
-        if value is None:
-            return None
-        return float(value) / 10.0  # Current is already in A
-
-    def convert_pressure(self, value: int | None) -> float | None:
-        """Convert a raw pressure value from MPa to bar."""
-        if value is None:
-            return None
-        # Convert from MPa to bar (1 MPa = 10 bar)
-        return float(value) / 10.0  # Value is in MPa * 100, so divide by 10 to get bar
-
     def is_s80_model(self) -> bool:
         """Check if the unit is an S80 model."""
         return self.profile and self.profile.__class__.__name__ == "YutakiS80Profile"
