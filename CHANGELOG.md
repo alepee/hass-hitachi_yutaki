@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Major refactoring of the entire integration to align with the new hexagonal architecture.
+- Refactored complex business logic (COP, thermal power, compressor timing, and electrical power) into a dedicated, testable service layer. This new service-oriented architecture uses Dependency Injection to manage dependencies like storage, improving modularity and preparing for future enhancements like data persistence.
 - Reorganized Modbus register maps by logical device (e.g., `gateway`, `control_unit`, `dhw`) for improved clarity and maintainability.
 - Renamed all `r134a_` entity identifiers to `secondary_compressor_` for better readability.
 - Improved the alarm sensor to display the alarm description as its state, moving the numeric code to an attribute for better user experience.
