@@ -92,12 +92,14 @@ class HitachiYutakiWaterHeater(
         self.entity_description = description
         self._register_prefix = "dhw"
         entry_id = coordinator.config_entry.entry_id
-        self._attr_unique_id = f"{entry_id}_{coordinator.slave}_{description.key}"
+        self._attr_unique_id = f"{entry_id}_{description.key}"
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS
-        self._attr_min_temp = 30
-        self._attr_max_temp = 60
+
+        # Apply profile-specific overrides
+        self._apply_profile_overrides()
+
         self._attr_target_temperature_step = 1
         self._attr_supported_features = (
             WaterHeaterEntityFeature.TARGET_TEMPERATURE
@@ -109,6 +111,20 @@ class HitachiYutakiWaterHeater(
             PRESET_DHW_HEAT_PUMP,
             PRESET_DHW_HIGH_DEMAND,
         ]
+
+    def _apply_profile_overrides(self) -> None:
+        """Apply overrides from the heat pump profile."""
+        if not self.coordinator.profile:
+            self._attr_min_temp = 30
+            self._attr_max_temp = 60
+            return
+
+        overrides = self.coordinator.profile.entity_overrides.get("water_heater", {})
+        self._attr_min_temp = overrides.get("min_temp", 30)
+        self._attr_max_temp = overrides.get("max_temp", 60)
+        self._temperature_entity_key = overrides.get(
+            "temperature_entity_key", "dhw_target_temp"
+        )
 
     @property
     def available(self) -> bool:
@@ -133,7 +149,7 @@ class HitachiYutakiWaterHeater(
         if self.coordinator.data is None:
             return None
 
-        temp = self.coordinator.data.get("dhw_target_temp")
+        temp = self.coordinator.data.get(self._temperature_entity_key)
         if temp is None:
             return None
 
@@ -171,7 +187,9 @@ class HitachiYutakiWaterHeater(
         if temperature is None:
             return
 
-        await self.coordinator.async_write_register("dhw_target_temp", int(temperature))
+        await self.coordinator.async_write_register(
+            self._temperature_entity_key, int(temperature)
+        )
 
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new operation mode."""

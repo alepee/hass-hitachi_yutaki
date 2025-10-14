@@ -8,11 +8,14 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_HOST,
     CONF_NAME,
+    CONF_PORT,
+    CONF_SLAVE,
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
+from .api import GATEWAYS
 from .const import (
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
@@ -32,6 +35,7 @@ from .const import (
     UNIT_MODEL_YUTAKI_S_COMBI,
 )
 from .coordinator import HitachiYutakiDataCoordinator
+from .profiles import PROFILES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -47,7 +51,22 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Hitachi Yutaki from a config entry."""
     _LOGGER.info("Setting up Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
 
-    coordinator = HitachiYutakiDataCoordinator(hass, entry)
+    # Get gateway and profile from config entry
+    gateway_type = entry.data["gateway_type"]
+    profile_key = entry.data["profile"]
+
+    # Instantiate gateway client and profile
+    api_client_class = GATEWAYS[gateway_type]
+    api_client = api_client_class(
+        hass,
+        name=entry.data[CONF_NAME],
+        host=entry.data[CONF_HOST],
+        port=entry.data[CONF_PORT],
+        slave=entry.data[CONF_SLAVE],
+    )
+    profile = PROFILES[profile_key]()
+
+    coordinator = HitachiYutakiDataCoordinator(hass, entry, api_client, profile)
     try:
         await coordinator.async_config_entry_first_refresh()
     except ConfigEntryNotReady:
@@ -60,12 +79,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 
-    # Get unit model
-    unit_model = coordinator.model
-    model_name = "Unknown Model"
-    if unit_model is not None:
-        model_name = MODEL_NAMES.get(unit_model, "Unknown Model")
-    _LOGGER.info("Detected Hitachi unit model: %s", model_name)
+    # Wait for the first refresh to succeed before setting up platforms
+    await coordinator.async_config_entry_first_refresh()
+
+    # Get unit model name from profile
+    model_name = profile.__class__.__name__.replace("Profile", "")
+    _LOGGER.info("Using Hitachi profile: %s", model_name)
 
     # Register devices
     device_registry = dr.async_get(hass)
@@ -105,8 +124,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     )
 
     # Add secondary compressor device for S80 model
-    if coordinator.is_s80_model():
-        _LOGGER.debug("S80 model detected, registering secondary compressor")
+    if profile.supports_secondary_compressor:
+        _LOGGER.debug("Profile supports secondary compressor, registering device")
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")},
@@ -184,10 +203,10 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
-        # Close Modbus connection
-        if coordinator.modbus_client.connected:
-            _LOGGER.debug("Closing Modbus connection")
-            coordinator.modbus_client.close()
+        # Close API connection
+        if coordinator.api_client.connected:
+            _LOGGER.debug("Closing API connection")
+            await coordinator.api_client.close()
 
         hass.data[DOMAIN].pop(entry.entry_id)
         _LOGGER.info("Hitachi Yutaki integration unloaded successfully")

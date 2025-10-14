@@ -31,13 +31,6 @@ DEVICE_CIRCUIT_2 = "circuit_2"
 DEVICE_DHW = "dhw"
 DEVICE_POOL = "pool"
 
-# Modbus registers (addresses)
-REGISTER_UNIT_MODEL = 1218
-REGISTER_CENTRAL_CONTROL_MODE = 1088
-REGISTER_SYSTEM_CONFIG = 1089
-REGISTER_SYSTEM_STATUS = 1222
-REGISTER_SYSTEM_STATE = 1094
-
 # Unit models
 UNIT_MODEL_YUTAKI_S = 0
 UNIT_MODEL_YUTAKI_S_COMBI = 1
@@ -69,80 +62,6 @@ MASK_BOILER = 0x0040
 MASK_DHW_HEATER = 0x0080
 MASK_SPACE_HEATER = 0x0100
 MASK_SMART_FUNCTION = 0x0200
-
-# Control registers (addresses)
-REGISTER_CONTROL = {
-    "unit_power": 1000,
-    "unit_mode": 1001,
-    "circuit1_power": 1002,
-    "circuit1_otc_calculation_method_heating": 1003,
-    "circuit1_otc_calculation_method_cooling": 1004,
-    "circuit1_max_flow_temp_heating_otc": 1005,
-    "circuit1_max_flow_temp_cooling_otc": 1006,
-    "circuit1_eco_mode": 1007,
-    "circuit1_heat_eco_offset": 1008,
-    "circuit1_cool_eco_offset": 1009,
-    "circuit1_thermostat": 1010,
-    "circuit1_target_temp": 1011,
-    "circuit1_current_temp": 1012,
-    "circuit2_power": 1013,
-    "circuit2_otc_calculation_method_heating": 1014,
-    "circuit2_otc_calculation_method_cooling": 1015,
-    "circuit2_max_flow_temp_heating_otc": 1016,
-    "circuit2_max_flow_temp_cooling_otc": 1017,
-    "circuit2_eco_mode": 1018,
-    "circuit2_heat_eco_offset": 1019,
-    "circuit2_cool_eco_offset": 1020,
-    "circuit2_thermostat": 1021,
-    "circuit2_target_temp": 1022,
-    "circuit2_current_temp": 1023,
-    "dhw_power": 1024,
-    "dhw_target_temp": 1025,
-    "dhw_boost": 1026,
-    "dhw_high_demand": 1027,
-    "pool_power": 1028,
-    "pool_target_temp": 1029,
-    "dhw_antilegionella": 1030,
-    "dhw_antilegionella_temp": 1031,
-}
-
-# Sensor registers (addresses)
-REGISTER_SENSOR = {
-    "operation_state": 1090,
-    "outdoor_temp": 1091,
-    "water_inlet_temp": 1092,
-    "water_outlet_temp": 1093,
-    "water_target_temp": 1219,
-    "water_flow": 1220,
-    "pump_speed": 1221,
-    "dhw_current_temp": 1080,
-    "pool_current_temp": 1083,
-    "compressor_tg_gas_temp": 1206,
-    "compressor_ti_liquid_temp": 1207,
-    "compressor_td_discharge_temp": 1208,
-    "compressor_te_evaporator_temp": 1209,
-    "compressor_evi_indoor_expansion_valve_opening": 1210,
-    "compressor_evo_outdoor_expansion_valve_opening": 1211,
-    "compressor_frequency": 1212,
-    "compressor_current": 1214,
-    "power_consumption": 1098,
-    "alarm_code": 1223,
-    "dhw_antilegionella_status": 1030,
-}
-
-# R134a specific registers (S80 only)
-REGISTER_R134A = {
-    "r134a_discharge_temp": 1224,
-    "r134a_suction_temp": 1225,
-    "r134a_discharge_pressure": 1226,
-    "r134a_suction_pressure": 1227,
-    "r134a_compressor_frequency": 1228,
-    "r134a_valve_opening": 1229,
-    "r134a_compressor_current": 1230,
-    "r134a_retry_code": 1231,
-    "r134a_hp_pressure": 1150,
-    "r134a_lp_pressure": 1151,
-}
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,

@@ -377,13 +377,15 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
-        key="alarm_code",
-        translation_key="alarm_code",
-        description="Alarm code",
-        device_class=None,
+        key="alarm",
+        translation_key="alarm",
+        description="Current alarm",
+        device_class=SensorDeviceClass.ENUM,
         state_class=None,
         register_key="alarm_code",
         entity_category=EntityCategory.DIAGNOSTIC,
+        icon="mdi:alert-circle-outline",
+        value_fn=lambda value, _: f"alarm_code_{value}",
     ),
     HitachiYutakiSensorEntityDescription(
         key="operation_state",
@@ -605,80 +607,80 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
     tuple[HitachiYutakiSensorEntityDescription, ...]
 ] = (
     HitachiYutakiSensorEntityDescription(
-        key="r134a_discharge_temp",
-        translation_key="r134a_discharge_temp",
-        description="Temperature of the R134a refrigerant at compressor discharge",
+        key="secondary_compressor_discharge_temp",
+        translation_key="secondary_compressor_discharge_temp",
+        description="Temperature of the secondary compressor refrigerant at discharge",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="r134a_discharge_temp",
+        register_key="secondary_compressor_discharge_temp",
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
-        key="r134a_suction_temp",
-        translation_key="r134a_suction_temp",
-        description="Temperature of the R134a refrigerant at compressor suction",
+        key="secondary_compressor_suction_temp",
+        translation_key="secondary_compressor_suction_temp",
+        description="Temperature of the secondary compressor refrigerant at suction",
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="r134a_suction_temp",
+        register_key="secondary_compressor_suction_temp",
         value_fn=lambda value, coordinator: coordinator.convert_temperature(value),
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
-        key="r134a_discharge_pressure",
-        translation_key="r134a_discharge_pressure",
-        description="Pressure of the R134a refrigerant at compressor discharge",
+        key="secondary_compressor_discharge_pressure",
+        translation_key="secondary_compressor_discharge_pressure",
+        description="Pressure of the secondary compressor refrigerant at discharge",
         device_class=SensorDeviceClass.PRESSURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPressure.BAR,
-        register_key="r134a_discharge_pressure",
+        register_key="secondary_compressor_discharge_pressure",
         value_fn=lambda value, coordinator: coordinator.convert_pressure(value),
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
-        key="r134a_suction_pressure",
-        translation_key="r134a_suction_pressure",
-        description="Pressure of the R134a refrigerant at compressor suction",
+        key="secondary_compressor_suction_pressure",
+        translation_key="secondary_compressor_suction_pressure",
+        description="Pressure of the secondary compressor refrigerant at suction",
         device_class=SensorDeviceClass.PRESSURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPressure.BAR,
-        register_key="r134a_suction_pressure",
+        register_key="secondary_compressor_suction_pressure",
         value_fn=lambda value, coordinator: coordinator.convert_pressure(value),
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
-        key="r134a_compressor_frequency",
-        translation_key="r134a_compressor_frequency",
-        description="Operating frequency of the R134a compressor",
+        key="secondary_compressor_frequency",
+        translation_key="secondary_compressor_frequency",
+        description="Operating frequency of the secondary compressor",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
-        register_key="r134a_compressor_frequency",
+        register_key="secondary_compressor_frequency",
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
-        key="r134a_compressor_current",
-        translation_key="r134a_compressor_current",
-        description="Electrical current drawn by the R134a compressor",
+        key="secondary_compressor_current",
+        translation_key="secondary_compressor_current",
+        description="Electrical current drawn by the secondary compressor",
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
-        register_key="r134a_compressor_current",
+        register_key="secondary_compressor_current",
         value_fn=lambda value, coordinator: coordinator.convert_current(value),
         condition=lambda c: c.is_s80_model(),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
-        key="r134a_cycle_time",
-        translation_key="r134a_cycle_time",
-        description="Average time between R134a compressor starts",
+        key="secondary_compressor_cycle_time",
+        translation_key="secondary_compressor_cycle_time",
+        description="Average time between secondary compressor starts",
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="min",
@@ -688,9 +690,9 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         condition=lambda c: c.is_s80_model(),
     ),
     HitachiYutakiSensorEntityDescription(
-        key="r134a_runtime",
-        translation_key="r134a_runtime",
-        description="Average R134a compressor runtime per cycle",
+        key="secondary_compressor_runtime",
+        translation_key="secondary_compressor_runtime",
+        description="Average secondary compressor runtime per cycle",
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="min",
@@ -700,9 +702,9 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         condition=lambda c: c.is_s80_model(),
     ),
     HitachiYutakiSensorEntityDescription(
-        key="r134a_resttime",
-        translation_key="r134a_resttime",
-        description="Average R134a compressor rest time between cycles",
+        key="secondary_compressor_resttime",
+        translation_key="secondary_compressor_resttime",
+        description="Average secondary compressor rest time between cycles",
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="min",
@@ -863,7 +865,7 @@ class HitachiYutakiSensor(
         super().__init__(coordinator)
         self.entity_description = description
         entry_id = coordinator.config_entry.entry_id
-        self._attr_unique_id = f"{entry_id}_{coordinator.slave}_{description.key}"
+        self._attr_unique_id = f"{entry_id}_{description.key}"
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
         self._timing_values = {}
@@ -891,9 +893,9 @@ class HitachiYutakiSensor(
             "compressor_cycle_time",
             "compressor_runtime",
             "compressor_resttime",
-            "r134a_cycle_time",
-            "r134a_runtime",
-            "r134a_resttime",
+            "secondary_compressor_cycle_time",
+            "secondary_compressor_runtime",
+            "secondary_compressor_resttime",
         ):
             self._compressor_history = CompressorHistory()
 
@@ -1221,14 +1223,14 @@ class HitachiYutakiSensor(
 
         # Add secondary compressor power for S80 models
         if self.coordinator.is_s80_model():
-            r134a_current = self.coordinator.data.get("r134a_compressor_current")
+            r134a_current = self.coordinator.data.get("secondary_compressor_current")
             if r134a_current is not None:
                 r134a_current = r134a_current / 10
                 additional_power = self._calculate_electrical_power(r134a_current)
                 if additional_power > 0:
                     electrical_power += additional_power
                     _LOGGER.debug(
-                        "Added R134a compressor power %.2f kW (total: %.2f kW)",
+                        "Added secondary compressor power %.2f kW (total: %.2f kW)",
                         additional_power,
                         electrical_power,
                     )
@@ -1254,11 +1256,13 @@ class HitachiYutakiSensor(
 
         return thermal_power, electrical_power
 
-    def _is_compressor_running(self, is_r134a: bool = False) -> bool:
+    def _is_compressor_running(self, is_secondary: bool = False) -> bool:
         """Check if a compressor is running based on its frequency."""
         if self.coordinator.data is None:
             return False
-        freq_key = "r134a_compressor_frequency" if is_r134a else "compressor_frequency"
+        freq_key = (
+            "secondary_compressor_frequency" if is_secondary else "compressor_frequency"
+        )
         frequency = self.coordinator.data.get(freq_key)
         return frequency is not None and frequency > 0
 
@@ -1340,12 +1344,12 @@ class HitachiYutakiSensor(
             "compressor_cycle_time",
             "compressor_runtime",
             "compressor_resttime",
-            "r134a_cycle_time",
-            "r134a_runtime",
-            "r134a_resttime",
+            "secondary_compressor_cycle_time",
+            "secondary_compressor_runtime",
+            "secondary_compressor_resttime",
         ):
             is_running = self._is_compressor_running(
-                "r134a" in self.entity_description.key
+                "secondary" in self.entity_description.key
             )
             self._compressor_history.add_state(is_running)
             self._timing_values = dict(
@@ -1463,20 +1467,23 @@ class HitachiYutakiSensor(
             "compressor_cycle_time",
             "compressor_runtime",
             "compressor_resttime",
-            "r134a_cycle_time",
-            "r134a_runtime",
-            "r134a_resttime",
+            "secondary_compressor_cycle_time",
+            "secondary_compressor_runtime",
+            "secondary_compressor_resttime",
         ):
             if self.entity_description.key in (
                 "compressor_cycle_time",
-                "r134a_cycle_time",
+                "secondary_compressor_cycle_time",
             ):
                 return self._timing_values.get("cycle_time")
-            elif self.entity_description.key in ("compressor_runtime", "r134a_runtime"):
+            elif self.entity_description.key in (
+                "compressor_runtime",
+                "secondary_compressor_runtime",
+            ):
                 return self._timing_values.get("run_time")
             elif self.entity_description.key in (
                 "compressor_resttime",
-                "r134a_resttime",
+                "secondary_compressor_resttime",
             ):
                 return self._timing_values.get("rest_time")
 
@@ -1523,16 +1530,13 @@ class HitachiYutakiSensor(
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes of the sensor."""
-        if self.entity_description.key == "alarm_code":
+        if self.entity_description.key == "alarm":
             if self.coordinator.data is None:
                 return None
             value = self.coordinator.data.get(self.entity_description.register_key)
-            if value is not None:
-                alarm_code = str(value)
-                return {
-                    "code": alarm_code,
-                    "description": f"alarm_code_{alarm_code}",
-                }
+            if value is not None and value != 0:
+                return {"code": value}
+            return None
         elif self.entity_description.key in (
             "cop_heating",
             "cop_cooling",

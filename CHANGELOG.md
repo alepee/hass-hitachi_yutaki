@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Implemented a new hexagonal architecture (Ports and Adapters) to decouple core logic from communication protocols. This introduces a clear **dependency injection** pattern, making the integration modular and easier to extend with new gateways (e.g., HTTP-based) in the future.
+- Introduced a smart profile auto-detection mechanism. Each heat pump profile now contains its own **decentralized detection logic**, allowing for more complex and robust model identification without altering the core configuration flow.
+
+### Changed
+- Major refactoring of the entire integration to align with the new hexagonal architecture.
+- Reorganized Modbus register maps by logical device (e.g., `gateway`, `control_unit`, `dhw`) for improved clarity and maintainability.
+- Renamed all `r134a_` entity identifiers to `secondary_compressor_` for better readability.
+- Improved the alarm sensor to display the alarm description as its state, moving the numeric code to an attribute for better user experience.
+
+### Removed
+- Removed the redundant `target_temp` and `current_temp` number entities for climate circuits, as this functionality is now handled by the climate entity.
+
+### Fixed
+- Resolved several circular import issues that occurred during the architectural refactoring.
+- Fixed a bug that prevented entities from being created by ensuring the data coordinator is fully refreshed before setting up entity platforms.
+- Corrected an `AttributeError` by removing an invalid `coordinator.slave` reference from the unique ID generation for all entities.
+
 ## [1.9.3] - 2025-10-06
 
 ### Fixed
