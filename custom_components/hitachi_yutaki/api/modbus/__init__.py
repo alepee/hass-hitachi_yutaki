@@ -1,6 +1,7 @@
 """Modbus client for Hitachi heat pumps."""
 
 import logging
+from typing import Any
 
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
@@ -13,6 +14,12 @@ from ..base import HitachiApiClient
 from .registers import HitachiRegisterMap, atw_mbs_02
 from .registers.atw_mbs_02 import (
     ALL_REGISTERS,
+    MASK_CIRCUIT1_COOLING,
+    MASK_CIRCUIT1_HEATING,
+    MASK_CIRCUIT2_COOLING,
+    MASK_CIRCUIT2_HEATING,
+    MASK_DHW,
+    MASK_POOL,
     SYSTEM_STATE_ISSUES,
     WRITABLE_KEYS,
 )
@@ -100,6 +107,54 @@ class ModbusApiClient(HitachiApiClient):
             _LOGGER.error("Error writing to register %s: %s", key, result)
             return False
         return True
+
+    @property
+    def has_dhw(self) -> bool:
+        """Return True if DHW is configured."""
+        system_config = self._data.get("system_config", 0)
+        return bool(system_config & MASK_DHW)
+
+    @property
+    def has_circuit1_heating(self) -> bool:
+        """Return True if heating for circuit 1 is configured."""
+        system_config = self._data.get("system_config", 0)
+        return bool(system_config & MASK_CIRCUIT1_HEATING)
+
+    @property
+    def has_circuit1_cooling(self) -> bool:
+        """Return True if cooling for circuit 1 is configured."""
+        system_config = self._data.get("system_config", 0)
+        return bool(system_config & MASK_CIRCUIT1_COOLING)
+
+    @property
+    def has_circuit2_heating(self) -> bool:
+        """Return True if heating for circuit 2 is configured."""
+        system_config = self._data.get("system_config", 0)
+        return bool(system_config & MASK_CIRCUIT2_HEATING)
+
+    @property
+    def has_circuit2_cooling(self) -> bool:
+        """Return True if cooling for circuit 2 is configured."""
+        system_config = self._data.get("system_config", 0)
+        return bool(system_config & MASK_CIRCUIT2_COOLING)
+
+    @property
+    def has_pool(self) -> bool:
+        """Return True if pool heating is configured."""
+        system_config = self._data.get("system_config", 0)
+        return bool(system_config & MASK_POOL)
+
+    def decode_config(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Decode raw config data into a dictionary of boolean flags."""
+        system_config = data.get("system_config", 0)
+        decoded = data.copy()
+        decoded["has_dhw"] = bool(system_config & MASK_DHW)
+        decoded["has_circuit1_heating"] = bool(system_config & MASK_CIRCUIT1_HEATING)
+        decoded["has_circuit1_cooling"] = bool(system_config & MASK_CIRCUIT1_COOLING)
+        decoded["has_circuit2_heating"] = bool(system_config & MASK_CIRCUIT2_HEATING)
+        decoded["has_circuit2_cooling"] = bool(system_config & MASK_CIRCUIT2_COOLING)
+        decoded["has_pool"] = bool(system_config & MASK_POOL)
+        return decoded
 
     async def read_values(self, keys: list[str]) -> None:
         """Fetch data from the heat pump for the given keys."""

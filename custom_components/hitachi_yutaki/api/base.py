@@ -45,3 +45,37 @@ class HitachiApiClient(ABC):
     @abstractmethod
     async def read_values(self, keys_to_read: list[str]) -> None:
         """Fetch data from the heat pump for the given keys."""
+
+    @property
+    @abstractmethod
+    def has_dhw(self) -> bool:
+        """Return True if DHW is configured."""
+
+    @property
+    @abstractmethod
+    def has_circuit1_heating(self) -> bool:
+        """Return True if heating for circuit 1 is configured."""
+
+    @property
+    @abstractmethod
+    def has_circuit1_cooling(self) -> bool:
+        """Return True if cooling for circuit 1 is configured."""
+
+    @property
+    @abstractmethod
+    def has_circuit2_heating(self) -> bool:
+        """Return True if heating for circuit 2 is configured."""
+
+    @property
+    @abstractmethod
+    def has_circuit2_cooling(self) -> bool:
+        """Return True if cooling for circuit 2 is configured."""
+
+    @property
+    @abstractmethod
+    def has_pool(self) -> bool:
+        """Return True if pool heating is configured."""
+
+    @abstractmethod
+    def decode_config(self, data: dict[str, Any]) -> dict[str, Any]:
+        """Decode raw config data into a dictionary of boolean flags."""

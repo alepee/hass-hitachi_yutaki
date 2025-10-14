@@ -147,7 +147,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         entity_category=EntityCategory.DIAGNOSTIC,
         register_key="system_status",
         mask=MASK_BOILER,
-        condition=lambda c: c.is_s80_model() is False,
+        condition=lambda c: not c.profile.supports_secondary_compressor,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="dhw_heater",
@@ -210,7 +210,7 @@ SECONDARY_COMPRESSOR_BINARY_SENSORS: Final[
         icon="mdi:engine",
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda value, coordinator: value is not None and value > 0,
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
     ),
 )
 

@@ -1,5 +1,7 @@
 """Profile for the Hitachi Yutaki S80 heat pump."""
 
+from __future__ import annotations
+
 from typing import Any
 
 from ..const import UNIT_MODEL_S80
@@ -18,17 +20,6 @@ class YutakiS80Profile(HitachiHeatPumpProfile):
     def supports_secondary_compressor(self) -> bool:
         """Return True if the heat pump has a secondary compressor."""
         return True
-
-    @property
-    def entity_overrides(self) -> dict:
-        """Return entity overrides for the profile."""
-        return {
-            "water_heater": {
-                "temperature_entity_key": "dhw_temp_s80",
-                "min_temp": 30,
-                "max_temp": 75,
-            }
-        }
 
     @property
     def extra_register_keys(self) -> list[str]:

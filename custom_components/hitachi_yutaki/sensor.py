@@ -34,8 +34,10 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import (
+    CONF_POWER_SUPPLY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
+    DEFAULT_POWER_SUPPLY,
     DEVICE_CONTROL_UNIT,
     DEVICE_DHW,
     DEVICE_GATEWAY,
@@ -411,7 +413,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="secondary_compressor_discharge_temp",
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -422,7 +424,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
         register_key="secondary_compressor_suction_temp",
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -433,7 +435,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPressure.BAR,
         register_key="secondary_compressor_discharge_pressure",
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -444,7 +446,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPressure.BAR,
         register_key="secondary_compressor_suction_pressure",
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -455,7 +457,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
         register_key="secondary_compressor_frequency",
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -466,7 +468,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
         register_key="secondary_compressor_current",
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -479,7 +481,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-outline",
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
     ),
     HitachiYutakiSensorEntityDescription(
         key="secondary_compressor_runtime",
@@ -491,7 +493,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-play-outline",
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
     ),
     HitachiYutakiSensorEntityDescription(
         key="secondary_compressor_resttime",
@@ -503,7 +505,7 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-stop-outline",
-        condition=lambda c: c.is_s80_model(),
+        condition=lambda c: c.profile.supports_secondary_compressor,
     ),
 )
 
@@ -670,7 +672,9 @@ class HitachiYutakiSensor(
             self._electrical_power_service = ElectricalPowerService(
                 hass=coordinator.hass,
                 config_entry=coordinator.config_entry,
-                power_supply=coordinator.power_supply,
+                power_supply=coordinator.config_entry.data.get(
+                    CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY
+                ),
             )
             self._last_measurement = 0
 
@@ -763,6 +767,18 @@ class HitachiYutakiSensor(
             electrical_power = self._electrical_power_service.calculate(
                 compressor_current
             )
+
+            # Add secondary compressor power if supported
+            if self.coordinator.profile.supports_secondary_compressor:
+                secondary_current = self.coordinator.data.get(
+                    "secondary_compressor_current"
+                )
+                if secondary_current is not None and secondary_current > 0:
+                    additional_power = self._electrical_power_service.calculate(
+                        secondary_current
+                    )
+                    if additional_power > 0:
+                        electrical_power += additional_power
 
             if thermal_power > 0 and electrical_power > 0:
                 self._energy_accumulator.add_measurement(

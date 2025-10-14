@@ -19,15 +19,7 @@ from homeassistant.helpers.update_coordinator import (
 
 from .api import HitachiApiClient
 from .const import (
-    CONF_POWER_SUPPLY,
-    DEFAULT_POWER_SUPPLY,
     DOMAIN,
-    MASK_CIRCUIT1_COOLING,
-    MASK_CIRCUIT1_HEATING,
-    MASK_CIRCUIT2_COOLING,
-    MASK_CIRCUIT2_HEATING,
-    MASK_DHW,
-    MASK_POOL,
 )
 from .profiles import HitachiHeatPumpProfile
 
@@ -35,7 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 
 
 class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
-    """Class to manage fetching data from Hitachi Yutaki heat pump."""
+    """Class to manage fetching Hitachi heat pump data from the API."""
 
     def __init__(
         self,
@@ -47,11 +39,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         """Initialize."""
         self.api_client = api_client
         self.profile = profile
-        self.system_config = 0
-        self.dev_mode = entry.data.get("dev_mode", False)
-        self.power_supply = entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY)
-        self.entities = []
-        self.config_entry = entry
+        self.entities: list[Any] = []
 
         super().__init__(
             hass,
@@ -105,63 +93,31 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
             raise UpdateFailed("Failed to communicate with device") from exc
 
-    async def async_write_register(self, register_key: str, value: int) -> None:
+    async def async_write_register(self, key: str, value: int) -> None:
         """Write a value to a register."""
-        try:
-            await self.api_client.write_value(register_key, value)
-            await self.async_request_refresh()
-        except Exception as error:
-            _LOGGER.error("Error writing to register %s: %s", register_key, error)
-            raise UpdateFailed(f"Error writing to register {register_key}") from error
-
-    def is_s80_model(self) -> bool:
-        """Check if the unit is an S80 model."""
-        return self.profile and self.profile.__class__.__name__ == "YutakiS80Profile"
-
-    def has_heating_circuit1(self) -> bool:
-        """Check if heating circuit 1 is configured."""
-        return (
-            self.profile
-            and self.profile.supports_circuit1
-            and (self.dev_mode or bool(self.system_config & MASK_CIRCUIT1_HEATING))
-        )
-
-    def has_heating_circuit2(self) -> bool:
-        """Check if heating circuit 2 is configured."""
-        return (
-            self.profile
-            and self.profile.supports_circuit2
-            and (self.dev_mode or bool(self.system_config & MASK_CIRCUIT2_HEATING))
-        )
-
-    def has_cooling_circuit1(self) -> bool:
-        """Check if cooling circuit 1 is configured."""
-        return (
-            self.profile
-            and self.profile.supports_circuit1
-            and (self.dev_mode or bool(self.system_config & MASK_CIRCUIT1_COOLING))
-        )
-
-    def has_cooling_circuit2(self) -> bool:
-        """Check if cooling circuit 2 is configured."""
-        return (
-            self.profile
-            and self.profile.supports_circuit2
-            and (self.dev_mode or bool(self.system_config & MASK_CIRCUIT2_COOLING))
-        )
+        await self.api_client.write_value(key, value)
+        await self.async_request_refresh()
 
     def has_dhw(self) -> bool:
-        """Check if DHW is configured."""
-        return (
-            self.profile
-            and self.profile.supports_dhw
-            and (self.dev_mode or bool(self.system_config & MASK_DHW))
-        )
+        """Return True if DHW is configured."""
+        return self.api_client.has_dhw
+
+    def has_heating_circuit1(self) -> bool:
+        """Return True if heating for circuit 1 is configured."""
+        return self.api_client.has_circuit1_heating
+
+    def has_cooling_circuit1(self) -> bool:
+        """Return True if cooling for circuit 1 is configured."""
+        return self.api_client.has_circuit1_cooling
+
+    def has_heating_circuit2(self) -> bool:
+        """Return True if heating for circuit 2 is configured."""
+        return self.api_client.has_circuit2_heating
+
+    def has_cooling_circuit2(self) -> bool:
+        """Return True if cooling for circuit 2 is configured."""
+        return self.api_client.has_circuit2_cooling
 
     def has_pool(self) -> bool:
-        """Check if pool is configured."""
-        return (
-            self.profile
-            and self.profile.supports_pool
-            and (self.dev_mode or bool(self.system_config & MASK_POOL))
-        )
+        """Return True if pool heating is configured."""
+        return self.api_client.has_pool

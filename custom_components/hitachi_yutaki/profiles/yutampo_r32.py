@@ -2,7 +2,9 @@
 
 from typing import Any
 
-from ..const import MASK_CIRCUIT1_HEATING, UNIT_MODEL_YUTAKI_S_COMBI
+from ..const import (
+    UNIT_MODEL_YUTAKI_S_COMBI,
+)
 from .base import HitachiHeatPumpProfile
 
 
@@ -12,8 +14,11 @@ class YutampoR32Profile(HitachiHeatPumpProfile):
     @staticmethod
     def detect(data: dict[str, Any]) -> bool:
         """Return True if the profile is detected."""
-        return data.get("unit_model") == UNIT_MODEL_YUTAKI_S_COMBI and not (
-            data.get("system_config", 0) & MASK_CIRCUIT1_HEATING
+        return (
+            data.get("unit_model") == UNIT_MODEL_YUTAKI_S_COMBI
+            and data.get("has_dhw")
+            and not data.get("has_circuit1_heating")
+            and not data.get("has_circuit2_heating")
         )
 
     @property
