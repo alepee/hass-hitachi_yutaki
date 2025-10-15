@@ -129,3 +129,189 @@ class HitachiApiClient(ABC):
     @abstractmethod
     def is_smart_function_active(self) -> bool:
         """Return True if smart grid function is active."""
+
+    # Unit control - Getters
+    @abstractmethod
+    def get_unit_power(self) -> bool | None:
+        """Get the main unit power state."""
+
+    @abstractmethod
+    def get_unit_mode(self):
+        """Get the current unit mode (returns HVACMode: COOL/HEAT/AUTO)."""
+
+    # Unit control - Setters
+    @abstractmethod
+    async def set_unit_power(self, enabled: bool) -> bool:
+        """Enable/disable the main heat pump unit."""
+
+    @abstractmethod
+    async def set_unit_mode(self, mode) -> bool:
+        """Set the unit operation mode (HVACMode: COOL/HEAT/AUTO)."""
+
+    # Circuit control - Getters
+    @abstractmethod
+    def get_circuit_power(self, circuit_id: int) -> bool | None:
+        """Get circuit power state."""
+
+    @abstractmethod
+    def get_circuit_current_temperature(self, circuit_id: int) -> float | None:
+        """Get current temperature for a circuit (in °C)."""
+
+    @abstractmethod
+    def get_circuit_target_temperature(self, circuit_id: int) -> float | None:
+        """Get target temperature for a circuit (in °C)."""
+
+    @abstractmethod
+    def get_circuit_eco_mode(self, circuit_id: int) -> bool | None:
+        """Get ECO mode state for a circuit (True=ECO, False=COMFORT)."""
+
+    @abstractmethod
+    def get_circuit_thermostat(self, circuit_id: int) -> bool | None:
+        """Get Modbus thermostat state for a circuit."""
+
+    @abstractmethod
+    def get_circuit_otc_method_heating(self, circuit_id: int) -> int | None:
+        """Get OTC calculation method for heating."""
+
+    @abstractmethod
+    def get_circuit_otc_method_cooling(self, circuit_id: int) -> int | None:
+        """Get OTC calculation method for cooling."""
+
+    @abstractmethod
+    def get_circuit_max_flow_temp_heating(self, circuit_id: int) -> float | None:
+        """Get maximum heating water temperature for OTC (in °C)."""
+
+    @abstractmethod
+    def get_circuit_max_flow_temp_cooling(self, circuit_id: int) -> float | None:
+        """Get maximum cooling water temperature for OTC (in °C)."""
+
+    @abstractmethod
+    def get_circuit_heat_eco_offset(self, circuit_id: int) -> int | None:
+        """Get temperature offset for ECO heating mode (in °C)."""
+
+    @abstractmethod
+    def get_circuit_cool_eco_offset(self, circuit_id: int) -> int | None:
+        """Get temperature offset for ECO cooling mode (in °C)."""
+
+    # Circuit control - Setters
+    @abstractmethod
+    async def set_circuit_power(self, circuit_id: int, enabled: bool) -> bool:
+        """Enable/disable a heating/cooling circuit."""
+
+    @abstractmethod
+    async def set_circuit_target_temperature(
+        self, circuit_id: int, temperature: float
+    ) -> bool:
+        """Set target temperature for a circuit (in °C)."""
+
+    @abstractmethod
+    async def set_circuit_eco_mode(self, circuit_id: int, enabled: bool) -> bool:
+        """Enable/disable ECO mode for a circuit."""
+
+    @abstractmethod
+    async def set_circuit_thermostat(self, circuit_id: int, enabled: bool) -> bool:
+        """Enable/disable Modbus thermostat for a circuit."""
+
+    @abstractmethod
+    async def set_circuit_otc_method_heating(
+        self, circuit_id: int, method: int
+    ) -> bool:
+        """Set OTC calculation method for heating (0=disabled, 1=points, 2=gradient, 3=fix)."""
+
+    @abstractmethod
+    async def set_circuit_otc_method_cooling(
+        self, circuit_id: int, method: int
+    ) -> bool:
+        """Set OTC calculation method for cooling (0=disabled, 1=points, 2=fix)."""
+
+    @abstractmethod
+    async def set_circuit_max_flow_temp_heating(
+        self, circuit_id: int, temperature: float
+    ) -> bool:
+        """Set maximum heating water temperature for OTC (in °C)."""
+
+    @abstractmethod
+    async def set_circuit_max_flow_temp_cooling(
+        self, circuit_id: int, temperature: float
+    ) -> bool:
+        """Set maximum cooling water temperature for OTC (in °C)."""
+
+    @abstractmethod
+    async def set_circuit_heat_eco_offset(self, circuit_id: int, offset: int) -> bool:
+        """Set temperature offset for ECO heating mode (in °C)."""
+
+    @abstractmethod
+    async def set_circuit_cool_eco_offset(self, circuit_id: int, offset: int) -> bool:
+        """Set temperature offset for ECO cooling mode (in °C)."""
+
+    # DHW control - Getters
+    @abstractmethod
+    def get_dhw_power(self) -> bool | None:
+        """Get DHW power state."""
+
+    @abstractmethod
+    def get_dhw_current_temperature(self) -> float | None:
+        """Get current DHW temperature (in °C)."""
+
+    @abstractmethod
+    def get_dhw_target_temperature(self) -> float | None:
+        """Get DHW target temperature (in °C)."""
+
+    @abstractmethod
+    def get_dhw_high_demand(self) -> bool | None:
+        """Get DHW high demand mode state."""
+
+    @abstractmethod
+    def get_dhw_boost(self) -> bool | None:
+        """Get DHW boost mode state."""
+
+    @abstractmethod
+    def get_dhw_antilegionella_temperature(self) -> float | None:
+        """Get anti-legionella target temperature (in °C)."""
+
+    # DHW control - Setters
+    @abstractmethod
+    async def set_dhw_power(self, enabled: bool) -> bool:
+        """Enable/disable domestic hot water production."""
+
+    @abstractmethod
+    async def set_dhw_target_temperature(self, temperature: float) -> bool:
+        """Set DHW target temperature (in °C)."""
+
+    @abstractmethod
+    async def set_dhw_high_demand(self, enabled: bool) -> bool:
+        """Enable/disable DHW high demand mode."""
+
+    @abstractmethod
+    async def set_dhw_boost(self, enabled: bool) -> bool:
+        """Enable/disable DHW boost mode."""
+
+    @abstractmethod
+    async def start_dhw_antilegionella(self) -> bool:
+        """Start anti-legionella treatment cycle."""
+
+    @abstractmethod
+    async def set_dhw_antilegionella_temperature(self, temperature: float) -> bool:
+        """Set anti-legionella target temperature (in °C)."""
+
+    # Pool control - Getters
+    @abstractmethod
+    def get_pool_power(self) -> bool | None:
+        """Get pool heating power state."""
+
+    @abstractmethod
+    def get_pool_current_temperature(self) -> float | None:
+        """Get current pool temperature (in °C)."""
+
+    @abstractmethod
+    def get_pool_target_temperature(self) -> float | None:
+        """Get pool target temperature (in °C)."""
+
+    # Pool control - Setters
+    @abstractmethod
+    async def set_pool_power(self, enabled: bool) -> bool:
+        """Enable/disable pool heating."""
+
+    @abstractmethod
+    async def set_pool_target_temperature(self, temperature: float) -> bool:
+        """Set pool target temperature (in °C)."""

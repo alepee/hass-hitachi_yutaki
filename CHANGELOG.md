@@ -13,10 +13,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added abstract storage interface to prepare for future persistent storage solutions, making data persistence implementation-agnostic.
 
 ### Changed
-- Major refactoring of the entire integration to align with the new hexagonal architecture.
-- Refactored complex business logic (COP, thermal power, compressor timing, and electrical power) into a dedicated, testable service layer. This new service-oriented architecture uses Dependency Injection to manage dependencies like storage, improving modularity and preparing for future enhancements like data persistence.
-- Centralized all data deserialization logic into the Modbus API layer, moving temperature, pressure, flow, and current conversions from entities and coordinator to register definitions with dedicated deserializer functions.
-- Fully decoupled domain entities from gateway implementation details by exposing system status (defrost, compressor running, pumps, heaters, etc.) through abstract properties in the API interface rather than raw Modbus masks.
+- **Major architectural refactoring** to align with hexagonal architecture principles:
+  - Implemented complete abstraction layer between domain entities and Modbus gateway through a comprehensive business-level API
+  - Removed all direct access to `coordinator.data` and `coordinator.async_write_register()` from entities
+  - All entities now interact exclusively through the `HitachiApiClient` interface with typed methods (e.g., `get_circuit_current_temperature()`, `set_dhw_target_temperature()`)
+  - Added dedicated getter/setter methods for all controllable parameters: unit control (power, mode), circuit control (power, temperatures, eco mode, thermostat, OTC), DHW control (power, temperatures, boost, anti-legionella), and pool control (power, temperatures)
+  - Temperature methods work directly with `float` values in °C, boolean settings use natural `bool` types, and inverted logic is encapsulated internally (e.g., eco_mode register 0/1 → API exposes `True`/`False`)
+  - Refactored all entity files (`climate.py`, `water_heater.py`, `switch.py`, `number.py`, `select.py`, `button.py`) to use the new API methods
+- **Data conversion improvements**:
+  - Centralized all data deserialization logic into register definitions with dedicated deserializer functions
+  - Refactored conversion functions to use pattern-based naming: consolidated duplicate functions into `convert_from_tenths()` (generic /10 pattern), renamed `convert_temperature()` to `convert_signed_16bit()` (2's complement pattern), kept `convert_pressure()` for domain-specific MPa→bar conversion
+  - Added comprehensive documentation explaining the four conversion patterns (from tenths, signed 16-bit, pressure, and direct values)
+- Refactored complex business logic (COP, thermal power, compressor timing, electrical power) into a dedicated service layer using Dependency Injection.
+- Fully decoupled domain entities from gateway implementation details by exposing system status (defrost, compressor running, pumps, heaters) through abstract properties.
 - Reorganized Modbus register maps by logical device (e.g., `gateway`, `control_unit`, `primary_compressor`, `secondary_compressor`, `circuit_1`, `circuit_2`, `dhw`, `pool`) for improved clarity and maintainability.
 - Moved all Modbus-specific constants (register addresses, bit masks for configuration and status) from shared `const.py` into the Modbus gateway layer (`api/modbus/registers/atw_mbs_02.py`).
 - Renamed all `r134a_` entity identifiers to `secondary_compressor_` for better readability and consistency.
@@ -27,9 +36,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed the redundant `target_temp` and `current_temp` number entities for climate circuits, as this functionality is now handled by the climate entity.
 
 ### Fixed
-- Resolved several circular import issues that occurred during the architectural refactoring.
-- Fixed a bug that prevented entities from being created by ensuring the data coordinator is fully refreshed before setting up entity platforms.
-- Corrected an `AttributeError` by removing an invalid `coordinator.slave` reference from the unique ID generation for all entities.
+- Resolved circular import issues and entity creation bugs during architectural refactoring.
+- Corrected temperature deserialization by properly differentiating between values stored in tenths (`*3` in ATW-MBS-02 doc) and signed 16-bit integers (`*1`). All setpoints and configuration temperatures now correctly converted from tenths.
+- Fixed sensor readings: secondary compressor current (was off by factor of 10, now correctly in tenths of amperes) and pressure sensors (now correctly converting hundredths of MPa to bar: 510 raw = 5.10 MPa = 51.0 bar).
+- Fixed unit power switch displaying "Unknown" due to inconsistent condition check between getter and setter methods.
 
 ## [1.9.3] - 2025-10-06
 

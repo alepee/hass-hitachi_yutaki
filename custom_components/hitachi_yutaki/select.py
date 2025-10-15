@@ -199,14 +199,39 @@ class HitachiYutakiSelect(
     @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
-        if (
-            not self.coordinator.data
-            or not self.entity_description.value_map
-            or not self._register_key
-        ):
+        if not self.coordinator.data or not self.entity_description.value_map:
             return None
 
-        value = self.coordinator.data.get(self._register_key)
+        # Map entity key to corresponding API getter
+        value = None
+        if self.entity_description.key in [
+            "operation_mode_heat",
+            "operation_mode_full",
+        ]:
+            hvac_mode = self.coordinator.api_client.get_unit_mode()
+            if hvac_mode is None:
+                return None
+            # Map HVACMode to our value_map
+            from homeassistant.components.climate import HVACMode
+
+            mode_values = {
+                HVACMode.COOL: 0,
+                HVACMode.HEAT: 1,
+                HVACMode.AUTO: 2,
+            }
+            value = mode_values.get(hvac_mode)
+        elif self.register_prefix and self.register_prefix.startswith("circuit"):
+            circuit_id = int(self.register_prefix.replace("circuit", ""))
+
+            if self.entity_description.key == "otc_calculation_method_heating":
+                value = self.coordinator.api_client.get_circuit_otc_method_heating(
+                    circuit_id
+                )
+            elif self.entity_description.key == "otc_calculation_method_cooling":
+                value = self.coordinator.api_client.get_circuit_otc_method_cooling(
+                    circuit_id
+                )
+
         if value is None:
             return None
 
@@ -223,11 +248,38 @@ class HitachiYutakiSelect(
         """Change the selected option."""
         if (
             not self.entity_description.value_map
-            or not self._register_key
             or option not in self.entity_description.value_map
         ):
             return
 
-        await self.coordinator.async_write_register(
-            self._register_key, self.entity_description.value_map[option]
-        )
+        value = self.entity_description.value_map[option]
+
+        # Map entity key to corresponding API setter
+        if self.entity_description.key in [
+            "operation_mode_heat",
+            "operation_mode_full",
+        ]:
+            # Map value to HVACMode
+            from homeassistant.components.climate import HVACMode
+
+            mode_map = {
+                0: HVACMode.COOL,
+                1: HVACMode.HEAT,
+                2: HVACMode.AUTO,
+            }
+            hvac_mode = mode_map.get(value)
+            if hvac_mode:
+                await self.coordinator.api_client.set_unit_mode(hvac_mode)
+        elif self.register_prefix and self.register_prefix.startswith("circuit"):
+            circuit_id = int(self.register_prefix.replace("circuit", ""))
+
+            if self.entity_description.key == "otc_calculation_method_heating":
+                await self.coordinator.api_client.set_circuit_otc_method_heating(
+                    circuit_id, value
+                )
+            elif self.entity_description.key == "otc_calculation_method_cooling":
+                await self.coordinator.api_client.set_circuit_otc_method_cooling(
+                    circuit_id, value
+                )
+
+        await self.coordinator.async_request_refresh()

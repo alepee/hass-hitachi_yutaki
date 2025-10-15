@@ -155,11 +155,9 @@ class HitachiYutakiClimate(
         if self.coordinator.data is None:
             return None
 
-        temp = self.coordinator.data.get(f"{self._register_prefix}_current_temp")
-        if temp is None:
-            return None
-
-        return float(temp) / 10
+        return self.coordinator.api_client.get_circuit_current_temperature(
+            self._circuit_id
+        )
 
     @property
     def target_temperature(self) -> float | None:
@@ -167,11 +165,9 @@ class HitachiYutakiClimate(
         if self.coordinator.data is None:
             return None
 
-        temp = self.coordinator.data.get(f"{self._register_prefix}_target_temp")
-        if temp is None:
-            return None
-
-        return float(temp) / 10
+        return self.coordinator.api_client.get_circuit_target_temperature(
+            self._circuit_id
+        )
 
     @property
     def hvac_mode(self) -> HVACMode | None:
@@ -179,19 +175,11 @@ class HitachiYutakiClimate(
         if self.coordinator.data is None:
             return None
 
-        power = self.coordinator.data.get(f"{self._register_prefix}_power")
-        if power == 0:
+        power = self.coordinator.api_client.get_circuit_power(self._circuit_id)
+        if not power:
             return HVACMode.OFF
 
-        unit_mode = self.coordinator.data.get("unit_mode")
-        if unit_mode is None:
-            return None
-
-        return {
-            0: HVACMode.COOL,
-            1: HVACMode.HEAT,
-            2: HVACMode.AUTO,
-        }.get(unit_mode)
+        return self.coordinator.api_client.get_unit_mode()
 
     @property
     def hvac_action(self) -> HVACAction | None:
@@ -210,10 +198,10 @@ class HitachiYutakiClimate(
         if not self.coordinator.api_client.is_compressor_running:
             return HVACAction.IDLE
 
-        unit_mode = self.coordinator.data.get("unit_mode")
-        if unit_mode == 0:
+        hvac_mode = self.coordinator.api_client.get_unit_mode()
+        if hvac_mode == HVACMode.COOL:
             return HVACAction.COOLING
-        elif unit_mode == 1:
+        elif hvac_mode == HVACMode.HEAT:
             return HVACAction.HEATING
 
         return None
@@ -224,51 +212,45 @@ class HitachiYutakiClimate(
         if self.coordinator.data is None:
             return None
 
-        eco_mode = self.coordinator.data.get(f"{self._register_prefix}_eco_mode")
-        if eco_mode is None:
+        is_eco = self.coordinator.api_client.get_circuit_eco_mode(self._circuit_id)
+        if is_eco is None:
             return None
 
-        return PRESET_ECO if eco_mode == 0 else PRESET_COMFORT
+        return PRESET_ECO if is_eco else PRESET_COMFORT
 
     async def async_set_temperature(self, **kwargs) -> None:
         """Set new target temperature."""
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
 
-        await self.coordinator.async_write_register(
-            f"{self._register_prefix}_target_temp", int(temperature * 10)
+        await self.coordinator.api_client.set_circuit_target_temperature(
+            self._circuit_id, temperature
         )
+        await self.coordinator.async_request_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.OFF:
-            await self.coordinator.async_write_register(
-                f"{self._register_prefix}_power", 0
-            )
+            await self.coordinator.api_client.set_circuit_power(self._circuit_id, False)
+            await self.coordinator.async_request_refresh()
             return
 
         # Ensure circuit is powered on
-        await self.coordinator.async_write_register(f"{self._register_prefix}_power", 1)
+        await self.coordinator.api_client.set_circuit_power(self._circuit_id, True)
 
         # Set unit mode
-        mode_map = {
-            HVACMode.COOL: 0,
-            HVACMode.HEAT: 1,
-            HVACMode.AUTO: 2,
-        }
-        if hvac_mode in mode_map:
-            await self.coordinator.async_write_register(
-                "unit_mode", mode_map[hvac_mode]
-            )
+        await self.coordinator.api_client.set_unit_mode(hvac_mode)
+        await self.coordinator.async_request_refresh()
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
         if preset_mode not in self.preset_modes:
             return
 
-        await self.coordinator.async_write_register(
-            f"{self._register_prefix}_eco_mode", 0 if preset_mode == PRESET_ECO else 1
+        await self.coordinator.api_client.set_circuit_eco_mode(
+            self._circuit_id, preset_mode == PRESET_ECO
         )
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
         """Turn the entity on."""

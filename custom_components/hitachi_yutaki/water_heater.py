@@ -137,11 +137,7 @@ class HitachiYutakiWaterHeater(
         if self.coordinator.data is None:
             return None
 
-        temp = self.coordinator.data.get("dhw_current_temp")
-        if temp is None:
-            return None
-
-        return float(temp)
+        return self.coordinator.api_client.get_dhw_current_temperature()
 
     @property
     def target_temperature(self) -> float | None:
@@ -149,11 +145,7 @@ class HitachiYutakiWaterHeater(
         if self.coordinator.data is None:
             return None
 
-        temp = self.coordinator.data.get(self._temperature_entity_key)
-        if temp is None:
-            return None
-
-        return float(temp)
+        return self.coordinator.api_client.get_dhw_target_temperature()
 
     @property
     def current_operation(self) -> str | None:
@@ -161,12 +153,12 @@ class HitachiYutakiWaterHeater(
         if self.coordinator.data is None:
             return None
 
-        power = self.coordinator.data.get("dhw_power")
-        if power == 0:
+        power = self.coordinator.api_client.get_dhw_power()
+        if not power:
             return PRESET_DHW_OFF
 
-        high_demand = self.coordinator.data.get("dhw_high_demand")
-        if high_demand == 1:
+        high_demand = self.coordinator.api_client.get_dhw_high_demand()
+        if high_demand:
             return PRESET_DHW_HIGH_DEMAND
 
         return PRESET_DHW_HEAT_PUMP
@@ -187,40 +179,44 @@ class HitachiYutakiWaterHeater(
         if temperature is None:
             return
 
-        await self.coordinator.async_write_register(
-            self._temperature_entity_key, int(temperature)
-        )
+        await self.coordinator.api_client.set_dhw_target_temperature(temperature)
+        await self.coordinator.async_request_refresh()
 
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new operation mode."""
         if operation_mode == PRESET_DHW_OFF:
             # First disable high demand mode if it was active
-            await self.coordinator.async_write_register("dhw_high_demand", 0)
+            await self.coordinator.api_client.set_dhw_high_demand(False)
             # Then turn off DHW
-            await self.coordinator.async_write_register("dhw_power", 0)
+            await self.coordinator.api_client.set_dhw_power(False)
+            await self.coordinator.async_request_refresh()
             return
 
         # First ensure DHW is turned on if it was off
-        current_power = self.coordinator.data.get("dhw_power", 0)
-        if current_power == 0:
-            await self.coordinator.async_write_register("dhw_power", 1)
+        current_power = self.coordinator.api_client.get_dhw_power()
+        if not current_power:
+            await self.coordinator.api_client.set_dhw_power(True)
 
         # Then set the mode
         if operation_mode == PRESET_DHW_HIGH_DEMAND:
-            await self.coordinator.async_write_register("dhw_high_demand", 1)
+            await self.coordinator.api_client.set_dhw_high_demand(True)
         elif operation_mode == PRESET_DHW_HEAT_PUMP:
-            await self.coordinator.async_write_register("dhw_high_demand", 0)
+            await self.coordinator.api_client.set_dhw_high_demand(False)
+
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the water heater on."""
-        await self.coordinator.async_write_register("dhw_power", 1)
+        await self.coordinator.api_client.set_dhw_power(True)
+        await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the water heater off."""
         # First disable high demand mode if it was active
-        await self.coordinator.async_write_register("dhw_high_demand", 0)
+        await self.coordinator.api_client.set_dhw_high_demand(False)
         # Then turn off DHW
-        await self.coordinator.async_write_register("dhw_power", 0)
+        await self.coordinator.api_client.set_dhw_power(False)
+        await self.coordinator.async_request_refresh()
 
     def set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""

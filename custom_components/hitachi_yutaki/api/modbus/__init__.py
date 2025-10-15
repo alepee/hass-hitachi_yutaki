@@ -14,6 +14,9 @@ from ..base import HitachiApiClient
 from .registers import HitachiRegisterMap, atw_mbs_02
 from .registers.atw_mbs_02 import (
     ALL_REGISTERS,
+    HVAC_UNIT_MODE_AUTO,
+    HVAC_UNIT_MODE_COOL,
+    HVAC_UNIT_MODE_HEAT,
     MASK_BOILER,
     MASK_CIRCUIT1_COOLING,
     MASK_CIRCUIT1_HEATING,
@@ -290,3 +293,289 @@ class ModbusApiClient(HitachiApiClient):
         """Return True if smart grid function is active."""
         system_status = self._data.get("system_status", 0)
         return bool(system_status & MASK_SMART_FUNCTION)
+
+    async def _trigger_refresh(self) -> None:
+        """Trigger a refresh of coordinator data after a write operation."""
+        # Note: Refresh is handled by coordinator.async_request_refresh() in entities
+        return
+
+    # Unit control - Getters
+    def get_unit_power(self) -> bool | None:
+        """Get the main unit power state."""
+        value = self._data.get("unit_power")
+        if value is None:
+            return None
+        return bool(value)
+
+    def get_unit_mode(self):
+        """Get the current unit mode."""
+        from homeassistant.components.climate import HVACMode
+
+        unit_mode = self._data.get("unit_mode")
+        if unit_mode is None:
+            return None
+        return {
+            HVAC_UNIT_MODE_COOL: HVACMode.COOL,
+            HVAC_UNIT_MODE_HEAT: HVACMode.HEAT,
+            HVAC_UNIT_MODE_AUTO: HVACMode.AUTO,
+        }.get(unit_mode)
+
+    # Unit control - Setters
+    async def set_unit_power(self, enabled: bool) -> bool:
+        """Enable/disable the main heat pump unit."""
+        return await self.write_value("unit_power", 1 if enabled else 0)
+
+    async def set_unit_mode(self, mode) -> bool:
+        """Set the unit operation mode."""
+        from homeassistant.components.climate import HVACMode
+
+        mode_map = {
+            HVACMode.COOL: HVAC_UNIT_MODE_COOL,
+            HVACMode.HEAT: HVAC_UNIT_MODE_HEAT,
+            HVACMode.AUTO: HVAC_UNIT_MODE_AUTO,
+        }
+        unit_mode = mode_map.get(mode)
+        if unit_mode is None:
+            return False
+        return await self.write_value("unit_mode", unit_mode)
+
+    # Circuit control - Getters
+    def get_circuit_power(self, circuit_id: int) -> bool | None:
+        """Get circuit power state."""
+        key = f"circuit{circuit_id}_power"
+        value = self._data.get(key)
+        if value is None:
+            return None
+        return bool(value)
+
+    def get_circuit_current_temperature(self, circuit_id: int) -> float | None:
+        """Get current temperature for a circuit (already deserialized by register)."""
+        key = f"circuit{circuit_id}_current_temp"
+        temp = self._data.get(key)
+        if temp is None:
+            return None
+        return float(temp)
+
+    def get_circuit_target_temperature(self, circuit_id: int) -> float | None:
+        """Get target temperature for a circuit (already deserialized by register)."""
+        key = f"circuit{circuit_id}_target_temp"
+        temp = self._data.get(key)
+        if temp is None:
+            return None
+        return float(temp)
+
+    def get_circuit_eco_mode(self, circuit_id: int) -> bool | None:
+        """Get ECO mode state for a circuit (True=ECO, False=COMFORT)."""
+        key = f"circuit{circuit_id}_eco_mode"
+        value = self._data.get(key)
+        if value is None:
+            return None
+        # Note: eco_mode uses inverted logic (0=eco, 1=comfort)
+        return value == 0
+
+    def get_circuit_thermostat(self, circuit_id: int) -> bool | None:
+        """Get Modbus thermostat state for a circuit."""
+        key = f"circuit{circuit_id}_thermostat"
+        value = self._data.get(key)
+        if value is None:
+            return None
+        return bool(value)
+
+    def get_circuit_otc_method_heating(self, circuit_id: int) -> int | None:
+        """Get OTC calculation method for heating."""
+        key = f"circuit{circuit_id}_otc_calculation_method_heating"
+        return self._data.get(key)
+
+    def get_circuit_otc_method_cooling(self, circuit_id: int) -> int | None:
+        """Get OTC calculation method for cooling."""
+        key = f"circuit{circuit_id}_otc_calculation_method_cooling"
+        return self._data.get(key)
+
+    def get_circuit_max_flow_temp_heating(self, circuit_id: int) -> float | None:
+        """Get maximum heating water temperature for OTC (in °C)."""
+        key = f"circuit{circuit_id}_max_flow_temp_heating_otc"
+        value = self._data.get(key)
+        if value is None:
+            return None
+        return float(value)
+
+    def get_circuit_max_flow_temp_cooling(self, circuit_id: int) -> float | None:
+        """Get maximum cooling water temperature for OTC (in °C)."""
+        key = f"circuit{circuit_id}_max_flow_temp_cooling_otc"
+        value = self._data.get(key)
+        if value is None:
+            return None
+        return float(value)
+
+    def get_circuit_heat_eco_offset(self, circuit_id: int) -> int | None:
+        """Get temperature offset for ECO heating mode (in °C)."""
+        key = f"circuit{circuit_id}_heat_eco_offset"
+        return self._data.get(key)
+
+    def get_circuit_cool_eco_offset(self, circuit_id: int) -> int | None:
+        """Get temperature offset for ECO cooling mode (in °C)."""
+        key = f"circuit{circuit_id}_cool_eco_offset"
+        return self._data.get(key)
+
+    # Circuit control - Setters
+    async def set_circuit_power(self, circuit_id: int, enabled: bool) -> bool:
+        """Enable/disable a heating/cooling circuit."""
+        key = f"circuit{circuit_id}_power"
+        return await self.write_value(key, 1 if enabled else 0)
+
+    async def set_circuit_target_temperature(
+        self, circuit_id: int, temperature: float
+    ) -> bool:
+        """Set target temperature for a circuit."""
+        key = f"circuit{circuit_id}_target_temp"
+        value = int(temperature * 10)
+        return await self.write_value(key, value)
+
+    async def set_circuit_eco_mode(self, circuit_id: int, enabled: bool) -> bool:
+        """Enable/disable ECO mode for a circuit."""
+        key = f"circuit{circuit_id}_eco_mode"
+        # Note: eco_mode uses inverted logic (0=eco, 1=comfort)
+        value = 0 if enabled else 1
+        return await self.write_value(key, value)
+
+    async def set_circuit_thermostat(self, circuit_id: int, enabled: bool) -> bool:
+        """Enable/disable Modbus thermostat for a circuit."""
+        key = f"circuit{circuit_id}_thermostat"
+        return await self.write_value(key, 1 if enabled else 0)
+
+    async def set_circuit_otc_method_heating(
+        self, circuit_id: int, method: int
+    ) -> bool:
+        """Set OTC calculation method for heating."""
+        key = f"circuit{circuit_id}_otc_calculation_method_heating"
+        return await self.write_value(key, method)
+
+    async def set_circuit_otc_method_cooling(
+        self, circuit_id: int, method: int
+    ) -> bool:
+        """Set OTC calculation method for cooling."""
+        key = f"circuit{circuit_id}_otc_calculation_method_cooling"
+        return await self.write_value(key, method)
+
+    async def set_circuit_max_flow_temp_heating(
+        self, circuit_id: int, temperature: float
+    ) -> bool:
+        """Set maximum heating water temperature for OTC (stored in tenths of degrees)."""
+        key = f"circuit{circuit_id}_max_flow_temp_heating_otc"
+        return await self.write_value(key, int(temperature * 10))
+
+    async def set_circuit_max_flow_temp_cooling(
+        self, circuit_id: int, temperature: float
+    ) -> bool:
+        """Set maximum cooling water temperature for OTC (stored in tenths of degrees)."""
+        key = f"circuit{circuit_id}_max_flow_temp_cooling_otc"
+        return await self.write_value(key, int(temperature * 10))
+
+    async def set_circuit_heat_eco_offset(self, circuit_id: int, offset: int) -> bool:
+        """Set temperature offset for ECO heating mode."""
+        key = f"circuit{circuit_id}_heat_eco_offset"
+        return await self.write_value(key, offset)
+
+    async def set_circuit_cool_eco_offset(self, circuit_id: int, offset: int) -> bool:
+        """Set temperature offset for ECO cooling mode."""
+        key = f"circuit{circuit_id}_cool_eco_offset"
+        return await self.write_value(key, offset)
+
+    # DHW control - Getters
+    def get_dhw_power(self) -> bool | None:
+        """Get DHW power state."""
+        value = self._data.get("dhw_power")
+        if value is None:
+            return None
+        return bool(value)
+
+    def get_dhw_current_temperature(self) -> float | None:
+        """Get current DHW temperature (already deserialized by register)."""
+        temp = self._data.get("dhw_current_temp")
+        if temp is None:
+            return None
+        return float(temp)
+
+    def get_dhw_target_temperature(self) -> float | None:
+        """Get DHW target temperature."""
+        temp = self._data.get("dhw_target_temp")
+        if temp is None:
+            return None
+        return float(temp)
+
+    def get_dhw_high_demand(self) -> bool | None:
+        """Get DHW high demand mode state."""
+        value = self._data.get("dhw_high_demand")
+        if value is None:
+            return None
+        return bool(value)
+
+    def get_dhw_boost(self) -> bool | None:
+        """Get DHW boost mode state."""
+        value = self._data.get("dhw_boost")
+        if value is None:
+            return None
+        return bool(value)
+
+    def get_dhw_antilegionella_temperature(self) -> float | None:
+        """Get anti-legionella target temperature."""
+        temp = self._data.get("dhw_antilegionella_temp")
+        if temp is None:
+            return None
+        return float(temp)
+
+    # DHW control - Setters
+    async def set_dhw_power(self, enabled: bool) -> bool:
+        """Enable/disable domestic hot water production."""
+        return await self.write_value("dhw_power", 1 if enabled else 0)
+
+    async def set_dhw_target_temperature(self, temperature: float) -> bool:
+        """Set DHW target temperature (stored in tenths of degrees)."""
+        return await self.write_value("dhw_target_temp", int(temperature * 10))
+
+    async def set_dhw_high_demand(self, enabled: bool) -> bool:
+        """Enable/disable DHW high demand mode."""
+        return await self.write_value("dhw_high_demand", 1 if enabled else 0)
+
+    async def set_dhw_boost(self, enabled: bool) -> bool:
+        """Enable/disable DHW boost mode."""
+        return await self.write_value("dhw_boost", 1 if enabled else 0)
+
+    async def start_dhw_antilegionella(self) -> bool:
+        """Start anti-legionella treatment cycle."""
+        return await self.write_value("dhw_antilegionella", 1)
+
+    async def set_dhw_antilegionella_temperature(self, temperature: float) -> bool:
+        """Set anti-legionella target temperature (stored in tenths of degrees)."""
+        return await self.write_value("dhw_antilegionella_temp", int(temperature * 10))
+
+    # Pool control - Getters
+    def get_pool_power(self) -> bool | None:
+        """Get pool heating power state."""
+        value = self._data.get("pool_power")
+        if value is None:
+            return None
+        return bool(value)
+
+    def get_pool_current_temperature(self) -> float | None:
+        """Get current pool temperature (already deserialized by register)."""
+        temp = self._data.get("pool_current_temp")
+        if temp is None:
+            return None
+        return float(temp)
+
+    def get_pool_target_temperature(self) -> float | None:
+        """Get pool target temperature."""
+        temp = self._data.get("pool_target_temp")
+        if temp is None:
+            return None
+        return float(temp)
+
+    # Pool control - Setters
+    async def set_pool_power(self, enabled: bool) -> bool:
+        """Enable/disable pool heating."""
+        return await self.write_value("pool_power", 1 if enabled else 0)
+
+    async def set_pool_target_temperature(self, temperature: float) -> bool:
+        """Set pool target temperature (stored in tenths of degrees)."""
+        return await self.write_value("pool_target_temp", int(temperature * 10))
