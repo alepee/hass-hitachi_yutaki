@@ -115,6 +115,6 @@ class HitachiYutakiButton(
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        if self._register_key is None:
-            return
-        await self.coordinator.async_write_register(self._register_key, 1)
+        if self.entity_description.key == "antilegionella":
+            await self.coordinator.api_client.start_dhw_antilegionella()
+            await self.coordinator.async_request_refresh()

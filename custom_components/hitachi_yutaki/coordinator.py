@@ -93,11 +93,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
             raise UpdateFailed("Failed to communicate with device") from exc
 
-    async def async_write_register(self, key: str, value: int) -> None:
-        """Write a value to a register."""
-        await self.api_client.write_value(key, value)
-        await self.async_request_refresh()
-
     def has_dhw(self) -> bool:
         """Return True if DHW is configured."""
         return self.api_client.has_dhw

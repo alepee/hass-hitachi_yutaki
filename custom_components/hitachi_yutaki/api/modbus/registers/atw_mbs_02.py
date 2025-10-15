@@ -55,6 +55,11 @@ OPERATION_STATE_MAP = {
     11: "alarm",
 }
 
+# HVAC Unit mode values (ATW-MBS-02 specific)
+HVAC_UNIT_MODE_COOL = 0
+HVAC_UNIT_MODE_HEAT = 1
+HVAC_UNIT_MODE_AUTO = 2
+
 
 # Conversion functions
 
@@ -80,8 +85,18 @@ def deserialize_alarm_code(value: int | None) -> str:
     return f"alarm_code_{value}"
 
 
-def convert_temperature(value: int | None) -> int | None:
-    """Convert a raw temperature value."""
+def convert_signed_16bit(value: int | None) -> int | None:
+    """Convert signed 16-bit value using 2's complement for negative values.
+
+    Technical pattern: handles values that can be negative.
+    Marked as (*1) in ATW-MBS-02 documentation.
+    Range: -80~100 for temperatures, varies for other values.
+
+    Examples:
+        - Temperatures: outdoor, water inlet/outlet, DHW current, pool current
+        - Other signed measurements
+
+    """
     if value is None:
         return None
     if value == 0xFFFF:  # Special value for sensor error
@@ -91,25 +106,38 @@ def convert_temperature(value: int | None) -> int | None:
     return int(value)
 
 
-def convert_water_flow(value: int | None) -> float | None:
-    """Convert a raw water flow value to m³/h."""
+def convert_from_tenths(value: int | None) -> float | None:
+    """Convert values stored in tenths to their actual decimal value.
+
+    Technical pattern: division by 10 to extract decimal precision.
+    Marked as (*3) in ATW-MBS-02 documentation for temperatures.
+
+    Examples:
+        - Temperatures: 500 → 50.0 °C (setpoints, targets, max flow temps)
+        - Water flow: 50 → 5.0 m³/h
+        - Secondary compressor current: 50 → 5.0 A
+
+    """
     if value is None:
         return None
-    return float(value) / 10.0
-
-
-def convert_current(value: int | None) -> float | None:
-    """Convert a raw current value to amperes."""
-    if value is None:
+    if value == 0xFFFF:  # Special value for sensor error
         return None
     return float(value) / 10.0
 
 
 def convert_pressure(value: int | None) -> float | None:
-    """Convert a raw pressure value from MPa to bar."""
+    """Convert pressure value to bar.
+
+    Raw values are stored in hundredths of MPa (e.g., 510 = 5.10 MPa).
+    Since 1 MPa = 10 bar, dividing by 10 converts to bar.
+    Example: 510 (raw) = 5.10 MPa = 51.0 bar
+
+    Per ATW-MBS-02 documentation:
+    - Discharge pressure: 0~510 (0.00~5.10 MPa)
+    - Suction pressure: 0~255 (0.00~2.55 MPa)
+    """
     if value is None:
         return None
-    # Convert from MPa to bar (1 MPa = 10 bar)
     return float(value) / 10.0
 
 
@@ -139,40 +167,40 @@ REGISTER_CONTROL_UNIT = {
     "operation_state": RegisterDefinition(
         1090, deserializer=deserialize_operation_state
     ),
-    "outdoor_temp": RegisterDefinition(1091, deserializer=convert_temperature),
-    "water_inlet_temp": RegisterDefinition(1092, deserializer=convert_temperature),
-    "water_outlet_temp": RegisterDefinition(1093, deserializer=convert_temperature),
-    "water_target_temp": RegisterDefinition(1219, deserializer=convert_temperature),
-    "water_flow": RegisterDefinition(1220, deserializer=convert_water_flow),
+    "outdoor_temp": RegisterDefinition(1091, deserializer=convert_signed_16bit),
+    "water_inlet_temp": RegisterDefinition(1092, deserializer=convert_signed_16bit),
+    "water_outlet_temp": RegisterDefinition(1093, deserializer=convert_signed_16bit),
+    "water_target_temp": RegisterDefinition(1219, deserializer=convert_signed_16bit),
+    "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
     "pump_speed": RegisterDefinition(1221),
     "power_consumption": RegisterDefinition(1098),
 }
 
 REGISTER_PRIMARY_COMPRESSOR = {
     "compressor_tg_gas_temp": RegisterDefinition(
-        1206, deserializer=convert_temperature
+        1206, deserializer=convert_signed_16bit
     ),
     "compressor_ti_liquid_temp": RegisterDefinition(
-        1207, deserializer=convert_temperature
+        1207, deserializer=convert_signed_16bit
     ),
     "compressor_td_discharge_temp": RegisterDefinition(
-        1208, deserializer=convert_temperature
+        1208, deserializer=convert_signed_16bit
     ),
     "compressor_te_evaporator_temp": RegisterDefinition(
-        1209, deserializer=convert_temperature
+        1209, deserializer=convert_signed_16bit
     ),
     "compressor_evi_indoor_expansion_valve_opening": RegisterDefinition(1210),
     "compressor_evo_outdoor_expansion_valve_opening": RegisterDefinition(1211),
     "compressor_frequency": RegisterDefinition(1212),
-    "compressor_current": RegisterDefinition(1214, deserializer=convert_current),
+    "compressor_current": RegisterDefinition(1214),
 }
 
 REGISTER_SECONDARY_COMPRESSOR = {
     "secondary_compressor_discharge_temp": RegisterDefinition(
-        1224, deserializer=convert_temperature
+        1224, deserializer=convert_signed_16bit
     ),
     "secondary_compressor_suction_temp": RegisterDefinition(
-        1225, deserializer=convert_temperature
+        1225, deserializer=convert_signed_16bit
     ),
     "secondary_compressor_discharge_pressure": RegisterDefinition(
         1226, deserializer=convert_pressure
@@ -183,7 +211,7 @@ REGISTER_SECONDARY_COMPRESSOR = {
     "secondary_compressor_frequency": RegisterDefinition(1228),
     "secondary_compressor_valve_opening": RegisterDefinition(1229),
     "secondary_compressor_current": RegisterDefinition(
-        1230, deserializer=convert_current
+        1230, deserializer=convert_from_tenths
     ),
     "secondary_compressor_retry_code": RegisterDefinition(1231),
     "secondary_compressor_hp_pressure": RegisterDefinition(
@@ -198,45 +226,55 @@ REGISTER_CIRCUIT_1 = {
     "circuit1_power": RegisterDefinition(1002),
     "circuit1_otc_calculation_method_heating": RegisterDefinition(1003),
     "circuit1_otc_calculation_method_cooling": RegisterDefinition(1004),
-    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1005),
-    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1006),
+    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(
+        1005, deserializer=convert_from_tenths
+    ),
+    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(
+        1006, deserializer=convert_from_tenths
+    ),
     "circuit1_eco_mode": RegisterDefinition(1007),
     "circuit1_heat_eco_offset": RegisterDefinition(1008),
     "circuit1_cool_eco_offset": RegisterDefinition(1009),
     "circuit1_thermostat": RegisterDefinition(1010),
-    "circuit1_target_temp": RegisterDefinition(1011),
-    "circuit1_current_temp": RegisterDefinition(1012),
+    "circuit1_target_temp": RegisterDefinition(1011, deserializer=convert_from_tenths),
+    "circuit1_current_temp": RegisterDefinition(1012, deserializer=convert_from_tenths),
 }
 
 REGISTER_CIRCUIT_2 = {
     "circuit2_power": RegisterDefinition(1013),
     "circuit2_otc_calculation_method_heating": RegisterDefinition(1014),
     "circuit2_otc_calculation_method_cooling": RegisterDefinition(1015),
-    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1016),
-    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1017),
+    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(
+        1016, deserializer=convert_from_tenths
+    ),
+    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(
+        1017, deserializer=convert_from_tenths
+    ),
     "circuit2_eco_mode": RegisterDefinition(1018),
     "circuit2_heat_eco_offset": RegisterDefinition(1019),
     "circuit2_cool_eco_offset": RegisterDefinition(1020),
     "circuit2_thermostat": RegisterDefinition(1021),
-    "circuit2_target_temp": RegisterDefinition(1022),
-    "circuit2_current_temp": RegisterDefinition(1023),
+    "circuit2_target_temp": RegisterDefinition(1022, deserializer=convert_from_tenths),
+    "circuit2_current_temp": RegisterDefinition(1023, deserializer=convert_from_tenths),
 }
 
 REGISTER_DHW = {
     "dhw_power": RegisterDefinition(1024),
-    "dhw_target_temp": RegisterDefinition(1025),
+    "dhw_target_temp": RegisterDefinition(1025, deserializer=convert_from_tenths),
     "dhw_boost": RegisterDefinition(1026),
     "dhw_high_demand": RegisterDefinition(1027),
     "dhw_antilegionella": RegisterDefinition(1030),
-    "dhw_antilegionella_temp": RegisterDefinition(1031),
-    "dhw_current_temp": RegisterDefinition(1080, deserializer=convert_temperature),
+    "dhw_antilegionella_temp": RegisterDefinition(
+        1031, deserializer=convert_from_tenths
+    ),
+    "dhw_current_temp": RegisterDefinition(1080, deserializer=convert_signed_16bit),
     "dhw_antilegionella_status": RegisterDefinition(1030),
 }
 
 REGISTER_POOL = {
     "pool_power": RegisterDefinition(1028),
-    "pool_target_temp": RegisterDefinition(1029),
-    "pool_current_temp": RegisterDefinition(1083, deserializer=convert_temperature),
+    "pool_target_temp": RegisterDefinition(1029, deserializer=convert_from_tenths),
+    "pool_current_temp": RegisterDefinition(1083, deserializer=convert_signed_16bit),
 }
 
 # All registers in a single map for easy lookup

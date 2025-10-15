@@ -228,55 +228,105 @@ class HitachiYutakiSwitch(
     @property
     def is_on(self) -> bool | None:
         """Return true if the switch is on."""
-        if self.coordinator.data is None or self._register_key is None:
+        if self.coordinator.data is None:
             return None
 
         try:
-            value = self.coordinator.data.get(self._register_key)
-            if value is None:
+            # Map entity key to corresponding API getter
+            if self.entity_description.key == "power" and not self.register_prefix:
+                value = self.coordinator.api_client.get_unit_power()
+            elif self.entity_description.key == "thermostat" and self.register_prefix:
+                circuit_id = int(self.register_prefix.replace("circuit", ""))
+                value = self.coordinator.api_client.get_circuit_thermostat(circuit_id)
+            elif self.entity_description.key == "eco_mode" and self.register_prefix:
+                circuit_id = int(self.register_prefix.replace("circuit", ""))
+                is_eco = self.coordinator.api_client.get_circuit_eco_mode(circuit_id)
+                # For eco_mode switch, state_on=0 means ON, so we return is_eco directly
+                return is_eco
+            elif (
+                self.entity_description.key == "boost" and self.register_prefix == "dhw"
+            ):
+                value = self.coordinator.api_client.get_dhw_boost()
+            elif (
+                self.entity_description.key == "power"
+                and self.register_prefix == "pool"
+            ):
+                value = self.coordinator.api_client.get_pool_power()
+            else:
                 return None
 
-            return int(value) == self.entity_description.state_on
+            return value
         except (ValueError, TypeError):
             return None
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
-        if self._register_key is None:
-            return
-
         try:
-            register_value = int(self.entity_description.state_on)
-            await self.coordinator.async_write_register(
-                self._register_key, register_value
-            )
-        except (ValueError, TypeError):
+            # Map entity key to corresponding API setter
+            if self.entity_description.key == "power" and not self.register_prefix:
+                await self.coordinator.api_client.set_unit_power(True)
+            elif self.entity_description.key == "thermostat" and self.register_prefix:
+                circuit_id = int(self.register_prefix.replace("circuit", ""))
+                await self.coordinator.api_client.set_circuit_thermostat(
+                    circuit_id, True
+                )
+            elif self.entity_description.key == "eco_mode" and self.register_prefix:
+                circuit_id = int(self.register_prefix.replace("circuit", ""))
+                await self.coordinator.api_client.set_circuit_eco_mode(circuit_id, True)
+            elif (
+                self.entity_description.key == "boost" and self.register_prefix == "dhw"
+            ):
+                await self.coordinator.api_client.set_dhw_boost(True)
+            elif (
+                self.entity_description.key == "power"
+                and self.register_prefix == "pool"
+            ):
+                await self.coordinator.api_client.set_pool_power(True)
+            else:
+                _LOGGER.error("Unknown switch entity: %s", self.entity_description.key)
+                return
+
+            await self.coordinator.async_request_refresh()
+        except (ValueError, TypeError) as e:
             _LOGGER.error(
-                "Failed to turn on %s: invalid value %s",
+                "Failed to turn on %s: %s",
                 self.entity_id,
-                self.entity_description.state_on,
+                str(e),
             )
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
-        if self._register_key is None:
-            return
-
         try:
-            register_value = int(self.entity_description.state_off)
-            _LOGGER.debug(
-                "Turning off %s: register_key=%s, value=%s",
-                self.entity_id,
-                self._register_key,
-                register_value,
-            )
-            await self.coordinator.async_write_register(
-                self._register_key, register_value
-            )
+            # Map entity key to corresponding API setter
+            if self.entity_description.key == "power" and not self.register_prefix:
+                await self.coordinator.api_client.set_unit_power(False)
+            elif self.entity_description.key == "thermostat" and self.register_prefix:
+                circuit_id = int(self.register_prefix.replace("circuit", ""))
+                await self.coordinator.api_client.set_circuit_thermostat(
+                    circuit_id, False
+                )
+            elif self.entity_description.key == "eco_mode" and self.register_prefix:
+                circuit_id = int(self.register_prefix.replace("circuit", ""))
+                await self.coordinator.api_client.set_circuit_eco_mode(
+                    circuit_id, False
+                )
+            elif (
+                self.entity_description.key == "boost" and self.register_prefix == "dhw"
+            ):
+                await self.coordinator.api_client.set_dhw_boost(False)
+            elif (
+                self.entity_description.key == "power"
+                and self.register_prefix == "pool"
+            ):
+                await self.coordinator.api_client.set_pool_power(False)
+            else:
+                _LOGGER.error("Unknown switch entity: %s", self.entity_description.key)
+                return
+
+            await self.coordinator.async_request_refresh()
         except (ValueError, TypeError) as e:
             _LOGGER.error(
-                "Failed to turn off %s: invalid value %s - Error: %s",
+                "Failed to turn off %s: %s",
                 self.entity_id,
-                self.entity_description.state_off,
                 str(e),
             )

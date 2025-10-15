@@ -253,29 +253,76 @@ class HitachiYutakiNumber(
     @property
     def native_value(self) -> float | None:
         """Return the entity value to represent the entity state."""
-        if self.coordinator.data is None or self._register_key is None:
+        if self.coordinator.data is None:
             return None
 
-        value = self.coordinator.data.get(self._register_key)
-        if value is None:
-            return None
+        # Map entity key to corresponding API getter
+        if self.register_prefix and self.register_prefix.startswith("circuit"):
+            circuit_id = int(self.register_prefix.replace("circuit", ""))
 
-        # Convert value if multiplier is set
-        if self.entity_description.multiplier:
-            return float(value) / self.entity_description.multiplier
+            if self.entity_description.key == "max_flow_temp_heating_otc":
+                return self.coordinator.api_client.get_circuit_max_flow_temp_heating(
+                    circuit_id
+                )
+            elif self.entity_description.key == "max_flow_temp_cooling_otc":
+                return self.coordinator.api_client.get_circuit_max_flow_temp_cooling(
+                    circuit_id
+                )
+            elif self.entity_description.key == "heat_eco_offset":
+                value = self.coordinator.api_client.get_circuit_heat_eco_offset(
+                    circuit_id
+                )
+                return float(value) if value is not None else None
+            elif self.entity_description.key == "cool_eco_offset":
+                value = self.coordinator.api_client.get_circuit_cool_eco_offset(
+                    circuit_id
+                )
+                return float(value) if value is not None else None
 
-        return float(value)
+        elif self.register_prefix == "dhw":
+            if self.entity_description.key == "antilegionella_temp":
+                return self.coordinator.api_client.get_dhw_antilegionella_temperature()
+
+        elif self.register_prefix == "pool":
+            if self.entity_description.key == "pool_target_temp":
+                return self.coordinator.api_client.get_pool_target_temperature()
+
+        return None
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""
-        if self._register_key is None:
-            return
+        # Map entity key to corresponding API setter
+        if self.register_prefix and self.register_prefix.startswith("circuit"):
+            circuit_id = int(self.register_prefix.replace("circuit", ""))
 
-        # Convert value if multiplier is set
-        if self.entity_description.multiplier:
-            value = value * self.entity_description.multiplier
+            if self.entity_description.key == "max_flow_temp_heating_otc":
+                await self.coordinator.api_client.set_circuit_max_flow_temp_heating(
+                    circuit_id, value
+                )
+            elif self.entity_description.key == "max_flow_temp_cooling_otc":
+                await self.coordinator.api_client.set_circuit_max_flow_temp_cooling(
+                    circuit_id, value
+                )
+            elif self.entity_description.key == "heat_eco_offset":
+                await self.coordinator.api_client.set_circuit_heat_eco_offset(
+                    circuit_id, int(value)
+                )
+            elif self.entity_description.key == "cool_eco_offset":
+                await self.coordinator.api_client.set_circuit_cool_eco_offset(
+                    circuit_id, int(value)
+                )
 
-        await self.coordinator.async_write_register(self._register_key, int(value))
+        elif self.register_prefix == "dhw":
+            if self.entity_description.key == "antilegionella_temp":
+                await self.coordinator.api_client.set_dhw_antilegionella_temperature(
+                    value
+                )
+
+        elif self.register_prefix == "pool":
+            if self.entity_description.key == "pool_target_temp":
+                await self.coordinator.api_client.set_pool_target_temperature(value)
+
+        await self.coordinator.async_request_refresh()
 
     def set_native_value(self, value: float) -> None:
         """Set new value."""
