@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 from datetime import timedelta
 import logging
 from typing import Any
@@ -51,9 +52,11 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry) -> None:
         """Initialize."""
+        self.host = entry.data[CONF_HOST]
+        self.port = entry.data[CONF_PORT]
         self.modbus_client = ModbusTcpClient(
-            host=entry.data[CONF_HOST],
-            port=entry.data[CONF_PORT],
+            host=self.host,
+            port=self.port,
         )
         self.slave = entry.data[CONF_SLAVE]
         self.model = entry.data.get("unit_model")
@@ -62,6 +65,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.power_supply = entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY)
         self.entities = []
         self.config_entry = entry
+        self._connection_retries = 0
+        self._max_retries = 3
 
         super().__init__(
             hass,
@@ -70,11 +75,59 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             update_interval=timedelta(seconds=entry.data[CONF_SCAN_INTERVAL]),
         )
 
+    async def _ensure_connection(self) -> bool:
+        """Ensure we have a working Modbus connection."""
+        for retry in range(self._max_retries):
+            try:
+                # Always close existing connection first to ensure clean state
+                if self.modbus_client.connected:
+                    await self.hass.async_add_executor_job(self.modbus_client.close)
+
+                # Create new client instance to avoid stale connections
+                self.modbus_client = ModbusTcpClient(
+                    host=self.host,
+                    port=self.port,
+                )
+
+                # Attempt to connect
+                success = await self.hass.async_add_executor_job(self.modbus_client.connect)
+
+                if success and self.modbus_client.connected:
+                    _LOGGER.debug("Successfully connected to Modbus gateway")
+                    self._connection_retries = 0
+                    return True
+
+                _LOGGER.warning(
+                    "Failed to connect to Modbus gateway (attempt %d/%d)",
+                    retry + 1,
+                    self._max_retries
+                )
+
+            except Exception as exc:
+                _LOGGER.warning(
+                    "Connection attempt %d/%d failed: %s",
+                    retry + 1,
+                    self._max_retries,
+                    exc
+                )
+
+            # Wait before retrying, with exponential backoff
+            if retry < self._max_retries - 1:
+                delay = min(2 ** retry, 10)
+                await self.hass.async_add_executor_job(
+                    lambda sleep_time=delay: __import__("time").sleep(sleep_time)
+                )
+
+        _LOGGER.error("Failed to establish Modbus connection after %d attempts", self._max_retries)
+        self._connection_retries += 1
+        return False
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Hitachi Yutaki."""
         try:
-            if not self.modbus_client.connected:
-                await self.hass.async_add_executor_job(self.modbus_client.connect)
+            # Ensure we have a working connection
+            if not await self._ensure_connection():
+                raise UpdateFailed("Unable to establish Modbus connection")
 
             data: dict[str, Any] = {"is_available": True}
 
@@ -92,6 +145,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 _LOGGER.warning(
                     "Modbus error during preflight check: %s", preflight_result
                 )
+                # Force connection reset on error
+                await self.hass.async_add_executor_job(self.modbus_client.close)
                 raise UpdateFailed("Modbus error during preflight check")
 
             system_state = preflight_result.registers[0]
@@ -149,9 +204,12 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
                     if result.isError():
                         _LOGGER.warning(
-                            "Error reading register %s",
+                            "Error reading register %s: %s",
                             register_address,
+                            result,
                         )
+                        # Force connection reset on error
+                        await self.hass.async_add_executor_job(self.modbus_client.close)
                         raise UpdateFailed(f"Error reading register {register_address}")
 
                     # Update model if reading unit model register
@@ -164,13 +222,15 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     # Store the register value
                     data[register_name] = result.registers[0]
 
-                except ModbusException:
+                except ModbusException as exc:
                     _LOGGER.warning(
-                        "Modbus error reading register %s",
+                        "Modbus error reading register %s: %s",
                         register_name,
-                        exc_info=True,
+                        exc,
                     )
-                    raise
+                    # Force connection reset on Modbus error
+                    await self.hass.async_add_executor_job(self.modbus_client.close)
+                    raise UpdateFailed(f"Modbus error reading register {register_name}") from exc
 
             # Update timing sensors
             for entity in self.entities:
@@ -182,6 +242,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         except (ModbusException, ConnectionError, OSError) as exc:
             # Set is_available to False on any error
             _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
+            # Force connection reset on any communication error
+            with contextlib.suppress(Exception):
+                await self.hass.async_add_executor_job(self.modbus_client.close)
+
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -199,8 +263,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     async def async_write_register(self, register_key: str, value: int) -> None:
         """Write a value to a register."""
         try:
-            if not self.modbus_client.connected:
-                await self.hass.async_add_executor_job(self.modbus_client.connect)
+            # Ensure we have a working connection
+            if not await self._ensure_connection():
+                raise UpdateFailed("Unable to establish Modbus connection")
 
             # Get the register address from REGISTER_CONTROL
             if register_key not in REGISTER_CONTROL:
@@ -227,6 +292,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             if result.isError():
                 _LOGGER.error("Error writing to register %s: %s", register_key, result)
+                # Force connection reset on error
+                await self.hass.async_add_executor_job(self.modbus_client.close)
                 raise UpdateFailed(
                     f"Error writing to register {register_key}"
                 ) from result
@@ -236,6 +303,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         except (ModbusException, ConnectionError, OSError) as error:
             _LOGGER.error("Error writing to register %s: %s", register_key, error)
+            # Force connection reset on any communication error
+            with contextlib.suppress(Exception):
+                await self.hass.async_add_executor_job(self.modbus_client.close)
             raise UpdateFailed(f"Error writing to register {register_key}") from error
 
     def convert_temperature(self, value: int | None) -> int | None:
