@@ -15,7 +15,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 
-from .api import GATEWAYS
+from .api import GATEWAY_INFO
 from .const import (
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
@@ -26,25 +26,13 @@ from .const import (
     DEVICE_PRIMARY_COMPRESSOR,
     DEVICE_SECONDARY_COMPRESSOR,
     DOMAIN,
-    GATEWAY_MODEL,
     MANUFACTURER,
     PLATFORMS,
-    UNIT_MODEL_M,
-    UNIT_MODEL_S80,
-    UNIT_MODEL_YUTAKI_S,
-    UNIT_MODEL_YUTAKI_S_COMBI,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 from .profiles import PROFILES
 
 _LOGGER = logging.getLogger(__name__)
-
-MODEL_NAMES = {
-    UNIT_MODEL_YUTAKI_S: "Yutaki S",
-    UNIT_MODEL_YUTAKI_S_COMBI: "Yutaki S Combi",
-    UNIT_MODEL_S80: "Yutaki S80",
-    UNIT_MODEL_M: "Yutaki M",
-}
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -55,8 +43,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     gateway_type = entry.data["gateway_type"]
     profile_key = entry.data["profile"]
 
+    # Get gateway info (must exist)
+    if gateway_type not in GATEWAY_INFO:
+        raise ValueError(f"Unsupported gateway type: {gateway_type}")
+    if profile_key not in PROFILES:
+        raise ValueError(f"Unsupported profile: {profile_key}")
+
+    gateway_info = GATEWAY_INFO[gateway_type]
+    gateway_manufacturer = gateway_info.manufacturer
+    gateway_model = gateway_info.model
+
     # Instantiate gateway client and profile
-    api_client_class = GATEWAYS[gateway_type]
+    api_client_class = gateway_info.client_class
     api_client = api_client_class(
         hass,
         name=entry.data[CONF_NAME],
@@ -82,20 +80,18 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # Wait for the first refresh to succeed before setting up platforms
     await coordinator.async_config_entry_first_refresh()
 
-    # Get unit model name from profile
-    model_name = profile.__class__.__name__.replace("Profile", "")
-    _LOGGER.info("Using Hitachi profile: %s", model_name)
+    _LOGGER.info("Using Hitachi profile: %s", profile.name)
 
     # Register devices
     device_registry = dr.async_get(hass)
-    _LOGGER.debug("Registering devices for unit model %s", model_name)
+    _LOGGER.debug("Registering devices for unit model %s", profile.name)
 
     # Add gateway device
     device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}")},
-        manufacturer=MANUFACTURER,
-        model=GATEWAY_MODEL,
+        manufacturer=gateway_manufacturer,
+        model=gateway_model,
         name=DEVICE_GATEWAY.title(),  # Fallback name
         translation_key="gateway",
         configuration_url=f"http://{entry.data[CONF_HOST]}",
@@ -106,7 +102,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
         manufacturer=MANUFACTURER,
-        model=model_name,
+        model=profile.name,
         name=DEVICE_CONTROL_UNIT.replace("_", " ").title(),  # Fallback name
         translation_key="control_unit",
         via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}"),
@@ -117,7 +113,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_PRIMARY_COMPRESSOR}")},
         manufacturer=MANUFACTURER,
-        model=model_name,
+        model=profile.name,
         name=DEVICE_PRIMARY_COMPRESSOR.replace("_", " ").title(),  # Fallback name
         translation_key="primary_compressor",
         via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
@@ -130,7 +126,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")},
             manufacturer=MANUFACTURER,
-            model=model_name,
+            model=profile.name,
             name=DEVICE_SECONDARY_COMPRESSOR.replace("_", " ").title(),  # Fallback name
             translation_key="secondary_compressor",
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
@@ -143,7 +139,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_1}")},
             manufacturer=MANUFACTURER,
-            model=model_name,
+            model=profile.name,
             name=DEVICE_CIRCUIT_1.replace("_", " ").title(),  # Fallback name
             translation_key="circuit1",
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
@@ -156,7 +152,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CIRCUIT_2}")},
             manufacturer=MANUFACTURER,
-            model=model_name,
+            model=profile.name,
             name=DEVICE_CIRCUIT_2.replace("_", " ").title(),  # Fallback name
             translation_key="circuit2",
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
@@ -169,7 +165,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_DHW}")},
             manufacturer=MANUFACTURER,
-            model=model_name,
+            model=profile.name,
             name=DEVICE_DHW.replace("_", " ").capitalize(),  # Fallback name
             translation_key="dhw",
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
@@ -182,7 +178,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             config_entry_id=entry.entry_id,
             identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_POOL}")},
             manufacturer=MANUFACTURER,
-            model=model_name,
+            model=profile.name,
             name=DEVICE_POOL.replace("_", " ").title(),  # Fallback name
             translation_key="pool",
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),

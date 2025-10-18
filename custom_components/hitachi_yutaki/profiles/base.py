@@ -21,6 +21,11 @@ class HitachiHeatPumpProfile(ABC):
         """Return True if the profile is detected."""
 
     @property
+    @abstractmethod
+    def name(self) -> str:
+        """Return the human-readable name of the heat pump model."""
+
+    @property
     def supports_dhw(self) -> bool:
         """Return True if the heat pump supports Domestic Hot Water."""
         return True

@@ -71,6 +71,21 @@ def deserialize_system_state(value: int | None) -> str:
     return SYSTEM_STATE_MAP.get(value, "unknown")
 
 
+def deserialize_unit_model(value: int | None) -> str:
+    """Convert a raw unit model ID to a model key."""
+    if value is None:
+        return "unknown"
+    # Mapping from numeric model ID to model key
+    model_map = {
+        1: "yutaki_s",
+        2: "yutaki_s80",
+        3: "yutaki_s_combi",
+        4: "yutaki_m",
+        5: "yutampo_r32",
+    }
+    return model_map.get(value, "unknown")
+
+
 def deserialize_operation_state(value: int | None) -> str:
     """Convert a raw operation state value to a string."""
     if value is None:
@@ -154,7 +169,7 @@ class RegisterDefinition:
 
 REGISTER_GATEWAY = {
     "alarm_code": RegisterDefinition(1223, deserializer=deserialize_alarm_code),
-    "unit_model": RegisterDefinition(1218),
+    "unit_model": RegisterDefinition(1218, deserializer=deserialize_unit_model),
     "central_control_mode": RegisterDefinition(1088),
     "system_config": RegisterDefinition(1089),
     "system_status": RegisterDefinition(1222),

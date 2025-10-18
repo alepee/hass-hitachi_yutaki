@@ -9,12 +9,10 @@ from homeassistant.const import Platform
 
 DOMAIN: Final = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
-GATEWAY_MODEL = "ATW-MBS-02"
-
 VERSION = "1.9.3"
 
 # Default values
-DEFAULT_NAME = "Hitachi Yutaki"
+DEFAULT_NAME = "Hitachi Heat Pump"
 DEFAULT_HOST = "192.168.0.4"
 DEFAULT_SLAVE = 1
 DEFAULT_PORT = 502
@@ -31,12 +29,6 @@ DEVICE_CIRCUIT_2 = "circuit_2"
 DEVICE_DHW = "dhw"
 DEVICE_POOL = "pool"
 
-# Unit models
-UNIT_MODEL_YUTAKI_S = 0
-UNIT_MODEL_YUTAKI_S_COMBI = 1
-UNIT_MODEL_S80 = 2
-UNIT_MODEL_M = 3
-
 PLATFORMS = [
     Platform.BINARY_SENSOR,
     Platform.CLIMATE,
@@ -47,13 +39,6 @@ PLATFORMS = [
     Platform.WATER_HEATER,
     Platform.BUTTON,
 ]
-
-MODEL_NAMES = {
-    UNIT_MODEL_YUTAKI_S: "Yutaki S",
-    UNIT_MODEL_YUTAKI_S_COMBI: "Yutaki S Combi",
-    UNIT_MODEL_S80: "Yutaki S80",
-    UNIT_MODEL_M: "Yutaki M",
-}
 
 # HVAC modes
 HVAC_MODE_MAP = {
