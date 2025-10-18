@@ -1,4 +1,8 @@
-"""Thermal power and energy calculation logic."""
+"""Thermal power and energy calculation logic.
+
+This module is isolated from Home Assistant to facilitate testing.
+All data must be provided as input parameters.
+"""
 
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -16,6 +20,19 @@ class ThermalPowerInput:
     water_inlet_temp: float
     water_outlet_temp: float
     water_flow: float
+
+
+@dataclass
+class ThermalEnergyResult:
+    """Result of thermal energy calculations."""
+
+    thermal_power: float  # Current thermal power (kW)
+    daily_energy: float  # Daily accumulated energy (kWh)
+    total_energy: float  # Total accumulated energy (kWh)
+    delta_t: float  # Temperature difference (°C)
+    last_update: datetime  # Timestamp of last measurement
+    last_reset_date: date  # Date of last daily reset
+    daily_start_time: datetime  # Start time of daily accumulation
 
 
 def calculate_thermal_power(data: ThermalPowerInput) -> float:
@@ -89,3 +106,92 @@ class ThermalEnergyAccumulator:
 
         self._last_power = thermal_power
         self._last_measurement_time = current_time
+
+
+class ThermalPowerSensor:
+    """Orchestrates thermal power and energy calculations.
+
+    This class is independent of Home Assistant and can be easily tested.
+    """
+
+    def __init__(self, accumulator: ThermalEnergyAccumulator) -> None:
+        """Initialize the thermal power sensor."""
+        self._accumulator = accumulator
+        self._last_power = 0.0
+
+    def update(
+        self,
+        water_inlet_temp: float | None,
+        water_outlet_temp: float | None,
+        water_flow: float | None,
+        compressor_frequency: float | None,
+    ) -> None:
+        """Update thermal energy calculation with new data.
+
+        Args:
+            water_inlet_temp: Water inlet temperature in °C
+            water_outlet_temp: Water outlet temperature in °C
+            water_flow: Water flow rate in m³/h
+            compressor_frequency: Compressor frequency in Hz (to check if running)
+
+        """
+        # Check if compressor is running
+        if compressor_frequency is None or compressor_frequency <= 0:
+            self._last_power = 0.0
+            return
+
+        # Validate input data
+        if any(x is None for x in [water_inlet_temp, water_outlet_temp, water_flow]):
+            self._last_power = 0.0
+            return
+
+        # Calculate thermal power
+        thermal_power = calculate_thermal_power(
+            ThermalPowerInput(
+                water_inlet_temp,  # type: ignore
+                water_outlet_temp,  # type: ignore
+                water_flow,  # type: ignore
+            )
+        )
+
+        # Update accumulator and store last power
+        self._accumulator.update(thermal_power)
+        self._last_power = thermal_power
+
+    def get_power(self) -> float:
+        """Get current thermal power in kW."""
+        return round(self._last_power, 2) if self._last_power > 0 else 0
+
+    def get_daily_energy(self) -> float:
+        """Get daily thermal energy in kWh."""
+        return round(self._accumulator.daily_energy, 2)
+
+    def get_total_energy(self) -> float:
+        """Get total thermal energy in kWh."""
+        return round(self._accumulator.total_energy, 2)
+
+    def get_result(
+        self, water_inlet_temp: float, water_outlet_temp: float, water_flow: float
+    ) -> ThermalEnergyResult:
+        """Get complete thermal energy result with all details."""
+        delta_t = water_outlet_temp - water_inlet_temp
+        last_update = (
+            datetime.fromtimestamp(self._accumulator.last_measurement_time)
+            if self._accumulator.last_measurement_time > 0
+            else datetime.now()
+        )
+        daily_start = (
+            datetime.fromtimestamp(self._accumulator.daily_start_time)
+            if self._accumulator.daily_start_time > 0
+            else datetime.now()
+        )
+
+        return ThermalEnergyResult(
+            thermal_power=self._last_power,
+            daily_energy=self._accumulator.daily_energy,
+            total_energy=self._accumulator.total_energy,
+            delta_t=delta_t,
+            last_update=last_update,
+            last_reset_date=self._accumulator.last_reset_date,
+            daily_start_time=daily_start,
+        )
