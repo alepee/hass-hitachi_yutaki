@@ -1,89 +1,66 @@
-"""Electrical power calculation logic, dependent on Home Assistant."""
+"""Electrical power calculation logic.
+
+This module is isolated from Home Assistant to facilitate testing.
+All data must be provided as input parameters.
+"""
 
 from __future__ import annotations
 
-import logging
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from homeassistant.config_entries import ConfigEntry
-    from homeassistant.core import HomeAssistant
-
-_LOGGER = logging.getLogger(__name__)
+from dataclasses import dataclass
 
 # Configuration constants for electrical power calculation
-CONF_POWER_ENTITY = "power_entity"
-CONF_VOLTAGE_ENTITY = "voltage_entity"
 POWER_FACTOR = 0.9
 THREE_PHASE_FACTOR = 1.732
 VOLTAGE_SINGLE_PHASE = 230.0
 VOLTAGE_THREE_PHASE = 400.0
 
 
-class ElectricalPowerService:
-    """Service to calculate electrical power, with HA dependencies."""
+@dataclass
+class ElectricalPowerInput:
+    """Input data for electrical power calculation."""
 
-    def __init__(
-        self, hass: HomeAssistant, config_entry: ConfigEntry, power_supply: str
-    ) -> None:
-        """Initialize the electrical power service."""
-        self._hass = hass
-        self._config_entry = config_entry
-        self._power_supply = power_supply
+    current: float  # Current in Amperes
+    measured_power: float | None = None  # Directly measured power in kW (optional)
+    voltage: float | None = None  # Voltage in Volts (optional)
+    is_three_phase: bool = True  # Three phase or single phase
 
-    def calculate(self, current: float) -> float:
-        """Calculate electrical power in kW."""
-        # Check if a dedicated power entity is configured
-        power_entity_id = self._config_entry.data.get(CONF_POWER_ENTITY)
-        if power_entity_id:
-            power_state = self._hass.states.get(power_entity_id)
-            if power_state and power_state.state not in (
-                None,
-                "unknown",
-                "unavailable",
-            ):
-                try:
-                    power_value = float(power_state.state)
-                    # Simple heuristic to convert W to kW if necessary
-                    return power_value / 1000 if power_value > 50 else power_value
-                except ValueError:
-                    _LOGGER.warning(
-                        "Could not convert power value '%s' from entity %s to float",
-                        power_state.state,
-                        power_entity_id,
-                    )
 
-        # Get voltage from entity if configured, otherwise use default
-        default_voltage = (
-            VOLTAGE_SINGLE_PHASE
-            if self._power_supply == "single"
-            else VOLTAGE_THREE_PHASE
+def calculate_electrical_power(data: ElectricalPowerInput) -> float:
+    """Calculate electrical power in kW from input data.
+
+    Priority:
+    1. Use measured_power if available (most accurate)
+    2. Calculate from voltage and current
+    3. Use default voltage for calculation
+
+    Args:
+        data: ElectricalPowerInput with current and optional measurements
+
+    Returns:
+        Electrical power in kW
+
+    """
+    # Priority 1: Use direct power measurement if available
+    if data.measured_power is not None:
+        # Simple heuristic to convert W to kW if necessary
+        return (
+            data.measured_power / 1000
+            if data.measured_power > 50
+            else data.measured_power
         )
-        voltage_entity_id = self._config_entry.data.get(CONF_VOLTAGE_ENTITY)
-        voltage = default_voltage
 
-        if voltage_entity_id:
-            voltage_state = self._hass.states.get(voltage_entity_id)
-            if voltage_state and voltage_state.state not in (
-                None,
-                "unknown",
-                "unavailable",
-            ):
-                try:
-                    voltage = float(voltage_state.state)
-                except ValueError:
-                    _LOGGER.warning(
-                        "Could not convert voltage value '%s' from entity %s to float, using default %.1f V",
-                        voltage_state.state,
-                        voltage_entity_id,
-                        default_voltage,
-                    )
+    # Priority 2: Calculate from voltage and current
+    voltage = data.voltage
+    if voltage is None:
+        # Use default voltage based on power supply type
+        voltage = VOLTAGE_THREE_PHASE if data.is_three_phase else VOLTAGE_SINGLE_PHASE
 
-        if self._power_supply == "single":
-            # Single phase: P = U * I * cos φ
-            power = (voltage * current * POWER_FACTOR) / 1000
-        else:
-            # Three phase: P = U * I * cos φ * √3
-            power = (voltage * current * POWER_FACTOR * THREE_PHASE_FACTOR) / 1000
+    # Calculate power based on supply type
+    if data.is_three_phase:
+        # Three phase: P = U * I * cos φ * √3
+        power = (voltage * data.current * POWER_FACTOR * THREE_PHASE_FACTOR) / 1000
+    else:
+        # Single phase: P = U * I * cos φ
+        power = (voltage * data.current * POWER_FACTOR) / 1000
 
-        return power
+    return power

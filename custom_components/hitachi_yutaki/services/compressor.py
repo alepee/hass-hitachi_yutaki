@@ -1,8 +1,22 @@
-"""Compressor cycle and timing logic for Hitachi Yutaki."""
+"""Compressor cycle and timing logic for Hitachi Yutaki.
 
+This module is isolated from Home Assistant to facilitate testing.
+All data must be provided as input parameters.
+"""
+
+from dataclasses import dataclass
 from datetime import datetime
 
 from .storage import AbstractStorage
+
+
+@dataclass
+class CompressorTimingResult:
+    """Result of compressor timing calculations."""
+
+    cycle_time: float | None  # Average time between starts (minutes)
+    runtime: float | None  # Average runtime per cycle (minutes)
+    resttime: float | None  # Average rest time between cycles (minutes)
 
 
 class CompressorHistory:
@@ -81,3 +95,33 @@ class CompressorHistory:
         self._cycles.clear()
         self._run_times.clear()
         self._rest_times.clear()
+
+
+class CompressorTimingSensor:
+    """Orchestrates compressor timing calculations.
+
+    This class is independent of Home Assistant and can be easily tested.
+    """
+
+    def __init__(self, history: CompressorHistory) -> None:
+        """Initialize the compressor timing sensor."""
+        self._history = history
+
+    def update(self, compressor_frequency: float | None) -> None:
+        """Update compressor state based on current frequency.
+
+        Args:
+            compressor_frequency: Current compressor frequency in Hz.
+                                  None or 0 means compressor is not running.
+        """
+        is_running = compressor_frequency is not None and compressor_frequency > 0
+        self._history.add_state(is_running)
+
+    def get_timing(self) -> CompressorTimingResult:
+        """Get current timing statistics."""
+        avg_cycle, avg_run, avg_rest = self._history.get_average_times()
+        return CompressorTimingResult(
+            cycle_time=avg_cycle,
+            runtime=avg_run,
+            resttime=avg_rest,
+        )
