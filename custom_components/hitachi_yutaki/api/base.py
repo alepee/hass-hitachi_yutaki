@@ -130,6 +130,21 @@ class HitachiApiClient(ABC):
     def is_smart_function_active(self) -> bool:
         """Return True if smart grid function is active."""
 
+    @property
+    @abstractmethod
+    def is_primary_compressor_running(self) -> bool:
+        """Return True if primary compressor is running."""
+
+    @property
+    @abstractmethod
+    def is_secondary_compressor_running(self) -> bool:
+        """Return True if secondary compressor is running."""
+
+    @property
+    @abstractmethod
+    def is_antilegionella_active(self) -> bool:
+        """Return True if anti-legionella cycle is running."""
+
     # Unit control - Getters
     @abstractmethod
     def get_unit_power(self) -> bool | None:

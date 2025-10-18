@@ -51,6 +51,11 @@ class HitachiHeatPumpProfile(ABC):
         return False
 
     @property
+    def supports_boiler(self) -> bool:
+        """Return True if the heat pump has a backup boiler."""
+        return True
+
+    @property
     def extra_register_keys(self) -> list[str]:
         """Return the extra register keys for the profile."""
         return []

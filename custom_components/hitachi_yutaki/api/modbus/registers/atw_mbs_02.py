@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+from ....const import OTCCalculationMethod
 from . import HitachiRegisterMap
 
 # System configuration bit masks (from register 1089)
@@ -71,6 +72,31 @@ def deserialize_system_state(value: int | None) -> str:
     return SYSTEM_STATE_MAP.get(value, "unknown")
 
 
+def deserialize_otc_method(value: int | None) -> str | None:
+    """Convert a raw OTC method value to an OTC method constant."""
+    if value is None:
+        return None
+    # Mapping from numeric method ID to OTC method
+    method_map = {
+        0: OTCCalculationMethod.DISABLED,
+        1: OTCCalculationMethod.POINTS,
+        2: OTCCalculationMethod.GRADIENT,
+        3: OTCCalculationMethod.FIX,
+    }
+    return method_map.get(value)
+
+
+def serialize_otc_method(value: str) -> int:
+    """Convert an OTC method constant to a raw value."""
+    method_map = {
+        OTCCalculationMethod.DISABLED: 0,
+        OTCCalculationMethod.POINTS: 1,
+        OTCCalculationMethod.GRADIENT: 2,
+        OTCCalculationMethod.FIX: 3,
+    }
+    return method_map.get(value, 0)
+
+
 def deserialize_unit_model(value: int | None) -> str:
     """Convert a raw unit model ID to a model key."""
     if value is None:
@@ -128,9 +154,11 @@ def convert_from_tenths(value: int | None) -> float | None:
     Marked as (*3) in ATW-MBS-02 documentation for temperatures.
 
     Examples:
-        - Temperatures: 500 → 50.0 °C (setpoints, targets, max flow temps)
+        - Temperatures: 500 → 50.0 °C (setpoints, targets, current temps)
         - Water flow: 50 → 5.0 m³/h
         - Secondary compressor current: 50 → 5.0 A
+
+    Note: max_flow_temp_*_otc registers are stored as integer degrees, not tenths.
 
     """
     if value is None:
@@ -239,14 +267,14 @@ REGISTER_SECONDARY_COMPRESSOR = {
 
 REGISTER_CIRCUIT_1 = {
     "circuit1_power": RegisterDefinition(1002),
-    "circuit1_otc_calculation_method_heating": RegisterDefinition(1003),
-    "circuit1_otc_calculation_method_cooling": RegisterDefinition(1004),
-    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(
-        1005, deserializer=convert_from_tenths
+    "circuit1_otc_calculation_method_heating": RegisterDefinition(
+        1003, deserializer=deserialize_otc_method
     ),
-    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(
-        1006, deserializer=convert_from_tenths
+    "circuit1_otc_calculation_method_cooling": RegisterDefinition(
+        1004, deserializer=deserialize_otc_method
     ),
+    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1005),
+    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1006),
     "circuit1_eco_mode": RegisterDefinition(1007),
     "circuit1_heat_eco_offset": RegisterDefinition(1008),
     "circuit1_cool_eco_offset": RegisterDefinition(1009),
@@ -257,14 +285,14 @@ REGISTER_CIRCUIT_1 = {
 
 REGISTER_CIRCUIT_2 = {
     "circuit2_power": RegisterDefinition(1013),
-    "circuit2_otc_calculation_method_heating": RegisterDefinition(1014),
-    "circuit2_otc_calculation_method_cooling": RegisterDefinition(1015),
-    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(
-        1016, deserializer=convert_from_tenths
+    "circuit2_otc_calculation_method_heating": RegisterDefinition(
+        1014, deserializer=deserialize_otc_method
     ),
-    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(
-        1017, deserializer=convert_from_tenths
+    "circuit2_otc_calculation_method_cooling": RegisterDefinition(
+        1015, deserializer=deserialize_otc_method
     ),
+    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1016),
+    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1017),
     "circuit2_eco_mode": RegisterDefinition(1018),
     "circuit2_heat_eco_offset": RegisterDefinition(1019),
     "circuit2_cool_eco_offset": RegisterDefinition(1020),

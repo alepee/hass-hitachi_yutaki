@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 
+from homeassistant.components.climate import HVACMode
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import EntityCategory
@@ -18,6 +20,7 @@ from .const import (
     DEVICE_CIRCUIT_2,
     DEVICE_CONTROL_UNIT,
     DOMAIN,
+    OTCCalculationMethod,
 )
 from .coordinator import HitachiYutakiDataCoordinator
 
@@ -30,12 +33,13 @@ class HitachiYutakiSelectEntityDescription(SelectEntityDescription):
     translation_key: str
     options: list[str] | None = None
 
-    register_key: str | None = None
-    value_map: dict[str, int] | None = None
+    value_map: dict[str, Any] | None = None
     condition: callable | None = None
     entity_category: EntityCategory | None = None
     entity_registry_enabled_default: bool = False
     description: str | None = None
+    get_fn: Callable[[Any, int | None], str | None] | None = None
+    set_fn: Callable[[Any, int | None, Any], Any] | None = None
 
 
 UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
@@ -43,29 +47,31 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
         key="operation_mode_heat",
         translation_key="operation_mode_heat",
         description="Operating mode of the heat pump (heating only unit)",
-        register_key="unit_mode",
         options=["heat", "auto"],
         value_map={
-            "heat": 1,
-            "auto": 2,
+            "heat": HVACMode.HEAT,
+            "auto": HVACMode.AUTO,
         },
         condition=lambda coordinator: not (
             coordinator.has_cooling_circuit1() or coordinator.has_cooling_circuit2()
         ),
+        get_fn=lambda api, _: api.get_unit_mode(),
+        set_fn=lambda api, _, value: api.set_unit_mode(value),
     ),
     HitachiYutakiSelectEntityDescription(
         key="operation_mode_full",
         translation_key="operation_mode_full",
         description="Operating mode of the heat pump (heating and cooling unit)",
-        register_key="unit_mode",
         options=["cool", "heat", "auto"],
         value_map={
-            "cool": 0,
-            "heat": 1,
-            "auto": 2,
+            "cool": HVACMode.COOL,
+            "heat": HVACMode.HEAT,
+            "auto": HVACMode.AUTO,
         },
         condition=lambda coordinator: coordinator.has_cooling_circuit1()
         or coordinator.has_cooling_circuit2(),
+        get_fn=lambda api, _: api.get_unit_mode(),
+        set_fn=lambda api, _, value: api.set_unit_mode(value),
     ),
 )
 
@@ -74,33 +80,39 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
         key="otc_calculation_method_heating",
         translation_key="otc_calculation_method_heating",
         description="Method used to calculate the heating water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation)",
-        register_key="otc_calculation_method_heating",
         options=["disabled", "points", "gradient", "fix"],
         value_map={
-            "disabled": 0,
-            "points": 1,
-            "gradient": 2,
-            "fix": 3,
+            "disabled": OTCCalculationMethod.DISABLED,
+            "points": OTCCalculationMethod.POINTS,
+            "gradient": OTCCalculationMethod.GRADIENT,
+            "fix": OTCCalculationMethod.FIX,
         },
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
+        get_fn=lambda api, circuit_id: api.get_circuit_otc_method_heating(circuit_id),
+        set_fn=lambda api, circuit_id, value: api.set_circuit_otc_method_heating(
+            circuit_id, value
+        ),
     ),
     HitachiYutakiSelectEntityDescription(
         key="otc_calculation_method_cooling",
         translation_key="otc_calculation_method_cooling",
         description="Method used to calculate the cooling water temperature based on outdoor temperature (OTC - Outdoor Temperature Compensation)",
-        register_key="otc_calculation_method_cooling",
         options=["disabled", "points", "fix"],
         value_map={
-            "disabled": 0,
-            "points": 1,
-            "fix": 2,
+            "disabled": OTCCalculationMethod.DISABLED,
+            "points": OTCCalculationMethod.POINTS,
+            "fix": OTCCalculationMethod.FIX,
         },
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         condition=lambda coordinator, circuit_id: getattr(
             coordinator, f"has_cooling_circuit{circuit_id}"
         )(),
+        get_fn=lambda api, circuit_id: api.get_circuit_otc_method_cooling(circuit_id),
+        set_fn=lambda api, circuit_id, value: api.set_circuit_otc_method_cooling(
+            circuit_id, value
+        ),
     ),
 )
 
@@ -176,12 +188,6 @@ class HitachiYutakiSelect(
         """Initialize the select."""
         super().__init__(coordinator)
         self.entity_description = description
-        self.register_prefix = register_prefix
-        self._register_key = (
-            f"{register_prefix}_{description.register_key}"
-            if register_prefix
-            else description.register_key
-        )
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
             f"{entry_id}_{register_prefix}_{description.key}"
@@ -191,6 +197,13 @@ class HitachiYutakiSelect(
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
+        # Extract circuit_id if applicable
+        self._circuit_id = (
+            int(register_prefix.replace("circuit", ""))
+            if register_prefix and register_prefix.startswith("circuit")
+            else None
+        )
+
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
@@ -199,38 +212,16 @@ class HitachiYutakiSelect(
     @property
     def current_option(self) -> str | None:
         """Return the selected entity option to represent the entity state."""
-        if not self.coordinator.data or not self.entity_description.value_map:
+        if (
+            not self.coordinator.data
+            or not self.entity_description.value_map
+            or not self.entity_description.get_fn
+        ):
             return None
 
-        # Map entity key to corresponding API getter
-        value = None
-        if self.entity_description.key in [
-            "operation_mode_heat",
-            "operation_mode_full",
-        ]:
-            hvac_mode = self.coordinator.api_client.get_unit_mode()
-            if hvac_mode is None:
-                return None
-            # Map HVACMode to our value_map
-            from homeassistant.components.climate import HVACMode
-
-            mode_values = {
-                HVACMode.COOL: 0,
-                HVACMode.HEAT: 1,
-                HVACMode.AUTO: 2,
-            }
-            value = mode_values.get(hvac_mode)
-        elif self.register_prefix and self.register_prefix.startswith("circuit"):
-            circuit_id = int(self.register_prefix.replace("circuit", ""))
-
-            if self.entity_description.key == "otc_calculation_method_heating":
-                value = self.coordinator.api_client.get_circuit_otc_method_heating(
-                    circuit_id
-                )
-            elif self.entity_description.key == "otc_calculation_method_cooling":
-                value = self.coordinator.api_client.get_circuit_otc_method_cooling(
-                    circuit_id
-                )
+        value = self.entity_description.get_fn(
+            self.coordinator.api_client, self._circuit_id
+        )
 
         if value is None:
             return None
@@ -249,37 +240,12 @@ class HitachiYutakiSelect(
         if (
             not self.entity_description.value_map
             or option not in self.entity_description.value_map
+            or not self.entity_description.set_fn
         ):
             return
 
         value = self.entity_description.value_map[option]
-
-        # Map entity key to corresponding API setter
-        if self.entity_description.key in [
-            "operation_mode_heat",
-            "operation_mode_full",
-        ]:
-            # Map value to HVACMode
-            from homeassistant.components.climate import HVACMode
-
-            mode_map = {
-                0: HVACMode.COOL,
-                1: HVACMode.HEAT,
-                2: HVACMode.AUTO,
-            }
-            hvac_mode = mode_map.get(value)
-            if hvac_mode:
-                await self.coordinator.api_client.set_unit_mode(hvac_mode)
-        elif self.register_prefix and self.register_prefix.startswith("circuit"):
-            circuit_id = int(self.register_prefix.replace("circuit", ""))
-
-            if self.entity_description.key == "otc_calculation_method_heating":
-                await self.coordinator.api_client.set_circuit_otc_method_heating(
-                    circuit_id, value
-                )
-            elif self.entity_description.key == "otc_calculation_method_cooling":
-                await self.coordinator.api_client.set_circuit_otc_method_cooling(
-                    circuit_id, value
-                )
-
+        await self.entity_description.set_fn(
+            self.coordinator.api_client, self._circuit_id, value
+        )
         await self.coordinator.async_request_refresh()

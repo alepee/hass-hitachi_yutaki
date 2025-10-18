@@ -6,6 +6,7 @@ from typing import Any
 from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ModbusException
 
+from homeassistant.components.climate import HVACMode
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
@@ -35,6 +36,7 @@ from .registers.atw_mbs_02 import (
     MASK_SPACE_HEATER,
     SYSTEM_STATE_ISSUES,
     WRITABLE_KEYS,
+    serialize_otc_method,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -284,6 +286,24 @@ class ModbusApiClient(HitachiApiClient):
         system_status = self._data.get("system_status", 0)
         return bool(system_status & MASK_SMART_FUNCTION)
 
+    @property
+    def is_primary_compressor_running(self) -> bool:
+        """Return True if primary compressor is running."""
+        frequency = self._data.get("compressor_frequency")
+        return frequency is not None and frequency > 0
+
+    @property
+    def is_secondary_compressor_running(self) -> bool:
+        """Return True if secondary compressor is running."""
+        frequency = self._data.get("secondary_compressor_frequency")
+        return frequency is not None and frequency > 0
+
+    @property
+    def is_antilegionella_active(self) -> bool:
+        """Return True if anti-legionella cycle is running."""
+        status = self._data.get("dhw_antilegionella_status")
+        return status == 1
+
     async def _trigger_refresh(self) -> None:
         """Trigger a refresh of coordinator data after a write operation."""
         # Note: Refresh is handled by coordinator.async_request_refresh() in entities
@@ -299,8 +319,6 @@ class ModbusApiClient(HitachiApiClient):
 
     def get_unit_mode(self):
         """Get the current unit mode."""
-        from homeassistant.components.climate import HVACMode
-
         unit_mode = self._data.get("unit_mode")
         if unit_mode is None:
             return None
@@ -317,8 +335,6 @@ class ModbusApiClient(HitachiApiClient):
 
     async def set_unit_mode(self, mode) -> bool:
         """Set the unit operation mode."""
-        from homeassistant.components.climate import HVACMode
-
         mode_map = {
             HVACMode.COOL: HVAC_UNIT_MODE_COOL,
             HVACMode.HEAT: HVAC_UNIT_MODE_HEAT,
@@ -371,18 +387,18 @@ class ModbusApiClient(HitachiApiClient):
             return None
         return bool(value)
 
-    def get_circuit_otc_method_heating(self, circuit_id: int) -> int | None:
+    def get_circuit_otc_method_heating(self, circuit_id: int) -> str | None:
         """Get OTC calculation method for heating."""
         key = f"circuit{circuit_id}_otc_calculation_method_heating"
         return self._data.get(key)
 
-    def get_circuit_otc_method_cooling(self, circuit_id: int) -> int | None:
+    def get_circuit_otc_method_cooling(self, circuit_id: int) -> str | None:
         """Get OTC calculation method for cooling."""
         key = f"circuit{circuit_id}_otc_calculation_method_cooling"
         return self._data.get(key)
 
     def get_circuit_max_flow_temp_heating(self, circuit_id: int) -> float | None:
-        """Get maximum heating water temperature for OTC (in °C)."""
+        """Get maximum heating water temperature for OTC (in °C, stored as integer)."""
         key = f"circuit{circuit_id}_max_flow_temp_heating_otc"
         value = self._data.get(key)
         if value is None:
@@ -390,7 +406,7 @@ class ModbusApiClient(HitachiApiClient):
         return float(value)
 
     def get_circuit_max_flow_temp_cooling(self, circuit_id: int) -> float | None:
-        """Get maximum cooling water temperature for OTC (in °C)."""
+        """Get maximum cooling water temperature for OTC (in °C, stored as integer)."""
         key = f"circuit{circuit_id}_max_flow_temp_cooling_otc"
         value = self._data.get(key)
         if value is None:
@@ -434,32 +450,32 @@ class ModbusApiClient(HitachiApiClient):
         return await self.write_value(key, 1 if enabled else 0)
 
     async def set_circuit_otc_method_heating(
-        self, circuit_id: int, method: int
+        self, circuit_id: int, method: str
     ) -> bool:
         """Set OTC calculation method for heating."""
         key = f"circuit{circuit_id}_otc_calculation_method_heating"
-        return await self.write_value(key, method)
+        return await self.write_value(key, serialize_otc_method(method))
 
     async def set_circuit_otc_method_cooling(
-        self, circuit_id: int, method: int
+        self, circuit_id: int, method: str
     ) -> bool:
         """Set OTC calculation method for cooling."""
         key = f"circuit{circuit_id}_otc_calculation_method_cooling"
-        return await self.write_value(key, method)
+        return await self.write_value(key, serialize_otc_method(method))
 
     async def set_circuit_max_flow_temp_heating(
         self, circuit_id: int, temperature: float
     ) -> bool:
-        """Set maximum heating water temperature for OTC (stored in tenths of degrees)."""
+        """Set maximum heating water temperature for OTC (stored as integer degrees)."""
         key = f"circuit{circuit_id}_max_flow_temp_heating_otc"
-        return await self.write_value(key, int(temperature * 10))
+        return await self.write_value(key, int(temperature))
 
     async def set_circuit_max_flow_temp_cooling(
         self, circuit_id: int, temperature: float
     ) -> bool:
-        """Set maximum cooling water temperature for OTC (stored in tenths of degrees)."""
+        """Set maximum cooling water temperature for OTC (stored as integer degrees)."""
         key = f"circuit{circuit_id}_max_flow_temp_cooling_otc"
-        return await self.write_value(key, int(temperature * 10))
+        return await self.write_value(key, int(temperature))
 
     async def set_circuit_heat_eco_offset(self, circuit_id: int, offset: int) -> bool:
         """Set temperature offset for ECO heating mode."""

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Final
+from typing import Final
 
 from homeassistant.components.binary_sensor import (
     BinarySensorDeviceClass,
@@ -39,9 +39,7 @@ class HitachiYutakiBinarySensorEntityDescription(BinarySensorEntityDescription):
     entity_registry_enabled_default: bool = True
     entity_registry_visible_default: bool = True
 
-    register_key: str | None = None
-    mask: int | None = None
-    value_fn: Callable[[Any, HitachiYutakiDataCoordinator], bool] | None = None
+    value_fn: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
     translation_key: str | None = None
     description: str | None = None
@@ -56,8 +54,7 @@ GATEWAY_BINARY_SENSORS: Final[
         description="Indicates if the gateway is connected and responding",
         device_class=BinarySensorDeviceClass.CONNECTIVITY,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="is_available",
-        value_fn=lambda value, _: bool(value),
+        value_fn=lambda coordinator: coordinator.last_update_success,
     ),
 )
 
@@ -71,8 +68,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if the unit is currently in defrost mode",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_defrosting,
+        value_fn=lambda coordinator: coordinator.api_client.is_defrosting,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="solar",
@@ -81,8 +77,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if the solar system is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_solar_active,
+        value_fn=lambda coordinator: coordinator.api_client.is_solar_active,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -92,8 +87,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if water pump 1 is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_pump1_running,
+        value_fn=lambda coordinator: coordinator.api_client.is_pump1_running,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -103,8 +97,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if water pump 2 is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_pump2_running,
+        value_fn=lambda coordinator: coordinator.api_client.is_pump2_running,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -114,8 +107,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if water pump 3 is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_pump3_running,
+        value_fn=lambda coordinator: coordinator.api_client.is_pump3_running,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -125,8 +117,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if the compressor is running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_compressor_running,
+        value_fn=lambda coordinator: coordinator.api_client.is_compressor_running,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="boiler",
@@ -135,9 +126,8 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if the backup boiler is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_boiler_active,
-        condition=lambda c: not c.profile.supports_secondary_compressor,
+        value_fn=lambda coordinator: coordinator.api_client.is_boiler_active,
+        condition=lambda c: c.profile.supports_boiler,
     ),
     HitachiYutakiBinarySensorEntityDescription(
         key="dhw_heater",
@@ -146,8 +136,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if the DHW electric heater is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_dhw_heater_active,
+        value_fn=lambda coordinator: coordinator.api_client.is_dhw_heater_active,
         condition=lambda c: c.has_dhw(),
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -156,8 +145,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if the space heating electric heater is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_space_heater_active,
+        value_fn=lambda coordinator: coordinator.api_client.is_space_heater_active,
         entity_registry_enabled_default=False,
     ),
     HitachiYutakiBinarySensorEntityDescription(
@@ -167,8 +155,7 @@ CONTROL_UNIT_BINARY_SENSORS: Final[
         description="Indicates if the smart grid function is active",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="system_status",
-        value_fn=lambda _, coordinator: coordinator.api_client.is_smart_function_active,
+        value_fn=lambda coordinator: coordinator.api_client.is_smart_function_active,
         entity_registry_enabled_default=False,
     ),
 )
@@ -181,10 +168,9 @@ PRIMARY_COMPRESSOR_BINARY_SENSORS: Final[
         translation_key="compressor_running",
         description="Indicates if the primary compressor is running",
         device_class=BinarySensorDeviceClass.RUNNING,
-        register_key="compressor_frequency",
         icon="mdi:engine",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda value, _: value is not None and value > 0,
+        value_fn=lambda coordinator: coordinator.api_client.is_primary_compressor_running,
     ),
 )
 
@@ -196,10 +182,9 @@ SECONDARY_COMPRESSOR_BINARY_SENSORS: Final[
         translation_key="secondary_compressor_running",
         description="Indicates if the secondary compressor is running",
         device_class=BinarySensorDeviceClass.RUNNING,
-        register_key="secondary_compressor_frequency",
         icon="mdi:engine",
         entity_category=EntityCategory.DIAGNOSTIC,
-        value_fn=lambda value, coordinator: value is not None and value > 0,
+        value_fn=lambda coordinator: coordinator.api_client.is_secondary_compressor_running,
         condition=lambda c: c.profile.supports_secondary_compressor,
     ),
 )
@@ -212,8 +197,7 @@ DHW_BINARY_SENSORS: Final[tuple[HitachiYutakiBinarySensorEntityDescription, ...]
         description="Indicates if an anti-legionella cycle is currently running",
         device_class=BinarySensorDeviceClass.RUNNING,
         entity_category=EntityCategory.DIAGNOSTIC,
-        register_key="dhw_antilegionella_status",
-        value_fn=lambda value, _: value == 1,
+        value_fn=lambda coordinator: coordinator.api_client.is_antilegionella_active,
         condition=lambda c: c.has_dhw(),
     ),
 )
@@ -324,25 +308,12 @@ class HitachiYutakiBinarySensor(
     def is_on(self) -> bool | None:
         """Return true if the binary sensor is on."""
         if (
-            self.coordinator.data is None
-            or self.entity_description.register_key is None
-            or not self.coordinator.last_update_success
+            not self.coordinator.last_update_success
+            or not self.entity_description.value_fn
         ):
             return None
 
-        value = self.coordinator.data.get(self.entity_description.register_key)
-        if value is None:
-            return None
-
-        # Use value_fn if provided
-        if self.entity_description.value_fn is not None:
-            return self.entity_description.value_fn(value, self.coordinator)
-
-        # Otherwise use mask
-        if self.entity_description.mask is not None:
-            return bool(value & self.entity_description.mask)
-
-        return None
+        return self.entity_description.value_fn(self.coordinator)
 
     @property
     def available(self) -> bool:
