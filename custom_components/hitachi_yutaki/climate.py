@@ -119,9 +119,10 @@ class HitachiYutakiClimate(
         )
 
         # Set temperature settings
-        self._attr_min_temp = 5.0
-        self._attr_max_temp = 35.0
-        self._attr_target_temperature_step = 0.5
+        climate_overrides = coordinator.profile.entity_overrides.get("climate", {})
+        self._attr_min_temp = climate_overrides.get("min_temp", 5.0)
+        self._attr_max_temp = climate_overrides.get("max_temp", 35.0)
+        self._attr_target_temperature_step = climate_overrides.get("temp_step", 0.5)
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS
 
         # Set available modes

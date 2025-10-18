@@ -90,7 +90,6 @@ class HitachiYutakiWaterHeater(
         """Initialize the water heater."""
         super().__init__(coordinator)
         self.entity_description = description
-        self._register_prefix = "dhw"
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = f"{entry_id}_{description.key}"
         self._attr_device_info = device_info

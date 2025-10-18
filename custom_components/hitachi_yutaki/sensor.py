@@ -79,11 +79,11 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     entity_category: EntityCategory | None = None
     icon: str | None = None
     entity_registry_enabled_default: bool = True
-    register_key: str | None = None
     translation_key: str | None = None
     description: str | None = None
     fallback_translation_key: str | None = None
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
+    value_fn: Callable[[HitachiYutakiDataCoordinator], StateType] | None = None
 
 
 GATEWAY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
@@ -94,7 +94,7 @@ GATEWAY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         device_class=SensorDeviceClass.ENUM,
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:state-machine",
-        register_key="system_state",
+        value_fn=lambda coordinator: coordinator.data.get("system_state"),
     ),
 )
 
@@ -106,7 +106,7 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="outdoor_temp",
+        value_fn=lambda coordinator: coordinator.data.get("outdoor_temp"),
     ),
     HitachiYutakiSensorEntityDescription(
         key="water_inlet_temp",
@@ -115,7 +115,7 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="water_inlet_temp",
+        value_fn=lambda coordinator: coordinator.data.get("water_inlet_temp"),
     ),
     HitachiYutakiSensorEntityDescription(
         key="water_outlet_temp",
@@ -124,7 +124,7 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="water_outlet_temp",
+        value_fn=lambda coordinator: coordinator.data.get("water_outlet_temp"),
     ),
     HitachiYutakiSensorEntityDescription(
         key="water_target_temp",
@@ -133,7 +133,7 @@ TEMPERATURE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="water_target_temp",
+        value_fn=lambda coordinator: coordinator.data.get("water_target_temp"),
     ),
 )
 
@@ -147,7 +147,7 @@ POOL_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="pool_current_temp",
+        value_fn=lambda coordinator: coordinator.data.get("pool_current_temp"),
     ),
 )
 
@@ -159,7 +159,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfVolumeFlowRate.CUBIC_METERS_PER_HOUR,
-        register_key="water_flow",
+        value_fn=lambda coordinator: coordinator.data.get("water_flow"),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -169,7 +169,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
-        register_key="pump_speed",
+        value_fn=lambda coordinator: coordinator.data.get("pump_speed"),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -179,7 +179,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        register_key="power_consumption",
+        value_fn=lambda coordinator: coordinator.data.get("power_consumption"),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -188,7 +188,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         description="Current alarm",
         device_class=SensorDeviceClass.ENUM,
         state_class=None,
-        register_key="alarm_code",
+        value_fn=lambda coordinator: coordinator.data.get("alarm_code"),
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:alert-circle-outline",
     ),
@@ -196,7 +196,7 @@ CONTROL_UNIT_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = 
         key="operation_state",
         translation_key="operation_state",
         description="Current operation state of the heat pump",
-        register_key="operation_state",
+        value_fn=lambda coordinator: coordinator.data.get("operation_state"),
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:state-machine",
     ),
@@ -209,7 +209,6 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         description="Coefficient of Performance for Space Heating",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-pump",
         condition=lambda c: c.has_heating_circuit1() or c.has_heating_circuit2(),
@@ -220,7 +219,6 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         description="Coefficient of Performance for Space Cooling",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-pump-outline",
         condition=lambda c: c.has_cooling_circuit1() or c.has_cooling_circuit2(),
@@ -231,7 +229,6 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         description="Coefficient of Performance for Domestic Hot Water",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:water-boiler",
         condition=lambda c: c.has_dhw(),
@@ -242,7 +239,6 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         description="Coefficient of Performance for Pool Heating",
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:pool",
         condition=lambda c: c.has_pool(),
@@ -257,7 +253,6 @@ THERMAL_ENERGY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] 
         device_class=SensorDeviceClass.POWER,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="kW",
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-wave",
     ),
@@ -268,7 +263,6 @@ THERMAL_ENERGY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] 
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-wave",
     ),
@@ -279,7 +273,6 @@ THERMAL_ENERGY_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] 
         device_class=SensorDeviceClass.ENERGY,
         state_class=SensorStateClass.TOTAL_INCREASING,
         native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-wave",
     ),
@@ -294,7 +287,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
-        register_key="compressor_frequency",
+        value_fn=lambda coordinator: coordinator.data.get("compressor_frequency"),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -304,7 +297,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
-        register_key="compressor_current",
+        value_fn=lambda coordinator: coordinator.data.get("compressor_current"),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -314,7 +307,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="compressor_tg_gas_temp",
+        value_fn=lambda coordinator: coordinator.data.get("compressor_tg_gas_temp"),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -324,7 +317,7 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="compressor_ti_liquid_temp",
+        value_fn=lambda coordinator: coordinator.data.get("compressor_ti_liquid_temp"),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -334,7 +327,9 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="compressor_td_discharge_temp",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "compressor_td_discharge_temp"
+        ),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -344,7 +339,9 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="compressor_te_evaporator_temp",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "compressor_te_evaporator_temp"
+        ),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -354,7 +351,9 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
-        register_key="compressor_evi_indoor_expansion_valve_opening",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "compressor_evi_indoor_expansion_valve_opening"
+        ),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -364,7 +363,9 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=PERCENTAGE,
-        register_key="compressor_evo_outdoor_expansion_valve_opening",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "compressor_evo_outdoor_expansion_valve_opening"
+        ),
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     HitachiYutakiSensorEntityDescription(
@@ -374,7 +375,6 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="min",
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-outline",
     ),
@@ -385,7 +385,6 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="min",
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-play-outline",
     ),
@@ -396,7 +395,6 @@ PRIMARY_COMPRESSOR_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ..
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="min",
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-stop-outline",
     ),
@@ -412,7 +410,9 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="secondary_compressor_discharge_temp",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "secondary_compressor_discharge_temp"
+        ),
         condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -423,7 +423,9 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         device_class=SensorDeviceClass.TEMPERATURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="secondary_compressor_suction_temp",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "secondary_compressor_suction_temp"
+        ),
         condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -434,7 +436,9 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         device_class=SensorDeviceClass.PRESSURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPressure.BAR,
-        register_key="secondary_compressor_discharge_pressure",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "secondary_compressor_discharge_pressure"
+        ),
         condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -445,7 +449,9 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         device_class=SensorDeviceClass.PRESSURE,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfPressure.BAR,
-        register_key="secondary_compressor_suction_pressure",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "secondary_compressor_suction_pressure"
+        ),
         condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -456,7 +462,9 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         device_class=None,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfFrequency.HERTZ,
-        register_key="secondary_compressor_frequency",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "secondary_compressor_frequency"
+        ),
         condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -467,7 +475,9 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         device_class=SensorDeviceClass.CURRENT,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement=UnitOfElectricCurrent.AMPERE,
-        register_key="secondary_compressor_current",
+        value_fn=lambda coordinator: coordinator.data.get(
+            "secondary_compressor_current"
+        ),
         condition=lambda c: c.profile.supports_secondary_compressor,
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
@@ -478,7 +488,6 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="min",
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-outline",
         condition=lambda c: c.profile.supports_secondary_compressor,
@@ -490,7 +499,6 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="min",
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-play-outline",
         condition=lambda c: c.profile.supports_secondary_compressor,
@@ -502,7 +510,6 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
         device_class=SensorDeviceClass.DURATION,
         state_class=SensorStateClass.MEASUREMENT,
         native_unit_of_measurement="min",
-        register_key="system_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:timer-stop-outline",
         condition=lambda c: c.profile.supports_secondary_compressor,
@@ -847,8 +854,11 @@ class HitachiYutakiSensor(
             elif "resttime" in self.entity_description.key:
                 return avg_rest
 
-        # For simple sensors, directly return the value from coordinator
-        return self.coordinator.data.get(self.entity_description.register_key)
+        # For simple sensors, use value_fn if provided
+        if self.entity_description.value_fn:
+            return self.entity_description.value_fn(self.coordinator)
+
+        return None
 
     @property
     def available(self) -> bool:
@@ -859,9 +869,9 @@ class HitachiYutakiSensor(
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes of the sensor."""
         if self.entity_description.key == "alarm":
-            if self.coordinator.data is None:
+            if self.coordinator.data is None or not self.entity_description.value_fn:
                 return None
-            value = self.coordinator.data.get(self.entity_description.register_key)
+            value = self.entity_description.value_fn(self.coordinator)
             if value is not None and value != 0:
                 return {"code": value}
             return None

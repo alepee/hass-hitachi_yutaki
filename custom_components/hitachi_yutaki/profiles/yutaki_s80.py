@@ -26,6 +26,11 @@ class YutakiS80Profile(HitachiHeatPumpProfile):
         return True
 
     @property
+    def supports_boiler(self) -> bool:
+        """Return True if the heat pump has a backup boiler."""
+        return False
+
+    @property
     def extra_register_keys(self) -> list[str]:
         """Return a list of extra register keys required by the profile."""
         return [

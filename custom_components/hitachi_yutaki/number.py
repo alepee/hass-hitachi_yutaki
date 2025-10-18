@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 
 from homeassistant.components.number import (
     NumberEntity,
@@ -48,9 +49,9 @@ class HitachiYutakiNumberEntityDescription(NumberEntityDescription):
     entity_registry_enabled_default: bool = True
     entity_registry_visible_default: bool = True
 
-    register_key: str | None = None
-    multiplier: float | None = None
     description: str | None = None
+    get_fn: Callable[[Any, int | None], float | None] | None = None
+    set_fn: Callable[[Any, int | None, float], Any] | None = None
 
 
 CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
@@ -62,10 +63,15 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_max_value=80,
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="max_flow_temp_heating_otc",
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
+        get_fn=lambda api, circuit_id: api.get_circuit_max_flow_temp_heating(
+            circuit_id
+        ),
+        set_fn=lambda api, circuit_id, value: api.set_circuit_max_flow_temp_heating(
+            circuit_id, value
+        ),
     ),
     HitachiYutakiNumberEntityDescription(
         key="max_flow_temp_cooling_otc",
@@ -75,10 +81,15 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_max_value=80,
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="max_flow_temp_cooling_otc",
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
+        get_fn=lambda api, circuit_id: api.get_circuit_max_flow_temp_cooling(
+            circuit_id
+        ),
+        set_fn=lambda api, circuit_id, value: api.set_circuit_max_flow_temp_cooling(
+            circuit_id, value
+        ),
     ),
     HitachiYutakiNumberEntityDescription(
         key="heat_eco_offset",
@@ -88,9 +99,14 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_max_value=10,
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="heat_eco_offset",
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
+        get_fn=lambda api, circuit_id: float(value)
+        if (value := api.get_circuit_heat_eco_offset(circuit_id)) is not None
+        else None,
+        set_fn=lambda api, circuit_id, value: api.set_circuit_heat_eco_offset(
+            circuit_id, int(value)
+        ),
     ),
     HitachiYutakiNumberEntityDescription(
         key="cool_eco_offset",
@@ -100,9 +116,14 @@ CIRCUIT_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_max_value=10,
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="cool_eco_offset",
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
+        get_fn=lambda api, circuit_id: float(value)
+        if (value := api.get_circuit_cool_eco_offset(circuit_id)) is not None
+        else None,
+        set_fn=lambda api, circuit_id, value: api.set_circuit_cool_eco_offset(
+            circuit_id, int(value)
+        ),
     ),
 )
 
@@ -115,10 +136,11 @@ DHW_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_max_value=80,
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="antilegionella_temp",
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
+        get_fn=lambda api, _: api.get_dhw_antilegionella_temperature(),
+        set_fn=lambda api, _, value: api.set_dhw_antilegionella_temperature(value),
     ),
 )
 
@@ -131,9 +153,10 @@ POOL_NUMBERS: Final[tuple[HitachiYutakiNumberEntityDescription, ...]] = (
         native_max_value=80,
         native_step=1,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
-        register_key="pool_target_temp",
         mode=NumberMode.BOX,
         entity_category=EntityCategory.CONFIG,
+        get_fn=lambda api, _: api.get_pool_target_temperature(),
+        set_fn=lambda api, _, value: api.set_pool_target_temperature(value),
     ),
 )
 
@@ -230,12 +253,6 @@ class HitachiYutakiNumber(
         """Initialize the number entity."""
         super().__init__(coordinator)
         self.entity_description = description
-        self.register_prefix = register_prefix
-        self._register_key = (
-            f"{register_prefix}_{description.register_key}"
-            if register_prefix
-            else description.register_key
-        )
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
             f"{entry_id}_{register_prefix}_{description.key}"
@@ -245,6 +262,13 @@ class HitachiYutakiNumber(
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
+        # Extract circuit_id if applicable
+        self._circuit_id = (
+            int(register_prefix.replace("circuit", ""))
+            if register_prefix and register_prefix.startswith("circuit")
+            else None
+        )
+
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
@@ -253,76 +277,20 @@ class HitachiYutakiNumber(
     @property
     def native_value(self) -> float | None:
         """Return the entity value to represent the entity state."""
-        if self.coordinator.data is None:
+        if self.coordinator.data is None or not self.entity_description.get_fn:
             return None
 
-        # Map entity key to corresponding API getter
-        if self.register_prefix and self.register_prefix.startswith("circuit"):
-            circuit_id = int(self.register_prefix.replace("circuit", ""))
-
-            if self.entity_description.key == "max_flow_temp_heating_otc":
-                return self.coordinator.api_client.get_circuit_max_flow_temp_heating(
-                    circuit_id
-                )
-            elif self.entity_description.key == "max_flow_temp_cooling_otc":
-                return self.coordinator.api_client.get_circuit_max_flow_temp_cooling(
-                    circuit_id
-                )
-            elif self.entity_description.key == "heat_eco_offset":
-                value = self.coordinator.api_client.get_circuit_heat_eco_offset(
-                    circuit_id
-                )
-                return float(value) if value is not None else None
-            elif self.entity_description.key == "cool_eco_offset":
-                value = self.coordinator.api_client.get_circuit_cool_eco_offset(
-                    circuit_id
-                )
-                return float(value) if value is not None else None
-
-        elif self.register_prefix == "dhw":
-            if self.entity_description.key == "antilegionella_temp":
-                return self.coordinator.api_client.get_dhw_antilegionella_temperature()
-
-        elif self.register_prefix == "pool":
-            if self.entity_description.key == "pool_target_temp":
-                return self.coordinator.api_client.get_pool_target_temperature()
-
-        return None
+        return self.entity_description.get_fn(
+            self.coordinator.api_client, self._circuit_id
+        )
 
     async def async_set_native_value(self, value: float) -> None:
         """Set new value."""
-        # Map entity key to corresponding API setter
-        if self.register_prefix and self.register_prefix.startswith("circuit"):
-            circuit_id = int(self.register_prefix.replace("circuit", ""))
-
-            if self.entity_description.key == "max_flow_temp_heating_otc":
-                await self.coordinator.api_client.set_circuit_max_flow_temp_heating(
-                    circuit_id, value
-                )
-            elif self.entity_description.key == "max_flow_temp_cooling_otc":
-                await self.coordinator.api_client.set_circuit_max_flow_temp_cooling(
-                    circuit_id, value
-                )
-            elif self.entity_description.key == "heat_eco_offset":
-                await self.coordinator.api_client.set_circuit_heat_eco_offset(
-                    circuit_id, int(value)
-                )
-            elif self.entity_description.key == "cool_eco_offset":
-                await self.coordinator.api_client.set_circuit_cool_eco_offset(
-                    circuit_id, int(value)
-                )
-
-        elif self.register_prefix == "dhw":
-            if self.entity_description.key == "antilegionella_temp":
-                await self.coordinator.api_client.set_dhw_antilegionella_temperature(
-                    value
-                )
-
-        elif self.register_prefix == "pool":
-            if self.entity_description.key == "pool_target_temp":
-                await self.coordinator.api_client.set_pool_target_temperature(value)
-
-        await self.coordinator.async_request_refresh()
+        if self.entity_description.set_fn:
+            await self.entity_description.set_fn(
+                self.coordinator.api_client, self._circuit_id, value
+            )
+            await self.coordinator.async_request_refresh()
 
     def set_native_value(self, value: float) -> None:
         """Set new value."""

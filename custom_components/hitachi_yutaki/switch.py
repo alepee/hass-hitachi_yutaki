@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 import logging
 from typing import Any, Final
@@ -43,10 +44,9 @@ class HitachiYutakiSwitchEntityDescription(SwitchEntityDescription):
     entity_registry_enabled_default: bool = True
     entity_registry_visible_default: bool = True
 
-    register_key: str | None = None
-    state_on: int = 1
-    state_off: int = 0
     description: str | None = None
+    get_fn: Callable[[Any, int | None], bool | None] | None = None
+    set_fn: Callable[[Any, int | None, bool], Any] | None = None
 
 
 UNIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
@@ -55,7 +55,8 @@ UNIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         translation_key="power",
         icon="mdi:power",
         description="Main power switch for the heat pump unit",
-        register_key="unit_power",
+        get_fn=lambda api, _: api.get_unit_power(),
+        set_fn=lambda api, _, value: api.set_unit_power(value),
     ),
 )
 
@@ -64,17 +65,21 @@ CIRCUIT_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         key="thermostat",
         translation_key="thermostat",
         description="Enable/disable the Modbus thermostat function for this circuit",
-        register_key="thermostat",
         entity_category=EntityCategory.CONFIG,
+        get_fn=lambda api, circuit_id: api.get_circuit_thermostat(circuit_id),
+        set_fn=lambda api, circuit_id, value: api.set_circuit_thermostat(
+            circuit_id, value
+        ),
     ),
     HitachiYutakiSwitchEntityDescription(
         key="eco_mode",
         translation_key="eco_mode",
         icon="mdi:leaf",
         description="Enable/disable ECO mode which applies a temperature offset to save energy",
-        register_key="eco_mode",
-        state_on=0,
-        state_off=1,
+        get_fn=lambda api, circuit_id: api.get_circuit_eco_mode(circuit_id),
+        set_fn=lambda api, circuit_id, value: api.set_circuit_eco_mode(
+            circuit_id, value
+        ),
     ),
 )
 
@@ -83,7 +88,8 @@ DHW_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         key="boost",
         translation_key="boost",
         description="Temporarily boost DHW production",
-        register_key="boost",
+        get_fn=lambda api, _: api.get_dhw_boost(),
+        set_fn=lambda api, _, value: api.set_dhw_boost(value),
     ),
 )
 
@@ -92,7 +98,8 @@ POOL_SWITCHES: Final[tuple[HitachiYutakiSwitchEntityDescription, ...]] = (
         key="power",
         translation_key="power",
         description="Power switch for swimming pool heating",
-        register_key="power",
+        get_fn=lambda api, _: api.get_pool_power(),
+        set_fn=lambda api, _, value: api.set_pool_power(value),
     ),
 )
 
@@ -205,12 +212,6 @@ class HitachiYutakiSwitch(
         """Initialize the switch."""
         super().__init__(coordinator)
         self.entity_description = description
-        self.register_prefix = register_prefix
-        self._register_key = (
-            f"{register_prefix}_{description.register_key}"
-            if register_prefix
-            else description.register_key
-        )
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
             f"{entry_id}_{register_prefix}_{description.key}"
@@ -220,6 +221,13 @@ class HitachiYutakiSwitch(
         self._attr_device_info = device_info
         self._attr_has_entity_name = True
 
+        # Extract circuit_id if applicable
+        self._circuit_id = (
+            int(register_prefix.replace("circuit", ""))
+            if register_prefix and register_prefix.startswith("circuit")
+            else None
+        )
+
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
@@ -228,105 +236,25 @@ class HitachiYutakiSwitch(
     @property
     def is_on(self) -> bool | None:
         """Return true if the switch is on."""
-        if self.coordinator.data is None:
+        if self.coordinator.data is None or not self.entity_description.get_fn:
             return None
 
-        try:
-            # Map entity key to corresponding API getter
-            if self.entity_description.key == "power" and not self.register_prefix:
-                value = self.coordinator.api_client.get_unit_power()
-            elif self.entity_description.key == "thermostat" and self.register_prefix:
-                circuit_id = int(self.register_prefix.replace("circuit", ""))
-                value = self.coordinator.api_client.get_circuit_thermostat(circuit_id)
-            elif self.entity_description.key == "eco_mode" and self.register_prefix:
-                circuit_id = int(self.register_prefix.replace("circuit", ""))
-                is_eco = self.coordinator.api_client.get_circuit_eco_mode(circuit_id)
-                # For eco_mode switch, state_on=0 means ON, so we return is_eco directly
-                return is_eco
-            elif (
-                self.entity_description.key == "boost" and self.register_prefix == "dhw"
-            ):
-                value = self.coordinator.api_client.get_dhw_boost()
-            elif (
-                self.entity_description.key == "power"
-                and self.register_prefix == "pool"
-            ):
-                value = self.coordinator.api_client.get_pool_power()
-            else:
-                return None
-
-            return value
-        except (ValueError, TypeError):
-            return None
+        return self.entity_description.get_fn(
+            self.coordinator.api_client, self._circuit_id
+        )
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the entity on."""
-        try:
-            # Map entity key to corresponding API setter
-            if self.entity_description.key == "power" and not self.register_prefix:
-                await self.coordinator.api_client.set_unit_power(True)
-            elif self.entity_description.key == "thermostat" and self.register_prefix:
-                circuit_id = int(self.register_prefix.replace("circuit", ""))
-                await self.coordinator.api_client.set_circuit_thermostat(
-                    circuit_id, True
-                )
-            elif self.entity_description.key == "eco_mode" and self.register_prefix:
-                circuit_id = int(self.register_prefix.replace("circuit", ""))
-                await self.coordinator.api_client.set_circuit_eco_mode(circuit_id, True)
-            elif (
-                self.entity_description.key == "boost" and self.register_prefix == "dhw"
-            ):
-                await self.coordinator.api_client.set_dhw_boost(True)
-            elif (
-                self.entity_description.key == "power"
-                and self.register_prefix == "pool"
-            ):
-                await self.coordinator.api_client.set_pool_power(True)
-            else:
-                _LOGGER.error("Unknown switch entity: %s", self.entity_description.key)
-                return
-
-            await self.coordinator.async_request_refresh()
-        except (ValueError, TypeError) as e:
-            _LOGGER.error(
-                "Failed to turn on %s: %s",
-                self.entity_id,
-                str(e),
+        if self.entity_description.set_fn:
+            await self.entity_description.set_fn(
+                self.coordinator.api_client, self._circuit_id, True
             )
+            await self.coordinator.async_request_refresh()
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the entity off."""
-        try:
-            # Map entity key to corresponding API setter
-            if self.entity_description.key == "power" and not self.register_prefix:
-                await self.coordinator.api_client.set_unit_power(False)
-            elif self.entity_description.key == "thermostat" and self.register_prefix:
-                circuit_id = int(self.register_prefix.replace("circuit", ""))
-                await self.coordinator.api_client.set_circuit_thermostat(
-                    circuit_id, False
-                )
-            elif self.entity_description.key == "eco_mode" and self.register_prefix:
-                circuit_id = int(self.register_prefix.replace("circuit", ""))
-                await self.coordinator.api_client.set_circuit_eco_mode(
-                    circuit_id, False
-                )
-            elif (
-                self.entity_description.key == "boost" and self.register_prefix == "dhw"
-            ):
-                await self.coordinator.api_client.set_dhw_boost(False)
-            elif (
-                self.entity_description.key == "power"
-                and self.register_prefix == "pool"
-            ):
-                await self.coordinator.api_client.set_pool_power(False)
-            else:
-                _LOGGER.error("Unknown switch entity: %s", self.entity_description.key)
-                return
-
-            await self.coordinator.async_request_refresh()
-        except (ValueError, TypeError) as e:
-            _LOGGER.error(
-                "Failed to turn off %s: %s",
-                self.entity_id,
-                str(e),
+        if self.entity_description.set_fn:
+            await self.entity_description.set_fn(
+                self.coordinator.api_client, self._circuit_id, False
             )
+            await self.coordinator.async_request_refresh()

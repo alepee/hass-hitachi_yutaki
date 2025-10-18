@@ -1,5 +1,6 @@
 """Constants for the Hitachi Yutaki integration."""
 
+from enum import StrEnum
 from typing import Final
 
 from packaging import version
@@ -63,6 +64,17 @@ PRESET_ECO = "eco"
 PRESET_DHW_OFF = "off"
 PRESET_DHW_HEAT_PUMP = "heat_pump"
 PRESET_DHW_HIGH_DEMAND = "high_demand"
+
+
+# OTC (Outdoor Temperature Compensation) calculation methods
+class OTCCalculationMethod(StrEnum):
+    """OTC calculation method."""
+
+    DISABLED = "disabled"
+    POINTS = "points"
+    GRADIENT = "gradient"
+    FIX = "fix"
+
 
 # Configuration options
 CONF_SLAVE = "slave"

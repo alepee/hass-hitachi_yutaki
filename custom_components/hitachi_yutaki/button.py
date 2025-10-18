@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Final
+from typing import Any, Final
 
 from homeassistant.components.button import (
     ButtonEntity,
@@ -33,8 +34,8 @@ class HitachiYutakiButtonEntityDescription(ButtonEntityDescription):
     entity_category: EntityCategory | None = None
     entity_registry_enabled_default: bool = True
     entity_registry_visible_default: bool = True
-    register_key: str | None = None
     description: str | None = None
+    action_fn: Callable[[Any], Any] | None = None
 
 
 DHW_BUTTONS: Final[tuple[HitachiYutakiButtonEntityDescription, ...]] = (
@@ -43,8 +44,8 @@ DHW_BUTTONS: Final[tuple[HitachiYutakiButtonEntityDescription, ...]] = (
         translation_key="antilegionella",
         icon="mdi:biohazard",
         description="Start a high temperature anti-legionella treatment cycle. Once started, the cycle cannot be stopped.",
-        register_key="antilegionella",
         entity_registry_enabled_default=True,
+        action_fn=lambda coordinator: coordinator.api_client.start_dhw_antilegionella(),
     ),
 )
 
@@ -93,12 +94,6 @@ class HitachiYutakiButton(
         """Initialize the button."""
         super().__init__(coordinator)
         self.entity_description = description
-        self.register_prefix = register_prefix
-        self._register_key = (
-            f"{register_prefix}_{description.register_key}"
-            if register_prefix
-            else description.register_key
-        )
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = (
             f"{entry_id}_{register_prefix}_{description.key}"
@@ -115,6 +110,6 @@ class HitachiYutakiButton(
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        if self.entity_description.key == "antilegionella":
-            await self.coordinator.api_client.start_dhw_antilegionella()
+        if self.entity_description.action_fn:
+            await self.entity_description.action_fn(self.coordinator)
             await self.coordinator.async_request_refresh()
