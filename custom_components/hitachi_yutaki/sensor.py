@@ -91,44 +91,32 @@ class ElectricalPowerCalculatorAdapter:
         self._config_entry = config_entry
         self._is_three_phase = power_supply == "three"
 
+    def _get_float_from_entity(self, config_key: str) -> float | None:
+        """Get float value from a configured entity."""
+        entity_id = self._config_entry.data.get(config_key)
+        if not entity_id:
+            return None
+
+        state = self._hass.states.get(entity_id)
+        if not state or state.state in (None, "unknown", "unavailable"):
+            return None
+
+        with suppress(ValueError):
+            return float(state.state)
+        return None
+
     def __call__(self, current: float) -> float:
         """Calculate electrical power in kW.
 
         Fetches optional measurements from HA entities and delegates to
         the pure calculation function.
         """
-        # Try to get measured power from entity
-        measured_power = None
-        power_entity_id = self._config_entry.data.get("power_entity")
-        if power_entity_id:
-            power_state = self._hass.states.get(power_entity_id)
-            if power_state and power_state.state not in (
-                None,
-                "unknown",
-                "unavailable",
-            ):
-                with suppress(ValueError):
-                    measured_power = float(power_state.state)
-
-        # Try to get voltage from entity
-        voltage = None
-        voltage_entity_id = self._config_entry.data.get("voltage_entity")
-        if voltage_entity_id:
-            voltage_state = self._hass.states.get(voltage_entity_id)
-            if voltage_state and voltage_state.state not in (
-                None,
-                "unknown",
-                "unavailable",
-            ):
-                with suppress(ValueError):
-                    voltage = float(voltage_state.state)
-
         # Delegate to pure calculation function
         return calculate_electrical_power(
             ElectricalPowerInput(
                 current=current,
-                measured_power=measured_power,
-                voltage=voltage,
+                measured_power=self._get_float_from_entity("power_entity"),
+                voltage=self._get_float_from_entity("voltage_entity"),
                 is_three_phase=self._is_three_phase,
             )
         )
@@ -583,6 +571,37 @@ SECONDARY_COMPRESSOR_SENSORS: Final[
 )
 
 
+def _create_sensors(
+    coordinator: HitachiYutakiDataCoordinator,
+    entry_id: str,
+    descriptions: tuple[HitachiYutakiSensorEntityDescription, ...],
+    device_type: str,
+) -> list[HitachiYutakiSensor]:
+    """Create sensors for a specific device type.
+
+    Args:
+        coordinator: The data coordinator
+        entry_id: The config entry ID
+        descriptions: Sensor descriptions to create
+        device_type: Device type identifier (e.g., DEVICE_GATEWAY)
+
+    Returns:
+        List of created sensor entities
+
+    """
+    return [
+        HitachiYutakiSensor(
+            coordinator=coordinator,
+            description=description,
+            device_info=DeviceInfo(
+                identifiers={(DOMAIN, f"{entry_id}_{device_type}")},
+            ),
+        )
+        for description in descriptions
+        if description.condition is None or description.condition(coordinator)
+    ]
+
+
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
@@ -593,122 +612,56 @@ async def async_setup_entry(
 
     entities: list[HitachiYutakiSensor] = []
 
-    # Add gateway sensors
+    # Add sensors by device type
     entities.extend(
-        HitachiYutakiSensor(
-            coordinator=coordinator,
-            description=description,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}")},
-            ),
-        )
-        for description in GATEWAY_SENSORS
+        _create_sensors(coordinator, entry.entry_id, GATEWAY_SENSORS, DEVICE_GATEWAY)
     )
-
-    # Add temperature sensors (always added as they are basic measurements)
     entities.extend(
-        HitachiYutakiSensor(
-            coordinator=coordinator,
-            description=description,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
-            ),
+        _create_sensors(
+            coordinator, entry.entry_id, TEMPERATURE_SENSORS, DEVICE_CONTROL_UNIT
         )
-        for description in TEMPERATURE_SENSORS
     )
 
     if coordinator.has_dhw():
         entities.extend(
-            HitachiYutakiSensor(
-                coordinator=coordinator,
-                description=description,
-                device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_DHW}")},
-                ),
-            )
-            for description in DHW_SENSORS
+            _create_sensors(coordinator, entry.entry_id, DHW_SENSORS, DEVICE_DHW)
         )
 
     if coordinator.has_pool():
         entities.extend(
-            HitachiYutakiSensor(
-                coordinator=coordinator,
-                description=description,
-                device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_POOL}")},
-                ),
-            )
-            for description in POOL_SENSORS
+            _create_sensors(coordinator, entry.entry_id, POOL_SENSORS, DEVICE_POOL)
         )
 
-    # Add control unit sensors based on configuration
-    for description in CONTROL_UNIT_SENSORS:
-        # Skip DHW sensors if DHW is not configured
-        if description.key == "dhw_temp" and not coordinator.has_dhw():
-            continue
-        if description.key == "dhw_target_temp" and not coordinator.has_dhw():
-            continue
-
-        entities.append(
-            HitachiYutakiSensor(
-                coordinator=coordinator,
-                description=description,
-                device_info=DeviceInfo(
-                    identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
-                ),
-            )
-        )
-
-    # Add primary compressor sensors
     entities.extend(
-        HitachiYutakiSensor(
-            coordinator=coordinator,
-            description=description,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_PRIMARY_COMPRESSOR}")},
-            ),
+        _create_sensors(
+            coordinator, entry.entry_id, CONTROL_UNIT_SENSORS, DEVICE_CONTROL_UNIT
         )
-        for description in PRIMARY_COMPRESSOR_SENSORS
     )
-
-    # Add secondary compressor sensors
     entities.extend(
-        HitachiYutakiSensor(
-            coordinator=coordinator,
-            description=description,
-            device_info=DeviceInfo(
-                identifiers={
-                    (DOMAIN, f"{entry.entry_id}_{DEVICE_SECONDARY_COMPRESSOR}")
-                },
-            ),
+        _create_sensors(
+            coordinator,
+            entry.entry_id,
+            PRIMARY_COMPRESSOR_SENSORS,
+            DEVICE_PRIMARY_COMPRESSOR,
         )
-        for description in SECONDARY_COMPRESSOR_SENSORS
-        if description.condition is None or description.condition(coordinator)
     )
-
-    # Add performance sensors
     entities.extend(
-        HitachiYutakiSensor(
-            coordinator=coordinator,
-            description=description,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
-            ),
+        _create_sensors(
+            coordinator,
+            entry.entry_id,
+            SECONDARY_COMPRESSOR_SENSORS,
+            DEVICE_SECONDARY_COMPRESSOR,
         )
-        for description in PERFORMANCE_SENSORS
-        if description.condition is None or description.condition(coordinator)
     )
-
-    # Add thermal energy sensors
     entities.extend(
-        HitachiYutakiSensor(
-            coordinator=coordinator,
-            description=description,
-            device_info=DeviceInfo(
-                identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
-            ),
+        _create_sensors(
+            coordinator, entry.entry_id, PERFORMANCE_SENSORS, DEVICE_CONTROL_UNIT
         )
-        for description in THERMAL_ENERGY_SENSORS
+    )
+    entities.extend(
+        _create_sensors(
+            coordinator, entry.entry_id, THERMAL_ENERGY_SENSORS, DEVICE_CONTROL_UNIT
+        )
     )
 
     # Register entities with coordinator
@@ -775,28 +728,29 @@ class HitachiYutakiSensor(
         if not hasattr(self, "_thermal_sensor"):
             return
 
-        if last_state := await self.async_get_last_state():
+        last_state = await self.async_get_last_state()
+        if last_state is None:
+            return
+
+        # Restore energy values in the existing sensor
+        with suppress(ValueError):
+            energy_value = float(last_state.state)
             if self.entity_description.key == "total_thermal_energy":
-                with suppress(ValueError):
-                    accumulator = ThermalEnergyAccumulator(
-                        initial_total=float(last_state.state)
-                    )
-                    self._thermal_sensor = ThermalPowerSensor(accumulator=accumulator)
+                self._thermal_sensor.restore_total_energy(energy_value)
             elif self.entity_description.key == "daily_thermal_energy":
-                last_reset = None
-                if last_state.attributes.get("last_reset"):
-                    with suppress(ValueError):
-                        last_reset = datetime.fromisoformat(
-                            last_state.attributes["last_reset"]
-                        ).date()
-                if last_reset == datetime.now().date():
-                    with suppress(ValueError):
-                        accumulator = ThermalEnergyAccumulator(
-                            initial_daily=float(last_state.state)
-                        )
-                        self._thermal_sensor = ThermalPowerSensor(
-                            accumulator=accumulator
-                        )
+                # Only restore if the reset was today
+                if self._is_same_day_reset(last_state):
+                    self._thermal_sensor.restore_daily_energy(energy_value)
+
+    def _is_same_day_reset(self, state) -> bool:
+        """Check if the last reset was today."""
+        last_reset_str = state.attributes.get("last_reset")
+        if not last_reset_str:
+            return False
+        with suppress(ValueError):
+            last_reset = datetime.fromisoformat(last_reset_str).date()
+            return last_reset == datetime.now().date()
+        return False
 
     def _get_temperature(self, entity_key: str, fallback_key: str) -> float | None:
         """Get temperature from a configured entity, falling back to coordinator data."""
@@ -826,6 +780,48 @@ class HitachiYutakiSensor(
 
         return water_inlet, water_outlet, water_flow  # type: ignore
 
+    def _get_thermal_result(self):
+        """Get thermal result or None if data is missing.
+
+        Helper to avoid duplication in extra_state_attributes.
+        """
+        thermal_data = self._get_thermal_data()
+        if thermal_data is None:
+            return None
+
+        water_inlet, water_outlet, water_flow = thermal_data
+        return self._thermal_sensor.get_result(water_inlet, water_outlet, water_flow)
+
+    def _get_cop_input(self) -> COPInput | None:
+        """Get COP input data or None if coordinator data is missing."""
+        if self.coordinator.data is None:
+            return None
+
+        # Get secondary compressor data if supported
+        has_secondary = self.coordinator.profile.supports_secondary_compressor
+
+        return COPInput(
+            water_inlet_temp=self._get_temperature(
+                CONF_WATER_INLET_TEMP_ENTITY, "water_inlet_temp"
+            ),
+            water_outlet_temp=self._get_temperature(
+                CONF_WATER_OUTLET_TEMP_ENTITY, "water_outlet_temp"
+            ),
+            water_flow=self.coordinator.data.get("water_flow"),
+            compressor_current=self.coordinator.data.get("compressor_current"),
+            compressor_frequency=self.coordinator.data.get("compressor_frequency"),
+            secondary_compressor_current=(
+                self.coordinator.data.get("secondary_compressor_current")
+                if has_secondary
+                else None
+            ),
+            secondary_compressor_frequency=(
+                self.coordinator.data.get("secondary_compressor_frequency")
+                if has_secondary
+                else None
+            ),
+        )
+
     async def async_update_timing(self) -> None:
         """Update timing values from history."""
         if hasattr(self, "_compressor_sensor"):
@@ -838,36 +834,9 @@ class HitachiYutakiSensor(
 
     def _get_cop_value(self) -> StateType:
         """Get COP value using the COP sensor service."""
-        if self.coordinator.data is None:
+        cop_input = self._get_cop_input()
+        if cop_input is None:
             return None
-
-        # Get secondary compressor data if supported
-        has_secondary = self.coordinator.profile.supports_secondary_compressor
-        secondary_current = (
-            self.coordinator.data.get("secondary_compressor_current")
-            if has_secondary
-            else None
-        )
-        secondary_frequency = (
-            self.coordinator.data.get("secondary_compressor_frequency")
-            if has_secondary
-            else None
-        )
-
-        # Prepare input data
-        cop_input = COPInput(
-            water_inlet_temp=self._get_temperature(
-                CONF_WATER_INLET_TEMP_ENTITY, "water_inlet_temp"
-            ),
-            water_outlet_temp=self._get_temperature(
-                CONF_WATER_OUTLET_TEMP_ENTITY, "water_outlet_temp"
-            ),
-            water_flow=self.coordinator.data.get("water_flow"),
-            compressor_current=self.coordinator.data.get("compressor_current"),
-            compressor_frequency=self.coordinator.data.get("compressor_frequency"),
-            secondary_compressor_current=secondary_current,
-            secondary_compressor_frequency=secondary_frequency,
-        )
 
         # Update the sensor with new data
         self._cop_sensor.update(cop_input)
@@ -934,96 +903,95 @@ class HitachiYutakiSensor(
         """Return True if entity is available."""
         return self.coordinator.last_update_success
 
+    def _get_cop_attributes(self) -> dict[str, Any]:
+        """Get attributes for COP sensors."""
+        quality = self._cop_sensor.get_quality()
+        return {
+            "quality": quality.quality,
+            "measurements": quality.measurements,
+            "time_span_minutes": quality.time_span_minutes,
+        }
+
+    def _get_thermal_power_attributes(self) -> dict[str, Any] | None:
+        """Get attributes for thermal_power sensor."""
+        result = self._get_thermal_result()
+        if result is None:
+            return None
+
+        # Get water flow for attributes
+        water_flow = self.coordinator.data.get("water_flow", 0)
+
+        return {
+            "last_update": result.last_update.isoformat(),
+            "delta_t": round(result.delta_t, 2),
+            "water_flow": round(water_flow, 2),
+            "units": {"delta_t": "°C", "water_flow": "m³/h"},
+        }
+
+    def _get_daily_thermal_energy_attributes(self) -> dict[str, Any] | None:
+        """Get attributes for daily_thermal_energy sensor."""
+        result = self._get_thermal_result()
+        if result is None or result.daily_start_time is None:
+            return None
+
+        time_span = (
+            datetime.now() - result.daily_start_time
+        ).total_seconds() / 3600  # hours
+        avg_power = result.daily_energy / time_span if time_span > 0 else 0
+
+        return {
+            "last_reset": result.last_reset_date.isoformat(),
+            "start_time": result.daily_start_time.isoformat(),
+            "average_power": round(avg_power, 2),
+            "time_span_hours": round(time_span, 1),
+            "units": {"average_power": "kW", "time_span": "hours"},
+        }
+
+    def _get_total_thermal_energy_attributes(self) -> dict[str, Any] | None:
+        """Get attributes for total_thermal_energy sensor."""
+        result = self._get_thermal_result()
+        if result is None or result.last_update is None:
+            return None
+
+        start_date = result.last_update.date()
+        start_datetime = datetime.combine(start_date, datetime.min.time())
+        time_span_seconds = (datetime.now() - start_datetime).total_seconds()
+        time_span_hours = time_span_seconds / 3600
+
+        # Calculate average power: total energy / time in hours
+        avg_power = result.total_energy / time_span_hours if time_span_hours > 0 else 0
+
+        return {
+            "start_date": start_date.isoformat(),
+            "average_power": round(avg_power, 2),
+            "time_span_days": round(time_span_hours / 24, 1),
+            "units": {"average_power": "kW", "time_span": "days"},
+        }
+
+    def _get_alarm_attributes(self) -> dict[str, Any] | None:
+        """Get attributes for alarm sensor."""
+        if self.coordinator.data is None or not self.entity_description.value_fn:
+            return None
+        value = self.entity_description.value_fn(self.coordinator)
+        if value is not None and value != 0:
+            return {"code": value}
+        return None
+
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes of the sensor."""
-        if self.entity_description.key == "alarm":
-            if self.coordinator.data is None or not self.entity_description.value_fn:
-                return None
-            value = self.entity_description.value_fn(self.coordinator)
-            if value is not None and value != 0:
-                return {"code": value}
-            return None
-        elif self.entity_description.key in (
-            "cop_heating",
-            "cop_cooling",
-            "cop_dhw",
-            "cop_pool",
-        ):
-            quality = self._cop_sensor.get_quality()
-            return {
-                "quality": quality.quality,
-                "measurements": quality.measurements,
-                "time_span_minutes": quality.time_span_minutes,
-            }
-        elif self.entity_description.key == "thermal_power":
-            thermal_data = self._get_thermal_data()
-            if thermal_data is None:
-                return None
+        key = self.entity_description.key
 
-            water_inlet, water_outlet, water_flow = thermal_data
-            result = self._thermal_sensor.get_result(
-                water_inlet, water_outlet, water_flow
-            )
-            return {
-                "last_update": result.last_update.isoformat(),
-                "delta_t": round(result.delta_t, 2),
-                "water_flow": round(water_flow, 2),
-                "units": {"delta_t": "°C", "water_flow": "m³/h"},
-            }
-        elif self.entity_description.key == "daily_thermal_energy":
-            thermal_data = self._get_thermal_data()
-            if thermal_data is None:
-                return None
-
-            water_inlet, water_outlet, water_flow = thermal_data
-            result = self._thermal_sensor.get_result(
-                water_inlet, water_outlet, water_flow
-            )
-
-            if result.daily_start_time is None:
-                return None
-
-            time_span = (
-                datetime.now() - result.daily_start_time
-            ).total_seconds() / 3600  # hours
-            avg_power = result.daily_energy / time_span if time_span > 0 else 0
-
-            return {
-                "last_reset": result.last_reset_date.isoformat(),
-                "start_time": result.daily_start_time.isoformat(),
-                "average_power": round(avg_power, 2),
-                "time_span_hours": round(time_span, 1),
-                "units": {"average_power": "kW", "time_span": "hours"},
-            }
-        elif self.entity_description.key == "total_thermal_energy":
-            thermal_data = self._get_thermal_data()
-            if thermal_data is None:
-                return None
-
-            water_inlet, water_outlet, water_flow = thermal_data
-            result = self._thermal_sensor.get_result(
-                water_inlet, water_outlet, water_flow
-            )
-
-            if result.last_update is None:
-                return None
-
-            start_date = result.last_update.date()
-            start_datetime = datetime.combine(start_date, datetime.min.time())
-            time_span_seconds = (datetime.now() - start_datetime).total_seconds()
-            time_span_hours = time_span_seconds / 3600
-
-            # Calculate average power: total energy / time in hours
-            avg_power = (
-                result.total_energy / time_span_hours if time_span_hours > 0 else 0
-            )
-
-            return {
-                "start_date": start_date.isoformat(),
-                "average_power": round(avg_power, 2),
-                "time_span_days": round(time_span_hours / 24, 1),
-                "units": {"average_power": "kW", "time_span": "days"},
-            }
+        # Dispatch attributes based on sensor key
+        if key == "alarm":
+            return self._get_alarm_attributes()
+        elif key.startswith("cop_"):
+            return self._get_cop_attributes()
+        elif key == "thermal_power":
+            return self._get_thermal_power_attributes()
+        elif key == "daily_thermal_energy":
+            return self._get_daily_thermal_energy_attributes()
+        elif key == "total_thermal_energy":
+            return self._get_total_thermal_energy_attributes()
 
         return None

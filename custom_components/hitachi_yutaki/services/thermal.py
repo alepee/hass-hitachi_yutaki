@@ -80,6 +80,14 @@ class ThermalEnergyAccumulator:
         """Return the date of the last daily reset."""
         return self._last_reset
 
+    def restore_daily_energy(self, energy: float) -> None:
+        """Restore daily energy value (used after HA restart)."""
+        self._daily_energy = energy
+
+    def restore_total_energy(self, energy: float) -> None:
+        """Restore total energy value (used after HA restart)."""
+        self._total_energy = energy
+
     def update(self, thermal_power: float) -> None:
         """Update the energy accumulation with a new power measurement."""
         current_time = time()
@@ -169,6 +177,14 @@ class ThermalPowerSensor:
     def get_total_energy(self) -> float:
         """Get total thermal energy in kWh."""
         return round(self._accumulator.total_energy, 2)
+
+    def restore_daily_energy(self, energy: float) -> None:
+        """Restore daily energy state (used after HA restart)."""
+        self._accumulator.restore_daily_energy(energy)
+
+    def restore_total_energy(self, energy: float) -> None:
+        """Restore total energy state (used after HA restart)."""
+        self._accumulator.restore_total_energy(energy)
 
     def get_result(
         self, water_inlet_temp: float, water_outlet_temp: float, water_flow: float
