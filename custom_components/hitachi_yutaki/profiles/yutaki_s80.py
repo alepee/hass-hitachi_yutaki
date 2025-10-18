@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..const import UNIT_MODEL_S80
 from .base import HitachiHeatPumpProfile
 
 
@@ -14,7 +13,12 @@ class YutakiS80Profile(HitachiHeatPumpProfile):
     @staticmethod
     def detect(data: dict[str, Any]) -> bool:
         """Return True if the profile is detected."""
-        return data.get("unit_model") == UNIT_MODEL_S80
+        return data.get("unit_model") == "yutaki_s80"
+
+    @property
+    def name(self) -> str:
+        """Return the human-readable name of the heat pump model."""
+        return "Yutaki S80"
 
     @property
     def supports_secondary_compressor(self) -> bool:

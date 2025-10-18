@@ -21,7 +21,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 import homeassistant.helpers.config_validation as cv
 
-from .api import GATEWAYS
+from .api import GATEWAY_INFO
 from .const import (
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
@@ -45,7 +45,7 @@ GATEWAY_SELECTION_SCHEMA = vol.Schema(
     {
         vol.Required("gateway_type"): selector.SelectSelector(
             selector.SelectSelectorConfig(
-                options=list(GATEWAYS.keys()),
+                options=list(GATEWAY_INFO.keys()),
                 mode=selector.SelectSelectorMode.DROPDOWN,
             ),
         )
@@ -169,7 +169,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             self.show_advanced = user_input["show_advanced"]
 
             # Validate connection and read all data for detection
-            api_client_class = GATEWAYS[self.gateway_type]
+            api_client_class = GATEWAY_INFO[self.gateway_type].client_class
             api_client = api_client_class(
                 self.hass,
                 name=user_input[CONF_NAME],
@@ -300,7 +300,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Validate the Modbus connection."""
         errors: dict[str, str] = {}
 
-        api_client_class = GATEWAYS[config["gateway_type"]]
+        api_client_class = GATEWAY_INFO[config["gateway_type"]].client_class
         api_client = api_client_class(
             self.hass,
             name=config[CONF_NAME],

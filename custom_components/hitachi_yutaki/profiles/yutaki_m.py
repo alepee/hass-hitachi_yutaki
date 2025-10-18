@@ -2,7 +2,6 @@
 
 from typing import Any
 
-from ..const import UNIT_MODEL_M
 from .base import HitachiHeatPumpProfile
 
 
@@ -12,7 +11,12 @@ class YutakiMProfile(HitachiHeatPumpProfile):
     @staticmethod
     def detect(data: dict[str, Any]) -> bool:
         """Return True if the profile is detected."""
-        return data.get("unit_model") == UNIT_MODEL_M
+        return data.get("unit_model") == "yutaki_m"
+
+    @property
+    def name(self) -> str:
+        """Return the human-readable name of the heat pump model."""
+        return "Yutaki M"
 
     @property
     def supports_dhw(self) -> bool:

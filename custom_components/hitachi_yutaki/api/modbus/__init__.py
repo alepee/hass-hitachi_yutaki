@@ -39,15 +39,6 @@ from .registers.atw_mbs_02 import (
 
 _LOGGER = logging.getLogger(__name__)
 
-# Mapping from numeric model ID to model key
-MODEL_ID_TO_KEY = {
-    1: "yutaki_s",
-    2: "yutaki_s80",
-    3: "yutaki_s_combi",
-    4: "yutaki_m",
-    5: "yutampo_r32",
-}
-
 
 class ModbusApiClient(HitachiApiClient):
     """Modbus client for Hitachi heat pumps."""
@@ -94,8 +85,7 @@ class ModbusApiClient(HitachiApiClient):
 
     async def get_model_key(self) -> str:
         """Return the model of the heat pump."""
-        model_id = self._data.get("unit_model")
-        return MODEL_ID_TO_KEY.get(model_id, "yutaki_s")
+        return self._data.get("unit_model", "yutaki_s")
 
     async def read_value(self, key: str) -> int | None:
         """Read a value from the API."""
