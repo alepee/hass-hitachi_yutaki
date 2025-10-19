@@ -1,31 +1,29 @@
-"""Compressor cycle and timing logic for Hitachi Yutaki.
+"""Compressor timing calculation service.
 
-This module is isolated from Home Assistant to facilitate testing.
-All data must be provided as input parameters.
+Pure business logic isolated from infrastructure concerns.
 """
 
-from dataclasses import dataclass
+from __future__ import annotations
+
 from datetime import datetime
 
-from .storage import AbstractStorage
-
-
-@dataclass
-class CompressorTimingResult:
-    """Result of compressor timing calculations."""
-
-    cycle_time: float | None  # Average time between starts (minutes)
-    runtime: float | None  # Average runtime per cycle (minutes)
-    resttime: float | None  # Average rest time between cycles (minutes)
+from ..models.timing import CompressorTimingResult
+from ..ports.storage import Storage
 
 
 class CompressorHistory:
-    """Class to track compressor history."""
+    """Tracks compressor state history for timing calculations."""
 
     def __init__(
-        self, storage: AbstractStorage[tuple[datetime, bool]], max_history: int
+        self, storage: Storage[tuple[datetime, bool]], max_history: int
     ) -> None:
-        """Initialize the history."""
+        """Initialize the history.
+
+        Args:
+            storage: Storage implementation for state history
+            max_history: Maximum number of timing records to keep
+
+        """
         self._storage = storage
         self.max_history = max_history
         self._cycles: list[float] = []  # minutes
@@ -33,7 +31,12 @@ class CompressorHistory:
         self._rest_times: list[float] = []  # minutes
 
     def add_state(self, is_running: bool) -> None:
-        """Add a new state to history."""
+        """Add a new compressor state to history.
+
+        Args:
+            is_running: Whether the compressor is currently running
+
+        """
         now = datetime.now()
         states = self._storage.get_all()
 
@@ -76,7 +79,12 @@ class CompressorHistory:
             self._storage.append((now, is_running))
 
     def get_average_times(self) -> tuple[float | None, float | None, float | None]:
-        """Get average cycle, run and rest times."""
+        """Get average cycle, run and rest times.
+
+        Returns:
+            Tuple of (average_cycle_time, average_runtime, average_resttime) in minutes
+
+        """
         avg_cycle = sum(self._cycles) / len(self._cycles) if self._cycles else None
         avg_run = (
             sum(self._run_times) / len(self._run_times) if self._run_times else None
@@ -87,24 +95,27 @@ class CompressorHistory:
         return avg_cycle, avg_run, avg_rest
 
     def clear(self) -> None:
-        """Clear all history."""
-        # This is a bit tricky with abstracted storage.
-        # A full clear might not be what we want with persistence.
-        # For now, we clear the calculated timing lists.
-        # A better `clear` on the storage might be needed in the future.
+        """Clear all timing history."""
+        # Clear the calculated timing lists
+        # Note: Storage itself is not cleared to preserve state persistence
         self._cycles.clear()
         self._run_times.clear()
         self._rest_times.clear()
 
 
-class CompressorTimingSensor:
-    """Orchestrates compressor timing calculations.
+class CompressorTimingService:
+    """Compressor timing calculation service.
 
-    This class is independent of Home Assistant and can be easily tested.
+    This service is independent of Home Assistant and can be easily tested.
     """
 
     def __init__(self, history: CompressorHistory) -> None:
-        """Initialize the compressor timing sensor."""
+        """Initialize the compressor timing service.
+
+        Args:
+            history: Compressor history tracker
+
+        """
         self._history = history
 
     def update(self, compressor_frequency: float | None) -> None:
@@ -113,12 +124,18 @@ class CompressorTimingSensor:
         Args:
             compressor_frequency: Current compressor frequency in Hz.
                                   None or 0 means compressor is not running.
+
         """
         is_running = compressor_frequency is not None and compressor_frequency > 0
         self._history.add_state(is_running)
 
     def get_timing(self) -> CompressorTimingResult:
-        """Get current timing statistics."""
+        """Get current timing statistics.
+
+        Returns:
+            Compressor timing result with average times
+
+        """
         avg_cycle, avg_run, avg_rest = self._history.get_average_times()
         return CompressorTimingResult(
             cycle_time=avg_cycle,

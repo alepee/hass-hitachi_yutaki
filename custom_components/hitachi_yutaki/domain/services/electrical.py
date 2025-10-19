@@ -1,28 +1,17 @@
-"""Electrical power calculation logic.
+"""Electrical power calculation service.
 
-This module is isolated from Home Assistant to facilitate testing.
-All data must be provided as input parameters.
+Pure business logic isolated from infrastructure concerns.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from ..models.electrical import ElectricalPowerInput
 
 # Configuration constants for electrical power calculation
 POWER_FACTOR = 0.9
 THREE_PHASE_FACTOR = 1.732
 VOLTAGE_SINGLE_PHASE = 230.0
 VOLTAGE_THREE_PHASE = 400.0
-
-
-@dataclass
-class ElectricalPowerInput:
-    """Input data for electrical power calculation."""
-
-    current: float  # Current in Amperes
-    measured_power: float | None = None  # Directly measured power in kW (optional)
-    voltage: float | None = None  # Voltage in Volts (optional)
-    is_three_phase: bool = True  # Three phase or single phase
 
 
 def calculate_electrical_power(data: ElectricalPowerInput) -> float:

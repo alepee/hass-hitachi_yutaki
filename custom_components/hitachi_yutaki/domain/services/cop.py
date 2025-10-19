@@ -1,18 +1,18 @@
-"""COP (Coefficient of Performance) calculation logic.
+"""COP (Coefficient of Performance) calculation service.
 
-This module is isolated from Home Assistant to facilitate testing.
-All data must be provided as input parameters.
+Pure business logic isolated from infrastructure concerns.
 """
 
-from collections.abc import Callable
-from dataclasses import dataclass
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 from time import time
-from typing import NamedTuple
 
-from .storage import AbstractStorage
+from ..models.cop import COPInput, COPQuality, PowerMeasurement
+from ..ports.calculators import ElectricalPowerCalculator, ThermalPowerCalculator
+from ..ports.storage import Storage
 
-# Configuration constants for COP calculation
+# Configuration constants
 COP_MEASUREMENTS_HISTORY_SIZE = 100
 COP_MEASUREMENTS_INTERVAL = 60  # seconds
 COP_MEASUREMENTS_PERIOD = timedelta(minutes=30)
@@ -22,48 +22,17 @@ COP_OPTIMAL_MEASUREMENTS = 15
 COP_OPTIMAL_TIME_SPAN = 15  # minutes
 
 
-class PowerMeasurement(NamedTuple):
-    """Class to store a power measurement with its timestamp."""
-
-    timestamp: datetime
-    thermal_power: float
-    electrical_power: float
-
-
-@dataclass
-class COPInput:
-    """Input data required for COP calculation."""
-
-    water_inlet_temp: float | None
-    water_outlet_temp: float | None
-    water_flow: float | None
-    compressor_current: float | None
-    compressor_frequency: float | None
-    secondary_compressor_current: float | None = None
-    secondary_compressor_frequency: float | None = None
-
-
-@dataclass
-class COPQuality:
-    """Quality assessment of COP measurement."""
-
-    quality: str  # "no_data", "insufficient_data", "preliminary", "optimal"
-    measurements: int
-    time_span_minutes: float
-
-
-# Type aliases for calculator functions
-ThermalPowerCalculator = Callable[[float, float, float], float]
-ElectricalPowerCalculator = Callable[[float], float]
-
-
 class EnergyAccumulator:
-    """Class to accumulate energy over time for COP calculation."""
+    """Accumulates energy measurements over time for COP calculation."""
 
-    def __init__(
-        self, storage: AbstractStorage[PowerMeasurement], period: timedelta
-    ) -> None:
-        """Initialize the accumulator."""
+    def __init__(self, storage: Storage[PowerMeasurement], period: timedelta) -> None:
+        """Initialize the accumulator.
+
+        Args:
+            storage: Storage implementation for measurements
+            period: Time period to keep measurements
+
+        """
         self._storage = storage
         self.period = period
 
@@ -87,7 +56,7 @@ class EnergyAccumulator:
             measurements = self._storage.get_all()
 
     def get_cop(self) -> float | None:
-        """Calculate COP from accumulated energy."""
+        """Calculate COP from accumulated energy using trapezoidal integration."""
         measurements = self._storage.get_all()
         if not measurements:
             return None
@@ -100,7 +69,7 @@ class EnergyAccumulator:
             interval_in_seconds = (
                 measurements[i + 1].timestamp - measurements[i].timestamp
             ).total_seconds()
-            interval_in_hours = interval_in_seconds / 3600  # hours
+            interval_in_hours = interval_in_seconds / 3600
             avg_thermal_power = (
                 measurements[i].thermal_power + measurements[i + 1].thermal_power
             ) / 2
@@ -138,7 +107,7 @@ class EnergyAccumulator:
         # Calculate time span of measurements
         time_span = (
             measurements[-1].timestamp - measurements[0].timestamp
-        ).total_seconds() / 60  # minutes
+        ).total_seconds() / 60
         num_measurements = len(measurements)
 
         if num_measurements < COP_MIN_MEASUREMENTS or time_span < COP_MIN_TIME_SPAN:
@@ -158,10 +127,10 @@ class EnergyAccumulator:
         )
 
 
-class COPSensor:
-    """Orchestrates COP calculation with all required logic.
+class COPService:
+    """COP calculation service - orchestrates the calculation logic.
 
-    This class is independent of Home Assistant and can be easily tested.
+    This service is independent of Home Assistant and infrastructure concerns.
     """
 
     def __init__(
@@ -170,7 +139,14 @@ class COPSensor:
         thermal_calculator: ThermalPowerCalculator,
         electrical_calculator: ElectricalPowerCalculator,
     ) -> None:
-        """Initialize the COP sensor."""
+        """Initialize the COP service.
+
+        Args:
+            accumulator: Energy accumulator for measurements
+            thermal_calculator: Calculator for thermal power
+            electrical_calculator: Calculator for electrical power
+
+        """
         self._accumulator = accumulator
         self._thermal_calculator = thermal_calculator
         self._electrical_calculator = electrical_calculator
@@ -179,8 +155,9 @@ class COPSensor:
     def update(self, data: COPInput) -> None:
         """Update COP calculation with new data.
 
-        This method should be called periodically with fresh sensor data.
-        It will determine if a new measurement should be taken based on timing.
+        Args:
+            data: Input data containing temperatures, flow, and currents
+
         """
         # Check if compressor is running
         if not self._is_compressor_running(data):
@@ -234,7 +211,7 @@ class COPSensor:
             self._accumulator.add_measurement(thermal_power, electrical_power)
 
     def get_value(self) -> float | None:
-        """Get current COP value."""
+        """Get current COP value rounded to 2 decimals."""
         cop = self._accumulator.get_cop()
         return round(cop, 2) if cop is not None else None
 
