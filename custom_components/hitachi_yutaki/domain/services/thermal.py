@@ -1,42 +1,30 @@
-"""Thermal power and energy calculation logic.
+"""Thermal power and energy calculation service.
 
-This module is isolated from Home Assistant to facilitate testing.
-All data must be provided as input parameters.
+Pure business logic isolated from infrastructure concerns.
 """
 
-from dataclasses import dataclass
+from __future__ import annotations
+
 from datetime import date, datetime
 from time import time
+
+from ..models.thermal import ThermalEnergyResult, ThermalPowerInput
 
 # Constants for thermal calculations
 WATER_FLOW_TO_KGS = 0.277778  # 1 m³/h = 1000 L/h = 1000 kg/h = 0.277778 kg/s
 WATER_SPECIFIC_HEAT = 4.185  # kJ/kg·K
 
 
-@dataclass
-class ThermalPowerInput:
-    """Input data for thermal power calculation."""
-
-    water_inlet_temp: float
-    water_outlet_temp: float
-    water_flow: float
-
-
-@dataclass
-class ThermalEnergyResult:
-    """Result of thermal energy calculations."""
-
-    thermal_power: float  # Current thermal power (kW)
-    daily_energy: float  # Daily accumulated energy (kWh)
-    total_energy: float  # Total accumulated energy (kWh)
-    delta_t: float  # Temperature difference (°C)
-    last_update: datetime  # Timestamp of last measurement
-    last_reset_date: date  # Date of last daily reset
-    daily_start_time: datetime  # Start time of daily accumulation
-
-
 def calculate_thermal_power(data: ThermalPowerInput) -> float:
-    """Calculate thermal power in kW from input data."""
+    """Calculate thermal power in kW from input data.
+
+    Args:
+        data: Input data containing temperatures and flow
+
+    Returns:
+        Thermal power in kW
+
+    """
     water_flow_kgs = data.water_flow * WATER_FLOW_TO_KGS
     delta_t = data.water_outlet_temp - data.water_inlet_temp
     thermal_power = abs(water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t)
@@ -44,10 +32,16 @@ def calculate_thermal_power(data: ThermalPowerInput) -> float:
 
 
 class ThermalEnergyAccumulator:
-    """Class to accumulate thermal energy over time."""
+    """Accumulates thermal energy over time for energy calculations."""
 
     def __init__(self, initial_daily: float = 0.0, initial_total: float = 0.0) -> None:
-        """Initialize the accumulator."""
+        """Initialize the accumulator.
+
+        Args:
+            initial_daily: Initial daily energy value
+            initial_total: Initial total energy value
+
+        """
         self._daily_energy = initial_daily
         self._total_energy = initial_total
         self._last_power = 0.0
@@ -81,15 +75,30 @@ class ThermalEnergyAccumulator:
         return self._last_reset
 
     def restore_daily_energy(self, energy: float) -> None:
-        """Restore daily energy value (used after HA restart)."""
+        """Restore daily energy value (used after HA restart).
+
+        Args:
+            energy: Energy value to restore
+
+        """
         self._daily_energy = energy
 
     def restore_total_energy(self, energy: float) -> None:
-        """Restore total energy value (used after HA restart)."""
+        """Restore total energy value (used after HA restart).
+
+        Args:
+            energy: Energy value to restore
+
+        """
         self._total_energy = energy
 
     def update(self, thermal_power: float) -> None:
-        """Update the energy accumulation with a new power measurement."""
+        """Update the energy accumulation with a new power measurement.
+
+        Args:
+            thermal_power: Current thermal power in kW
+
+        """
         current_time = time()
         current_date = datetime.now().date()
 
@@ -116,14 +125,19 @@ class ThermalEnergyAccumulator:
         self._last_measurement_time = current_time
 
 
-class ThermalPowerSensor:
-    """Orchestrates thermal power and energy calculations.
+class ThermalPowerService:
+    """Thermal power and energy calculation service.
 
-    This class is independent of Home Assistant and can be easily tested.
+    This service is independent of Home Assistant and can be easily tested.
     """
 
     def __init__(self, accumulator: ThermalEnergyAccumulator) -> None:
-        """Initialize the thermal power sensor."""
+        """Initialize the thermal power service.
+
+        Args:
+            accumulator: Energy accumulator for calculations
+
+        """
         self._accumulator = accumulator
         self._last_power = 0.0
 
@@ -179,17 +193,37 @@ class ThermalPowerSensor:
         return round(self._accumulator.total_energy, 2)
 
     def restore_daily_energy(self, energy: float) -> None:
-        """Restore daily energy state (used after HA restart)."""
+        """Restore daily energy state (used after HA restart).
+
+        Args:
+            energy: Energy value to restore
+
+        """
         self._accumulator.restore_daily_energy(energy)
 
     def restore_total_energy(self, energy: float) -> None:
-        """Restore total energy state (used after HA restart)."""
+        """Restore total energy state (used after HA restart).
+
+        Args:
+            energy: Energy value to restore
+
+        """
         self._accumulator.restore_total_energy(energy)
 
     def get_result(
         self, water_inlet_temp: float, water_outlet_temp: float, water_flow: float
     ) -> ThermalEnergyResult:
-        """Get complete thermal energy result with all details."""
+        """Get complete thermal energy result with all details.
+
+        Args:
+            water_inlet_temp: Water inlet temperature in °C
+            water_outlet_temp: Water outlet temperature in °C
+            water_flow: Water flow rate in m³/h
+
+        Returns:
+            Complete thermal energy result
+
+        """
         delta_t = water_outlet_temp - water_inlet_temp
         last_update = (
             datetime.fromtimestamp(self._accumulator.last_measurement_time)

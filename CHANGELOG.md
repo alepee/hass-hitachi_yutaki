@@ -8,11 +8,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Complete hexagonal architecture implementation** for sensor entities with clear separation of concerns:
+  - **Domain layer** (`domain/`): Pure business logic with zero Home Assistant dependencies
+    - `domain/models/`: Data structures (COPInput, ThermalEnergyResult, PowerMeasurement, etc.)
+    - `domain/ports/`: Abstract interfaces (Storage, DataProvider, StateProvider, Calculators)
+    - `domain/services/`: Business logic services (COPService, ThermalPowerService, CompressorTimingService)
+  - **Adapters layer** (`adapters/`): Concrete implementations bridging domain with Home Assistant
+    - `adapters/calculators/`: Electrical and thermal power calculation adapters
+    - `adapters/providers/`: Data providers from HA coordinator and entity states
+    - `adapters/storage/`: In-memory storage implementation
+  - **Sensor layer**: Simplified entities using domain services through adapters
+- **Enhanced testability**: Domain layer is 100% testable without Home Assistant mocks
+- **Improved reusability**: COP and thermal logic can be shared across sensor, climate, and water_heater entities
+- **Better maintainability**: Business logic centralized in domain layer, single point of truth for calculations
 - Implemented a new hexagonal architecture (Ports and Adapters) to decouple core logic from communication protocols. This introduces a clear **dependency injection** pattern, making the integration modular and easier to extend with new gateways (e.g., HTTP-based) in the future.
 - Introduced a smart profile auto-detection mechanism. Each heat pump profile now contains its own **decentralized detection logic**, allowing for more complex and robust model identification without altering the core configuration flow.
 - Added abstract storage interface to prepare for future persistent storage solutions, making data persistence implementation-agnostic.
 
 ### Changed
+- **Sensor architecture refactoring** to implement hexagonal architecture:
+  - **Modularized sensor logic**: Broke down monolithic `sensor.py` (998 lines) into domain-specific modules
+    - `sensor/compressor.py`: Compressor timing and diagnostic sensors
+    - `sensor/performance.py`: COP (Coefficient of Performance) sensors
+    - `sensor/thermal.py`: Thermal energy and power sensors
+    - `sensor/hydraulic.py`: Water temperature and flow sensors
+    - `sensor/diagnostics.py`: System status and alarm sensors
+    - `sensor/gateway.py`: Gateway synchronization sensors
+    - `sensor/outdoor.py`: Outdoor temperature sensors
+    - `sensor/pool.py`: Pool temperature sensors
+    - `sensor/dhw.py`: Domestic Hot Water sensors
+  - **Simplified sensor base class**: Reduced `sensor/base.py` from 423 to ~150 lines by delegating business logic to domain services
+  - **Service-oriented architecture**: Business logic moved to domain services with dependency injection
+    - `COPService`: COP calculation with energy accumulation
+    - `ThermalPowerService`: Thermal energy calculation and tracking
+    - `CompressorTimingService`: Compressor cycle timing analysis
+  - **Dependency inversion**: Sensor entities now depend on abstractions (ports) rather than concrete implementations
 - **Major architectural refactoring** to align with hexagonal architecture principles:
   - Implemented complete abstraction layer between domain entities and Modbus gateway through a comprehensive business-level API
   - Removed all direct access to `coordinator.data` and `coordinator.async_write_register()` from entities
@@ -33,9 +63,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced system state reporting with proper deserialization (synchronized, desynchronized, initializing) and operation state mapping.
 
 ### Removed
+- **Legacy services directory**: Removed `services/` directory after successful migration to hexagonal architecture
+  - `services/cop.py` → migrated to `domain/services/cop.py`
+  - `services/thermal.py` → migrated to `domain/services/thermal.py`
+  - `services/compressor.py` → migrated to `domain/services/timing.py`
+  - `services/electrical.py` → migrated to `domain/services/electrical.py`
+  - `services/storage/` → migrated to `adapters/storage/`
 - Removed the redundant `target_temp` and `current_temp` number entities for climate circuits, as this functionality is now handled by the climate entity.
 
 ### Fixed
+- **Hexagonal architecture migration fixes**:
+  - Fixed `ImportError: COP_MEASUREMENTS_HISTORY_SIZE` by adding missing constants to domain services
+  - Fixed `TypeError: PowerMeasurement` by adding missing `timestamp` field to domain models
+  - Resolved all import dependencies between domain, adapters, and sensor layers
+  - Fixed circular import issues during architectural refactoring
 - Resolved circular import issues and entity creation bugs during architectural refactoring.
 - Corrected temperature deserialization by properly differentiating between values stored in tenths (`*3` in ATW-MBS-02 doc) and signed 16-bit integers (`*1`). All setpoints and configuration temperatures now correctly converted from tenths.
 - Fixed sensor readings: secondary compressor current (was off by factor of 10, now correctly in tenths of amperes) and pressure sensors (now correctly converting hundredths of MPa to bar: 510 raw = 5.10 MPa = 51.0 bar).

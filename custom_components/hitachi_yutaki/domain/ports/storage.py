@@ -1,13 +1,13 @@
-"""Abstract interface for a data storage."""
+"""Storage port interface."""
 
 from abc import ABC, abstractmethod
-from typing import TypeVar
+from typing import Generic, TypeVar
 
 T = TypeVar("T")
 
 
-class AbstractStorage[T](ABC):
-    """Abstract interface for a data storage."""
+class Storage(Generic[T], ABC):
+    """Abstract interface for data storage."""
 
     @abstractmethod
     def append(self, item: T) -> None:
