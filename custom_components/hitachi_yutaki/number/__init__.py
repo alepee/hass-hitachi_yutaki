@@ -31,7 +31,7 @@ async def async_setup_entry(
     entities = []
 
     # Add circuit 1 numbers if configured
-    if coordinator.has_heating_circuit1():
+    if coordinator.has_circuit1_heating():
         entities.extend(
             _create_numbers(
                 coordinator,
@@ -39,12 +39,12 @@ async def async_setup_entry(
                 CIRCUIT_NUMBERS,
                 DEVICE_CIRCUIT_1,
                 "circuit1",
-                skip_cooling=not coordinator.has_cooling_circuit1(),
+                skip_cooling=not coordinator.has_circuit1_cooling(),
             )
         )
 
     # Add circuit 2 numbers if configured
-    if coordinator.has_heating_circuit2():
+    if coordinator.has_circuit2_heating():
         entities.extend(
             _create_numbers(
                 coordinator,
@@ -52,7 +52,7 @@ async def async_setup_entry(
                 CIRCUIT_NUMBERS,
                 DEVICE_CIRCUIT_2,
                 "circuit2",
-                skip_cooling=not coordinator.has_cooling_circuit2(),
+                skip_cooling=not coordinator.has_circuit2_cooling(),
             )
         )
 

@@ -133,7 +133,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     # Add Circuit 1 device if configured
-    if coordinator.has_heating_circuit1() or coordinator.has_cooling_circuit1():
+    if coordinator.has_circuit1_heating() or coordinator.has_circuit1_cooling():
         _LOGGER.debug("Circuit 1 configured, registering device")
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -146,7 +146,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     # Add Circuit 2 device if configured
-    if coordinator.has_heating_circuit2() or coordinator.has_cooling_circuit2():
+    if coordinator.has_circuit2_heating() or coordinator.has_circuit2_cooling():
         _LOGGER.debug("Circuit 2 configured, registering device")
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,

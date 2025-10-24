@@ -53,7 +53,7 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
             "auto": HVACMode.AUTO,
         },
         condition=lambda coordinator: not (
-            coordinator.has_cooling_circuit1() or coordinator.has_cooling_circuit2()
+            coordinator.has_circuit1_cooling() or coordinator.has_circuit2_cooling()
         ),
         get_fn=lambda api, _: api.get_unit_mode(),
         set_fn=lambda api, _, value: api.set_unit_mode(value),
@@ -68,8 +68,8 @@ UNIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
             "heat": HVACMode.HEAT,
             "auto": HVACMode.AUTO,
         },
-        condition=lambda coordinator: coordinator.has_cooling_circuit1()
-        or coordinator.has_cooling_circuit2(),
+        condition=lambda coordinator: coordinator.has_circuit1_cooling()
+        or coordinator.has_circuit2_cooling(),
         get_fn=lambda api, _: api.get_unit_mode(),
         set_fn=lambda api, _, value: api.set_unit_mode(value),
     ),
@@ -107,7 +107,7 @@ CIRCUIT_SELECTS: Final[tuple[HitachiYutakiSelectEntityDescription, ...]] = (
         entity_category=EntityCategory.CONFIG,
         entity_registry_enabled_default=False,
         condition=lambda coordinator, circuit_id: getattr(
-            coordinator, f"has_cooling_circuit{circuit_id}"
+            coordinator, f"has_circuit{circuit_id}_cooling"
         )(),
         get_fn=lambda api, circuit_id: api.get_circuit_otc_method_cooling(circuit_id),
         set_fn=lambda api, circuit_id, value: api.set_circuit_otc_method_cooling(
@@ -140,7 +140,7 @@ async def async_setup_entry(
     )
 
     # Add circuit selects only if the circuits are configured
-    if coordinator.has_heating_circuit1():
+    if coordinator.has_circuit1_heating():
         entities.extend(
             HitachiYutakiSelect(
                 coordinator=coordinator,
@@ -154,7 +154,7 @@ async def async_setup_entry(
             if description.condition is None or description.condition(coordinator, 1)
         )
 
-    if coordinator.has_heating_circuit2():
+    if coordinator.has_circuit2_heating():
         entities.extend(
             HitachiYutakiSelect(
                 coordinator=coordinator,
