@@ -93,25 +93,25 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
             raise UpdateFailed("Failed to communicate with device") from exc
 
-    def has_dhw(self) -> bool:
-        """Return True if DHW is configured."""
-        return self.api_client.has_dhw
-
-    def has_heating_circuit1(self) -> bool:
+    def has_circuit1_heating(self) -> bool:
         """Return True if heating for circuit 1 is configured."""
         return self.api_client.has_circuit1_heating
 
-    def has_cooling_circuit1(self) -> bool:
+    def has_circuit1_cooling(self) -> bool:
         """Return True if cooling for circuit 1 is configured."""
         return self.api_client.has_circuit1_cooling
 
-    def has_heating_circuit2(self) -> bool:
+    def has_circuit2_heating(self) -> bool:
         """Return True if heating for circuit 2 is configured."""
         return self.api_client.has_circuit2_heating
 
-    def has_cooling_circuit2(self) -> bool:
+    def has_circuit2_cooling(self) -> bool:
         """Return True if cooling for circuit 2 is configured."""
         return self.api_client.has_circuit2_cooling
+
+    def has_dhw(self) -> bool:
+        """Return True if DHW is configured."""
+        return self.api_client.has_dhw
 
     def has_pool(self) -> bool:
         """Return True if pool heating is configured."""

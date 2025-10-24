@@ -87,7 +87,7 @@ class ModbusApiClient(HitachiApiClient):
 
     async def get_model_key(self) -> str:
         """Return the model of the heat pump."""
-        return self._data.get("unit_model", "yutaki_s")
+        return self._data.get("unit_model")
 
     async def read_value(self, key: str) -> int | None:
         """Read a value from the API."""

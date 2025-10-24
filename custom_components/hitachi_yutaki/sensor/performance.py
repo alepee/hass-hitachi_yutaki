@@ -18,7 +18,7 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-pump",
-        condition=lambda c: c.has_heating_circuit1() or c.has_heating_circuit2(),
+        condition=lambda c: c.has_circuit1_heating() or c.has_circuit2_heating(),
     ),
     HitachiYutakiSensorEntityDescription(
         key="cop_cooling",
@@ -28,7 +28,7 @@ PERFORMANCE_SENSORS: Final[tuple[HitachiYutakiSensorEntityDescription, ...]] = (
         state_class=SensorStateClass.MEASUREMENT,
         entity_category=EntityCategory.DIAGNOSTIC,
         icon="mdi:heat-pump-outline",
-        condition=lambda c: c.has_cooling_circuit1() or c.has_cooling_circuit2(),
+        condition=lambda c: c.has_circuit1_cooling() or c.has_circuit2_cooling(),
     ),
     HitachiYutakiSensorEntityDescription(
         key="cop_dhw",

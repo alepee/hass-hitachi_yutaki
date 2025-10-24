@@ -58,7 +58,7 @@ async def async_setup_entry(
     entities: list[HitachiYutakiClimate] = []
 
     # Add circuit 1 climate if configured
-    if coordinator.has_heating_circuit1():
+    if coordinator.has_circuit1_heating():
         entities.append(
             HitachiYutakiClimate(
                 coordinator=coordinator,
@@ -71,7 +71,7 @@ async def async_setup_entry(
         )
 
     # Add circuit 2 climate if configured
-    if coordinator.has_heating_circuit2():
+    if coordinator.has_circuit2_heating():
         entities.append(
             HitachiYutakiClimate(
                 coordinator=coordinator,
@@ -128,15 +128,15 @@ class HitachiYutakiClimate(
         # Set available modes
         self._attr_hvac_modes = [HVACMode.OFF]
         if (
-            coordinator.has_heating_circuit1()
+            coordinator.has_circuit1_heating()
             if circuit_id == 1
-            else coordinator.has_heating_circuit2()
+            else coordinator.has_circuit2_heating()
         ):
             self._attr_hvac_modes.append(HVACMode.HEAT)
         if (
-            coordinator.has_cooling_circuit1()
+            coordinator.has_circuit1_cooling()
             if circuit_id == 1
-            else coordinator.has_cooling_circuit2()
+            else coordinator.has_circuit2_cooling()
         ):
             self._attr_hvac_modes.append(HVACMode.COOL)
         if len(self._attr_hvac_modes) > 2:  # If both heating and cooling are available
