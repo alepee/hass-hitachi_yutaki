@@ -33,6 +33,42 @@
       }
     }
   },
+  "repair": {
+    "missing_config": "The {integration_name} integration is missing required configuration parameters: {missing_params}. Please reconfigure the integration to continue using it.",
+    "step": {
+      "user": {
+        "title": "Repair Hitachi Yutaki Configuration",
+        "description": "Your Hitachi Yutaki integration needs to be updated to include missing configuration parameters. Please select your gateway type.",
+        "data": {
+          "gateway_type": "Gateway Type"
+        }
+      },
+      "gateway_config": {
+        "title": "Gateway Configuration",
+        "description": "Configure your Hitachi Yutaki gateway connection.",
+        "data": {
+          "name": "Name",
+          "host": "Host/IP Address",
+          "port": "Port"
+        }
+      },
+      "profile": {
+        "title": "Profile Selection",
+        "description": "Select the profile that matches your heat pump model. Detected profiles: {detected_profiles}",
+        "data": {
+          "profile": "Heat Pump Profile"
+        }
+      }
+    },
+    "abort": {
+      "reason": {
+        "cannot_connect": "Cannot connect to the heat pump",
+        "invalid_slave": "Invalid slave ID",
+        "no_profile_detected": "No compatible profile detected for model: {model}",
+        "connection_error": "Connection error: {error}"
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {

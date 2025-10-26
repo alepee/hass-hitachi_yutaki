@@ -116,7 +116,7 @@ ADVANCED_SCHEMA = vol.Schema(
 class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
 
-    VERSION = 1
+    VERSION = 2
     MINOR_VERSION = 1
 
     def __init__(self):
