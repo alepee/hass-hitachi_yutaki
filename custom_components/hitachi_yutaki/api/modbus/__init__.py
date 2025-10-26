@@ -1,5 +1,7 @@
 """Modbus client for Hitachi heat pumps."""
 
+import asyncio
+import contextlib
 import logging
 from typing import Any
 
@@ -65,6 +67,56 @@ class ModbusApiClient(HitachiApiClient):
         self._data = {}
         self._unsub_updater = None
         self._register_map: HitachiRegisterMap = atw_mbs_02.AtwMbs02RegisterMap()
+        self._max_retries = 3
+        self._connection_retries = 0
+
+    async def _ensure_connection(self) -> bool:
+        """Ensure we have a working Modbus connection with retry logic."""
+        for retry in range(self._max_retries):
+            try:
+                # Always close existing connection first to ensure clean state
+                if self._client.is_socket_open():
+                    await self._hass.async_add_executor_job(self._client.close)
+
+                # Create new client instance to avoid stale connections
+                self._client = ModbusTcpClient(host=self._host, port=self._port)
+
+                # Attempt to connect
+                success = await self._hass.async_add_executor_job(self._client.connect)
+
+                if success and self._client.is_socket_open():
+                    _LOGGER.debug(
+                        "Successfully connected to Modbus gateway at %s:%s",
+                        self._host,
+                        self._port,
+                    )
+                    self._connection_retries = 0
+                    return True
+
+                _LOGGER.warning(
+                    "Failed to connect to Modbus gateway (attempt %d/%d)",
+                    retry + 1,
+                    self._max_retries,
+                )
+
+            except Exception as exc:
+                _LOGGER.warning(
+                    "Connection attempt %d/%d failed: %s",
+                    retry + 1,
+                    self._max_retries,
+                    exc,
+                )
+
+            # Wait before retrying with exponential backoff
+            if retry < self._max_retries - 1:
+                delay = 2**retry  # 1s, 2s, 4s
+                await asyncio.sleep(delay)
+
+        _LOGGER.error(
+            "Failed to establish Modbus connection after %d attempts", self._max_retries
+        )
+        self._connection_retries += 1
+        return False
 
     @property
     def register_map(self) -> HitachiRegisterMap:
@@ -73,8 +125,7 @@ class ModbusApiClient(HitachiApiClient):
 
     async def connect(self) -> bool:
         """Connect to the API."""
-        _LOGGER.debug("Connecting to Modbus gateway at %s:%s", self._host, self._port)
-        return await self._hass.async_add_executor_job(self._client.connect)
+        return await self._ensure_connection()
 
     async def close(self) -> bool:
         """Close the connection to the API."""
@@ -108,16 +159,53 @@ class ModbusApiClient(HitachiApiClient):
         register_address = ALL_REGISTERS[key].address
         device_param = get_pymodbus_device_param()
 
-        result = await self._hass.async_add_executor_job(
-            lambda: self._client.write_register(
-                address=register_address, value=value, **{device_param: self._slave}
-            )
-        )
+        retry_count = 0
+        max_write_retries = 1  # Only retry once after reconnection
 
-        if result.isError():
-            _LOGGER.error("Error writing to register %s: %s", key, result)
-            return False
-        return True
+        while retry_count <= max_write_retries:
+            try:
+                result = await self._hass.async_add_executor_job(
+                    lambda: self._client.write_register(
+                        address=register_address,
+                        value=value,
+                        **{device_param: self._slave},
+                    )
+                )
+
+                if result.isError():
+                    _LOGGER.error("Error writing to register %s: %s", key, result)
+                    raise ModbusException(f"Error writing to register {key}: {result}")
+
+                return True
+
+            except (ModbusException, ConnectionError, OSError) as exc:
+                if retry_count < max_write_retries:
+                    _LOGGER.warning(
+                        "Communication error during write_value for %s: %s. Attempting reconnection...",
+                        key,
+                        exc,
+                    )
+
+                    # Force connection reset
+                    with contextlib.suppress(Exception):
+                        await self._hass.async_add_executor_job(self._client.close)
+
+                    # Attempt immediate reconnection
+                    if await self._ensure_connection():
+                        _LOGGER.warning(
+                            "Reconnection successful after write error, retrying write operation"
+                        )
+                        retry_count += 1
+                        continue
+                    else:
+                        _LOGGER.error(
+                            "Reconnection failed, write to register %s aborted", key
+                        )
+                        return False
+
+                # Max retries reached or reconnection failed
+                _LOGGER.error("Error writing to register %s: %s", key, exc)
+                return False
 
     @property
     def has_dhw(self) -> bool:
@@ -162,68 +250,98 @@ class ModbusApiClient(HitachiApiClient):
 
     async def read_values(self, keys: list[str]) -> None:
         """Fetch data from the heat pump for the given keys."""
-        try:
-            device_param = get_pymodbus_device_param()
+        retry_count = 0
+        max_read_retries = 1  # Only retry once after reconnection
 
-            # Build a map of registers to read for this update
-            registers_to_read = {
-                key: ALL_REGISTERS[key] for key in keys if key in ALL_REGISTERS
-            }
+        while retry_count <= max_read_retries:
+            try:
+                device_param = get_pymodbus_device_param()
 
-            # Always perform a preflight check
-            preflight_result = await self._hass.async_add_executor_job(
-                lambda: self._client.read_holding_registers(
-                    address=ALL_REGISTERS["system_state"].address,
-                    count=1,
-                    **{device_param: self._slave},
-                )
-            )
-            if preflight_result.isError():
-                raise ModbusException("Preflight check failed")
+                # Build a map of registers to read for this update
+                registers_to_read = {
+                    key: ALL_REGISTERS[key] for key in keys if key in ALL_REGISTERS
+                }
 
-            system_state = preflight_result.registers[0]
-            self._data["system_state"] = system_state
-
-            # Report system state issues and skip further reads
-            for issue_state, issue_key in SYSTEM_STATE_ISSUES.items():
-                if system_state == issue_state:
-                    ir.async_create_issue(
-                        self._hass,
-                        DOMAIN,
-                        issue_key,
-                        is_fixable=False,
-                        severity=ir.IssueSeverity.WARNING,
-                        translation_key=issue_key,
-                    )
-
-                    _LOGGER.warning(
-                        "Gateway is not ready (state: %s), skipping further reads for this cycle.",
-                        system_state,
-                    )
-                    return
-                else:
-                    ir.async_delete_issue(self._hass, DOMAIN, issue_key)
-
-            for name, definition in registers_to_read.items():
-                result = await self._hass.async_add_executor_job(
-                    lambda addr=definition.address: self._client.read_holding_registers(
-                        address=addr, count=1, **{device_param: self._slave}
+                # Always perform a preflight check
+                preflight_result = await self._hass.async_add_executor_job(
+                    lambda param=device_param: self._client.read_holding_registers(
+                        address=ALL_REGISTERS["system_state"].address,
+                        count=1,
+                        **{param: self._slave},
                     )
                 )
-                if not result.isError():
-                    value = result.registers[0]
-                    if definition.deserializer:
-                        self._data[name] = definition.deserializer(value)
+                if preflight_result.isError():
+                    raise ModbusException("Preflight check failed")
+
+                system_state = preflight_result.registers[0]
+                self._data["system_state"] = system_state
+
+                # Report system state issues and skip further reads
+                for issue_state, issue_key in SYSTEM_STATE_ISSUES.items():
+                    if system_state == issue_state:
+                        ir.async_create_issue(
+                            self._hass,
+                            DOMAIN,
+                            issue_key,
+                            is_fixable=False,
+                            severity=ir.IssueSeverity.WARNING,
+                            translation_key=issue_key,
+                        )
+
+                        _LOGGER.warning(
+                            "Gateway is not ready (state: %s), skipping further reads for this cycle.",
+                            system_state,
+                        )
+                        return
                     else:
-                        self._data[name] = value
-                else:
-                    _LOGGER.debug(
-                        "Error reading register %s at %s", name, definition.address
+                        ir.async_delete_issue(self._hass, DOMAIN, issue_key)
+
+                for name, definition in registers_to_read.items():
+                    result = await self._hass.async_add_executor_job(
+                        lambda addr=definition.address,
+                        param=device_param: self._client.read_holding_registers(
+                            address=addr, count=1, **{param: self._slave}
+                        )
+                    )
+                    if not result.isError():
+                        value = result.registers[0]
+                        if definition.deserializer:
+                            self._data[name] = definition.deserializer(value)
+                        else:
+                            self._data[name] = value
+                    else:
+                        _LOGGER.debug(
+                            "Error reading register %s at %s", name, definition.address
+                        )
+
+                # If we got here, read was successful
+                return
+
+            except (ModbusException, ConnectionError, OSError) as exc:
+                if retry_count < max_read_retries:
+                    _LOGGER.warning(
+                        "Communication error during read_values: %s. Attempting reconnection...",
+                        exc,
                     )
 
-        except ModbusException as exc:
-            _LOGGER.warning("Modbus error during read_values: %s", exc)
-            raise
+                    # Force connection reset
+                    with contextlib.suppress(Exception):
+                        await self._hass.async_add_executor_job(self._client.close)
+
+                    # Attempt immediate reconnection
+                    if await self._ensure_connection():
+                        _LOGGER.warning(
+                            "Reconnection successful after read error, retrying read operation"
+                        )
+                        retry_count += 1
+                        continue
+                    else:
+                        _LOGGER.error("Reconnection failed, data read aborted")
+                        raise
+
+                # Max retries reached or reconnection failed
+                _LOGGER.warning("Modbus error during read_values: %s", exc)
+                raise
 
     @property
     def is_defrosting(self) -> bool:
