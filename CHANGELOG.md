@@ -8,6 +8,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Robust Modbus connection recovery mechanism** to automatically handle network disconnections:
+  - Implemented `_ensure_connection()` method with exponential backoff retry logic (1s, 2s, 4s) and up to 3 connection attempts
+  - Automatic reconnection on communication errors in both `read_values()` and `write_value()` operations
+  - Forced connection reset and ModbusTcpClient recreation to prevent stale TCP connections causing "Broken pipe" errors
+  - Transparent recovery: entities automatically reconnect without requiring Home Assistant restart
+  - Comprehensive warning-level logging to track reconnection attempts and failures for debugging
+  - Fixes issue [#118](https://github.com/alepee/hass-hitachi_yutaki/issues/118) where the integration failed to recover from temporary network interruptions
 - **Complete domain-driven architecture migration** with `entities/` structure:
   - **Domain-based organization**: All entities organized by business domain (circuit, compressor, control_unit, dhw, gateway, hydraulic, performance, pool, power, thermal)
   - **Builder pattern implementation**: Each domain exposes dedicated builder functions (e.g., `build_circuit_sensors()`, `build_dhw_water_heater()`)
