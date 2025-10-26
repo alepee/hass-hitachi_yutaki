@@ -8,120 +8,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Robust Modbus connection recovery mechanism** to automatically handle network disconnections:
-  - Implemented `_ensure_connection()` method with exponential backoff retry logic (1s, 2s, 4s) and up to 3 connection attempts
-  - Automatic reconnection on communication errors in both `read_values()` and `write_value()` operations
-  - Forced connection reset and ModbusTcpClient recreation to prevent stale TCP connections causing "Broken pipe" errors
-  - Transparent recovery: entities automatically reconnect without requiring Home Assistant restart
-  - Comprehensive warning-level logging to track reconnection attempts and failures for debugging
-  - Fixes issue [#118](https://github.com/alepee/hass-hitachi_yutaki/issues/118) where the integration failed to recover from temporary network interruptions
-- **Complete domain-driven architecture migration** with `entities/` structure:
-  - **Domain-based organization**: All entities organized by business domain (circuit, compressor, control_unit, dhw, gateway, hydraulic, performance, pool, power, thermal)
-  - **Builder pattern implementation**: Each domain exposes dedicated builder functions (e.g., `build_circuit_sensors()`, `build_dhw_water_heater()`)
-  - **Unified entity base classes**: Centralized in `entities/base/` for all entity types (sensor, binary_sensor, switch, number, climate, water_heater)
-  - **Type-safe builders**: All builders use proper type hints and return typed entity lists
-  - **Conditional entity creation**: Smart filtering based on device capabilities (e.g., `coordinator.has_dhw()`)
-- **Simplified platform files**: Home Assistant platform files now act as pure orchestrators, importing and calling domain builders
-- **Enhanced modularity**: Each domain is self-contained with its own sensors, switches, numbers, etc.
-- **Improved maintainability**: Clear separation between business logic (domains) and Home Assistant integration (platforms)
+- **Robust Modbus connection recovery mechanism** with exponential backoff retry logic and automatic reconnection on network interruptions. Fixes issue [#118](https://github.com/alepee/hass-hitachi_yutaki/issues/118) where the integration failed to recover from temporary network disconnections.
+- **Complete hexagonal architecture implementation** with clear separation of concerns:
+  - Domain layer with pure business logic and zero Home Assistant dependencies
+  - Adapters layer bridging domain with Home Assistant
+  - Enhanced testability with 100% testable domain layer
+- **Domain-driven entity organization** replacing technical grouping with business domain structure (circuit, compressor, control_unit, dhw, gateway, hydraulic, performance, pool, power, thermal)
+- **Builder pattern implementation** for all entity types with type-safe builders and conditional entity creation based on device capabilities
+- **Comprehensive business-level API** (`HitachiApiClient`) with typed methods for all controllable parameters, eliminating direct Modbus access from entities
+- **Smart profile auto-detection mechanism** with decentralized detection logic for more robust model identification
 
 ### Changed
-- **Complete platform refactoring** to use domain-driven architecture:
-  - **`sensor.py`**: Now orchestrates all sensor domains via builder functions
-  - **`binary_sensor.py`**: Simplified to use domain builders for gateway, control_unit, hydraulic, compressor, dhw
-  - **`switch.py`**: Refactored to use circuit, control_unit, dhw, pool builders
-  - **`number.py`**: Updated to use circuit, dhw, pool number builders
-  - **`climate.py`**: Simplified to use circuit climate builder
-  - **`water_heater.py`**: Streamlined to use dhw water heater builder
-- **Entity organization**: Moved from technical grouping (sensor/, switch/, etc.) to business domain grouping (entities/circuit/, entities/dhw/, etc.)
-- **Builder pattern**: All entity creation now goes through dedicated builder functions with consistent signatures
-- **Import structure**: Platform files import builders from `entities/` domains instead of technical modules
+- **Complete platform refactoring** to use domain-driven architecture - all platform files now act as pure orchestrators
+- **Entity organization** moved from technical grouping (sensor/, switch/, etc.) to business domain grouping (entities/circuit/, entities/dhw/, etc.)
+- **Data conversion improvements** with centralized deserialization logic and pattern-based naming
+- **Modbus register organization** by logical device for improved clarity and maintainability
+- **Alarm sensor enhancement** to display descriptions as state with numeric codes as attributes
+- **System state reporting** with proper deserialization and operation state mapping
 
 ### Removed
-- **Legacy technical modules**: Removed old `sensor/`, `binary_sensor/`, `switch/`, `number/` packages
-- **Monolithic entity files**: Eliminated large platform files in favor of domain-specific builders
-- **Direct entity instantiation**: Replaced with builder pattern for better encapsulation
+- **Legacy technical modules** and monolithic entity files in favor of domain-specific builders
+- **Direct entity instantiation** replaced with builder pattern for better encapsulation
+- **Legacy services directory** after successful migration to hexagonal architecture
+- **Redundant climate number entities** (target_temp, current_temp) as functionality is now handled by climate entity
 
 ### Fixed
-- **Architecture consistency**: All entity types now follow the same domain-driven pattern
-- **Code duplication**: Eliminated redundant entity creation logic across platforms
-- **Import complexity**: Simplified import structure with clear domain boundaries
-- **Maintainability**: Business logic is now centralized in domain modules
-
-### Added
-- **Complete hexagonal architecture implementation** for sensor entities with clear separation of concerns:
-  - **Domain layer** (`domain/`): Pure business logic with zero Home Assistant dependencies
-    - `domain/models/`: Data structures (COPInput, ThermalEnergyResult, PowerMeasurement, etc.)
-    - `domain/ports/`: Abstract interfaces (Storage, DataProvider, StateProvider, Calculators)
-    - `domain/services/`: Business logic services (COPService, ThermalPowerService, CompressorTimingService)
-  - **Adapters layer** (`adapters/`): Concrete implementations bridging domain with Home Assistant
-    - `adapters/calculators/`: Electrical and thermal power calculation adapters
-    - `adapters/providers/`: Data providers from HA coordinator and entity states
-    - `adapters/storage/`: In-memory storage implementation
-  - **Sensor layer**: Simplified entities using domain services through adapters
-- **Enhanced testability**: Domain layer is 100% testable without Home Assistant mocks
-- **Improved reusability**: COP and thermal logic can be shared across sensor, climate, and water_heater entities
-- **Better maintainability**: Business logic centralized in domain layer, single point of truth for calculations
-- Implemented a new hexagonal architecture (Ports and Adapters) to decouple core logic from communication protocols. This introduces a clear **dependency injection** pattern, making the integration modular and easier to extend with new gateways (e.g., HTTP-based) in the future.
-- Introduced a smart profile auto-detection mechanism. Each heat pump profile now contains its own **decentralized detection logic**, allowing for more complex and robust model identification without altering the core configuration flow.
-- Added abstract storage interface to prepare for future persistent storage solutions, making data persistence implementation-agnostic.
-
-### Changed
-- **Sensor architecture refactoring** to implement hexagonal architecture:
-  - **Modularized sensor logic**: Broke down monolithic `sensor.py` (998 lines) into domain-specific modules
-    - `sensor/compressor.py`: Compressor timing and diagnostic sensors
-    - `sensor/performance.py`: COP (Coefficient of Performance) sensors
-    - `sensor/thermal.py`: Thermal energy and power sensors
-    - `sensor/hydraulic.py`: Water temperature and flow sensors
-    - `sensor/diagnostics.py`: System status and alarm sensors
-    - `sensor/gateway.py`: Gateway synchronization sensors
-    - `sensor/outdoor.py`: Outdoor temperature sensors
-    - `sensor/pool.py`: Pool temperature sensors
-    - `sensor/dhw.py`: Domestic Hot Water sensors
-  - **Simplified sensor base class**: Reduced `sensor/base.py` from 423 to ~150 lines by delegating business logic to domain services
-  - **Service-oriented architecture**: Business logic moved to domain services with dependency injection
-    - `COPService`: COP calculation with energy accumulation
-    - `ThermalPowerService`: Thermal energy calculation and tracking
-    - `CompressorTimingService`: Compressor cycle timing analysis
-  - **Dependency inversion**: Sensor entities now depend on abstractions (ports) rather than concrete implementations
-- **Major architectural refactoring** to align with hexagonal architecture principles:
-  - Implemented complete abstraction layer between domain entities and Modbus gateway through a comprehensive business-level API
-  - Removed all direct access to `coordinator.data` and `coordinator.async_write_register()` from entities
-  - All entities now interact exclusively through the `HitachiApiClient` interface with typed methods (e.g., `get_circuit_current_temperature()`, `set_dhw_target_temperature()`)
-  - Added dedicated getter/setter methods for all controllable parameters: unit control (power, mode), circuit control (power, temperatures, eco mode, thermostat, OTC), DHW control (power, temperatures, boost, anti-legionella), and pool control (power, temperatures)
-  - Temperature methods work directly with `float` values in °C, boolean settings use natural `bool` types, and inverted logic is encapsulated internally (e.g., eco_mode register 0/1 → API exposes `True`/`False`)
-  - Refactored all entity files (`climate.py`, `water_heater.py`, `switch.py`, `number.py`, `select.py`, `button.py`) to use the new API methods
-- **Data conversion improvements**:
-  - Centralized all data deserialization logic into register definitions with dedicated deserializer functions
-  - Refactored conversion functions to use pattern-based naming: consolidated duplicate functions into `convert_from_tenths()` (generic /10 pattern), renamed `convert_temperature()` to `convert_signed_16bit()` (2's complement pattern), kept `convert_pressure()` for domain-specific MPa→bar conversion
-  - Added comprehensive documentation explaining the four conversion patterns (from tenths, signed 16-bit, pressure, and direct values)
-- Refactored complex business logic (COP, thermal power, compressor timing, electrical power) into a dedicated service layer using Dependency Injection.
-- Fully decoupled domain entities from gateway implementation details by exposing system status (defrost, compressor running, pumps, heaters) through abstract properties.
-- Reorganized Modbus register maps by logical device (e.g., `gateway`, `control_unit`, `primary_compressor`, `secondary_compressor`, `circuit_1`, `circuit_2`, `dhw`, `pool`) for improved clarity and maintainability.
-- Moved all Modbus-specific constants (register addresses, bit masks for configuration and status) from shared `const.py` into the Modbus gateway layer (`api/modbus/registers/atw_mbs_02.py`).
-- Renamed all `r134a_` entity identifiers to `secondary_compressor_` for better readability and consistency.
-- Improved the alarm sensor to display the alarm description as its state (e.g., "Alarm 07"), moving the numeric code to an attribute for better user experience.
-- Enhanced system state reporting with proper deserialization (synchronized, desynchronized, initializing) and operation state mapping.
-
-### Removed
-- **Legacy services directory**: Removed `services/` directory after successful migration to hexagonal architecture
-  - `services/cop.py` → migrated to `domain/services/cop.py`
-  - `services/thermal.py` → migrated to `domain/services/thermal.py`
-  - `services/compressor.py` → migrated to `domain/services/timing.py`
-  - `services/electrical.py` → migrated to `domain/services/electrical.py`
-  - `services/storage/` → migrated to `adapters/storage/`
-- Removed the redundant `target_temp` and `current_temp` number entities for climate circuits, as this functionality is now handled by the climate entity.
-
-### Fixed
-- **Hexagonal architecture migration fixes**:
-  - Fixed `ImportError: COP_MEASUREMENTS_HISTORY_SIZE` by adding missing constants to domain services
-  - Fixed `TypeError: PowerMeasurement` by adding missing `timestamp` field to domain models
-  - Resolved all import dependencies between domain, adapters, and sensor layers
-  - Fixed circular import issues during architectural refactoring
-- Resolved circular import issues and entity creation bugs during architectural refactoring.
-- Corrected temperature deserialization by properly differentiating between values stored in tenths (`*3` in ATW-MBS-02 doc) and signed 16-bit integers (`*1`). All setpoints and configuration temperatures now correctly converted from tenths.
-- Fixed sensor readings: secondary compressor current (was off by factor of 10, now correctly in tenths of amperes) and pressure sensors (now correctly converting hundredths of MPa to bar: 510 raw = 5.10 MPa = 51.0 bar).
-- Fixed unit power switch displaying "Unknown" due to inconsistent condition check between getter and setter methods.
+- **Architecture consistency** - all entity types now follow the same domain-driven pattern
+- **Code duplication** eliminated across platforms
+- **Import complexity** simplified with clear domain boundaries
+- **Temperature deserialization** corrected by properly differentiating between tenths and signed 16-bit values
+- **Sensor reading accuracy** for secondary compressor current and pressure sensors
+- **Unit power switch** "Unknown" state issue due to inconsistent condition checks
+- **Circular import issues** and entity creation bugs during architectural refactoring
 
 ## [1.9.3] - 2025-10-06
 
