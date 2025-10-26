@@ -44,8 +44,17 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info("Setting up Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
 
     # Get gateway and profile from config entry
-    gateway_type = entry.data["gateway_type"]
-    profile_key = entry.data["profile"]
+    # Handle legacy config entries that may not have gateway_type
+    gateway_type = entry.data.get("gateway_type", "modbus_atw_mbs_02")
+    if "gateway_type" not in entry.data:
+        _LOGGER.info(
+            "Using default gateway type 'modbus_atw_mbs_02' for legacy config entry"
+        )
+    profile_key = entry.data.get("profile")
+    if profile_key is None:
+        raise ValueError(
+            "Missing 'profile' in config entry. Please reconfigure the integration."
+        )
 
     # Get gateway info (must exist)
     if gateway_type not in GATEWAY_INFO:
