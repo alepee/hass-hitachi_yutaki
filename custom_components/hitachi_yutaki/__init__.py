@@ -36,7 +36,6 @@ from .const import (
 )
 from .coordinator import HitachiYutakiDataCoordinator
 from .profiles import PROFILES
-from .repair import async_create_repair_flow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -68,20 +67,19 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             },
         )
 
-        # Create repair flow to fix the configuration
-        repair_flow = await async_create_repair_flow(hass, entry)
-        await hass.config_entries.flow.async_init(
-            DOMAIN,
-            context={"source": "repair", "entry_id": entry.entry_id},
-            data=repair_flow,
-        )
-
         # Return False to prevent setup until repair is completed
+        # The user will need to go to the integration options to fix this
         return False
 
     # Get gateway and profile from config entry
-    gateway_type = entry.data["gateway_type"]
-    profile_key = entry.data["profile"]
+    gateway_type = entry.data.get("gateway_type")
+    profile_key = entry.data.get("profile")
+
+    # Additional safety checks (should not happen after repair flow)
+    if gateway_type is None:
+        raise ValueError("Gateway type is None after repair flow")
+    if profile_key is None:
+        raise ValueError("Profile is None after repair flow")
 
     # Get gateway info (must exist)
     if gateway_type not in GATEWAY_INFO:
