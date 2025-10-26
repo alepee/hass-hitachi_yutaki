@@ -8,6 +8,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **Complete domain-driven architecture migration** with `entities/` structure:
+  - **Domain-based organization**: All entities organized by business domain (circuit, compressor, control_unit, dhw, gateway, hydraulic, performance, pool, power, thermal)
+  - **Builder pattern implementation**: Each domain exposes dedicated builder functions (e.g., `build_circuit_sensors()`, `build_dhw_water_heater()`)
+  - **Unified entity base classes**: Centralized in `entities/base/` for all entity types (sensor, binary_sensor, switch, number, climate, water_heater)
+  - **Type-safe builders**: All builders use proper type hints and return typed entity lists
+  - **Conditional entity creation**: Smart filtering based on device capabilities (e.g., `coordinator.has_dhw()`)
+- **Simplified platform files**: Home Assistant platform files now act as pure orchestrators, importing and calling domain builders
+- **Enhanced modularity**: Each domain is self-contained with its own sensors, switches, numbers, etc.
+- **Improved maintainability**: Clear separation between business logic (domains) and Home Assistant integration (platforms)
+
+### Changed
+- **Complete platform refactoring** to use domain-driven architecture:
+  - **`sensor.py`**: Now orchestrates all sensor domains via builder functions
+  - **`binary_sensor.py`**: Simplified to use domain builders for gateway, control_unit, hydraulic, compressor, dhw
+  - **`switch.py`**: Refactored to use circuit, control_unit, dhw, pool builders
+  - **`number.py`**: Updated to use circuit, dhw, pool number builders
+  - **`climate.py`**: Simplified to use circuit climate builder
+  - **`water_heater.py`**: Streamlined to use dhw water heater builder
+- **Entity organization**: Moved from technical grouping (sensor/, switch/, etc.) to business domain grouping (entities/circuit/, entities/dhw/, etc.)
+- **Builder pattern**: All entity creation now goes through dedicated builder functions with consistent signatures
+- **Import structure**: Platform files import builders from `entities/` domains instead of technical modules
+
+### Removed
+- **Legacy technical modules**: Removed old `sensor/`, `binary_sensor/`, `switch/`, `number/` packages
+- **Monolithic entity files**: Eliminated large platform files in favor of domain-specific builders
+- **Direct entity instantiation**: Replaced with builder pattern for better encapsulation
+
+### Fixed
+- **Architecture consistency**: All entity types now follow the same domain-driven pattern
+- **Code duplication**: Eliminated redundant entity creation logic across platforms
+- **Import complexity**: Simplified import structure with clear domain boundaries
+- **Maintainability**: Business logic is now centralized in domain modules
+
+### Added
 - **Complete hexagonal architecture implementation** for sensor entities with clear separation of concerns:
   - **Domain layer** (`domain/`): Pure business logic with zero Home Assistant dependencies
     - `domain/models/`: Data structures (COPInput, ThermalEnergyResult, PowerMeasurement, etc.)

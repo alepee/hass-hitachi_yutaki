@@ -14,8 +14,8 @@ class YutampoR32Profile(HitachiHeatPumpProfile):
         return (
             data.get("unit_model") == "yutampo_r32"
             and data.get("has_dhw")
-            and not data.get("has_circuit1_heating")
-            and not data.get("has_circuit2_heating")
+            and not data.get("has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)")
+            and not data.get("has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING)")
         )
 
     @property

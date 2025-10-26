@@ -4,14 +4,22 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from ....const import OTCCalculationMethod
+from ....const import (
+    CIRCUIT_MODE_COOLING,
+    CIRCUIT_MODE_HEATING,
+    CIRCUIT_PRIMARY_ID,
+    CIRCUIT_SECONDARY_ID,
+    OTCCalculationMethod,
+)
 from . import HitachiRegisterMap
 
 # System configuration bit masks (from register 1089)
-MASK_CIRCUIT1_HEATING = 0x0001
-MASK_CIRCUIT2_HEATING = 0x0002
-MASK_CIRCUIT1_COOLING = 0x0004
-MASK_CIRCUIT2_COOLING = 0x0008
+MASKS_CIRCUIT = {
+    (CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING): 0x0001,
+    (CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING): 0x0002,
+    (CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING): 0x0004,
+    (CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING): 0x0008,
+}
 MASK_DHW = 0x0010
 MASK_POOL = 0x0020
 MASK_CIRCUIT1_THERMOSTAT = 0x0040

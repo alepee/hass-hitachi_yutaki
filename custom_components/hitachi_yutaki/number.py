@@ -1,4 +1,4 @@
-"""Select platform for Hitachi Yutaki integration."""
+"""Number platform for Hitachi Yutaki integration."""
 
 from __future__ import annotations
 
@@ -17,8 +17,9 @@ from .const import (
 from .coordinator import HitachiYutakiDataCoordinator
 
 # Import builders from domain entities
-from .entities.circuit import build_circuit_selects
-from .entities.control_unit import build_control_unit_selects
+from .entities.circuit import build_circuit_numbers
+from .entities.dhw import build_dhw_numbers
+from .entities.pool import build_pool_numbers
 
 
 async def async_setup_entry(
@@ -26,35 +27,37 @@ async def async_setup_entry(
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the selects."""
+    """Set up the numbers."""
     coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
 
     entities = []
 
-    # Control unit selects
-    entities.extend(build_control_unit_selects(coordinator, entry.entry_id))
-
-    # Circuit selects (dynamic based on configuration)
-    # Circuit 1 selects
+    # Circuit numbers (dynamic based on configuration)
     if coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING):
         entities.extend(
-            build_circuit_selects(
+            build_circuit_numbers(
                 coordinator,
                 entry.entry_id,
-                circuit_id=CIRCUIT_PRIMARY_ID,
-                device_type=DEVICE_CIRCUIT_1,
+                CIRCUIT_PRIMARY_ID,
+                DEVICE_CIRCUIT_1,
+            )
+        )
+    if coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING):
+        entities.extend(
+            build_circuit_numbers(
+                coordinator,
+                entry.entry_id,
+                CIRCUIT_SECONDARY_ID,
+                DEVICE_CIRCUIT_2,
             )
         )
 
-    # Circuit 2 selects
-    if coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING):
-        entities.extend(
-            build_circuit_selects(
-                coordinator,
-                entry.entry_id,
-                circuit_id=CIRCUIT_SECONDARY_ID,
-                device_type=DEVICE_CIRCUIT_2,
-            )
-        )
+    # DHW numbers
+    if coordinator.has_dhw():
+        entities.extend(build_dhw_numbers(coordinator, entry.entry_id))
+
+    # Pool numbers
+    if coordinator.has_pool():
+        entities.extend(build_pool_numbers(coordinator, entry.entry_id))
 
     async_add_entities(entities)

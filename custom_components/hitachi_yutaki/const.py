@@ -1,7 +1,7 @@
 """Constants for the Hitachi Yutaki integration."""
 
 from enum import StrEnum
-from typing import Final
+from typing import Final, Literal
 
 from packaging import version
 import pymodbus
@@ -29,6 +29,24 @@ DEVICE_CIRCUIT_1 = "circuit_1"
 DEVICE_CIRCUIT_2 = "circuit_2"
 DEVICE_DHW = "dhw"
 DEVICE_POOL = "pool"
+DEVICE_TYPES: Final = Literal[
+    DEVICE_GATEWAY,
+    DEVICE_CONTROL_UNIT,
+    DEVICE_PRIMARY_COMPRESSOR,
+    DEVICE_SECONDARY_COMPRESSOR,
+    DEVICE_CIRCUIT_1,
+    DEVICE_CIRCUIT_2,
+    DEVICE_DHW,
+    DEVICE_POOL,
+]
+
+CIRCUIT_PRIMARY_ID: Final = 1
+CIRCUIT_SECONDARY_ID: Final = 2
+CIRCUIT_IDS: Final = Literal[CIRCUIT_PRIMARY_ID, CIRCUIT_SECONDARY_ID]
+
+CIRCUIT_MODE_HEATING: Final = "heating"
+CIRCUIT_MODE_COOLING: Final = "cooling"
+CIRCUIT_MODES: Final = Literal[CIRCUIT_MODE_HEATING, CIRCUIT_MODE_COOLING]
 
 PLATFORMS = [
     Platform.BINARY_SENSOR,
