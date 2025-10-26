@@ -1,110 +1,110 @@
-# Adapters Layer - Architecture Hexagonale
+# Adapters Layer - Hexagonal Architecture
 
-## Vue d'ensemble
+## Overview
 
-Le dossier `adapters/` contient les **implémentations concrètes** des ports définis dans le domain. Ces adapters font le pont entre la logique métier pure et l'infrastructure Home Assistant.
+The `adapters/` folder contains the **concrete implementations** of the ports defined in the domain. These adapters bridge the gap between pure business logic and Home Assistant infrastructure.
 
-## Principe
+## Principle
 
-Les adapters **implémentent** les interfaces (ports) du domain et **adaptent** les données entre le monde externe (HA) et le domain.
+Adapters **implement** the domain interfaces (ports) and **adapt** data between the external world (HA) and the domain.
 
 ## Structure
 
 ```
 adapters/
-├── calculators/     # Implémentations des calculateurs
-├── providers/       # Implémentations des fournisseurs de données
-└── storage/         # Implémentations du stockage
+├── calculators/     # Calculator implementations
+├── providers/       # Data provider implementations
+└── storage/         # Storage implementations
 ```
 
 ## Calculators
 
 ### `calculators/electrical.py`
-- `ElectricalPowerCalculatorAdapter` : Adapte les entités HA vers calcul électrique
-- Récupère voltage/power depuis entities HA configurées
-- Délègue le calcul à `domain.services.electrical.calculate_electrical_power`
+- `ElectricalPowerCalculatorAdapter` : Adapts HA entities to electrical calculation
+- Retrieves voltage/power from configured HA entities
+- Delegates calculation to `domain.services.electrical.calculate_electrical_power`
 
 ### `calculators/thermal.py`
-- `thermal_power_calculator_wrapper` : Wrapper pour calcul thermique
-- Adapte la signature pour COPService
-- Délègue à `domain.services.thermal.calculate_thermal_power`
+- `thermal_power_calculator_wrapper` : Wrapper for thermal calculation
+- Adapts signature for COPService
+- Delegates to `domain.services.thermal.calculate_thermal_power`
 
 ## Providers
 
 ### `providers/coordinator.py`
-- `CoordinatorDataProvider` : Adapte `HitachiYutakiDataCoordinator`
-- Implémente `DataProvider` protocol
-- Méthodes : `get_water_inlet_temp()`, `get_water_flow()`, etc.
+- `CoordinatorDataProvider` : Adapts `HitachiYutakiDataCoordinator`
+- Implements `DataProvider` protocol
+- Methods : `get_water_inlet_temp()`, `get_water_flow()`, etc.
 
 ### `providers/entity_state.py`
-- `EntityStateProvider` : Adapte les états des entités HA
-- Implémente `StateProvider` protocol
-- Méthode : `get_float_from_entity(config_key)`
+- `EntityStateProvider` : Adapts HA entities states
+- Implements `StateProvider` protocol
+- Method : `get_float_from_entity(config_key)`
 
 ## Storage
 
 ### `storage/in_memory.py`
-- `InMemoryStorage[T]` : Implémentation en mémoire du stockage
-- Implémente `Storage[T]` protocol du domain
-- Utilise `collections.deque` pour performance
+- `InMemoryStorage[T]` : In-memory storage implementation
+- Implements `Storage[T]` protocol from domain
+- Uses `collections.deque` for performance
 
-## Utilisation
+## Usage
 
-### Dans les entities
+### In entities
 ```python
-# Créer les adapters
+# Create adapters
 electrical_adapter = ElectricalPowerCalculatorAdapter(hass, config_entry, power_supply)
 thermal_adapter = thermal_power_calculator_wrapper
 storage = InMemoryStorage(max_len=100)
 
-# Utiliser avec les services domain
+# Use with domain services
 cop_service = COPService(accumulator, thermal_adapter, electrical_adapter)
 ```
 
-### Dans les tests
+### In tests
 ```python
-# Mock des adapters pour tests
+# Mock adapters for tests
 class MockElectricalAdapter:
     def __call__(self, current: float) -> float:
-        return current * 0.1  # Mock simple
+        return current * 0.1  # Simple mock
 
-# Tester avec mocks
+# Test with mocks
 cop_service = COPService(accumulator, thermal_adapter, MockElectricalAdapter())
 ```
 
-## Patterns utilisés
+## Patterns used
 
 ### Adapter Pattern
-- Adapte l'interface HA vers l'interface domain
-- Masque la complexité de HA au domain
+- Adapts HA interface to domain interface
+- Masks HA complexity from domain
 
 ### Strategy Pattern
-- Les adapters sont injectés dans les services
-- Permet de changer d'implémentation facilement
+- Adapters are injected into services
+- Allows easy implementation changes
 
 ### Dependency Injection
-- Les services reçoivent leurs dépendances
-- Facilite les tests et la réutilisabilité
+- Services receive their dependencies
+- Facilitates testing and reusability
 
-## Règles
+## Rules
 
-1. **TOUJOURS** implémenter les protocols du domain
-2. **JAMAIS** exposer la logique métier dans les adapters
-3. **TOUJOURS** déléguer les calculs au domain
-4. **TOUJOURS** gérer les erreurs HA (unknown, unavailable, etc.)
-5. **TOUJOURS** documenter les paramètres d'adaptation
+1. **ALWAYS** implement domain protocols
+2. **NEVER** expose business logic in adapters
+3. **ALWAYS** delegate calculations to domain
+4. **ALWAYS** handle HA errors (unknown, unavailable, etc.)
+5. **ALWAYS** document adaptation parameters
 
-## Avantages
+## Benefits
 
-- 🔌 **Découplage** : Domain ne connaît pas HA
-- 🧪 **Testabilité** : Mocks faciles à créer
-- 🔄 **Réutilisabilité** : Même domain, différents adapters
-- 🛠️ **Maintenabilité** : Changement d'HA sans impact domain
-- 📊 **Performance** : Adapters optimisés pour leur contexte
+- 🔌 **Decoupling** : Domain doesn't know HA
+- 🧪 **Testability** : Easy to create mocks
+- 🔄 **Reusability** : Same domain, different adapters
+- 🛠️ **Maintainability** : HA changes without domain impact
+- 📊 **Performance** : Adapters optimized for their context
 
-## Exemples d'extension
+## Extension examples
 
-### Nouveau adapter pour base de données
+### New adapter for database
 ```python
 # adapters/storage/database.py
 class DatabaseStorage(Storage[T]):
@@ -112,24 +112,24 @@ class DatabaseStorage(Storage[T]):
         self._conn = connection
     
     def append(self, item: T) -> None:
-        # Sauvegarder en base
+        # Save to database
         pass
 ```
 
-### Nouveau adapter pour API externe
+### New adapter for external API
 ```python
 # adapters/providers/api.py
 class APIDataProvider:
     def get_water_inlet_temp(self) -> float | None:
-        # Récupérer depuis API externe
+        # Retrieve from external API
         pass
 ```
 
-## Migration depuis services/
+## Migration from services/
 
-Les adapters remplacent les anciens `services/` :
+Adapters replace the old `services/` :
 - `services/electrical.py` → `adapters/calculators/electrical.py`
 - `services/thermal.py` → `adapters/calculators/thermal.py`
 - `services/storage/` → `adapters/storage/`
 
-**Avantage** : Séparation claire entre logique métier (domain) et infrastructure (adapters).
+**Benefit** : Clear separation between business logic (domain) and infrastructure (adapters).
