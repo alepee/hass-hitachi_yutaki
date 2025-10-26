@@ -14,6 +14,7 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
 
 from .api import GATEWAY_INFO
 from .const import (
@@ -35,6 +36,7 @@ from .const import (
 )
 from .coordinator import HitachiYutakiDataCoordinator
 from .profiles import PROFILES
+from .repair import async_create_repair_flow
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -43,18 +45,43 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Hitachi Yutaki from a config entry."""
     _LOGGER.info("Setting up Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
 
-    # Get gateway and profile from config entry
-    # Handle legacy config entries that may not have gateway_type
-    gateway_type = entry.data.get("gateway_type", "modbus_atw_mbs_02")
+    # Check for missing required configuration parameters
+    missing_params = []
     if "gateway_type" not in entry.data:
-        _LOGGER.info(
-            "Using default gateway type 'modbus_atw_mbs_02' for legacy config entry"
+        missing_params.append("gateway_type")
+    if "profile" not in entry.data:
+        missing_params.append("profile")
+
+    if missing_params:
+        # Create a repair issue to guide the user through reconfiguration
+        async_create_issue(
+            hass,
+            DOMAIN,
+            f"missing_config_{entry.entry_id}",
+            is_fixable=True,
+            is_persistent=True,
+            severity=IssueSeverity.WARNING,
+            translation_key="missing_config",
+            translation_placeholders={
+                "integration_name": entry.data.get(CONF_NAME, "Hitachi Yutaki"),
+                "missing_params": ", ".join(missing_params),
+            },
         )
-    profile_key = entry.data.get("profile")
-    if profile_key is None:
-        raise ValueError(
-            "Missing 'profile' in config entry. Please reconfigure the integration."
+
+        # Create repair flow to fix the configuration
+        repair_flow = await async_create_repair_flow(hass, entry)
+        await hass.config_entries.flow.async_init(
+            DOMAIN,
+            context={"source": "repair", "entry_id": entry.entry_id},
+            data=repair_flow,
         )
+
+        # Return False to prevent setup until repair is completed
+        return False
+
+    # Get gateway and profile from config entry
+    gateway_type = entry.data["gateway_type"]
+    profile_key = entry.data["profile"]
 
     # Get gateway info (must exist)
     if gateway_type not in GATEWAY_INFO:
@@ -205,6 +232,29 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.info(
         "Hitachi Yutaki integration setup completed for %s", entry.data[CONF_NAME]
     )
+
+    return True
+
+
+async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+    """Migrate config entry to new version."""
+    _LOGGER.debug("Migrating from version %s", config_entry.version)
+
+    if config_entry.version == 1:
+        # Version 1 to 2: Add gateway_type and profile if missing
+        new_data = {**config_entry.data}
+
+        # Add gateway_type if missing (default to modbus_atw_mbs_02)
+        if "gateway_type" not in new_data:
+            new_data["gateway_type"] = "modbus_atw_mbs_02"
+
+        # Add profile if missing (will trigger repair flow)
+        if "profile" not in new_data:
+            # Don't add a default profile - let the repair flow handle it
+            pass
+
+        hass.config_entries.async_update_entry(config_entry, data=new_data, version=2)
+        _LOGGER.debug("Migration to version %s successful", config_entry.version)
 
     return True
 

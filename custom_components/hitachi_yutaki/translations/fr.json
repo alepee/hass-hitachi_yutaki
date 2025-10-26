@@ -33,6 +33,42 @@
       }
     }
   },
+  "repair": {
+    "missing_config": "L'intégration {integration_name} manque de paramètres de configuration requis : {missing_params}. Veuillez reconfigurer l'intégration pour continuer à l'utiliser.",
+    "step": {
+      "user": {
+        "title": "Réparation de la Configuration Hitachi Yutaki",
+        "description": "Votre intégration Hitachi Yutaki doit être mise à jour pour inclure les paramètres de configuration manquants. Veuillez sélectionner votre type de passerelle.",
+        "data": {
+          "gateway_type": "Type de Passerelle"
+        }
+      },
+      "gateway_config": {
+        "title": "Configuration de la Passerelle",
+        "description": "Configurez votre connexion de passerelle Hitachi Yutaki.",
+        "data": {
+          "name": "Nom",
+          "host": "Hôte/Adresse IP",
+          "port": "Port"
+        }
+      },
+      "profile": {
+        "title": "Sélection du Profil",
+        "description": "Sélectionnez le profil qui correspond à votre modèle de pompe à chaleur. Profils détectés : {detected_profiles}",
+        "data": {
+          "profile": "Profil de Pompe à Chaleur"
+        }
+      }
+    },
+    "abort": {
+      "reason": {
+        "cannot_connect": "Impossible de se connecter à la pompe à chaleur",
+        "invalid_slave": "ID d'esclave invalide",
+        "no_profile_detected": "Aucun profil compatible détecté pour le modèle : {model}",
+        "connection_error": "Erreur de connexion : {error}"
+      }
+    }
+  },
   "options": {
     "step": {
       "init": {
