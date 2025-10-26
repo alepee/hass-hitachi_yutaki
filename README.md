@@ -315,13 +315,21 @@ This integration follows the **Hexagonal Architecture** (Ports and Adapters) pat
   - `providers/`: Data providers from HA coordinator and entity states
   - `storage/`: Storage implementations (in-memory, future persistent storage)
 
-- **Entity Layers** (`sensor/`, `climate/`, `water_heater/`): Home Assistant entities using domain services through adapters
+- **Entity Layers** (`entities/`): Domain-driven entity organization using domain services through adapters
 
 **Benefits:**
 - **Testability**: Domain layer is 100% testable without Home Assistant mocks
 - **Reusability**: COP and thermal logic can be shared across sensor, climate, and water_heater entities
 - **Maintainability**: Business logic centralized in domain layer, single point of truth for calculations
 - **Extensibility**: Easy to add new entity types or change storage implementations
+
+### Architecture Documentation
+
+For detailed information about each architectural layer, see the specialized README files:
+
+- **[Domain Layer](custom_components/hitachi_yutaki/domain/README.md)**: Pure business logic with zero Home Assistant dependencies
+- **[Adapters Layer](custom_components/hitachi_yutaki/adapters/README.md)**: Concrete implementations bridging domain with Home Assistant
+- **[Entities Layer](custom_components/hitachi_yutaki/entities/README.md)**: Domain-driven entity organization
 
 ### Project Structure
 
@@ -355,19 +363,28 @@ hitachi_yutaki/
 │       │   │   └── entity_state.py
 │       │   └── storage/      # Storage implementations
 │       │       └── in_memory.py
-│       ├── sensor/           # Sensor platform (modularized)
-│       │   ├── base.py        # Sensor entity base class
-│       │   ├── compressor.py  # Compressor sensors
-│       │   ├── diagnostics.py   # System status sensors
-│       │   ├── dhw.py        # Domestic hot water sensors
-│       │   ├── gateway.py    # Gateway synchronization sensors
-│       │   ├── hydraulic.py  # Water temperature/flow sensors
-│       │   ├── outdoor.py    # Outdoor temperature sensors
-│       │   ├── performance.py # COP sensors
-│       │   ├── pool.py       # Pool temperature sensors
-│       │   ├── thermal.py    # Thermal energy sensors
-│       │   ├── adapters.py   # Backward compatibility re-exports
-│       │   └── __init__.py   # Sensor platform setup
+│       │   └── README.md     # Adapters layer documentation
+│       ├── entities/         # Domain-driven entity organization
+│       │   ├── base/         # Base entity classes for all entity types
+│       │   │   ├── sensor.py
+│       │   │   ├── binary_sensor.py
+│       │   │   ├── switch.py
+│       │   │   ├── number.py
+│       │   │   ├── select.py
+│       │   │   ├── button.py
+│       │   │   ├── climate.py
+│       │   │   └── water_heater.py
+│       │   ├── circuit/      # Circuit-related entities
+│       │   ├── compressor/   # Compressor-related entities
+│       │   ├── control_unit/ # Control unit entities
+│       │   ├── dhw/         # Domestic Hot Water entities
+│       │   ├── gateway/     # Gateway entities
+│       │   ├── hydraulic/   # Hydraulic system entities
+│       │   ├── performance/ # Performance monitoring entities
+│       │   ├── pool/        # Pool-related entities
+│       │   ├── power/       # Power-related entities
+│       │   ├── thermal/     # Thermal system entities
+│       │   └── README.md     # Entities layer documentation
 │       ├── api/              # API clients (Ports and Adapters)
 │       │   ├── base.py
 │       │   └── modbus/
@@ -382,17 +399,18 @@ hitachi_yutaki/
 │       │   └── yutampo_r32.py
 │       ├── translations/     # Language files (en.json, fr.json)
 │       ├── __init__.py       # Integration setup
-│       ├── binary_sensor.py # Binary sensor platform
-│       ├── button.py         # Button platform
-│       ├── climate.py        # Climate platform
+│       ├── binary_sensor.py # Binary sensor platform (orchestrator)
+│       ├── button.py         # Button platform (orchestrator)
+│       ├── climate.py        # Climate platform (orchestrator)
 │       ├── config_flow.py    # Configuration flow
 │       ├── const.py          # Constants
 │       ├── coordinator.py    # Data update coordinator
 │       ├── manifest.json     # Integration manifest
-│       ├── number.py         # Number platform
-│       ├── select.py         # Select platform
-│       ├── switch.py         # Switch platform
-│       └── water_heater.py   # Water heater platform
+│       ├── number.py         # Number platform (orchestrator)
+│       ├── select.py         # Select platform (orchestrator)
+│       ├── sensor.py         # Sensor platform (orchestrator)
+│       ├── switch.py         # Switch platform (orchestrator)
+│       └── water_heater.py   # Water heater platform (orchestrator)
 ├── scripts/                  # Development scripts
 │   ├── dev-branch           # Install dev branch of Home Assistant
 │   ├── develop             # Run Home Assistant with debug config
