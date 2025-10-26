@@ -8,7 +8,11 @@ from homeassistant.components.number import NumberMode
 from homeassistant.const import EntityCategory, UnitOfTemperature
 
 from ...const import DEVICE_POOL
-from ..base.number import HitachiYutakiNumber, HitachiYutakiNumberEntityDescription
+from ..base.number import (
+    HitachiYutakiNumber,
+    HitachiYutakiNumberEntityDescription,
+    _create_numbers,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -19,8 +23,6 @@ def build_pool_numbers(
     entry_id: str,
 ) -> list[HitachiYutakiNumber]:
     """Build pool number entities."""
-    from ..base.number import _create_numbers
-
     descriptions = _build_pool_number_descriptions()
     return _create_numbers(coordinator, entry_id, descriptions, DEVICE_POOL, "pool")
 

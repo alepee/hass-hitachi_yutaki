@@ -1,4 +1,8 @@
-## 🏗️ Principes Architecturaux des Entités
+# Principes Architecturaux des Entités
+
+> 📋 **Vue d'ensemble** : Ce document détaille les patterns et principes architecturaux utilisés pour les entités. Pour la structure globale, voir [`architecture.md`](./architecture.md).
+
+## 🏗️ Principes Architecturaux
 
 ### 1. **Séparation des Responsabilités (SRP)**
 
@@ -68,7 +72,7 @@ def _build_circuit_switch_description(circuit_id: CIRCUIT_IDS) -> tuple[...]:
 class HitachiYutakiSwitch:
     def is_on(self) -> bool | None:
         return self._description.get_fn(self._coordinator.api_client, circuit_id)
-    
+
     async def async_turn_on(self):
         await self._description.set_fn(self._coordinator.api_client, circuit_id, True)
 ```
@@ -194,42 +198,102 @@ def __init__(self, coordinator, description, device_info, register_prefix=None):
 - **Traçabilité** : Identification claire
 - **Persistance** : Entités reconnues après redémarrage
 
-### 10. **Architecture Hexagonale**
+### 10. **Gestion des Devices**
 
-**Principe** : Séparation claire entre domaine, adapters et entités.
+**Principe** : Utilisation des constantes pour l'assignation correcte des entités aux appareils.
 
+```python
+# ✅ Utiliser les constantes définies
+from .const import DEVICE_CIRCUIT_1, DEVICE_CIRCUIT_2
+
+build_circuit_switches(
+    coordinator,
+    entry.entry_id,
+    CIRCUIT_PRIMARY_ID,
+    DEVICE_CIRCUIT_1,  # "circuit_1"
+)
+
+# ❌ Ne pas construire dynamiquement
+build_circuit_switches(
+    coordinator,
+    entry.entry_id,
+    CIRCUIT_PRIMARY_ID,
+    f"circuit{CIRCUIT_PRIMARY_ID}",  # "circuit1" ≠ "circuit_1"
+)
 ```
-Domain Layer (Business Logic)
-├── models/          # Modèles métier
-├── ports/           # Interfaces (abstractions)
-└── services/        # Logique métier
 
-Adapters Layer (Infrastructure)
-├── calculators/     # Implémentations des calculs
-├── providers/        # Implémentations des données
-└── storage/         # Implémentations du stockage
-
-Entity Layer (Home Assistant)
-├── sensor/          # Capteurs
-├── switch/          # Interrupteurs
-├── binary_sensor/   # Capteurs binaires
-└── number/          # Nombres
-```
+**Correspondance Device IDs** :
+- `DEVICE_CIRCUIT_1 = "circuit_1"` → Device "Circuit 1"
+- `DEVICE_CIRCUIT_2 = "circuit_2"` → Device "Circuit 2"
+- `DEVICE_DHW = "dhw"` → Device "DHW"
+- `DEVICE_POOL = "pool"` → Device "Pool"
 
 **Avantages** :
-- **Testabilité** : Tests unitaires du domaine
-- **Flexibilité** : Changement d'infrastructure
-- **Maintenabilité** : Logique métier isolée
+- **Cohérence** : Entités attachées au bon appareil
+- **Maintenance** : Changements centralisés
+- **Traçabilité** : Identification claire des appareils
 
 ## 🎯 Bénéfices de cette Architecture
 
-1. **SOLID Principles** : Respect des principes SOLID
-2. **Hexagonal Architecture** : Séparation claire des responsabilités
-3. **Domain-Driven Design** : Organisation par domaine métier
-4. **Testabilité** : Tests unitaires facilités
-5. **Maintenabilité** : Modifications localisées
-6. **Évolutivité** : Ajout de nouvelles entités simplifié
-7. **Robustesse** : Gestion d'erreurs centralisée
-8. **Performance** : Optimisations ciblées
+1. **SOLID Principles** : Respect des principes SOLID (SRP, DIP, ISP)
+2. **Hexagonal Architecture** : Séparation claire des responsabilités (voir [`architecture.md`](./architecture.md))
+3. **Domain-Driven Design** : Organisation par domaine métier (10 domaines)
+4. **Testabilité** : Tests unitaires facilités par l'injection de dépendances
+5. **Maintenabilité** : Modifications localisées à un domaine
+6. **Évolutivité** : Ajout de nouveaux domaines sans impact
+7. **Robustesse** : Gestion d'erreurs centralisée dans les services
+8. **Performance** : Optimisations ciblées par domaine
+9. **Consistance** : Pattern uniforme pour tous les domaines
+10. **Découplage** : Logique métier indépendante de Home Assistant
+
+## 📝 Guide de Contribution
+
+### Ajouter une Nouvelle Entité à un Domaine Existant
+
+1. **Identifier le domaine** : `circuit/`, `dhw/`, `pool/`, etc.
+2. **Ouvrir le fichier approprié** : `sensors.py`, `switches.py`, etc.
+3. **Ajouter la description** dans `_build_<domain>_<entity_type>_descriptions()`
+4. **Tester** : Vérifier que l'entité apparaît correctement dans HA
+
+### Créer un Nouveau Domaine
+
+1. **Créer le dossier** : `entities/<nouveau_domaine>/`
+2. **Créer les fichiers nécessaires** : `sensors.py`, `switches.py`, etc.
+3. **Implémenter les builders** : `build_<domaine>_<entity_type>()`
+4. **Mettre à jour les plateformes** : Importer et appeler les builders dans `sensor.py`, etc.
+5. **Documenter** : Mettre à jour [`architecture.md`](./architecture.md)
+
+### Exemple de Structure de Fichier
+
+```python
+"""<Domain> <entity_type> descriptions and builders."""
+
+from ..base.<entity_type> import (
+    Hitachi<EntityType>,
+    Hitachi<EntityType>EntityDescription,
+    _create_<entity_type>s,
+)
+
+def build_<domain>_<entity_type>(
+    coordinator: HitachiYutakiDataCoordinator,
+    entry_id: str,
+    # Paramètres spécifiques
+) -> list[Hitachi<EntityType>]:
+    """Build <entity_type> entities for <domain>."""
+    descriptions = _build_<domain>_<entity_type>_descriptions()
+    return _create_<entity_type>s(
+        coordinator, entry_id, descriptions, DEVICE_TYPE
+    )
+
+def _build_<domain>_<entity_type>_descriptions() -> tuple[...]:
+    """Build <entity_type> descriptions for <domain>."""
+    return (
+        Hitachi<EntityType>EntityDescription(
+            key="...",
+            name="...",
+            # ... autres paramètres
+        ),
+    )
+```
 
 Cette architecture garantit un code maintenable, testable et évolutif ! 🚀

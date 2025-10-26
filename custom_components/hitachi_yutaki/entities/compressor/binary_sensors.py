@@ -11,6 +11,7 @@ from homeassistant.helpers.entity import EntityCategory
 from ..base.binary_sensor import (
     HitachiYutakiBinarySensor,
     HitachiYutakiBinarySensorEntityDescription,
+    _create_binary_sensors,
 )
 
 if TYPE_CHECKING:
@@ -24,7 +25,6 @@ def build_compressor_binary_sensors(
     device_type: DEVICE_TYPES,
 ) -> list[HitachiYutakiBinarySensor]:
     """Build compressor binary sensor entities."""
-    from ..base.binary_sensor import _create_binary_sensors
 
     descriptions = _build_compressor_binary_sensor_descriptions(compressor_id)
     return _create_binary_sensors(coordinator, entry_id, descriptions, device_type)

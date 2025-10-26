@@ -1,12 +1,12 @@
 """Storage port interface."""
 
 from abc import ABC, abstractmethod
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
 
 
-class Storage(Generic[T], ABC):
+class Storage[T](ABC):
     """Abstract interface for data storage."""
 
     @abstractmethod

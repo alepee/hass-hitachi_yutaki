@@ -8,7 +8,11 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import UnitOfTemperature
 
 from ...const import DEVICE_POOL
-from ..base.sensor import HitachiYutakiSensor, HitachiYutakiSensorEntityDescription
+from ..base.sensor import (
+    HitachiYutakiSensor,
+    HitachiYutakiSensorEntityDescription,
+    _create_sensors,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -19,8 +23,6 @@ def build_pool_sensors(
     entry_id: str,
 ) -> list[HitachiYutakiSensor]:
     """Build pool sensor entities."""
-    from ..base.sensor import _create_sensors
-
     descriptions = _build_pool_sensor_descriptions()
     return _create_sensors(coordinator, entry_id, descriptions, DEVICE_POOL)
 

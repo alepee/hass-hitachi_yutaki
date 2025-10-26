@@ -8,7 +8,11 @@ from custom_components.hitachi_yutaki.const import CIRCUIT_IDS, DEVICE_TYPES
 from homeassistant.components.number import NumberMode
 from homeassistant.const import EntityCategory, UnitOfTemperature
 
-from ..base.number import HitachiYutakiNumber, HitachiYutakiNumberEntityDescription
+from ..base.number import (
+    HitachiYutakiNumber,
+    HitachiYutakiNumberEntityDescription,
+    _create_numbers,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -21,8 +25,6 @@ def build_circuit_numbers(
     device_type: DEVICE_TYPES,
 ) -> list[HitachiYutakiNumber]:
     """Build circuit number entities."""
-    from ..base.number import _create_numbers
-
     descriptions = _build_circuit_number_descriptions(circuit_id)
     return _create_numbers(
         coordinator, entry_id, descriptions, device_type, f"circuit{circuit_id}"

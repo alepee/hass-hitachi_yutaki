@@ -4,7 +4,7 @@
 
 Migration vers une architecture par domaine métier avec organisation dans `entities/`.
 
-**Date de début** : 2025-01-24  
+**Date de début** : 2025-01-24
 **Statut global** : 🚧 En cours (30% complété)
 
 ## ✅ Complété
@@ -48,7 +48,7 @@ Migration vers une architecture par domaine métier avec organisation dans `enti
 
 ### Phase 3 (suite)
 - [ ] **Domaine `hydraulic/`**
-  - [ ] Créer `entities/hydraulic/sensors.py` 
+  - [ ] Créer `entities/hydraulic/sensors.py`
   - [ ] Créer `entities/hydraulic/binary_sensors.py`
 - [ ] **Domaine `compressor/`**
   - [ ] Créer `entities/compressor/__init__.py`
@@ -115,7 +115,7 @@ def build_<domain>_<entity_type>(
 ) -> list[Entity]:
     """Build <entity_type> entities for <domain>."""
     from ..base.<entity_type> import _create_<entity_type>s
-    
+
     descriptions = _build_<domain>_<entity_type>_descriptions()
     return _create_<entity_type>s(coordinator, entry_id, descriptions, DEVICE_TYPE)
 ```
@@ -169,4 +169,3 @@ entities.extend(
 - Nettoyage et tests : ~1h
 
 **Total estimé** : ~9h de travail restant
-

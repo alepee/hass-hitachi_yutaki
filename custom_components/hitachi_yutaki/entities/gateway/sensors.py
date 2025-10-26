@@ -8,7 +8,11 @@ from homeassistant.components.sensor import SensorDeviceClass
 from homeassistant.helpers.entity import EntityCategory
 
 from ...const import DEVICE_GATEWAY
-from ..base.sensor import HitachiYutakiSensor, HitachiYutakiSensorEntityDescription
+from ..base.sensor import (
+    HitachiYutakiSensor,
+    HitachiYutakiSensorEntityDescription,
+    _create_sensors,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -19,8 +23,6 @@ def build_gateway_sensors(
     entry_id: str,
 ) -> list[HitachiYutakiSensor]:
     """Build gateway sensor entities."""
-    from ..base.sensor import _create_sensors
-
     descriptions = _build_gateway_sensor_descriptions()
     return _create_sensors(coordinator, entry_id, descriptions, DEVICE_GATEWAY)
 

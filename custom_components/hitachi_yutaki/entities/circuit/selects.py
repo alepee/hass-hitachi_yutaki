@@ -13,7 +13,11 @@ from ...const import (
     DEVICE_TYPES,
     OTCCalculationMethod,
 )
-from ..base.select import HitachiYutakiSelect, HitachiYutakiSelectEntityDescription
+from ..base.select import (
+    HitachiYutakiSelect,
+    HitachiYutakiSelectEntityDescription,
+    _create_selects,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -26,8 +30,6 @@ def build_circuit_selects(
     device_type: DEVICE_TYPES,
 ) -> list[HitachiYutakiSelect]:
     """Build circuit select entities."""
-    from ..base.select import _create_selects
-
     descriptions = _build_circuit_select_descriptions(circuit_id)
     return _create_selects(
         coordinator, entry_id, descriptions, device_type, f"circuit{circuit_id}"

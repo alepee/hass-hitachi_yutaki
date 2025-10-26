@@ -14,7 +14,11 @@ from ...const import (
     CIRCUIT_SECONDARY_ID,
     DEVICE_CONTROL_UNIT,
 )
-from ..base.sensor import HitachiYutakiSensor, HitachiYutakiSensorEntityDescription
+from ..base.sensor import (
+    HitachiYutakiSensor,
+    HitachiYutakiSensorEntityDescription,
+    _create_sensors,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -25,8 +29,6 @@ def build_performance_sensors(
     entry_id: str,
 ) -> list[HitachiYutakiSensor]:
     """Build performance sensor entities."""
-    from ..base.sensor import _create_sensors
-
     descriptions = _build_performance_sensor_descriptions()
     return _create_sensors(coordinator, entry_id, descriptions, DEVICE_CONTROL_UNIT)
 
