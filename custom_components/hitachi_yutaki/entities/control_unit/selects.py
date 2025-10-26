@@ -12,7 +12,11 @@ from ...const import (
     CIRCUIT_SECONDARY_ID,
     DEVICE_CONTROL_UNIT,
 )
-from ..base.select import HitachiYutakiSelect, HitachiYutakiSelectEntityDescription
+from ..base.select import (
+    HitachiYutakiSelect,
+    HitachiYutakiSelectEntityDescription,
+    _create_selects,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -23,8 +27,6 @@ def build_control_unit_selects(
     entry_id: str,
 ) -> list[HitachiYutakiSelect]:
     """Build control unit select entities."""
-    from ..base.select import _create_selects
-
     descriptions = _build_control_unit_select_descriptions()
     return _create_selects(coordinator, entry_id, descriptions, DEVICE_CONTROL_UNIT)
 

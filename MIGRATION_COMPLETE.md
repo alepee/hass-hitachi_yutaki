@@ -45,7 +45,7 @@ custom_components/hitachi_yutaki/
 ### 🎯 Domaines Migrés (10/10)
 
 1. ✅ **entities/performance/** - COP sensors
-2. ✅ **entities/thermal/** - Production thermique  
+2. ✅ **entities/thermal/** - Production thermique
 3. ✅ **entities/power/** - Consommation électrique
 4. ✅ **entities/gateway/** - Passerelle (sensors + binary_sensors)
 5. ✅ **entities/hydraulic/** - Hydraulique (sensors + binary_sensors)
@@ -96,16 +96,16 @@ from .entities.compressor import build_compressor_sensors
 
 async def async_setup_entry(hass, entry, async_add_entities):
     entities = []
-    
+
     # Gateway sensors
     entities.extend(build_gateway_sensors(coordinator, entry.entry_id))
-    
+
     # Circuit sensors (dynamic)
     if coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING):
         entities.extend(build_circuit_sensors(coordinator, entry.entry_id, circuit_id, f"circuit{circuit_id}"))
-    
+
     # ... autres domaines
-    
+
     async_add_entities(entities)
 ```
 

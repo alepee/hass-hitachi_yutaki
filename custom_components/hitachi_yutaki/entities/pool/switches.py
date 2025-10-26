@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ...const import DEVICE_POOL
-from ..base.switch import HitachiYutakiSwitch, HitachiYutakiSwitchEntityDescription
+from ..base.switch import (
+    HitachiYutakiSwitch,
+    HitachiYutakiSwitchEntityDescription,
+    _create_switches,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -16,8 +20,6 @@ def build_pool_switches(
     entry_id: str,
 ) -> list[HitachiYutakiSwitch]:
     """Build pool switch entities."""
-    from ..base.switch import _create_switches
-
     descriptions = _build_pool_switch_descriptions()
     return _create_switches(coordinator, entry_id, descriptions, DEVICE_POOL, "pool")
 

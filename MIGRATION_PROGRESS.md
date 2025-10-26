@@ -1,6 +1,6 @@
 # Progression de la Migration - État Actuel
 
-**Date**: 2025-01-24  
+**Date**: 2025-01-24
 **Statut**: 🚧 En cours (environ 40% complété)
 
 ## ✅ Complété
@@ -44,7 +44,7 @@ Fusion de outdoor + diagnostics (alarm, operation_state) + switches + binary_sen
 
 **Sources**:
 - `sensor/outdoor.py` (1 sensor: outdoor_temp)
-- `sensor/diagnostics.py` (2 sensors: alarm, operation_state)  
+- `sensor/diagnostics.py` (2 sensors: alarm, operation_state)
   *Note: power_consumption déjà migré vers power/*
 - `switch/control_unit.py` (1 switch: power)
 - `binary_sensor/control_unit.py` (5 binary_sensors: defrost, solar, boiler, compressor, smart_function)
@@ -66,7 +66,7 @@ Fusion de outdoor + diagnostics (alarm, operation_state) + switches + binary_sen
 - `entities/circuit/__init__.py`
 - `entities/circuit/sensors.py` (vide ou minimal)
 - `entities/circuit/numbers.py` - avec paramètre circuit_id
-- `entities/circuit/switches.py` - avec paramètre circuit_id  
+- `entities/circuit/switches.py` - avec paramètre circuit_id
 - `entities/circuit/climate.py` - build_circuit_climate()
 - `entities/base/climate.py` - Classe HitachiYutakiClimate (à extraire de climate.py)
 
@@ -152,7 +152,7 @@ def build_<domain>_sensors(
 ) -> list[HitachiYutakiSensor]:
     """Build <domain> sensor entities."""
     from ..base.sensor import _create_sensors
-    
+
     descriptions = _build_<domain>_sensor_descriptions()
     return _create_sensors(coordinator, entry_id, descriptions, DEVICE_<TYPE>)
 
@@ -174,7 +174,7 @@ def build_compressor_sensors(
 ) -> list[HitachiYutakiSensor]:
     """Build compressor sensor entities."""
     from ..base.sensor import _create_sensors
-    
+
     descriptions = _build_compressor_sensor_descriptions(compressor_id)  # PASSER LE PARAMÈTRE
     return _create_sensors(coordinator, entry_id, descriptions, device_type)
 
@@ -183,7 +183,7 @@ def _build_compressor_sensor_descriptions(
 ) -> tuple[HitachiYutakiSensorEntityDescription, ...]:
     """Build compressor sensor descriptions."""
     prefix = "primary" if compressor_id == 1 else "secondary"
-    
+
     return (
         HitachiYutakiSensorEntityDescription(
             key=f"{prefix}_compressor_frequency",
@@ -203,4 +203,3 @@ def _build_compressor_sensor_descriptions(
 ## 🎯 Prochaine Action
 
 Terminer `entities/compressor/` (sensors.py + binary_sensors.py) en suivant le pattern avec paramètre `compressor_id`.
-

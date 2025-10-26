@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ...const import DEVICE_DHW
-from ..base.button import HitachiYutakiButton, HitachiYutakiButtonEntityDescription
+from ..base.button import (
+    HitachiYutakiButton,
+    HitachiYutakiButtonEntityDescription,
+    _create_buttons,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -16,8 +20,6 @@ def build_dhw_buttons(
     entry_id: str,
 ) -> list[HitachiYutakiButton]:
     """Build DHW button entities."""
-    from ..base.button import _create_buttons
-
     descriptions = _build_dhw_button_descriptions()
     return _create_buttons(coordinator, entry_id, descriptions, DEVICE_DHW, "dhw")
 

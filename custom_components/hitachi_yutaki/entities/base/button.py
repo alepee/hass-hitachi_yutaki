@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from custom_components.hitachi_yutaki.const import DEVICE_TYPES
+from custom_components.hitachi_yutaki.const import DEVICE_TYPES, DOMAIN
 from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity import DeviceInfo
@@ -75,23 +75,16 @@ def _create_buttons(
     register_prefix: str | None = None,
 ) -> list[HitachiYutakiButton]:
     """Create button entities from descriptions."""
-    from homeassistant.helpers.entity import DeviceInfo
-
-    from ...const import DOMAIN
-
-    entities = []
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"{entry_id}_{device_type}")},
     )
 
-    for description in descriptions:
-        entities.append(
-            HitachiYutakiButton(
-                coordinator=coordinator,
-                description=description,
-                device_info=device_info,
-                register_prefix=register_prefix,
-            )
+    return [
+        HitachiYutakiButton(
+            coordinator=coordinator,
+            description=description,
+            device_info=device_info,
+            register_prefix=register_prefix,
         )
-
-    return entities
+        for description in descriptions
+    ]

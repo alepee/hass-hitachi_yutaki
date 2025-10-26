@@ -5,7 +5,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from ...const import DEVICE_DHW
-from ..base.sensor import HitachiYutakiSensor, HitachiYutakiSensorEntityDescription
+from ..base.sensor import (
+    HitachiYutakiSensor,
+    HitachiYutakiSensorEntityDescription,
+    _create_sensors,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -16,8 +20,6 @@ def build_dhw_sensors(
     entry_id: str,
 ) -> list[HitachiYutakiSensor]:
     """Build DHW sensor entities."""
-    from ..base.sensor import _create_sensors
-
     descriptions = _build_dhw_sensor_descriptions()
     return _create_sensors(coordinator, entry_id, descriptions, DEVICE_DHW)
 

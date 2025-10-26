@@ -6,7 +6,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
-from custom_components.hitachi_yutaki.const import DEVICE_TYPES
+from custom_components.hitachi_yutaki.const import DEVICE_TYPES, DOMAIN
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity import DeviceInfo
@@ -119,10 +119,6 @@ def _create_selects(
     register_prefix: str | None = None,
 ) -> list[HitachiYutakiSelect]:
     """Create select entities from descriptions."""
-    from homeassistant.helpers.entity import DeviceInfo
-
-    from ...const import DOMAIN
-
     entities = []
     device_info = DeviceInfo(
         identifiers={(DOMAIN, f"{entry_id}_{device_type}")},

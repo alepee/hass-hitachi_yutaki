@@ -9,7 +9,11 @@ from homeassistant.const import UnitOfEnergy
 from homeassistant.helpers.entity import EntityCategory
 
 from ...const import DEVICE_CONTROL_UNIT
-from ..base.sensor import HitachiYutakiSensor, HitachiYutakiSensorEntityDescription
+from ..base.sensor import (
+    HitachiYutakiSensor,
+    HitachiYutakiSensorEntityDescription,
+    _create_sensors,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -20,8 +24,6 @@ def build_power_sensors(
     entry_id: str,
 ) -> list[HitachiYutakiSensor]:
     """Build power sensor entities (electrical consumption)."""
-    from ..base.sensor import _create_sensors
-
     descriptions = _build_power_sensor_descriptions()
     return _create_sensors(coordinator, entry_id, descriptions, DEVICE_CONTROL_UNIT)
 

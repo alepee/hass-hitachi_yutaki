@@ -15,7 +15,11 @@ from homeassistant.const import (
 )
 from homeassistant.helpers.entity import EntityCategory
 
-from ..base.sensor import HitachiYutakiSensor, HitachiYutakiSensorEntityDescription
+from ..base.sensor import (
+    HitachiYutakiSensor,
+    HitachiYutakiSensorEntityDescription,
+    _create_sensors,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -28,8 +32,6 @@ def build_compressor_sensors(
     device_type: DEVICE_TYPES,
 ) -> list[HitachiYutakiSensor]:
     """Build compressor sensor entities."""
-    from ..base.sensor import _create_sensors
-
     descriptions = _build_compressor_sensor_descriptions(compressor_id)
     return _create_sensors(coordinator, entry_id, descriptions, device_type)
 

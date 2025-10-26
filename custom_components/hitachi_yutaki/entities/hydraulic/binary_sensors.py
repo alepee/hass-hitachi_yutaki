@@ -11,6 +11,7 @@ from ...const import DEVICE_CONTROL_UNIT
 from ..base.binary_sensor import (
     HitachiYutakiBinarySensor,
     HitachiYutakiBinarySensorEntityDescription,
+    _create_binary_sensors,
 )
 
 if TYPE_CHECKING:
@@ -22,8 +23,6 @@ def build_hydraulic_binary_sensors(
     entry_id: str,
 ) -> list[HitachiYutakiBinarySensor]:
     """Build hydraulic binary sensor entities."""
-    from ..base.binary_sensor import _create_binary_sensors
-
     descriptions = _build_hydraulic_binary_sensor_descriptions()
     return _create_binary_sensors(
         coordinator, entry_id, descriptions, DEVICE_CONTROL_UNIT

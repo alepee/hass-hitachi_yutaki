@@ -6,7 +6,11 @@ from typing import TYPE_CHECKING
 
 from custom_components.hitachi_yutaki.const import CIRCUIT_IDS, DEVICE_TYPES
 
-from ..base.sensor import HitachiYutakiSensor, HitachiYutakiSensorEntityDescription
+from ..base.sensor import (
+    HitachiYutakiSensor,
+    HitachiYutakiSensorEntityDescription,
+    _create_sensors,
+)
 
 if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
@@ -19,8 +23,6 @@ def build_circuit_sensors(
     device_type: DEVICE_TYPES,
 ) -> list[HitachiYutakiSensor]:
     """Build circuit sensor entities."""
-    from ..base.sensor import _create_sensors
-
     descriptions = _build_circuit_sensor_descriptions(circuit_id)
     return _create_sensors(coordinator, entry_id, descriptions, device_type)
 
