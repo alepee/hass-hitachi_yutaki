@@ -83,6 +83,14 @@
           "water_inlet_temp_entity": "Capteur de température d'entrée d'eau (Optionnel)",
           "water_outlet_temp_entity": "Capteur de température de sortie d'eau (Optionnel)"
         }
+      },
+      "repair": {
+        "title": "Réparation de la Configuration Hitachi Yutaki",
+        "description": "Votre intégration Hitachi Yutaki manque de paramètres de configuration requis. Veuillez sélectionner les paramètres manquants pour continuer.",
+        "data": {
+          "gateway_type": "Type de Passerelle",
+          "profile": "Profil de Pompe à Chaleur"
+        }
       }
     }
   },

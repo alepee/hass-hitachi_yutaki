@@ -83,6 +83,14 @@
           "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
           "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
         }
+      },
+      "repair": {
+        "title": "Repair Hitachi Yutaki Configuration",
+        "description": "Your Hitachi Yutaki integration is missing required configuration parameters. Please select the missing parameters to continue.",
+        "data": {
+          "gateway_type": "Gateway Type",
+          "profile": "Heat Pump Profile"
+        }
       }
     }
   },
