@@ -1,92 +1,92 @@
-# Domain Layer - Architecture Hexagonale
+# Domain Layer - Hexagonal Architecture
 
-## Vue d'ensemble
+## Overview
 
-Le dossier `domain/` contient la **logique métier pure** de l'intégration Hitachi Yutaki. Cette couche est complètement indépendante de Home Assistant et peut être testée sans aucune dépendance externe.
+The `domain/` folder contains the **pure business logic** of the Hitachi Yutaki integration. This layer is completely independent of Home Assistant and can be tested without any external dependencies.
 
-## Principes
+## Principles
 
-- ✅ **Aucune dépendance externe** : Seule la stdlib Python est autorisée
-- ✅ **Logique métier pure** : Calculs, algorithmes, règles métier
-- ✅ **Testabilité maximale** : Tests unitaires sans mock
-- ✅ **Réutilisabilité** : Peut être utilisé par sensor, climate, water_heater, etc.
+- ✅ **No external dependencies** : Only Python stdlib is allowed
+- ✅ **Pure business logic** : Calculations, algorithms, business rules
+- ✅ **Maximum testability** : Unit tests without mocks
+- ✅ **Reusability** : Can be used by sensor, climate, water_heater, etc.
 
 ## Structure
 
 ```
 domain/
-├── models/          # Modèles de données purs (dataclasses)
-├── ports/           # Interfaces (Protocols) - contrats
-└── services/        # Services métier - logique pure
+├── models/          # Pure data models (dataclasses)
+├── ports/           # Interfaces (Protocols) - contracts
+└── services/        # Business services - pure logic
 ```
 
 ## Models
 
 ### `models/cop.py`
-- `COPInput` : Données d'entrée pour calcul COP
-- `COPQuality` : Indicateur de qualité des mesures
-- `PowerMeasurement` : Mesure de puissance avec timestamp
+- `COPInput` : Input data for COP calculation
+- `COPQuality` : Quality indicator for measurements
+- `PowerMeasurement` : Power measurement with timestamp
 
 ### `models/thermal.py`
-- `ThermalPowerInput` : Données d'entrée pour calcul thermique
-- `ThermalEnergyResult` : Résultat complet des calculs thermiques
+- `ThermalPowerInput` : Input data for thermal calculation
+- `ThermalEnergyResult` : Complete result of thermal calculations
 
 ### `models/timing.py`
-- `CompressorTimingResult` : Résultats des calculs de timing compresseur
+- `CompressorTimingResult` : Results of compressor timing calculations
 
 ### `models/electrical.py`
-- `ElectricalPowerInput` : Données d'entrée pour calcul électrique
+- `ElectricalPowerInput` : Input data for electrical calculation
 
 ## Ports (Interfaces)
 
 ### `ports/calculators.py`
-- `ThermalPowerCalculator` : Protocol pour calcul de puissance thermique
-- `ElectricalPowerCalculator` : Protocol pour calcul de puissance électrique
+- `ThermalPowerCalculator` : Protocol for thermal power calculation
+- `ElectricalPowerCalculator` : Protocol for electrical power calculation
 
 ### `ports/providers.py`
-- `DataProvider` : Protocol pour accès aux données de la pompe à chaleur
-- `StateProvider` : Protocol pour accès aux états des entités HA
+- `DataProvider` : Protocol for heat pump data access
+- `StateProvider` : Protocol for HA entities state access
 
 ### `ports/storage.py`
-- `Storage[T]` : Interface générique pour stockage de données
+- `Storage[T]` : Generic interface for data storage
 
 ## Services
 
 ### `services/cop.py`
-- `COPService` : Service principal pour calcul du COP
-- `EnergyAccumulator` : Accumulateur d'énergie pour calculs
+- `COPService` : Main service for COP calculation
+- `EnergyAccumulator` : Energy accumulator for calculations
 
 ### `services/thermal.py`
-- `ThermalPowerService` : Service pour calculs thermiques
-- `ThermalEnergyAccumulator` : Accumulateur d'énergie thermique
-- `calculate_thermal_power()` : Fonction pure de calcul
+- `ThermalPowerService` : Service for thermal calculations
+- `ThermalEnergyAccumulator` : Thermal energy accumulator
+- `calculate_thermal_power()` : Pure calculation function
 
 ### `services/timing.py`
-- `CompressorTimingService` : Service pour timing compresseur
-- `CompressorHistory` : Historique des états compresseur
+- `CompressorTimingService` : Service for compressor timing
+- `CompressorHistory` : Compressor state history
 
 ### `services/electrical.py`
-- `calculate_electrical_power()` : Fonction pure de calcul électrique
+- `calculate_electrical_power()` : Pure electrical calculation function
 
-## Utilisation
+## Usage
 
-### Dans les tests
+### In tests
 ```python
-# Test pur sans dépendance HA
+# Pure test without HA dependency
 from domain.services.cop import COPService, EnergyAccumulator
 from domain.services.thermal import ThermalPowerService
 
-# Créer les services avec des mocks
+# Create services with mocks
 cop_service = COPService(accumulator, thermal_calc, electrical_calc)
 thermal_service = ThermalPowerService(accumulator)
 
-# Tester la logique métier
+# Test business logic
 result = cop_service.get_value()
 ```
 
-### Dans les adapters
+### In adapters
 ```python
-# Les adapters implémentent les ports
+# Adapters implement the ports
 from domain.ports.calculators import ElectricalPowerCalculator
 from domain.services.electrical import calculate_electrical_power
 
@@ -95,18 +95,18 @@ class MyElectricalAdapter:
         return calculate_electrical_power(ElectricalPowerInput(current=current))
 ```
 
-## Règles strictes
+## Strict rules
 
-1. **JAMAIS** importer `homeassistant.*`
-2. **JAMAIS** importer `adapters.*` ou `entities.*`
-3. **JAMAIS** importer des modules externes (sauf stdlib)
-4. **TOUJOURS** utiliser des Protocols pour les dépendances
-5. **TOUJOURS** documenter les fonctions publiques
+1. **NEVER** import `homeassistant.*`
+2. **NEVER** import `adapters.*` or `entities.*`
+3. **NEVER** import external modules (except stdlib)
+4. **ALWAYS** use Protocols for dependencies
+5. **ALWAYS** document public functions
 
-## Avantages
+## Benefits
 
-- 🧪 **Tests unitaires purs** : Pas de mock HA nécessaire
-- 🔄 **Réutilisabilité** : Même logique pour sensor, climate, etc.
-- 🐛 **Debugging facile** : Logique isolée et testable
-- 📈 **Évolutivité** : Nouveaux services sans impact
-- 🏗️ **Architecture propre** : Séparation claire des responsabilités
+- 🧪 **Pure unit tests** : No HA mocks needed
+- 🔄 **Reusability** : Same logic for sensor, climate, etc.
+- 🐛 **Easy debugging** : Isolated and testable logic
+- 📈 **Scalability** : New services without impact
+- 🏗️ **Clean architecture** : Clear separation of responsibilities
