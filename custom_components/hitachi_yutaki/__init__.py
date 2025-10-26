@@ -17,6 +17,10 @@ from homeassistant.helpers import device_registry as dr
 
 from .api import GATEWAY_INFO
 from .const import (
+    CIRCUIT_MODE_COOLING,
+    CIRCUIT_MODE_HEATING,
+    CIRCUIT_PRIMARY_ID,
+    CIRCUIT_SECONDARY_ID,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
     DEVICE_CONTROL_UNIT,
@@ -133,7 +137,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     # Add Circuit 1 device if configured
-    if coordinator.has_circuit1_heating() or coordinator.has_circuit1_cooling():
+    if coordinator.has_circuit(
+        CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING
+    ) or coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING):
         _LOGGER.debug("Circuit 1 configured, registering device")
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -146,7 +152,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         )
 
     # Add Circuit 2 device if configured
-    if coordinator.has_circuit2_heating() or coordinator.has_circuit2_cooling():
+    if coordinator.has_circuit(
+        CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING
+    ) or coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING):
         _LOGGER.debug("Circuit 2 configured, registering device")
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,

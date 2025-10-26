@@ -10,7 +10,16 @@ from homeassistant.components.climate import HVACMode
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 
-from ...const import DOMAIN, get_pymodbus_device_param
+from ...const import (
+    CIRCUIT_IDS,
+    CIRCUIT_MODE_COOLING,
+    CIRCUIT_MODE_HEATING,
+    CIRCUIT_MODES,
+    CIRCUIT_PRIMARY_ID,
+    CIRCUIT_SECONDARY_ID,
+    DOMAIN,
+    get_pymodbus_device_param,
+)
 from ..base import HitachiApiClient
 from .registers import HitachiRegisterMap, atw_mbs_02
 from .registers.atw_mbs_02 import (
@@ -19,10 +28,6 @@ from .registers.atw_mbs_02 import (
     HVAC_UNIT_MODE_COOL,
     HVAC_UNIT_MODE_HEAT,
     MASK_BOILER,
-    MASK_CIRCUIT1_COOLING,
-    MASK_CIRCUIT1_HEATING,
-    MASK_CIRCUIT2_COOLING,
-    MASK_CIRCUIT2_HEATING,
     MASK_COMPRESSOR,
     MASK_DEFROST,
     MASK_DHW,
@@ -34,6 +39,7 @@ from .registers.atw_mbs_02 import (
     MASK_SMART_FUNCTION,
     MASK_SOLAR,
     MASK_SPACE_HEATER,
+    MASKS_CIRCUIT,
     SYSTEM_STATE_ISSUES,
     WRITABLE_KEYS,
     serialize_otc_method,
@@ -119,29 +125,10 @@ class ModbusApiClient(HitachiApiClient):
         system_config = self._data.get("system_config", 0)
         return bool(system_config & MASK_DHW)
 
-    @property
-    def has_circuit1_heating(self) -> bool:
-        """Return True if heating for circuit 1 is configured."""
+    def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
+        """Return True if circuit is configured."""
         system_config = self._data.get("system_config", 0)
-        return bool(system_config & MASK_CIRCUIT1_HEATING)
-
-    @property
-    def has_circuit1_cooling(self) -> bool:
-        """Return True if cooling for circuit 1 is configured."""
-        system_config = self._data.get("system_config", 0)
-        return bool(system_config & MASK_CIRCUIT1_COOLING)
-
-    @property
-    def has_circuit2_heating(self) -> bool:
-        """Return True if heating for circuit 2 is configured."""
-        system_config = self._data.get("system_config", 0)
-        return bool(system_config & MASK_CIRCUIT2_HEATING)
-
-    @property
-    def has_circuit2_cooling(self) -> bool:
-        """Return True if cooling for circuit 2 is configured."""
-        system_config = self._data.get("system_config", 0)
-        return bool(system_config & MASK_CIRCUIT2_COOLING)
+        return bool(system_config & MASKS_CIRCUIT.get((circuit_id, mode)))
 
     @property
     def has_pool(self) -> bool:
@@ -154,10 +141,22 @@ class ModbusApiClient(HitachiApiClient):
         system_config = data.get("system_config", 0)
         decoded = data.copy()
         decoded["has_dhw"] = bool(system_config & MASK_DHW)
-        decoded["has_circuit1_heating"] = bool(system_config & MASK_CIRCUIT1_HEATING)
-        decoded["has_circuit1_cooling"] = bool(system_config & MASK_CIRCUIT1_COOLING)
-        decoded["has_circuit2_heating"] = bool(system_config & MASK_CIRCUIT2_HEATING)
-        decoded["has_circuit2_cooling"] = bool(system_config & MASK_CIRCUIT2_COOLING)
+        decoded["has_circuit1_heating"] = bool(
+            system_config
+            & MASKS_CIRCUIT.get((CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING))
+        )
+        decoded["has_circuit1_cooling"] = bool(
+            system_config
+            & MASKS_CIRCUIT.get((CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING))
+        )
+        decoded["has_circuit2_heating"] = bool(
+            system_config
+            & MASKS_CIRCUIT.get((CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING))
+        )
+        decoded["has_circuit2_cooling"] = bool(
+            system_config
+            & MASKS_CIRCUIT.get((CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING))
+        )
         decoded["has_pool"] = bool(system_config & MASK_POOL)
         return decoded
 
@@ -346,7 +345,7 @@ class ModbusApiClient(HitachiApiClient):
         return await self.write_value("unit_mode", unit_mode)
 
     # Circuit control - Getters
-    def get_circuit_power(self, circuit_id: int) -> bool | None:
+    def get_circuit_power(self, circuit_id: CIRCUIT_IDS) -> bool | None:
         """Get circuit power state."""
         key = f"circuit{circuit_id}_power"
         value = self._data.get(key)
@@ -354,7 +353,7 @@ class ModbusApiClient(HitachiApiClient):
             return None
         return bool(value)
 
-    def get_circuit_current_temperature(self, circuit_id: int) -> float | None:
+    def get_circuit_current_temperature(self, circuit_id: CIRCUIT_IDS) -> float | None:
         """Get current temperature for a circuit (already deserialized by register)."""
         key = f"circuit{circuit_id}_current_temp"
         temp = self._data.get(key)
@@ -362,7 +361,7 @@ class ModbusApiClient(HitachiApiClient):
             return None
         return float(temp)
 
-    def get_circuit_target_temperature(self, circuit_id: int) -> float | None:
+    def get_circuit_target_temperature(self, circuit_id: CIRCUIT_IDS) -> float | None:
         """Get target temperature for a circuit (already deserialized by register)."""
         key = f"circuit{circuit_id}_target_temp"
         temp = self._data.get(key)
@@ -370,7 +369,7 @@ class ModbusApiClient(HitachiApiClient):
             return None
         return float(temp)
 
-    def get_circuit_eco_mode(self, circuit_id: int) -> bool | None:
+    def get_circuit_eco_mode(self, circuit_id: CIRCUIT_IDS) -> bool | None:
         """Get ECO mode state for a circuit (True=ECO, False=COMFORT)."""
         key = f"circuit{circuit_id}_eco_mode"
         value = self._data.get(key)
@@ -379,7 +378,7 @@ class ModbusApiClient(HitachiApiClient):
         # Note: eco_mode uses inverted logic (0=eco, 1=comfort)
         return value == 0
 
-    def get_circuit_thermostat(self, circuit_id: int) -> bool | None:
+    def get_circuit_thermostat(self, circuit_id: CIRCUIT_IDS) -> bool | None:
         """Get Modbus thermostat state for a circuit."""
         key = f"circuit{circuit_id}_thermostat"
         value = self._data.get(key)
@@ -387,17 +386,19 @@ class ModbusApiClient(HitachiApiClient):
             return None
         return bool(value)
 
-    def get_circuit_otc_method_heating(self, circuit_id: int) -> str | None:
+    def get_circuit_otc_method_heating(self, circuit_id: CIRCUIT_IDS) -> str | None:
         """Get OTC calculation method for heating."""
         key = f"circuit{circuit_id}_otc_calculation_method_heating"
         return self._data.get(key)
 
-    def get_circuit_otc_method_cooling(self, circuit_id: int) -> str | None:
+    def get_circuit_otc_method_cooling(self, circuit_id: CIRCUIT_IDS) -> str | None:
         """Get OTC calculation method for cooling."""
         key = f"circuit{circuit_id}_otc_calculation_method_cooling"
         return self._data.get(key)
 
-    def get_circuit_max_flow_temp_heating(self, circuit_id: int) -> float | None:
+    def get_circuit_max_flow_temp_heating(
+        self, circuit_id: CIRCUIT_IDS
+    ) -> float | None:
         """Get maximum heating water temperature for OTC (in °C, stored as integer)."""
         key = f"circuit{circuit_id}_max_flow_temp_heating_otc"
         value = self._data.get(key)
@@ -405,7 +406,9 @@ class ModbusApiClient(HitachiApiClient):
             return None
         return float(value)
 
-    def get_circuit_max_flow_temp_cooling(self, circuit_id: int) -> float | None:
+    def get_circuit_max_flow_temp_cooling(
+        self, circuit_id: CIRCUIT_IDS
+    ) -> float | None:
         """Get maximum cooling water temperature for OTC (in °C, stored as integer)."""
         key = f"circuit{circuit_id}_max_flow_temp_cooling_otc"
         value = self._data.get(key)
@@ -413,76 +416,84 @@ class ModbusApiClient(HitachiApiClient):
             return None
         return float(value)
 
-    def get_circuit_heat_eco_offset(self, circuit_id: int) -> int | None:
+    def get_circuit_heat_eco_offset(self, circuit_id: CIRCUIT_IDS) -> int | None:
         """Get temperature offset for ECO heating mode (in °C)."""
         key = f"circuit{circuit_id}_heat_eco_offset"
         return self._data.get(key)
 
-    def get_circuit_cool_eco_offset(self, circuit_id: int) -> int | None:
+    def get_circuit_cool_eco_offset(self, circuit_id: CIRCUIT_IDS) -> int | None:
         """Get temperature offset for ECO cooling mode (in °C)."""
         key = f"circuit{circuit_id}_cool_eco_offset"
         return self._data.get(key)
 
     # Circuit control - Setters
-    async def set_circuit_power(self, circuit_id: int, enabled: bool) -> bool:
+    async def set_circuit_power(self, circuit_id: CIRCUIT_IDS, enabled: bool) -> bool:
         """Enable/disable a heating/cooling circuit."""
         key = f"circuit{circuit_id}_power"
         return await self.write_value(key, 1 if enabled else 0)
 
     async def set_circuit_target_temperature(
-        self, circuit_id: int, temperature: float
+        self, circuit_id: CIRCUIT_IDS, temperature: float
     ) -> bool:
         """Set target temperature for a circuit."""
         key = f"circuit{circuit_id}_target_temp"
         value = int(temperature * 10)
         return await self.write_value(key, value)
 
-    async def set_circuit_eco_mode(self, circuit_id: int, enabled: bool) -> bool:
+    async def set_circuit_eco_mode(
+        self, circuit_id: CIRCUIT_IDS, enabled: bool
+    ) -> bool:
         """Enable/disable ECO mode for a circuit."""
         key = f"circuit{circuit_id}_eco_mode"
         # Note: eco_mode uses inverted logic (0=eco, 1=comfort)
         value = 0 if enabled else 1
         return await self.write_value(key, value)
 
-    async def set_circuit_thermostat(self, circuit_id: int, enabled: bool) -> bool:
+    async def set_circuit_thermostat(
+        self, circuit_id: CIRCUIT_IDS, enabled: bool
+    ) -> bool:
         """Enable/disable Modbus thermostat for a circuit."""
         key = f"circuit{circuit_id}_thermostat"
         return await self.write_value(key, 1 if enabled else 0)
 
     async def set_circuit_otc_method_heating(
-        self, circuit_id: int, method: str
+        self, circuit_id: CIRCUIT_IDS, method: str
     ) -> bool:
         """Set OTC calculation method for heating."""
         key = f"circuit{circuit_id}_otc_calculation_method_heating"
         return await self.write_value(key, serialize_otc_method(method))
 
     async def set_circuit_otc_method_cooling(
-        self, circuit_id: int, method: str
+        self, circuit_id: CIRCUIT_IDS, method: str
     ) -> bool:
         """Set OTC calculation method for cooling."""
         key = f"circuit{circuit_id}_otc_calculation_method_cooling"
         return await self.write_value(key, serialize_otc_method(method))
 
     async def set_circuit_max_flow_temp_heating(
-        self, circuit_id: int, temperature: float
+        self, circuit_id: CIRCUIT_IDS, temperature: float
     ) -> bool:
         """Set maximum heating water temperature for OTC (stored as integer degrees)."""
         key = f"circuit{circuit_id}_max_flow_temp_heating_otc"
         return await self.write_value(key, int(temperature))
 
     async def set_circuit_max_flow_temp_cooling(
-        self, circuit_id: int, temperature: float
+        self, circuit_id: CIRCUIT_IDS, temperature: float
     ) -> bool:
         """Set maximum cooling water temperature for OTC (stored as integer degrees)."""
         key = f"circuit{circuit_id}_max_flow_temp_cooling_otc"
         return await self.write_value(key, int(temperature))
 
-    async def set_circuit_heat_eco_offset(self, circuit_id: int, offset: int) -> bool:
+    async def set_circuit_heat_eco_offset(
+        self, circuit_id: CIRCUIT_IDS, offset: int
+    ) -> bool:
         """Set temperature offset for ECO heating mode."""
         key = f"circuit{circuit_id}_heat_eco_offset"
         return await self.write_value(key, offset)
 
-    async def set_circuit_cool_eco_offset(self, circuit_id: int, offset: int) -> bool:
+    async def set_circuit_cool_eco_offset(
+        self, circuit_id: CIRCUIT_IDS, offset: int
+    ) -> bool:
         """Set temperature offset for ECO cooling mode."""
         key = f"circuit{circuit_id}_cool_eco_offset"
         return await self.write_value(key, offset)

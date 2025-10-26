@@ -19,6 +19,8 @@ from homeassistant.helpers.update_coordinator import (
 
 from .api import HitachiApiClient
 from .const import (
+    CIRCUIT_IDS,
+    CIRCUIT_MODES,
     DOMAIN,
 )
 from .profiles import HitachiHeatPumpProfile
@@ -93,21 +95,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
             raise UpdateFailed("Failed to communicate with device") from exc
 
-    def has_circuit1_heating(self) -> bool:
-        """Return True if heating for circuit 1 is configured."""
-        return self.api_client.has_circuit1_heating
-
-    def has_circuit1_cooling(self) -> bool:
-        """Return True if cooling for circuit 1 is configured."""
-        return self.api_client.has_circuit1_cooling
-
-    def has_circuit2_heating(self) -> bool:
-        """Return True if heating for circuit 2 is configured."""
-        return self.api_client.has_circuit2_heating
-
-    def has_circuit2_cooling(self) -> bool:
-        """Return True if cooling for circuit 2 is configured."""
-        return self.api_client.has_circuit2_cooling
+    def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
+        """Return True if circuit is configured."""
+        return self.api_client.has_circuit(circuit_id, mode)
 
     def has_dhw(self) -> bool:
         """Return True if DHW is configured."""

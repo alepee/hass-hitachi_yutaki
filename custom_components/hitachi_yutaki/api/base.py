@@ -3,6 +3,8 @@
 from abc import ABC, abstractmethod
 from typing import Any
 
+from custom_components.hitachi_yutaki.const import CIRCUIT_IDS, CIRCUIT_MODES
+
 
 class HitachiApiClient(ABC):
     """Abstract class for a Hitachi API client."""
@@ -51,25 +53,9 @@ class HitachiApiClient(ABC):
     def has_dhw(self) -> bool:
         """Return True if DHW is configured."""
 
-    @property
     @abstractmethod
-    def has_circuit1_heating(self) -> bool:
-        """Return True if heating for circuit 1 is configured."""
-
-    @property
-    @abstractmethod
-    def has_circuit1_cooling(self) -> bool:
-        """Return True if cooling for circuit 1 is configured."""
-
-    @property
-    @abstractmethod
-    def has_circuit2_heating(self) -> bool:
-        """Return True if heating for circuit 2 is configured."""
-
-    @property
-    @abstractmethod
-    def has_circuit2_cooling(self) -> bool:
-        """Return True if cooling for circuit 2 is configured."""
+    def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
+        """Return True if circuit is configured."""
 
     @property
     @abstractmethod
@@ -165,98 +151,110 @@ class HitachiApiClient(ABC):
 
     # Circuit control - Getters
     @abstractmethod
-    def get_circuit_power(self, circuit_id: int) -> bool | None:
+    def get_circuit_power(self, circuit_id: CIRCUIT_IDS) -> bool | None:
         """Get circuit power state."""
 
     @abstractmethod
-    def get_circuit_current_temperature(self, circuit_id: int) -> float | None:
+    def get_circuit_current_temperature(self, circuit_id: CIRCUIT_IDS) -> float | None:
         """Get current temperature for a circuit (in °C)."""
 
     @abstractmethod
-    def get_circuit_target_temperature(self, circuit_id: int) -> float | None:
+    def get_circuit_target_temperature(self, circuit_id: CIRCUIT_IDS) -> float | None:
         """Get target temperature for a circuit (in °C)."""
 
     @abstractmethod
-    def get_circuit_eco_mode(self, circuit_id: int) -> bool | None:
+    def get_circuit_eco_mode(self, circuit_id: CIRCUIT_IDS) -> bool | None:
         """Get ECO mode state for a circuit (True=ECO, False=COMFORT)."""
 
     @abstractmethod
-    def get_circuit_thermostat(self, circuit_id: int) -> bool | None:
+    def get_circuit_thermostat(self, circuit_id: CIRCUIT_IDS) -> bool | None:
         """Get Modbus thermostat state for a circuit."""
 
     @abstractmethod
-    def get_circuit_otc_method_heating(self, circuit_id: int) -> int | None:
+    def get_circuit_otc_method_heating(self, circuit_id: CIRCUIT_IDS) -> int | None:
         """Get OTC calculation method for heating."""
 
     @abstractmethod
-    def get_circuit_otc_method_cooling(self, circuit_id: int) -> int | None:
+    def get_circuit_otc_method_cooling(self, circuit_id: CIRCUIT_IDS) -> int | None:
         """Get OTC calculation method for cooling."""
 
     @abstractmethod
-    def get_circuit_max_flow_temp_heating(self, circuit_id: int) -> float | None:
+    def get_circuit_max_flow_temp_heating(
+        self, circuit_id: CIRCUIT_IDS
+    ) -> float | None:
         """Get maximum heating water temperature for OTC (in °C)."""
 
     @abstractmethod
-    def get_circuit_max_flow_temp_cooling(self, circuit_id: int) -> float | None:
+    def get_circuit_max_flow_temp_cooling(
+        self, circuit_id: CIRCUIT_IDS
+    ) -> float | None:
         """Get maximum cooling water temperature for OTC (in °C)."""
 
     @abstractmethod
-    def get_circuit_heat_eco_offset(self, circuit_id: int) -> int | None:
+    def get_circuit_heat_eco_offset(self, circuit_id: CIRCUIT_IDS) -> int | None:
         """Get temperature offset for ECO heating mode (in °C)."""
 
     @abstractmethod
-    def get_circuit_cool_eco_offset(self, circuit_id: int) -> int | None:
+    def get_circuit_cool_eco_offset(self, circuit_id: CIRCUIT_IDS) -> int | None:
         """Get temperature offset for ECO cooling mode (in °C)."""
 
     # Circuit control - Setters
     @abstractmethod
-    async def set_circuit_power(self, circuit_id: int, enabled: bool) -> bool:
+    async def set_circuit_power(self, circuit_id: CIRCUIT_IDS, enabled: bool) -> bool:
         """Enable/disable a heating/cooling circuit."""
 
     @abstractmethod
     async def set_circuit_target_temperature(
-        self, circuit_id: int, temperature: float
+        self, circuit_id: CIRCUIT_IDS, temperature: float
     ) -> bool:
         """Set target temperature for a circuit (in °C)."""
 
     @abstractmethod
-    async def set_circuit_eco_mode(self, circuit_id: int, enabled: bool) -> bool:
+    async def set_circuit_eco_mode(
+        self, circuit_id: CIRCUIT_IDS, enabled: bool
+    ) -> bool:
         """Enable/disable ECO mode for a circuit."""
 
     @abstractmethod
-    async def set_circuit_thermostat(self, circuit_id: int, enabled: bool) -> bool:
+    async def set_circuit_thermostat(
+        self, circuit_id: CIRCUIT_IDS, enabled: bool
+    ) -> bool:
         """Enable/disable Modbus thermostat for a circuit."""
 
     @abstractmethod
     async def set_circuit_otc_method_heating(
-        self, circuit_id: int, method: int
+        self, circuit_id: CIRCUIT_IDS, method: int
     ) -> bool:
         """Set OTC calculation method for heating (0=disabled, 1=points, 2=gradient, 3=fix)."""
 
     @abstractmethod
     async def set_circuit_otc_method_cooling(
-        self, circuit_id: int, method: int
+        self, circuit_id: CIRCUIT_IDS, method: int
     ) -> bool:
         """Set OTC calculation method for cooling (0=disabled, 1=points, 2=fix)."""
 
     @abstractmethod
     async def set_circuit_max_flow_temp_heating(
-        self, circuit_id: int, temperature: float
+        self, circuit_id: CIRCUIT_IDS, temperature: float
     ) -> bool:
         """Set maximum heating water temperature for OTC (in °C)."""
 
     @abstractmethod
     async def set_circuit_max_flow_temp_cooling(
-        self, circuit_id: int, temperature: float
+        self, circuit_id: CIRCUIT_IDS, temperature: float
     ) -> bool:
         """Set maximum cooling water temperature for OTC (in °C)."""
 
     @abstractmethod
-    async def set_circuit_heat_eco_offset(self, circuit_id: int, offset: int) -> bool:
+    async def set_circuit_heat_eco_offset(
+        self, circuit_id: CIRCUIT_IDS, offset: int
+    ) -> bool:
         """Set temperature offset for ECO heating mode (in °C)."""
 
     @abstractmethod
-    async def set_circuit_cool_eco_offset(self, circuit_id: int, offset: int) -> bool:
+    async def set_circuit_cool_eco_offset(
+        self, circuit_id: CIRCUIT_IDS, offset: int
+    ) -> bool:
         """Set temperature offset for ECO cooling mode (in °C)."""
 
     # DHW control - Getters
