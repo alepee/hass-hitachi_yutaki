@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.hitachi_yutaki.const import CIRCUIT_IDS, DEVICE_TYPES
+from custom_components.hitachi_yutaki.const import (
+    CIRCUIT_IDS,
+    CIRCUIT_MODE_COOLING,
+    CIRCUIT_MODE_HEATING,
+    DEVICE_TYPES,
+)
 from homeassistant.components.number import NumberMode
 from homeassistant.const import EntityCategory, UnitOfTemperature
 
@@ -47,6 +52,9 @@ def _build_circuit_number_descriptions(
             mode=NumberMode.BOX,
             entity_category=EntityCategory.CONFIG,
             entity_registry_enabled_default=False,
+            condition=lambda coordinator: coordinator.has_circuit(
+                circuit_id, CIRCUIT_MODE_HEATING
+            ),
             get_fn=lambda api, circuit_id: api.get_circuit_max_flow_temp_heating(
                 circuit_id
             ),
@@ -65,6 +73,9 @@ def _build_circuit_number_descriptions(
             mode=NumberMode.BOX,
             entity_category=EntityCategory.CONFIG,
             entity_registry_enabled_default=False,
+            condition=lambda coordinator: coordinator.has_circuit(
+                circuit_id, CIRCUIT_MODE_COOLING
+            ),
             get_fn=lambda api, circuit_id: api.get_circuit_max_flow_temp_cooling(
                 circuit_id
             ),
@@ -82,6 +93,9 @@ def _build_circuit_number_descriptions(
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             mode=NumberMode.BOX,
             entity_category=EntityCategory.CONFIG,
+            condition=lambda coordinator: coordinator.has_circuit(
+                circuit_id, CIRCUIT_MODE_HEATING
+            ),
             get_fn=lambda api, circuit_id: float(value)
             if (value := api.get_circuit_heat_eco_offset(circuit_id)) is not None
             else None,
@@ -99,6 +113,9 @@ def _build_circuit_number_descriptions(
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             mode=NumberMode.BOX,
             entity_category=EntityCategory.CONFIG,
+            condition=lambda coordinator: coordinator.has_circuit(
+                circuit_id, CIRCUIT_MODE_COOLING
+            ),
             get_fn=lambda api, circuit_id: float(value)
             if (value := api.get_circuit_cool_eco_offset(circuit_id)) is not None
             else None,

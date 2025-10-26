@@ -49,7 +49,6 @@ def _create_numbers(
     descriptions: tuple[HitachiYutakiNumberEntityDescription, ...],
     device_type: DEVICE_TYPES,
     register_prefix: str,
-    skip_cooling: bool = False,
 ) -> list[HitachiYutakiNumber]:
     """Create number entities for a specific device type.
 
@@ -59,7 +58,6 @@ def _create_numbers(
         descriptions: Number descriptions to create
         device_type: Device type identifier (e.g., DEVICE_CIRCUIT_1)
         register_prefix: Register prefix for the entity
-        skip_cooling: Whether to skip cooling-related entities
 
     Returns:
         List of created number entities
@@ -67,9 +65,6 @@ def _create_numbers(
     """
     entities = []
     for description in descriptions:
-        # Skip cooling related entities if cooling is not available
-        if skip_cooling and "cool" in description.key:
-            continue
         # Skip entities that don't meet their condition
         if description.condition is not None and not description.condition(coordinator):
             continue
