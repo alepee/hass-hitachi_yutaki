@@ -60,11 +60,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             is_fixable=True,
             is_persistent=True,
             severity=IssueSeverity.WARNING,
-            translation_key="missing_config",
-            translation_placeholders={
-                "integration_name": entry.data.get(CONF_NAME, "Hitachi Yutaki"),
-                "missing_params": ", ".join(missing_params),
-            },
+            issue_domain=DOMAIN,
         )
 
         # Return False to prevent setup until repair is completed
@@ -72,14 +68,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     # Get gateway and profile from config entry
-    gateway_type = entry.data.get("gateway_type")
-    profile_key = entry.data.get("profile")
-
-    # Additional safety checks (should not happen after repair flow)
-    if gateway_type is None:
-        raise ValueError("Gateway type is None after repair flow")
-    if profile_key is None:
-        raise ValueError("Profile is None after repair flow")
+    # At this point, these should exist (checked above)
+    gateway_type = entry.data["gateway_type"]
+    profile_key = entry.data["profile"]
 
     # Get gateway info (must exist)
     if gateway_type not in GATEWAY_INFO:

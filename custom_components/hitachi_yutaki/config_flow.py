@@ -20,6 +20,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 import homeassistant.helpers.config_validation as cv
+from homeassistant.helpers.issue_registry import async_delete_issue
 
 from .api import GATEWAY_INFO
 from .const import (
@@ -483,8 +484,6 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             )
 
             # Clear the repair issue
-            from homeassistant.helpers.issue_registry import async_delete_issue
-
             async_delete_issue(
                 self.hass,
                 DOMAIN,
@@ -527,7 +526,4 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         return self.async_show_form(
             step_id="repair",
             data_schema=schema,
-            description_placeholders={
-                "integration_name": config_data.get(CONF_NAME, "Hitachi Yutaki"),
-            },
         )
