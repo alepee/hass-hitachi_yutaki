@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.9.4] - 2025-10-29
+
+### Fixed
+- Fixed Modbus gateway reconnection issues after network disconnects. The integration now gracefully handles network interruptions and automatically reconnects with retry logic and exponential backoff (up to 3 attempts). ([#119](https://github.com/alepee/hass-hitachi_yutaki/pull/119))
+  - Refactored Modbus connection handling to use asyncio for retries with exponential backoff
+  - Implemented proper connection cleanup and reset on errors
+  - Added automatic connection recovery mechanism that closes stale connections before reconnecting
+  - Improved error handling and logging for connection attempts
+  - Ensures all entities properly recover once the connection is restored after network interruptions
+
+### Changed
+- Dev tooling: bump `colorlog` from 6.9.0 to 6.10.1 ([#120](https://github.com/alepee/hass-hitachi_yutaki/pull/120))
+- Dev tooling: bump `pip` requirement from <25.3,>=21.0 to >=21.0,<25.4 ([#127](https://github.com/alepee/hass-hitachi_yutaki/pull/127))
+- Dev tooling: bump `ruff` from 0.13.3 to 0.14.2 ([#126](https://github.com/alepee/hass-hitachi_yutaki/pull/126))
+
 ## [1.9.3] - 2025-10-06
 
 ### Fixed
