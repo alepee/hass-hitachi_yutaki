@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import contextlib
 from datetime import timedelta
 import logging
@@ -65,7 +66,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.power_supply = entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY)
         self.entities = []
         self.config_entry = entry
-        self._connection_retries = 0
         self._max_retries = 3
 
         super().__init__(
@@ -90,17 +90,18 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 )
 
                 # Attempt to connect
-                success = await self.hass.async_add_executor_job(self.modbus_client.connect)
+                success = await self.hass.async_add_executor_job(
+                    self.modbus_client.connect
+                )
 
                 if success and self.modbus_client.connected:
                     _LOGGER.debug("Successfully connected to Modbus gateway")
-                    self._connection_retries = 0
                     return True
 
                 _LOGGER.warning(
                     "Failed to connect to Modbus gateway (attempt %d/%d)",
                     retry + 1,
-                    self._max_retries
+                    self._max_retries,
                 )
 
             except Exception as exc:
@@ -108,18 +109,17 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     "Connection attempt %d/%d failed: %s",
                     retry + 1,
                     self._max_retries,
-                    exc
+                    exc,
                 )
 
             # Wait before retrying, with exponential backoff
             if retry < self._max_retries - 1:
-                delay = min(2 ** retry, 10)
-                await self.hass.async_add_executor_job(
-                    lambda sleep_time=delay: __import__("time").sleep(sleep_time)
-                )
+                delay = min(2**retry, 10)
+                await asyncio.sleep(delay)
 
-        _LOGGER.error("Failed to establish Modbus connection after %d attempts", self._max_retries)
-        self._connection_retries += 1
+        _LOGGER.error(
+            "Failed to establish Modbus connection after %d attempts", self._max_retries
+        )
         return False
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -230,7 +230,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     )
                     # Force connection reset on Modbus error
                     await self.hass.async_add_executor_job(self.modbus_client.close)
-                    raise UpdateFailed(f"Modbus error reading register {register_name}") from exc
+                    raise UpdateFailed(
+                        f"Modbus error reading register {register_name}"
+                    ) from exc
 
             # Update timing sensors
             for entity in self.entities:
