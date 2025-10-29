@@ -67,7 +67,7 @@ The integration automatically detects your heat pump model and available feature
 | Entity | Type | Description | Values |
 |--------|------|-------------|---------|
 | operation_state | sensor | Current operation state with detailed description | - |
-| alarm_code | sensor | Current alarm code with description | - |
+| alarm | sensor | Current alarm status | - |
 | defrost | binary_sensor | Indicates if the unit is currently in defrost mode | on/off |
 | solar | binary_sensor | Indicates if the solar system is active | on/off |
 | pump1 | binary_sensor | Indicates if water pump 1 is running | on/off |
@@ -113,12 +113,15 @@ The integration automatically detects your heat pump model and available feature
 
 | Entity | Type | Description | Unit |
 |--------|------|-------------|------|
-| r134a_discharge_temp | sensor | R134a discharge temperature | °C |
-| r134a_suction_temp | sensor | R134a suction temperature | °C |
-| r134a_discharge_pressure | sensor | R134a discharge pressure | mbar |
-| r134a_suction_pressure | sensor | R134a suction pressure | mbar |
-| r134a_compressor_frequency | sensor | R134a compressor frequency | Hz |
-| r134a_compressor_current | sensor | R134a compressor current | A |
+| secondary_compressor_discharge_temp | sensor | Discharge temperature | °C |
+| secondary_compressor_suction_temp | sensor | Suction temperature | °C |
+| secondary_compressor_discharge_pressure | sensor | Discharge pressure | mbar |
+| secondary_compressor_suction_pressure | sensor | Suction pressure | mbar |
+| secondary_compressor_frequency | sensor | Operating frequency | Hz |
+| secondary_compressor_current | sensor | Electrical current draw | A |
+| secondary_compressor_cycle_time | sensor | Average time between compressor starts | min |
+| secondary_compressor_runtime | sensor | Compressor runtime | min |
+| secondary_compressor_resttime | sensor | Compressor rest time | min |
 
 ### Climate Device (up to 2 circuits)
 
@@ -127,8 +130,6 @@ The integration automatically detects your heat pump model and available feature
 |--------|------|-------------|-------------|
 | power | switch | Power switch for the circuit | on/off |
 | operation_mode | select | Operating mode selection | heat/cool/auto |
-| target_temperature | number | Target temperature setpoint | °C (5.0-35.0) |
-| current_temperature | sensor | Current measured temperature | °C |
 | preset_mode | select | Energy saving mode selection | comfort/eco |
 | hvac_action | sensor | Current operation status | off/idle/heating/cooling/defrost |
 
@@ -300,6 +301,36 @@ To ensure accuracy:
 
 ## Development
 
+### Architecture
+
+This integration follows the **Hexagonal Architecture** (Ports and Adapters) pattern, providing clear separation of concerns and improved maintainability:
+
+- **Domain Layer** (`domain/`): Pure business logic with zero Home Assistant dependencies
+  - `models/`: Data structures (COPInput, ThermalEnergyResult, PowerMeasurement, etc.)
+  - `ports/`: Abstract interfaces (Storage, DataProvider, StateProvider, Calculators)
+  - `services/`: Business logic services (COPService, ThermalPowerService, CompressorTimingService)
+
+- **Adapters Layer** (`adapters/`): Concrete implementations bridging domain with Home Assistant
+  - `calculators/`: Electrical and thermal power calculation adapters
+  - `providers/`: Data providers from HA coordinator and entity states
+  - `storage/`: Storage implementations (in-memory, future persistent storage)
+
+- **Entity Layers** (`entities/`): Domain-driven entity organization using domain services through adapters
+
+**Benefits:**
+- **Testability**: Domain layer is 100% testable without Home Assistant mocks
+- **Reusability**: COP and thermal logic can be shared across sensor, climate, and water_heater entities
+- **Maintainability**: Business logic centralized in domain layer, single point of truth for calculations
+- **Extensibility**: Easy to add new entity types or change storage implementations
+
+### Architecture Documentation
+
+For detailed information about each architectural layer, see the specialized README files:
+
+- **[Domain Layer](custom_components/hitachi_yutaki/domain/README.md)**: Pure business logic with zero Home Assistant dependencies
+- **[Adapters Layer](custom_components/hitachi_yutaki/adapters/README.md)**: Concrete implementations bridging domain with Home Assistant
+- **[Entities Layer](custom_components/hitachi_yutaki/entities/README.md)**: Domain-driven entity organization
+
 ### Project Structure
 
 ```
@@ -308,27 +339,87 @@ hitachi_yutaki/
 │   └── workflows/           # CI/CD workflows
 ├── custom_components/       # The actual integration
 │   └── hitachi_yutaki/
-│       ├── translations/    # Language files (en.json, fr.json)
-│       ├── __init__.py     # Integration setup
-│       ├── binary_sensor.py # Binary sensor platform
-│       ├── climate.py      # Climate platform
-│       ├── config_flow.py  # Configuration flow
-│       ├── const.py        # Constants
-│       ├── coordinator.py  # Data update coordinator
-│       ├── manifest.json   # Integration manifest
-│       ├── number.py       # Number platform
-│       ├── select.py       # Select platform
-│       ├── sensor.py       # Sensor platform
-│       └── switch.py       # Switch platform
-├── scripts/                # Development scripts
-│   ├── dev-branch         # Install dev branch of Home Assistant
-│   ├── develop           # Run Home Assistant with debug config
-│   ├── lint             # Run code linting
-│   ├── setup            # Install development dependencies
-│   ├── specific-version # Install specific HA version
-│   └── upgrade          # Upgrade to latest HA version
-└── tests/               # Test files
-    └── __init__.py     # Tests package marker
+│       ├── domain/          # Pure business logic (hexagonal architecture)
+│       │   ├── models/       # Data structures (COPInput, ThermalEnergyResult, etc.)
+│       │   │   ├── cop.py
+│       │   │   ├── electrical.py
+│       │   │   ├── thermal.py
+│       │   │   └── timing.py
+│       │   ├── ports/        # Abstract interfaces (Storage, DataProvider, etc.)
+│       │   │   ├── calculators.py
+│       │   │   ├── providers.py
+│       │   │   └── storage.py
+│       │   └── services/     # Business logic services (COP, Thermal, Timing)
+│       │       ├── cop.py
+│       │       ├── electrical.py
+│       │       ├── thermal.py
+│       │       └── timing.py
+│       ├── adapters/         # Concrete implementations (hexagonal architecture)
+│       │   ├── calculators/  # Power calculation adapters
+│       │   │   ├── electrical.py
+│       │   │   └── thermal.py
+│       │   ├── providers/    # Data providers from HA coordinator/entities
+│       │   │   ├── coordinator.py
+│       │   │   └── entity_state.py
+│       │   └── storage/      # Storage implementations
+│       │       └── in_memory.py
+│       │   └── README.md     # Adapters layer documentation
+│       ├── entities/         # Domain-driven entity organization
+│       │   ├── base/         # Base entity classes for all entity types
+│       │   │   ├── sensor.py
+│       │   │   ├── binary_sensor.py
+│       │   │   ├── switch.py
+│       │   │   ├── number.py
+│       │   │   ├── select.py
+│       │   │   ├── button.py
+│       │   │   ├── climate.py
+│       │   │   └── water_heater.py
+│       │   ├── circuit/      # Circuit-related entities
+│       │   ├── compressor/   # Compressor-related entities
+│       │   ├── control_unit/ # Control unit entities
+│       │   ├── dhw/         # Domestic Hot Water entities
+│       │   ├── gateway/     # Gateway entities
+│       │   ├── hydraulic/   # Hydraulic system entities
+│       │   ├── performance/ # Performance monitoring entities
+│       │   ├── pool/        # Pool-related entities
+│       │   ├── power/       # Power-related entities
+│       │   ├── thermal/     # Thermal system entities
+│       │   └── README.md     # Entities layer documentation
+│       ├── api/              # API clients (Ports and Adapters)
+│       │   ├── base.py
+│       │   └── modbus/
+│       │       └── registers/
+│       │           └── atw_mbs_02.py
+│       ├── profiles/         # Heat pump profiles
+│       │   ├── base.py
+│       │   ├── yutaki_m.py
+│       │   ├── yutaki_s.py
+│       │   ├── yutaki_s80.py
+│       │   ├── yutaki_s_combi.py
+│       │   └── yutampo_r32.py
+│       ├── translations/     # Language files (en.json, fr.json)
+│       ├── __init__.py       # Integration setup
+│       ├── binary_sensor.py # Binary sensor platform (orchestrator)
+│       ├── button.py         # Button platform (orchestrator)
+│       ├── climate.py        # Climate platform (orchestrator)
+│       ├── config_flow.py    # Configuration flow
+│       ├── const.py          # Constants
+│       ├── coordinator.py    # Data update coordinator
+│       ├── manifest.json     # Integration manifest
+│       ├── number.py         # Number platform (orchestrator)
+│       ├── select.py         # Select platform (orchestrator)
+│       ├── sensor.py         # Sensor platform (orchestrator)
+│       ├── switch.py         # Switch platform (orchestrator)
+│       └── water_heater.py   # Water heater platform (orchestrator)
+├── scripts/                  # Development scripts
+│   ├── dev-branch           # Install dev branch of Home Assistant
+│   ├── develop             # Run Home Assistant with debug config
+│   ├── lint               # Run code linting
+│   ├── setup              # Install development dependencies
+│   ├── specific-version   # Install specific HA version
+│   └── upgrade            # Upgrade to latest HA version
+└── tests/                 # Test files
+    └── __init__.py       # Tests package marker
 ```
 
 ### Setting Up Development Environment

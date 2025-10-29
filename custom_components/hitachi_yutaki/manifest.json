@@ -1,6 +1,6 @@
 {
   "domain": "hitachi_yutaki",
-  "name": "Hitachi Yutaki Heat Pump",
+  "name": "Hitachi Heat Pump",
   "codeowners": [
     "@alepee"
   ],
@@ -13,5 +13,5 @@
   "requirements": [
     "pymodbus>=3.6.9,<4.0.0"
   ],
-  "version": "1.9.3"
+  "version": "2.0.0-beta.3"
 }

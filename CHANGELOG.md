@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Robust Modbus connection recovery mechanism** with exponential backoff retry logic and automatic reconnection on network interruptions. Fixes issue [#118](https://github.com/alepee/hass-hitachi_yutaki/issues/118) where the integration failed to recover from temporary network disconnections.
+- **Complete hexagonal architecture implementation** with clear separation of concerns:
+  - Domain layer with pure business logic and zero Home Assistant dependencies
+  - Adapters layer bridging domain with Home Assistant
+  - Enhanced testability with 100% testable domain layer
+- **Domain-driven entity organization** replacing technical grouping with business domain structure (circuit, compressor, control_unit, dhw, gateway, hydraulic, performance, pool, power, thermal)
+- **Builder pattern implementation** for all entity types with type-safe builders and conditional entity creation based on device capabilities
+- **Comprehensive business-level API** (`HitachiApiClient`) with typed methods for all controllable parameters, eliminating direct Modbus access from entities
+- **Smart profile auto-detection mechanism** with decentralized detection logic for more robust model identification
+
+### Changed
+- **Complete platform refactoring** to use domain-driven architecture - all platform files now act as pure orchestrators
+- **Entity organization** moved from technical grouping (sensor/, switch/, etc.) to business domain grouping (entities/circuit/, entities/dhw/, etc.)
+- **Data conversion improvements** with centralized deserialization logic and pattern-based naming
+- **Modbus register organization** by logical device for improved clarity and maintainability
+- **Alarm sensor enhancement** to display descriptions as state with numeric codes as attributes
+- **System state reporting** with proper deserialization and operation state mapping
+
+### Removed
+- **Legacy technical modules** and monolithic entity files in favor of domain-specific builders
+- **Direct entity instantiation** replaced with builder pattern for better encapsulation
+- **Legacy services directory** after successful migration to hexagonal architecture
+- **Redundant climate number entities** (target_temp, current_temp) as functionality is now handled by climate entity
+
+### Fixed
+- **Architecture consistency** - all entity types now follow the same domain-driven pattern
+- **Code duplication** eliminated across platforms
+- **Import complexity** simplified with clear domain boundaries
+- **Temperature deserialization** corrected by properly differentiating between tenths and signed 16-bit values
+- **Sensor reading accuracy** for secondary compressor current and pressure sensors
+- **Unit power switch** "Unknown" state issue due to inconsistent condition checks
+- **Circular import issues** and entity creation bugs during architectural refactoring
+
 ## [1.9.3] - 2025-10-06
 
 ### Fixed
