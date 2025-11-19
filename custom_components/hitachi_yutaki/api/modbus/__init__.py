@@ -665,8 +665,8 @@ class ModbusApiClient(HitachiApiClient):
         return await self.write_value("dhw_power", 1 if enabled else 0)
 
     async def set_dhw_target_temperature(self, temperature: float) -> bool:
-        """Set DHW target temperature (stored in tenths of degrees)."""
-        return await self.write_value("dhw_target_temp", int(temperature * 10))
+        """Set DHW target temperature (stored in °C)."""
+        return await self.write_value("dhw_target_temp", int(temperature))
 
     async def set_dhw_high_demand(self, enabled: bool) -> bool:
         """Enable/disable DHW high demand mode."""

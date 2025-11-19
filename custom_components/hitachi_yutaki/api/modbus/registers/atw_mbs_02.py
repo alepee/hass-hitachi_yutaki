@@ -311,7 +311,7 @@ REGISTER_CIRCUIT_2 = {
 
 REGISTER_DHW = {
     "dhw_power": RegisterDefinition(1024),
-    "dhw_target_temp": RegisterDefinition(1025, deserializer=convert_from_tenths),
+    "dhw_target_temp": RegisterDefinition(1025),
     "dhw_boost": RegisterDefinition(1026),
     "dhw_high_demand": RegisterDefinition(1027),
     "dhw_antilegionella": RegisterDefinition(1030),
