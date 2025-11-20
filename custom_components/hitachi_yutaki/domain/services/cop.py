@@ -5,6 +5,7 @@ Pure business logic isolated from infrastructure concerns.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime, timedelta
 from time import time
 
@@ -41,25 +42,40 @@ class EnergyAccumulator:
         """Return all measurements from storage."""
         return self._storage.get_all()
 
-    def add_measurement(self, thermal_power: float, electrical_power: float) -> None:
+    def add_measurement(
+        self,
+        thermal_power: float,
+        electrical_power: float,
+        *,
+        timestamp: datetime | None = None,
+    ) -> None:
         """Add a power measurement to the accumulator."""
-        current_time = datetime.now()
+        current_time = timestamp or datetime.now()
         self._storage.append(
             PowerMeasurement(current_time, thermal_power, electrical_power)
         )
+        self._prune_old_measurements(current_time)
 
-        # Remove measurements older than the period
-        measurements = self._storage.get_all()
-        cutoff_time = current_time - self.period
-        while measurements and measurements[0].timestamp < cutoff_time:
-            self._storage.popleft()
-            measurements = self._storage.get_all()
+    def bulk_load(self, measurements: Iterable[PowerMeasurement]) -> None:
+        """Load multiple historical measurements."""
+        last_timestamp: datetime | None = None
+        for measurement in sorted(
+            measurements, key=lambda measurement: measurement.timestamp
+        ):
+            self._storage.append(measurement)
+            last_timestamp = measurement.timestamp
+
+        if last_timestamp is not None:
+            self._prune_old_measurements(last_timestamp)
 
     def get_cop(self) -> float | None:
         """Calculate COP from accumulated energy using trapezoidal integration."""
         measurements = self._storage.get_all()
         if not measurements:
             return None
+
+        # Sort measurements by timestamp to ensure correct integration
+        measurements = sorted(measurements, key=lambda m: m.timestamp)
 
         # Calculate total energy by integrating power over time
         thermal_energy = 0.0
@@ -104,9 +120,12 @@ class EnergyAccumulator:
         if not measurements:
             return COPQuality(quality="no_data", measurements=0, time_span_minutes=0.0)
 
+        # Sort measurements by timestamp to ensure correct time span calculation
+        sorted_measurements = sorted(measurements, key=lambda m: m.timestamp)
+
         # Calculate time span of measurements
         time_span = (
-            measurements[-1].timestamp - measurements[0].timestamp
+            sorted_measurements[-1].timestamp - sorted_measurements[0].timestamp
         ).total_seconds() / 60
         num_measurements = len(measurements)
 
@@ -125,6 +144,14 @@ class EnergyAccumulator:
             measurements=num_measurements,
             time_span_minutes=round(time_span, 1),
         )
+
+    def _prune_old_measurements(self, reference_time: datetime) -> None:
+        """Remove measurements outside of the configured time period."""
+        cutoff_time = reference_time - self.period
+        measurements = self._storage.get_all()
+        while measurements and measurements[0].timestamp < cutoff_time:
+            self._storage.popleft()
+            measurements = self._storage.get_all()
 
 
 class COPService:
@@ -218,6 +245,10 @@ class COPService:
     def get_quality(self) -> COPQuality:
         """Get quality assessment of the COP measurement."""
         return self._accumulator.get_quality()
+
+    def preload_measurements(self, measurements: Iterable[PowerMeasurement]) -> None:
+        """Preload measurements (used during Recorder replay)."""
+        self._accumulator.bulk_load(measurements)
 
     @staticmethod
     def _is_compressor_running(data: COPInput) -> bool:

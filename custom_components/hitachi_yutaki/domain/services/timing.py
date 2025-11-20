@@ -5,6 +5,7 @@ Pure business logic isolated from infrastructure concerns.
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 
 from ..models.timing import CompressorTimingResult
@@ -30,14 +31,15 @@ class CompressorHistory:
         self._run_times: list[float] = []  # minutes
         self._rest_times: list[float] = []  # minutes
 
-    def add_state(self, is_running: bool) -> None:
+    def add_state(self, is_running: bool, timestamp: datetime | None = None) -> None:
         """Add a new compressor state to history.
 
         Args:
             is_running: Whether the compressor is currently running
+            timestamp: Optional timestamp to use (defaults to datetime.now)
 
         """
-        now = datetime.now()
+        now = timestamp or datetime.now()
         states = self._storage.get_all()
 
         # If we have a previous state
@@ -77,6 +79,11 @@ class CompressorHistory:
         else:
             # First state
             self._storage.append((now, is_running))
+
+    def bulk_load(self, states: Iterable[tuple[datetime, bool]]) -> None:
+        """Load historical compressor states."""
+        for timestamp, is_running in sorted(states, key=lambda state: state[0]):
+            self.add_state(is_running, timestamp=timestamp)
 
     def get_average_times(self) -> tuple[float | None, float | None, float | None]:
         """Get average cycle, run and rest times.
@@ -142,3 +149,7 @@ class CompressorTimingService:
             runtime=avg_run,
             resttime=avg_rest,
         )
+
+    def preload_states(self, states: Iterable[tuple[datetime, bool]]) -> None:
+        """Preload historical compressor states (used for Recorder replay)."""
+        self._history.bulk_load(states)
