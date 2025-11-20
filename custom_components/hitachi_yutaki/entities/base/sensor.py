@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 import logging
 from typing import Any
 
@@ -15,6 +15,7 @@ from homeassistant.components.sensor import (
     SensorEntityDescription,
     SensorStateClass,
 )
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.entity import DeviceInfo, EntityCategory
 from homeassistant.helpers.restore_state import RestoreEntity
 from homeassistant.helpers.typing import StateType
@@ -23,6 +24,10 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from ...adapters.calculators.electrical import ElectricalPowerCalculatorAdapter
 from ...adapters.calculators.thermal import thermal_power_calculator_wrapper
 from ...adapters.storage.in_memory import InMemoryStorage
+from ...adapters.storage.recorder_rehydrate import (
+    async_replay_compressor_states,
+    async_replay_cop_history,
+)
 from ...const import (
     CONF_POWER_SUPPLY,
     CONF_WATER_INLET_TEMP_ENTITY,
@@ -34,6 +39,7 @@ from ...const import (
 from ...coordinator import HitachiYutakiDataCoordinator
 from ...domain.services.cop import (
     COP_MEASUREMENTS_HISTORY_SIZE,
+    COP_MEASUREMENTS_INTERVAL,
     COP_MEASUREMENTS_PERIOD,
     COPInput,
     COPService,
@@ -46,6 +52,8 @@ _LOGGER = logging.getLogger(__name__)
 
 # This is a placeholder for a future configuration option
 COMPRESSOR_HISTORY_SIZE = 100
+# Look back a few hours in the Recorder history to rebuild compressor cycles.
+COMPRESSOR_HISTORY_LOOKBACK = timedelta(hours=6)
 
 
 @dataclass
@@ -135,6 +143,7 @@ class HitachiYutakiSensor(
                 thermal_calculator=thermal_power_calculator_wrapper,
                 electrical_calculator=electrical_calculator,
             )
+            self._cop_electrical_calculator = electrical_calculator
 
         elif "thermal_energy" in description.key or "thermal_power" in description.key:
             accumulator = ThermalEnergyAccumulator()
@@ -150,24 +159,13 @@ class HitachiYutakiSensor(
     async def async_added_to_hass(self) -> None:
         """Handle entity which will be added."""
         await super().async_added_to_hass()
+        await self._async_restore_thermal_energy()
 
-        # Restore state for thermal energy sensors
-        if not hasattr(self, "_thermal_service"):
-            return
+        if hasattr(self, "_cop_service"):
+            await self._async_rehydrate_cop_history()
 
-        last_state = await self.async_get_last_state()
-        if last_state is None:
-            return
-
-        # Restore energy values in the existing sensor
-        with suppress(ValueError):
-            energy_value = float(last_state.state)
-            if self.entity_description.key == "total_thermal_energy":
-                self._thermal_service.restore_total_energy(energy_value)
-            elif self.entity_description.key == "daily_thermal_energy":
-                # Only restore if the reset was today
-                if self._is_same_day_reset(last_state):
-                    self._thermal_service.restore_daily_energy(energy_value)
+        if hasattr(self, "_timing_service"):
+            await self._async_rehydrate_compressor_history()
 
     def _is_same_day_reset(self, state) -> bool:
         """Check if the last reset was today."""
@@ -247,6 +245,167 @@ class HitachiYutakiSensor(
                 if has_secondary
                 else None
             ),
+        )
+
+    async def _async_restore_thermal_energy(self) -> None:
+        """Restore thermal energy state from the Recorder/last state cache."""
+        if not hasattr(self, "_thermal_service"):
+            return
+
+        last_state = await self.async_get_last_state()
+        if last_state is None:
+            return
+
+        with suppress(ValueError):
+            energy_value = float(last_state.state)
+            if self.entity_description.key == "total_thermal_energy":
+                self._thermal_service.restore_total_energy(energy_value)
+            elif self.entity_description.key == "daily_thermal_energy":
+                if self._is_same_day_reset(last_state):
+                    self._thermal_service.restore_daily_energy(energy_value)
+
+    async def _async_rehydrate_cop_history(self) -> None:
+        """Replay Recorder data to rebuild the COP measurement buffer."""
+        try:
+            entity_map = await self._async_build_cop_entity_map()
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("Failed to build COP Recorder entity map for %s", self)
+            return
+
+        required_keys = {
+            "water_inlet_temp",
+            "water_outlet_temp",
+            "water_flow",
+            "compressor_current",
+            "compressor_frequency",
+        }
+        missing = [key for key in required_keys if key not in entity_map]
+        if missing:
+            _LOGGER.debug(
+                "Skipping COP rehydration for %s, missing Recorder entities: %s",
+                self.entity_id,
+                missing,
+            )
+            return
+
+        try:
+            measurements = await async_replay_cop_history(
+                hass=self.hass,
+                entity_ids=entity_map,
+                thermal_calculator=thermal_power_calculator_wrapper,
+                electrical_calculator=self._cop_electrical_calculator,
+                window=COP_MEASUREMENTS_PERIOD,
+                measurement_interval=COP_MEASUREMENTS_INTERVAL,
+                max_measurements=COP_MEASUREMENTS_HISTORY_SIZE,
+            )
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception(
+                "Failed to replay Recorder history for COP sensor %s", self.entity_id
+            )
+            return
+
+        if not measurements:
+            _LOGGER.debug(
+                "No Recorder measurements available for COP sensor %s", self.entity_id
+            )
+            return
+
+        self._cop_service.preload_measurements(measurements)
+        _LOGGER.debug(
+            "Rehydrated %s COP measurements for %s",
+            len(measurements),
+            self.entity_id,
+        )
+
+    async def _async_build_cop_entity_map(self) -> dict[str, str]:
+        """Resolve Recorder entity_ids needed for COP rehydration.
+
+        Preference order:
+        1. User-provided entities (configured via options)
+        2. Built-in sensors registered by this integration (entity registry lookup)
+        """
+
+        mapping: dict[str, str] = {}
+        entry = self.coordinator.config_entry
+
+        inlet_entity = entry.data.get(CONF_WATER_INLET_TEMP_ENTITY)
+        if inlet_entity:
+            mapping["water_inlet_temp"] = inlet_entity
+        else:
+            resolved = self._resolve_entity_id("sensor", "water_inlet_temp")
+            if resolved:
+                mapping["water_inlet_temp"] = resolved
+
+        outlet_entity = entry.data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
+        if outlet_entity:
+            mapping["water_outlet_temp"] = outlet_entity
+        else:
+            resolved = self._resolve_entity_id("sensor", "water_outlet_temp")
+            if resolved:
+                mapping["water_outlet_temp"] = resolved
+
+        for key in ("water_flow", "compressor_current", "compressor_frequency"):
+            resolved = self._resolve_entity_id("sensor", key)
+            if resolved:
+                mapping[key] = resolved
+
+        if self.coordinator.profile.supports_secondary_compressor:
+            for key in (
+                "secondary_compressor_current",
+                "secondary_compressor_frequency",
+            ):
+                resolved = self._resolve_entity_id("sensor", key)
+                if resolved:
+                    mapping[key] = resolved
+
+        return mapping
+
+    def _resolve_entity_id(self, platform_domain: str, key: str) -> str | None:
+        """Return the entity_id registered for the provided (domain, unique_id)."""
+        registry = er.async_get(self.hass)
+        unique_id = f"{self.coordinator.config_entry.entry_id}_{key}"
+        return registry.async_get_entity_id(platform_domain, DOMAIN, unique_id)
+
+    async def _async_rehydrate_compressor_history(self) -> None:
+        """Replay Recorder data to rebuild compressor timing statistics."""
+        entity_key = (
+            "secondary_compressor_running"
+            if "secondary" in self.entity_description.key
+            else "compressor_running"
+        )
+        entity_id = self._resolve_entity_id("binary_sensor", entity_key)
+        if not entity_id:
+            _LOGGER.debug(
+                "Skipping compressor history replay for %s, entity %s missing",
+                self.entity_id,
+                entity_key,
+            )
+            return
+
+        try:
+            states = await async_replay_compressor_states(
+                hass=self.hass,
+                entity_id=entity_id,
+                window=COMPRESSOR_HISTORY_LOOKBACK,
+                max_states=COMPRESSOR_HISTORY_SIZE,
+            )
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception(
+                "Failed to replay compressor Recorder history for %s", self.entity_id
+            )
+            return
+
+        if not states:
+            _LOGGER.debug(
+                "No compressor Recorder history found for %s", self.entity_id
+            )
+            return
+
+        self._timing_service.preload_states(states)
+        _LOGGER.debug(
+            "Rehydrated %s compressor states for %s",
+            len(states),
+            self.entity_id,
         )
 
     async def async_update_timing(self) -> None:
