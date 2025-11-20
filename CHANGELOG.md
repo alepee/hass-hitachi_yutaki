@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Builder pattern implementation** for all entity types with type-safe builders and conditional entity creation based on device capabilities
 - **Comprehensive business-level API** (`HitachiApiClient`) with typed methods for all controllable parameters, eliminating direct Modbus access from entities
 - **Smart profile auto-detection mechanism** with decentralized detection logic for more robust model identification
+- **Recorder-based data rehydration** for COP and compressor timing sensors - historical data is automatically reconstructed from Home Assistant's Recorder on startup, eliminating data loss after restarts. The integration now leverages existing sensor history instead of maintaining separate persistent storage
 
 ### Changed
 - **Complete platform refactoring** to use domain-driven architecture - all platform files now act as pure orchestrators
@@ -25,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Modbus register organization** by logical device for improved clarity and maintainability
 - **Alarm sensor enhancement** to display descriptions as state with numeric codes as attributes
 - **System state reporting** with proper deserialization and operation state mapping
+- **Storage strategy** - COP and compressor timing data now relies on Home Assistant's Recorder history instead of custom persistent storage, eliminating redundant data storage and ensuring consistency with Home Assistant's historical data
 
 ### Removed
 - **Legacy technical modules** and monolithic entity files in favor of domain-specific builders
@@ -40,6 +42,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Sensor reading accuracy** for secondary compressor current and pressure sensors
 - **Unit power switch** "Unknown" state issue due to inconsistent condition checks
 - **Circular import issues** and entity creation bugs during architectural refactoring
+- **COP measurement period calculation** - fixed negative time span values by ensuring measurements are sorted chronologically before calculating the measurement period
 
 ## [1.9.3] - 2025-10-06
 
