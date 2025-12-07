@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any
 
+from homeassistant.components.climate import HVACMode
 from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
@@ -22,7 +23,11 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ...adapters.calculators.electrical import ElectricalPowerCalculatorAdapter
-from ...adapters.calculators.thermal import thermal_power_calculator_wrapper
+from ...adapters.calculators.thermal import (
+    thermal_power_calculator_cooling_wrapper,
+    thermal_power_calculator_heating_wrapper,
+    thermal_power_calculator_wrapper,
+)
 from ...adapters.storage.in_memory import InMemoryStorage
 from ...adapters.storage.recorder_rehydrate import (
     async_replay_compressor_states,
@@ -138,12 +143,19 @@ class HitachiYutakiSensor(
                 ),
             )
 
+            # Select thermal calculator and expected mode based on COP sensor type
+            thermal_calculator, expected_mode = self._get_cop_calculator_and_mode(
+                description.key
+            )
+
             self._cop_service = COPService(
                 accumulator=accumulator,
-                thermal_calculator=thermal_power_calculator_wrapper,
+                thermal_calculator=thermal_calculator,
                 electrical_calculator=electrical_calculator,
+                expected_mode=expected_mode,
             )
             self._cop_electrical_calculator = electrical_calculator
+            self._cop_expected_mode = expected_mode
 
         elif "thermal_energy" in description.key or "thermal_power" in description.key:
             accumulator = ThermalEnergyAccumulator()
@@ -187,6 +199,28 @@ class HitachiYutakiSensor(
                     return float(state.state)
         return self.coordinator.data.get(fallback_key)
 
+    @staticmethod
+    def _get_cop_calculator_and_mode(key: str) -> tuple[Callable, str | None]:
+        """Get the thermal calculator and expected mode for a COP sensor.
+
+        Args:
+            key: The sensor entity key (e.g., "cop_heating", "cop_cooling")
+
+        Returns:
+            Tuple of (thermal_calculator, expected_mode)
+
+        """
+        cop_calculators = {
+            "cop_heating": (thermal_power_calculator_heating_wrapper, "heating"),
+            "cop_cooling": (thermal_power_calculator_cooling_wrapper, "cooling"),
+            # DHW uses heating calculator (outlet > inlet) but no mode filtering
+            "cop_dhw": (thermal_power_calculator_heating_wrapper, "dhw"),
+            # Pool uses heating calculator (outlet > inlet) but no mode filtering
+            "cop_pool": (thermal_power_calculator_heating_wrapper, "pool"),
+        }
+        # Fallback to absolute value calculator with no mode filtering
+        return cop_calculators.get(key, (thermal_power_calculator_wrapper, None))
+
     def _get_thermal_data(self) -> tuple[float, float, float] | None:
         """Get thermal data (inlet, outlet, flow) or None if any is missing."""
         if self.coordinator.data is None:
@@ -205,18 +239,6 @@ class HitachiYutakiSensor(
 
         return water_inlet, water_outlet, water_flow  # type: ignore
 
-    def _get_thermal_result(self):
-        """Get thermal result or None if data is missing.
-
-        Helper to avoid duplication in extra_state_attributes.
-        """
-        thermal_data = self._get_thermal_data()
-        if thermal_data is None:
-            return None
-
-        water_inlet, water_outlet, water_flow = thermal_data
-        return self._thermal_service.get_result(water_inlet, water_outlet, water_flow)
-
     def _get_cop_input(self) -> COPInput | None:
         """Get COP input data or None if coordinator data is missing."""
         if self.coordinator.data is None:
@@ -224,6 +246,9 @@ class HitachiYutakiSensor(
 
         # Get secondary compressor data if supported
         has_secondary = self.coordinator.profile.supports_secondary_compressor
+
+        # Determine current HVAC action from the unit mode
+        hvac_action = self._get_hvac_action()
 
         return COPInput(
             water_inlet_temp=self._get_temperature(
@@ -245,7 +270,60 @@ class HitachiYutakiSensor(
                 if has_secondary
                 else None
             ),
+            hvac_action=hvac_action,
         )
+
+    def _get_hvac_action(self) -> str | None:
+        """Get the current HVAC action (heating or cooling).
+
+        Returns:
+            "heating", "cooling", or None if unknown
+
+        """
+        # Get unit mode from API
+        unit_mode = self.coordinator.api_client.get_unit_mode()
+        if unit_mode is None:
+            return None
+
+        if unit_mode == HVACMode.HEAT:
+            return "heating"
+        elif unit_mode == HVACMode.COOL:
+            return "cooling"
+        elif unit_mode == HVACMode.AUTO:
+            # In AUTO mode, determine based on temperature delta
+            return self._detect_mode_from_temperatures()
+
+        return None
+
+    def _detect_mode_from_temperatures(self) -> str | None:
+        """Detect heating/cooling mode from water temperature delta.
+
+        In AUTO mode, we infer the mode from whether we're adding or
+        removing heat from the water.
+
+        Returns:
+            "heating" if outlet > inlet, "cooling" if outlet < inlet, None otherwise
+
+        """
+        water_inlet = self._get_temperature(
+            CONF_WATER_INLET_TEMP_ENTITY, "water_inlet_temp"
+        )
+        water_outlet = self._get_temperature(
+            CONF_WATER_OUTLET_TEMP_ENTITY, "water_outlet_temp"
+        )
+
+        if water_inlet is None or water_outlet is None:
+            return None
+
+        delta_t = water_outlet - water_inlet
+
+        # Use a small threshold to avoid noise
+        if delta_t > 0.5:
+            return "heating"
+        elif delta_t < -0.5:
+            return "cooling"
+
+        return None
 
     async def _async_restore_thermal_energy(self) -> None:
         """Restore thermal energy state from the Recorder/last state cache."""
@@ -258,11 +336,23 @@ class HitachiYutakiSensor(
 
         with suppress(ValueError):
             energy_value = float(last_state.state)
-            if self.entity_description.key == "total_thermal_energy":
-                self._thermal_service.restore_total_energy(energy_value)
+            # New heating/cooling sensors
+            if self.entity_description.key == "thermal_energy_heating_total":
+                self._thermal_service.restore_total_heating_energy(energy_value)
+            elif self.entity_description.key == "thermal_energy_heating_daily":
+                if self._is_same_day_reset(last_state):
+                    self._thermal_service.restore_daily_heating_energy(energy_value)
+            elif self.entity_description.key == "thermal_energy_cooling_total":
+                self._thermal_service.restore_total_cooling_energy(energy_value)
+            elif self.entity_description.key == "thermal_energy_cooling_daily":
+                if self._is_same_day_reset(last_state):
+                    self._thermal_service.restore_daily_cooling_energy(energy_value)
+            # DEPRECATED sensors (backward compatibility)
+            elif self.entity_description.key == "total_thermal_energy":
+                self._thermal_service.restore_total_heating_energy(energy_value)
             elif self.entity_description.key == "daily_thermal_energy":
                 if self._is_same_day_reset(last_state):
-                    self._thermal_service.restore_daily_energy(energy_value)
+                    self._thermal_service.restore_daily_heating_energy(energy_value)
 
     async def _async_rehydrate_cop_history(self) -> None:
         """Replay Recorder data to rebuild the COP measurement buffer."""
@@ -396,9 +486,7 @@ class HitachiYutakiSensor(
             return
 
         if not states:
-            _LOGGER.debug(
-                "No compressor Recorder history found for %s", self.entity_id
-            )
+            _LOGGER.debug("No compressor Recorder history found for %s", self.entity_id)
             return
 
         self._timing_service.preload_states(states)
@@ -442,6 +530,7 @@ class HitachiYutakiSensor(
             water_outlet_temp=water_outlet,
             water_flow=water_flow,
             compressor_frequency=self.coordinator.data.get("compressor_frequency"),
+            is_defrosting=self.coordinator.api_client.is_defrosting,
         )
 
     @property
@@ -459,12 +548,26 @@ class HitachiYutakiSensor(
             or "thermal_power" in self.entity_description.key
         ):
             self._update_thermal_energy()
-            if self.entity_description.key == "thermal_power":
-                return self._thermal_service.get_power()
+            # New explicit heating/cooling sensors
+            if self.entity_description.key == "thermal_power_heating":
+                return self._thermal_service.get_heating_power()
+            elif self.entity_description.key == "thermal_power_cooling":
+                return self._thermal_service.get_cooling_power()
+            elif self.entity_description.key == "thermal_energy_heating_daily":
+                return self._thermal_service.get_daily_heating_energy()
+            elif self.entity_description.key == "thermal_energy_heating_total":
+                return self._thermal_service.get_total_heating_energy()
+            elif self.entity_description.key == "thermal_energy_cooling_daily":
+                return self._thermal_service.get_daily_cooling_energy()
+            elif self.entity_description.key == "thermal_energy_cooling_total":
+                return self._thermal_service.get_total_cooling_energy()
+            # DEPRECATED sensors (for backward compatibility)
+            elif self.entity_description.key == "thermal_power":
+                return self._thermal_service.get_heating_power()
             elif self.entity_description.key == "daily_thermal_energy":
-                return self._thermal_service.get_daily_energy()
-            else:  # total_thermal_energy
-                return self._thermal_service.get_total_energy()
+                return self._thermal_service.get_daily_heating_energy()
+            elif self.entity_description.key == "total_thermal_energy":
+                return self._thermal_service.get_total_heating_energy()
 
         if (
             "compressor" in self.entity_description.key
@@ -498,62 +601,6 @@ class HitachiYutakiSensor(
             "time_span_minutes": quality.time_span_minutes,
         }
 
-    def _get_thermal_power_attributes(self) -> dict[str, Any] | None:
-        """Get attributes for thermal_power sensor."""
-        result = self._get_thermal_result()
-        if result is None:
-            return None
-
-        # Get water flow for attributes
-        water_flow = self.coordinator.data.get("water_flow", 0)
-
-        return {
-            "last_update": result.last_update.isoformat(),
-            "delta_t": round(result.delta_t, 2),
-            "water_flow": round(water_flow, 2),
-            "units": {"delta_t": "°C", "water_flow": "m³/h"},
-        }
-
-    def _get_daily_thermal_energy_attributes(self) -> dict[str, Any] | None:
-        """Get attributes for daily_thermal_energy sensor."""
-        result = self._get_thermal_result()
-        if result is None or result.daily_start_time is None:
-            return None
-
-        time_span = (
-            datetime.now() - result.daily_start_time
-        ).total_seconds() / 3600  # hours
-        avg_power = result.daily_energy / time_span if time_span > 0 else 0
-
-        return {
-            "last_reset": result.last_reset_date.isoformat(),
-            "start_time": result.daily_start_time.isoformat(),
-            "average_power": round(avg_power, 2),
-            "time_span_hours": round(time_span, 1),
-            "units": {"average_power": "kW", "time_span": "hours"},
-        }
-
-    def _get_total_thermal_energy_attributes(self) -> dict[str, Any] | None:
-        """Get attributes for total_thermal_energy sensor."""
-        result = self._get_thermal_result()
-        if result is None or result.last_update is None:
-            return None
-
-        start_date = result.last_update.date()
-        start_datetime = datetime.combine(start_date, datetime.min.time())
-        time_span_seconds = (datetime.now() - start_datetime).total_seconds()
-        time_span_hours = time_span_seconds / 3600
-
-        # Calculate average power: total energy / time in hours
-        avg_power = result.total_energy / time_span_hours if time_span_hours > 0 else 0
-
-        return {
-            "start_date": start_date.isoformat(),
-            "average_power": round(avg_power, 2),
-            "time_span_days": round(time_span_hours / 24, 1),
-            "units": {"average_power": "kW", "time_span": "days"},
-        }
-
     def _get_alarm_attributes(self) -> dict[str, Any] | None:
         """Get attributes for alarm sensor."""
         if self.coordinator.data is None or not self.entity_description.value_fn:
@@ -573,11 +620,5 @@ class HitachiYutakiSensor(
             return self._get_alarm_attributes()
         elif key.startswith("cop_"):
             return self._get_cop_attributes()
-        elif key == "thermal_power":
-            return self._get_thermal_power_attributes()
-        elif key == "daily_thermal_energy":
-            return self._get_daily_thermal_energy_attributes()
-        elif key == "total_thermal_energy":
-            return self._get_total_thermal_energy_attributes()
 
         return None

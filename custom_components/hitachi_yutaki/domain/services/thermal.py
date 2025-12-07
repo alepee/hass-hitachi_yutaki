@@ -8,7 +8,7 @@ from __future__ import annotations
 from datetime import date, datetime
 from time import time
 
-from ..models.thermal import ThermalEnergyResult, ThermalPowerInput
+from ..models.thermal import ThermalPowerInput
 
 # Constants for thermal calculations
 WATER_FLOW_TO_KGS = 0.277778  # 1 m³/h = 1000 L/h = 1000 kg/h = 0.277778 kg/s
@@ -16,48 +16,106 @@ WATER_SPECIFIC_HEAT = 4.185  # kJ/kg·K
 
 
 def calculate_thermal_power(data: ThermalPowerInput) -> float:
-    """Calculate thermal power in kW from input data.
+    """Calculate signed thermal power in kW from input data.
+
+    Positive values indicate heating (outlet > inlet).
+    Negative values indicate cooling (outlet < inlet).
 
     Args:
         data: Input data containing temperatures and flow
 
     Returns:
-        Thermal power in kW
+        Signed thermal power in kW
 
     """
     water_flow_kgs = data.water_flow * WATER_FLOW_TO_KGS
     delta_t = data.water_outlet_temp - data.water_inlet_temp
-    thermal_power = abs(water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t)
+    thermal_power = water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t
     return thermal_power
 
 
-class ThermalEnergyAccumulator:
-    """Accumulates thermal energy over time for energy calculations."""
+def calculate_thermal_power_heating(data: ThermalPowerInput) -> float:
+    """Calculate thermal power for heating mode.
 
-    def __init__(self, initial_daily: float = 0.0, initial_total: float = 0.0) -> None:
+    Returns positive power only when outlet > inlet (heating).
+    Returns 0 when in cooling mode or invalid conditions.
+
+    Args:
+        data: Input data containing temperatures and flow
+
+    Returns:
+        Thermal power in kW (0 if cooling mode)
+
+    """
+    thermal_power = calculate_thermal_power(data)
+    return max(0.0, thermal_power)
+
+
+def calculate_thermal_power_cooling(data: ThermalPowerInput) -> float:
+    """Calculate thermal power for cooling mode.
+
+    Returns positive power only when outlet < inlet (cooling).
+    Returns 0 when in heating mode or invalid conditions.
+
+    Args:
+        data: Input data containing temperatures and flow
+
+    Returns:
+        Thermal power in kW (0 if heating mode)
+
+    """
+    thermal_power = calculate_thermal_power(data)
+    return max(0.0, -thermal_power)
+
+
+class ThermalEnergyAccumulator:
+    """Accumulates thermal energy over time for heating and cooling separately."""
+
+    def __init__(
+        self,
+        initial_daily_heating: float = 0.0,
+        initial_total_heating: float = 0.0,
+        initial_daily_cooling: float = 0.0,
+        initial_total_cooling: float = 0.0,
+    ) -> None:
         """Initialize the accumulator.
 
         Args:
-            initial_daily: Initial daily energy value
-            initial_total: Initial total energy value
+            initial_daily_heating: Initial daily heating energy value
+            initial_total_heating: Initial total heating energy value
+            initial_daily_cooling: Initial daily cooling energy value
+            initial_total_cooling: Initial total cooling energy value
 
         """
-        self._daily_energy = initial_daily
-        self._total_energy = initial_total
-        self._last_power = 0.0
+        self._daily_heating_energy = initial_daily_heating
+        self._total_heating_energy = initial_total_heating
+        self._daily_cooling_energy = initial_daily_cooling
+        self._total_cooling_energy = initial_total_cooling
+        self._last_heating_power = 0.0
+        self._last_cooling_power = 0.0
         self._last_measurement_time = 0
         self._daily_start_time = 0
         self._last_reset = datetime.now().date()
 
     @property
-    def daily_energy(self) -> float:
-        """Return the accumulated daily energy in kWh."""
-        return self._daily_energy
+    def daily_heating_energy(self) -> float:
+        """Return the accumulated daily heating energy in kWh."""
+        return self._daily_heating_energy
 
     @property
-    def total_energy(self) -> float:
-        """Return the accumulated total energy in kWh."""
-        return self._total_energy
+    def total_heating_energy(self) -> float:
+        """Return the accumulated total heating energy in kWh."""
+        return self._total_heating_energy
+
+    @property
+    def daily_cooling_energy(self) -> float:
+        """Return the accumulated daily cooling energy in kWh."""
+        return self._daily_cooling_energy
+
+    @property
+    def total_cooling_energy(self) -> float:
+        """Return the accumulated total cooling energy in kWh."""
+        return self._total_cooling_energy
 
     @property
     def last_measurement_time(self) -> float:
@@ -74,29 +132,48 @@ class ThermalEnergyAccumulator:
         """Return the date of the last daily reset."""
         return self._last_reset
 
-    def restore_daily_energy(self, energy: float) -> None:
-        """Restore daily energy value (used after HA restart).
+    def restore_daily_heating_energy(self, energy: float) -> None:
+        """Restore daily heating energy value (used after HA restart).
 
         Args:
             energy: Energy value to restore
 
         """
-        self._daily_energy = energy
+        self._daily_heating_energy = energy
 
-    def restore_total_energy(self, energy: float) -> None:
-        """Restore total energy value (used after HA restart).
+    def restore_total_heating_energy(self, energy: float) -> None:
+        """Restore total heating energy value (used after HA restart).
 
         Args:
             energy: Energy value to restore
 
         """
-        self._total_energy = energy
+        self._total_heating_energy = energy
 
-    def update(self, thermal_power: float) -> None:
+    def restore_daily_cooling_energy(self, energy: float) -> None:
+        """Restore daily cooling energy value (used after HA restart).
+
+        Args:
+            energy: Energy value to restore
+
+        """
+        self._daily_cooling_energy = energy
+
+    def restore_total_cooling_energy(self, energy: float) -> None:
+        """Restore total cooling energy value (used after HA restart).
+
+        Args:
+            energy: Energy value to restore
+
+        """
+        self._total_cooling_energy = energy
+
+    def update(self, thermal_power: float, mode: str) -> None:
         """Update the energy accumulation with a new power measurement.
 
         Args:
             thermal_power: Current thermal power in kW
+            mode: Operating mode ("heating" or "cooling")
 
         """
         current_time = time()
@@ -106,22 +183,39 @@ class ThermalEnergyAccumulator:
         if self._daily_start_time == 0:
             self._daily_start_time = current_time
 
-        # Reset daily counter at midnight
+        # Reset daily counters at midnight
         if current_date != self._last_reset:
-            self._daily_energy = 0.0
+            self._daily_heating_energy = 0.0
+            self._daily_cooling_energy = 0.0
             self._last_reset = current_date
             self._daily_start_time = current_time  # Reset start time for new day
 
         # Calculate energy since last measurement
         if self._last_measurement_time > 0:
             time_diff_hours = (current_time - self._last_measurement_time) / 3600
-            avg_power = (thermal_power + self._last_power) / 2
-            energy = avg_power * time_diff_hours
 
-            self._daily_energy += energy
-            self._total_energy += energy
+            if mode == "heating":
+                avg_power = (thermal_power + self._last_heating_power) / 2
+                energy = avg_power * time_diff_hours
+                self._daily_heating_energy += energy
+                self._total_heating_energy += energy
+                self._last_heating_power = thermal_power
+                self._last_cooling_power = 0.0
+            elif mode == "cooling":
+                avg_power = (thermal_power + self._last_cooling_power) / 2
+                energy = avg_power * time_diff_hours
+                self._daily_cooling_energy += energy
+                self._total_cooling_energy += energy
+                self._last_cooling_power = thermal_power
+                self._last_heating_power = 0.0
+        # First measurement
+        elif mode == "heating":
+            self._last_heating_power = thermal_power
+            self._last_cooling_power = 0.0
+        elif mode == "cooling":
+            self._last_cooling_power = thermal_power
+            self._last_heating_power = 0.0
 
-        self._last_power = thermal_power
         self._last_measurement_time = current_time
 
 
@@ -129,6 +223,7 @@ class ThermalPowerService:
     """Thermal power and energy calculation service.
 
     This service is independent of Home Assistant and can be easily tested.
+    Separates heating (ΔT > 0) and cooling (ΔT < 0) energy.
     """
 
     def __init__(self, accumulator: ThermalEnergyAccumulator) -> None:
@@ -139,7 +234,8 @@ class ThermalPowerService:
 
         """
         self._accumulator = accumulator
-        self._last_power = 0.0
+        self._last_heating_power = 0.0
+        self._last_cooling_power = 0.0
 
     def update(
         self,
@@ -147,6 +243,7 @@ class ThermalPowerService:
         water_outlet_temp: float | None,
         water_flow: float | None,
         compressor_frequency: float | None,
+        is_defrosting: bool = False,
     ) -> None:
         """Update thermal energy calculation with new data.
 
@@ -155,20 +252,29 @@ class ThermalPowerService:
             water_outlet_temp: Water outlet temperature in °C
             water_flow: Water flow rate in m³/h
             compressor_frequency: Compressor frequency in Hz (to check if running)
+            is_defrosting: True if heat pump is in defrost mode
 
         """
+        # Ignore during defrost
+        if is_defrosting:
+            self._last_heating_power = 0.0
+            self._last_cooling_power = 0.0
+            return
+
         # Check if compressor is running
         if compressor_frequency is None or compressor_frequency <= 0:
-            self._last_power = 0.0
+            self._last_heating_power = 0.0
+            self._last_cooling_power = 0.0
             return
 
         # Validate input data
         if any(x is None for x in [water_inlet_temp, water_outlet_temp, water_flow]):
-            self._last_power = 0.0
+            self._last_heating_power = 0.0
+            self._last_cooling_power = 0.0
             return
 
-        # Calculate thermal power
-        thermal_power = calculate_thermal_power(
+        # Calculate heating power (delta T > 0)
+        heating_power = calculate_thermal_power_heating(
             ThermalPowerInput(
                 water_inlet_temp,  # type: ignore
                 water_outlet_temp,  # type: ignore
@@ -176,72 +282,85 @@ class ThermalPowerService:
             )
         )
 
-        # Update accumulator and store last power
-        self._accumulator.update(thermal_power)
-        self._last_power = thermal_power
+        # Calculate cooling power (delta T < 0)
+        cooling_power = calculate_thermal_power_cooling(
+            ThermalPowerInput(
+                water_inlet_temp,  # type: ignore
+                water_outlet_temp,  # type: ignore
+                water_flow,  # type: ignore
+            )
+        )
 
-    def get_power(self) -> float:
-        """Get current thermal power in kW."""
-        return round(self._last_power, 2) if self._last_power > 0 else 0
+        # Update accumulators based on mode
+        if heating_power > 0:
+            self._accumulator.update(heating_power, mode="heating")
+            self._last_heating_power = heating_power
+            self._last_cooling_power = 0.0
+        elif cooling_power > 0:
+            self._accumulator.update(cooling_power, mode="cooling")
+            self._last_cooling_power = cooling_power
+            self._last_heating_power = 0.0
+        else:
+            # No significant temperature difference
+            self._last_heating_power = 0.0
+            self._last_cooling_power = 0.0
 
-    def get_daily_energy(self) -> float:
-        """Get daily thermal energy in kWh."""
-        return round(self._accumulator.daily_energy, 2)
+    def get_heating_power(self) -> float:
+        """Get current heating power in kW."""
+        return round(self._last_heating_power, 2) if self._last_heating_power > 0 else 0
 
-    def get_total_energy(self) -> float:
-        """Get total thermal energy in kWh."""
-        return round(self._accumulator.total_energy, 2)
+    def get_cooling_power(self) -> float:
+        """Get current cooling power in kW."""
+        return round(self._last_cooling_power, 2) if self._last_cooling_power > 0 else 0
 
-    def restore_daily_energy(self, energy: float) -> None:
-        """Restore daily energy state (used after HA restart).
+    def get_daily_heating_energy(self) -> float:
+        """Get daily heating energy in kWh."""
+        return round(self._accumulator.daily_heating_energy, 2)
+
+    def get_total_heating_energy(self) -> float:
+        """Get total heating energy in kWh."""
+        return round(self._accumulator.total_heating_energy, 2)
+
+    def get_daily_cooling_energy(self) -> float:
+        """Get daily cooling energy in kWh."""
+        return round(self._accumulator.daily_cooling_energy, 2)
+
+    def get_total_cooling_energy(self) -> float:
+        """Get total cooling energy in kWh."""
+        return round(self._accumulator.total_cooling_energy, 2)
+
+    def restore_daily_heating_energy(self, energy: float) -> None:
+        """Restore daily heating energy state (used after HA restart).
 
         Args:
             energy: Energy value to restore
 
         """
-        self._accumulator.restore_daily_energy(energy)
+        self._accumulator.restore_daily_heating_energy(energy)
 
-    def restore_total_energy(self, energy: float) -> None:
-        """Restore total energy state (used after HA restart).
+    def restore_total_heating_energy(self, energy: float) -> None:
+        """Restore total heating energy state (used after HA restart).
 
         Args:
             energy: Energy value to restore
 
         """
-        self._accumulator.restore_total_energy(energy)
+        self._accumulator.restore_total_heating_energy(energy)
 
-    def get_result(
-        self, water_inlet_temp: float, water_outlet_temp: float, water_flow: float
-    ) -> ThermalEnergyResult:
-        """Get complete thermal energy result with all details.
+    def restore_daily_cooling_energy(self, energy: float) -> None:
+        """Restore daily cooling energy state (used after HA restart).
 
         Args:
-            water_inlet_temp: Water inlet temperature in °C
-            water_outlet_temp: Water outlet temperature in °C
-            water_flow: Water flow rate in m³/h
-
-        Returns:
-            Complete thermal energy result
+            energy: Energy value to restore
 
         """
-        delta_t = water_outlet_temp - water_inlet_temp
-        last_update = (
-            datetime.fromtimestamp(self._accumulator.last_measurement_time)
-            if self._accumulator.last_measurement_time > 0
-            else datetime.now()
-        )
-        daily_start = (
-            datetime.fromtimestamp(self._accumulator.daily_start_time)
-            if self._accumulator.daily_start_time > 0
-            else datetime.now()
-        )
+        self._accumulator.restore_daily_cooling_energy(energy)
 
-        return ThermalEnergyResult(
-            thermal_power=self._last_power,
-            daily_energy=self._accumulator.daily_energy,
-            total_energy=self._accumulator.total_energy,
-            delta_t=delta_t,
-            last_update=last_update,
-            last_reset_date=self._accumulator.last_reset_date,
-            daily_start_time=daily_start,
-        )
+    def restore_total_cooling_energy(self, energy: float) -> None:
+        """Restore total cooling energy state (used after HA restart).
+
+        Args:
+            energy: Energy value to restore
+
+        """
+        self._accumulator.restore_total_cooling_energy(energy)

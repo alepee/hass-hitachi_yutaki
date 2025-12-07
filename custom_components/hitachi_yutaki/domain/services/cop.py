@@ -165,6 +165,8 @@ class COPService:
         accumulator: EnergyAccumulator,
         thermal_calculator: ThermalPowerCalculator,
         electrical_calculator: ElectricalPowerCalculator,
+        *,
+        expected_mode: str | None = None,
     ) -> None:
         """Initialize the COP service.
 
@@ -172,11 +174,14 @@ class COPService:
             accumulator: Energy accumulator for measurements
             thermal_calculator: Calculator for thermal power
             electrical_calculator: Calculator for electrical power
+            expected_mode: Expected HVAC mode for this sensor ("heating", "cooling",
+                           "dhw", "pool"). If None, all modes are accepted.
 
         """
         self._accumulator = accumulator
         self._thermal_calculator = thermal_calculator
         self._electrical_calculator = electrical_calculator
+        self._expected_mode = expected_mode
         self._last_measurement_time = 0.0
 
     def update(self, data: COPInput) -> None:
@@ -188,6 +193,10 @@ class COPService:
         """
         # Check if compressor is running
         if not self._is_compressor_running(data):
+            return
+
+        # Filter by HVAC mode for heating/cooling sensors
+        if not self._is_mode_matching(data):
             return
 
         # Check if enough time has passed since last measurement
@@ -236,6 +245,27 @@ class COPService:
         # Store measurement if valid
         if thermal_power > 0 and electrical_power > 0:
             self._accumulator.add_measurement(thermal_power, electrical_power)
+
+    def _is_mode_matching(self, data: COPInput) -> bool:
+        """Check if the current HVAC action matches the expected mode.
+
+        Args:
+            data: Input data containing hvac_action
+
+        Returns:
+            True if the mode matches or no filtering is required
+
+        """
+        # DHW and Pool modes don't need HVAC action filtering
+        if self._expected_mode in ("dhw", "pool", None):
+            return True
+
+        # For heating/cooling, check if hvac_action matches
+        if data.hvac_action is None:
+            # If hvac_action is unknown, don't accumulate
+            return False
+
+        return data.hvac_action == self._expected_mode
 
     def get_value(self) -> float | None:
         """Get current COP value rounded to 2 decimals."""

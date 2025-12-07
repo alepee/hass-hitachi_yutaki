@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Comprehensive business-level API** (`HitachiApiClient`) with typed methods for all controllable parameters, eliminating direct Modbus access from entities
 - **Smart profile auto-detection mechanism** with decentralized detection logic for more robust model identification
 - **Recorder-based data rehydration** for COP and compressor timing sensors - historical data is automatically reconstructed from Home Assistant's Recorder on startup, eliminating data loss after restarts. The integration now leverages existing sensor history instead of maintaining separate persistent storage
+- **Separate thermal energy sensors for heating and cooling** - New explicit sensors:
+  - `thermal_power_heating` / `thermal_power_cooling`: Real-time power output
+  - `thermal_energy_heating_daily` / `thermal_energy_cooling_daily`: Daily energy (resets at midnight)
+  - `thermal_energy_heating_total` / `thermal_energy_cooling_total`: Total cumulative energy
+  - Cooling sensors only created when unit has cooling circuits
 
 ### Changed
 - **Complete platform refactoring** to use domain-driven architecture - all platform files now act as pure orchestrators
@@ -27,6 +32,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Alarm sensor enhancement** to display descriptions as state with numeric codes as attributes
 - **System state reporting** with proper deserialization and operation state mapping
 - **Storage strategy** - COP and compressor timing data now relies on Home Assistant's Recorder history instead of custom persistent storage, eliminating redundant data storage and ensuring consistency with Home Assistant's historical data
+- **⚠️ BREAKING: Thermal energy calculation logic** - Fixes issue [#123](https://github.com/alepee/hass-hitachi_yutaki/issues/123):
+  - Now correctly separates heating (ΔT > 0) from cooling (ΔT < 0)
+  - **Defrost cycles are now filtered** (not counted as energy production)
+  - Only measures energy produced by the heat pump (compressor running)
+  - This results in accurate COP calculations (previously inflated by counting defrost as production)
+  - Universal logic: works for heating circuits, DHW, and pool automatically based on water temperature delta
+
+### Deprecated
+- **⚠️ Old thermal energy sensors** (disabled by default, but still available for backward compatibility):
+  - `thermal_power` → use `thermal_power_heating` instead
+  - `daily_thermal_energy` → use `thermal_energy_heating_daily` instead
+  - `total_thermal_energy` → use `thermal_energy_heating_total` instead
+  - **Migration required**: Update your Energy Dashboard and automations to use new sensors
+  - **Why deprecated**: Old sensors counted defrost cycles and lacked heating/cooling separation, resulting in incorrect COP values
 
 ### Removed
 - **Legacy technical modules** and monolithic entity files in favor of domain-specific builders

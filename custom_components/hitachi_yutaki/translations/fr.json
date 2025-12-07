@@ -363,50 +363,32 @@
       "secondary_compressor_resttime": {
         "name": "Temps de repos compresseur secondaire"
       },
+      "thermal_power_heating": {
+        "name": "Puissance Thermique Chauffage"
+      },
+      "thermal_power_cooling": {
+        "name": "Puissance Thermique Refroidissement"
+      },
+      "thermal_energy_heating_daily": {
+        "name": "Énergie Thermique Chauffage Journalière"
+      },
+      "thermal_energy_heating_total": {
+        "name": "Énergie Thermique Chauffage Totale"
+      },
+      "thermal_energy_cooling_daily": {
+        "name": "Énergie Thermique Refroidissement Journalière"
+      },
+      "thermal_energy_cooling_total": {
+        "name": "Énergie Thermique Refroidissement Totale"
+      },
       "thermal_power": {
-        "name": "Puissance Thermique",
-        "state_attributes": {
-          "last_update": {
-            "name": "Dernière mise à jour"
-          },
-          "delta_t": {
-            "name": "Delta T"
-          },
-          "water_flow": {
-            "name": "Débit d'eau"
-          }
-        }
+        "name": "[OBSOLÈTE] Puissance Thermique"
       },
       "daily_thermal_energy": {
-        "name": "Énergie Thermique Journalière",
-        "state_attributes": {
-          "last_reset": {
-            "name": "Dernière réinitialisation"
-          },
-          "start_time": {
-            "name": "Heure de début"
-          },
-          "average_power": {
-            "name": "Puissance moyenne"
-          },
-          "time_span_hours": {
-            "name": "Période de mesure (heures)"
-          }
-        }
+        "name": "[OBSOLÈTE] Énergie Thermique Journalière"
       },
       "total_thermal_energy": {
-        "name": "Énergie Thermique Totale",
-        "state_attributes": {
-          "start_date": {
-            "name": "Date de début"
-          },
-          "average_power": {
-            "name": "Puissance moyenne"
-          },
-          "time_span_days": {
-            "name": "Période de mesure (jours)"
-          }
-        }
+        "name": "[OBSOLÈTE] Énergie Thermique Totale"
       },
       "system_state": {
         "name": "État de synchronisation de la passerelle",

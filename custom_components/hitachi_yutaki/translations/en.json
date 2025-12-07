@@ -363,50 +363,32 @@
       "secondary_compressor_resttime": {
         "name": "Secondary compressor rest time"
       },
+      "thermal_power_heating": {
+        "name": "Thermal Power Heating"
+      },
+      "thermal_power_cooling": {
+        "name": "Thermal Power Cooling"
+      },
+      "thermal_energy_heating_daily": {
+        "name": "Daily Thermal Energy Heating"
+      },
+      "thermal_energy_heating_total": {
+        "name": "Total Thermal Energy Heating"
+      },
+      "thermal_energy_cooling_daily": {
+        "name": "Daily Thermal Energy Cooling"
+      },
+      "thermal_energy_cooling_total": {
+        "name": "Total Thermal Energy Cooling"
+      },
       "thermal_power": {
-        "name": "Thermal Power",
-        "state_attributes": {
-          "last_update": {
-            "name": "Last Update"
-          },
-          "delta_t": {
-            "name": "Delta T"
-          },
-          "water_flow": {
-            "name": "Water Flow"
-          }
-        }
+        "name": "[DEPRECATED] Thermal Power"
       },
       "daily_thermal_energy": {
-        "name": "Daily Thermal Energy",
-        "state_attributes": {
-          "last_reset": {
-            "name": "Last Reset"
-          },
-          "start_time": {
-            "name": "Start Time"
-          },
-          "average_power": {
-            "name": "Average Power"
-          },
-          "time_span_hours": {
-            "name": "Measurement Period (hours)"
-          }
-        }
+        "name": "[DEPRECATED] Daily Thermal Energy"
       },
       "total_thermal_energy": {
-        "name": "Total Thermal Energy",
-        "state_attributes": {
-          "start_date": {
-            "name": "Start Date"
-          },
-          "average_power": {
-            "name": "Average Power"
-          },
-          "time_span_days": {
-            "name": "Measurement Period (days)"
-          }
-        }
+        "name": "[DEPRECATED] Total Thermal Energy"
       },
       "system_state": {
         "name": "Gateway Sync State",
