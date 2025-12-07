@@ -88,9 +88,12 @@ The integration automatically detects your heat pump model and available feature
 | compressor_current | sensor | Current electrical consumption of the compressor | A | diagnostic |
 | compressor_cycle_time | sensor | Average time between compressor starts | min | diagnostic |
 | power_consumption | sensor | Total electrical energy consumed by the unit | kWh | diagnostic |
-| thermal_power | sensor | Real-time thermal power output | kW | diagnostic |
-| daily_thermal_energy | sensor | Daily thermal energy production (resets at midnight) | kWh | diagnostic |
-| total_thermal_energy | sensor | Total cumulative thermal energy production | kWh | diagnostic |
+| thermal_power_heating | sensor | Real-time thermal heating power output | kW | diagnostic |
+| thermal_power_cooling | sensor | Real-time thermal cooling power output (cooling circuits only) | kW | diagnostic |
+| thermal_energy_heating_daily | sensor | Daily thermal heating energy production (resets at midnight) | kWh | diagnostic |
+| thermal_energy_heating_total | sensor | Total cumulative thermal heating energy production | kWh | diagnostic |
+| thermal_energy_cooling_daily | sensor | Daily thermal cooling energy production (cooling circuits only) | kWh | diagnostic |
+| thermal_energy_cooling_total | sensor | Total cumulative thermal cooling energy production (cooling circuits only) | kWh | diagnostic |
 | cop_heating | sensor | Space heating COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
 | cop_cooling | sensor | Space cooling COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
 | cop_dhw | sensor | Domestic hot water COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
@@ -256,46 +259,59 @@ Each COP sensor provides additional attributes:
 
 ## Thermal Energy Monitoring
 
-The integration provides detailed thermal energy monitoring through three complementary sensors:
+The integration provides detailed thermal energy monitoring with **separate tracking for heating and cooling**:
 
 ### Real-time Power Output
 
-The `thermal_power` sensor shows the instantaneous thermal power output in kW, calculated from:
-- Water flow rate
-- Temperature difference between outlet and inlet (ΔT)
-- Water specific heat capacity
+Two sensors show instantaneous thermal power:
+- `thermal_power_heating`: Heating power (when ΔT > 0) in kW
+- `thermal_power_cooling`: Cooling power (when ΔT < 0) in kW - only for units with cooling circuits
 
-Additional attributes provide detailed measurement data:
-- `delta_t`: Temperature difference between outlet and inlet (°C)
-- `water_flow`: Current water flow rate (m³/h)
-- `last_update`: Timestamp of the last measurement
+Power is calculated from:
+- Water flow rate (m³/h)
+- Temperature difference between outlet and inlet (ΔT in °C)
+- Water specific heat capacity (4.185 kJ/kg·K)
 
 ### Daily Energy Production
 
-The `daily_thermal_energy` sensor tracks the thermal energy produced since midnight in kWh. It automatically resets at midnight and provides:
+Sensors track energy produced since midnight (auto-reset):
+- `thermal_energy_heating_daily`: Heating energy (kWh)
+- `thermal_energy_cooling_daily`: Cooling energy (kWh) - cooling circuits only
+
+Features:
 - Automatic state restoration after Home Assistant restart (same day only)
-- Average power calculation over the measurement period
-- Detailed timing information in attributes:
-  - `last_reset`: Last midnight reset timestamp
-  - `start_time`: First measurement timestamp of the day
-  - `average_power`: Average power over the measurement period (kW)
-  - `time_span_hours`: Duration of the measurement period
+- Independent counters for heating and cooling
 
 ### Total Energy Production
 
-The `total_thermal_energy` sensor maintains a running total of all thermal energy produced in kWh. It features:
+Sensors maintain running totals:
+- `thermal_energy_heating_total`: Total heating energy (kWh)
+- `thermal_energy_cooling_total`: Total cooling energy (kWh) - cooling circuits only
+
+Features:
 - Persistent state across Home Assistant restarts
 - Long-term performance tracking
-- Statistical information in attributes:
-  - `start_date`: Date of the first measurement
-  - `average_power`: Average power since start (kW)
-  - `time_span_days`: Number of days since first measurement
 
-### Measurement Accuracy
+### Measurement Logic
 
-To ensure accuracy:
-- Measurements are only taken when the compressor is running
-- Calculations use precise water flow and temperature measurements
+**What is measured:**
+- Only energy **produced by the heat pump** (not auxiliary sources)
+- Heating: Water temperature increase (ΔT > 0) → circuits, DHW, pool
+- Cooling: Water temperature decrease (ΔT < 0) → cooling circuits
+
+**Filtering applied:**
+- **Compressor stopped** (`compressor_frequency <= 0`): No measurement
+- **Defrost mode** (`is_defrosting == True`): No measurement (prevents false cooling energy)
+- This ensures accurate COP calculations (Thermal Energy / Electrical Energy)
+
+### Migration from v1.x
+
+Previous sensors are deprecated but remain available (disabled by default):
+- `thermal_power` → use `thermal_power_heating`
+- `daily_thermal_energy` → use `thermal_energy_heating_daily`
+- `total_thermal_energy` → use `thermal_energy_heating_total`
+
+**Why this change?** The old sensors counted defrost cycles as energy production, resulting in unrealistic COP values (e.g., COP > 8). The new sensors correctly separate heating from cooling and filter defrost periods.
 - Values are stored with 2 decimal places precision
 - All relevant units are clearly indicated in attributes
 

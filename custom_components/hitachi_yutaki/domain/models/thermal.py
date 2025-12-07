@@ -13,6 +13,7 @@ class ThermalPowerInput:
     water_inlet_temp: float  # °C
     water_outlet_temp: float  # °C
     water_flow: float  # m³/h
+    is_defrosting: bool = False  # True if heat pump is in defrost mode
 
 
 @dataclass
