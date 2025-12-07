@@ -61,6 +61,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             is_persistent=True,
             severity=IssueSeverity.WARNING,
             issue_domain=DOMAIN,
+            translation_key="missing_config",
         )
 
         # Return False to prevent setup until repair is completed

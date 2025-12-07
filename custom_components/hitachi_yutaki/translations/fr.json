@@ -569,6 +569,10 @@
     "initializing_warning": {
       "title": "Passerelle Hitachi en cours d'initialisation",
       "description": "La passerelle Hitachi Yutaki est en cours d'initialisation. Cet état est normal après un redémarrage et ne devrait durer que quelques minutes. Si cet avertissement persiste, veuillez redémarrer la passerelle."
+    },
+    "missing_config": {
+      "title": "Configuration Hitachi Yutaki Incomplète",
+      "description": "Votre intégration Hitachi Yutaki manque des paramètres de configuration requis (type de passerelle et/ou profil de pompe à chaleur). L'intégration ne peut pas être configurée tant que ces paramètres ne sont pas définis.\n\n**Pour résoudre ce problème :**\n1. Allez dans Paramètres > Appareils et services > Hitachi Yutaki\n2. Cliquez sur l'intégration et sélectionnez Configurer\n3. Sélectionnez les paramètres manquants (type de passerelle et profil de pompe à chaleur)\n4. Enregistrez la configuration"
     }
   }
 }

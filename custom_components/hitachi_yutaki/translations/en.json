@@ -572,6 +572,10 @@
     "initializing_warning": {
       "title": "Hitachi Gateway Initializing",
       "description": "The Hitachi Yutaki gateway is currently initializing. This is normal after a restart and should only take a few minutes. If this warning persists, please try restarting the gateway."
+    },
+    "missing_config": {
+      "title": "Hitachi Yutaki Configuration Incomplete",
+      "description": "Your Hitachi Yutaki integration is missing required configuration parameters (gateway type and/or heat pump profile). The integration cannot be set up until these parameters are configured.\n\n**To resolve this:**\n1. Go to Settings > Devices & Services > Hitachi Yutaki\n2. Click on the integration and select Configure\n3. Select the missing parameters (gateway type and heat pump profile)\n4. Save the configuration"
     }
   }
 }
