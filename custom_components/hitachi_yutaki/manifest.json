@@ -5,7 +5,9 @@
     "@alepee"
   ],
   "config_flow": true,
-  "dependencies": ["recorder"],
+  "dependencies": [
+    "recorder"
+  ],
   "documentation": "https://github.com/alepee/hass-hitachi_yutaki",
   "homekit": {},
   "iot_class": "local_polling",
