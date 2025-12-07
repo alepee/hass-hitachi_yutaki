@@ -231,11 +231,16 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             return await self.async_step_power()
 
         # Schema for profile selection
+        # Show all available profiles so user can manually select their machine
         profile_options = list(PROFILES.keys())
+        # Use first detected profile if available, otherwise use UNDEFINED to force user selection
+        default_profile = (
+            self.detected_profiles[0] if self.detected_profiles else vol.UNDEFINED
+        )
         PROFILE_SCHEMA = vol.Schema(
             {
                 vol.Required(
-                    "profile", default=self.detected_profiles[0]
+                    "profile", default=default_profile
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=profile_options,
