@@ -30,6 +30,11 @@ def calculate_thermal_power(data: ThermalPowerInput) -> float:
     """
     water_flow_kgs = data.water_flow * WATER_FLOW_TO_KGS
     delta_t = data.water_outlet_temp - data.water_inlet_temp
+
+    # Forcer ΔT à 0 si Tsortie - Tentrée < 0
+    if delta_t < 0:
+        delta_t = 0.0
+
     thermal_power = water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t
     return thermal_power
 
@@ -236,6 +241,8 @@ class ThermalPowerService:
         self._accumulator = accumulator
         self._last_heating_power = 0.0
         self._last_cooling_power = 0.0
+        self._post_heating_lock = False
+        self._last_mode: str | None = None
 
     def update(
         self,
@@ -257,21 +264,26 @@ class ThermalPowerService:
         """
         # Ignore during defrost
         if is_defrosting:
-            self._last_heating_power = 0.0
-            self._last_cooling_power = 0.0
-            return
-
-        # Check if compressor is running
-        if compressor_frequency is None or compressor_frequency <= 0:
+            if self._last_mode is not None:
+                self._accumulator.update(0.0, mode=self._last_mode)
             self._last_heating_power = 0.0
             self._last_cooling_power = 0.0
             return
 
         # Validate input data
         if any(x is None for x in [water_inlet_temp, water_outlet_temp, water_flow]):
+            if self._last_mode is not None:
+                self._accumulator.update(0.0, mode=self._last_mode)
             self._last_heating_power = 0.0
             self._last_cooling_power = 0.0
             return
+
+        # Compresseur en marche ou non
+        compressor_running = compressor_frequency is not None and compressor_frequency > 0
+
+        # Si le compresseur redémarre, on sort du verrou post-chauffe
+        if compressor_running:
+            self._post_heating_lock = False
 
         # Calculate heating power (delta T > 0)
         heating_power = calculate_thermal_power_heating(
@@ -291,17 +303,36 @@ class ThermalPowerService:
             )
         )
 
-        # Update accumulators based on mode
+        # Gestion de l'inertie et du verrou post-chauffe (chauffage uniquement)
+        if not compressor_running:
+            # Compresseur à l'arrêt : phase d'inertie possible
+            if heating_power <= 0:
+                # ΔT tombé à 0 avec compresseur arrêté → on verrouille
+                self._post_heating_lock = True
+
+            if self._post_heating_lock:
+                # Verrou actif → on force la puissance de chauffe à 0
+                heating_power = 0.0
+
+        # Application des puissances effectives
         if heating_power > 0:
+            # Période de chauffe active OU inertie (sans verrou)
             self._accumulator.update(heating_power, mode="heating")
             self._last_heating_power = heating_power
             self._last_cooling_power = 0.0
-        elif cooling_power > 0:
+            self._last_mode = "heating"  # <-- AJOUT
+        elif cooling_power > 0 and compressor_running:
+            # On ne comptabilise le froid que compresseur en marche
             self._accumulator.update(cooling_power, mode="cooling")
             self._last_cooling_power = cooling_power
             self._last_heating_power = 0.0
+            self._last_mode = "cooling"  # <-- AJOUT
         else:
-            # No significant temperature difference
+            # Pas de puissance significative
+            # On avance quand même l'horloge de l'accumulateur avec 0 kW
+            if self._last_mode is not None:
+                self._accumulator.update(0.0, mode=self._last_mode)
+
             self._last_heating_power = 0.0
             self._last_cooling_power = 0.0
 
