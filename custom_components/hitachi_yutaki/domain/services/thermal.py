@@ -31,7 +31,7 @@ def calculate_thermal_power(data: ThermalPowerInput) -> float:
     water_flow_kgs = data.water_flow * WATER_FLOW_TO_KGS
     delta_t = data.water_outlet_temp - data.water_inlet_temp
 
-    # Forcer ΔT à 0 si Tsortie - Tentrée < 0
+    # Force ΔT to 0 if T_outlet - T_inlet < 0
     if delta_t < 0:
         delta_t = 0.0
 
@@ -278,10 +278,10 @@ class ThermalPowerService:
             self._last_cooling_power = 0.0
             return
 
-        # Compresseur en marche ou non
+        # Compressor running status
         compressor_running = compressor_frequency is not None and compressor_frequency > 0
 
-        # Si le compresseur redémarre, on sort du verrou post-chauffe
+        # If the compressor restarts, exit the post-heating lock
         if compressor_running:
             self._post_heating_lock = False
 
@@ -303,33 +303,33 @@ class ThermalPowerService:
             )
         )
 
-        # Gestion de l'inertie et du verrou post-chauffe (chauffage uniquement)
+        # Management of inertia and post-heating lock (heating only)
         if not compressor_running:
-            # Compresseur à l'arrêt : phase d'inertie possible
+            # Compressor stopped: possible inertia phase
             if heating_power <= 0:
-                # ΔT tombé à 0 avec compresseur arrêté → on verrouille
+                # ΔT dropped to 0 with compressor stopped → lock is engaged
                 self._post_heating_lock = True
 
             if self._post_heating_lock:
-                # Verrou actif → on force la puissance de chauffe à 0
+                # Active lock → force heating power to 0
                 heating_power = 0.0
 
-        # Application des puissances effectives
+        # Apply effective power values
         if heating_power > 0:
-            # Période de chauffe active OU inertie (sans verrou)
+            # Active heating period OR inertia (without lock)
             self._accumulator.update(heating_power, mode="heating")
             self._last_heating_power = heating_power
             self._last_cooling_power = 0.0
             self._last_mode = "heating"  # <-- AJOUT
         elif cooling_power > 0 and compressor_running:
-            # On ne comptabilise le froid que compresseur en marche
+            # Cooling is only counted when the compressor is running
             self._accumulator.update(cooling_power, mode="cooling")
             self._last_cooling_power = cooling_power
             self._last_heating_power = 0.0
             self._last_mode = "cooling"  # <-- AJOUT
         else:
-            # Pas de puissance significative
-            # On avance quand même l'horloge de l'accumulateur avec 0 kW
+            # No significant power
+            # Still advance the accumulator's clock with 0 kW
             if self._last_mode is not None:
                 self._accumulator.update(0.0, mode=self._last_mode)
 
