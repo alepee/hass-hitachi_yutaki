@@ -31,10 +31,6 @@ def calculate_thermal_power(data: ThermalPowerInput) -> float:
     water_flow_kgs = data.water_flow * WATER_FLOW_TO_KGS
     delta_t = data.water_outlet_temp - data.water_inlet_temp
 
-    # Force ΔT to 0 if T_outlet - T_inlet < 0
-    if delta_t < 0:
-        delta_t = 0.0
-
     thermal_power = water_flow_kgs * WATER_SPECIFIC_HEAT * delta_t
     return thermal_power
 
@@ -101,6 +97,8 @@ class ThermalEnergyAccumulator:
         self._last_measurement_time = 0
         self._daily_start_time = 0
         self._last_reset = datetime.now().date()
+        self._post_cycle_lock = False
+        self._last_mode: str | None = None
 
     @property
     def daily_heating_energy(self) -> float:
@@ -121,6 +119,16 @@ class ThermalEnergyAccumulator:
     def total_cooling_energy(self) -> float:
         """Return the accumulated total cooling energy in kWh."""
         return self._total_cooling_energy
+
+    @property
+    def last_heating_power(self) -> float:
+        """Return the last effective heating power in kW."""
+        return self._last_heating_power
+
+    @property
+    def last_cooling_power(self) -> float:
+        """Return the last effective cooling power in kW."""
+        return self._last_cooling_power
 
     @property
     def last_measurement_time(self) -> float:
@@ -173,8 +181,66 @@ class ThermalEnergyAccumulator:
         """
         self._total_cooling_energy = energy
 
-    def update(self, thermal_power: float, mode: str) -> None:
-        """Update the energy accumulation with a new power measurement.
+    def update(
+        self,
+        heating_power: float,
+        cooling_power: float,
+        compressor_running: bool,
+        is_defrosting: bool = False,
+    ) -> None:
+        """Update energy accumulation with thermal powers.
+
+        Args:
+            heating_power: Positive thermal power (delta T > 0)
+            cooling_power: Positive thermal power (delta T < 0, already negated)
+            compressor_running: Whether compressor is active
+            is_defrosting: Whether heat pump is defrosting
+
+        """
+        # Handle defrosting
+        if is_defrosting:
+            if self._last_mode is not None:
+                self._update_energy(0.0, mode=self._last_mode)
+            self._last_heating_power = 0.0
+            self._last_cooling_power = 0.0
+            return
+
+        # If compressor restarts, exit post-cycle lock
+        if compressor_running:
+            self._post_cycle_lock = False
+
+        # Handle inertia and post-cycle lock (heating only)
+        if not compressor_running:
+            if heating_power <= 0:
+                # ΔT dropped to 0 with compressor stopped → lock
+                self._post_cycle_lock = True
+
+            if self._post_cycle_lock:
+                # Lock active → force heating power to 0
+                heating_power = 0.0
+
+        # Mode decision and accumulation
+        if heating_power > 0:
+            self._update_energy(heating_power, mode="heating")
+            self._last_mode = "heating"
+            self._last_heating_power = heating_power
+            self._last_cooling_power = 0.0
+        elif cooling_power > 0 and compressor_running:
+            # Only count cooling when compressor is running
+            self._update_energy(cooling_power, mode="cooling")
+            self._last_mode = "cooling"
+            self._last_cooling_power = cooling_power
+            self._last_heating_power = 0.0
+        else:
+            # No significant power
+            # Still advance accumulator clock with 0 kW
+            if self._last_mode is not None:
+                self._update_energy(0.0, mode=self._last_mode)
+            self._last_heating_power = 0.0
+            self._last_cooling_power = 0.0
+
+    def _update_energy(self, thermal_power: float, mode: str) -> None:
+        """Internal method to update energy accumulation.
 
         Args:
             thermal_power: Current thermal power in kW
@@ -204,22 +270,13 @@ class ThermalEnergyAccumulator:
                 energy = avg_power * time_diff_hours
                 self._daily_heating_energy += energy
                 self._total_heating_energy += energy
-                self._last_heating_power = thermal_power
-                self._last_cooling_power = 0.0
+                # Note: last power updates are handled in update() method
             elif mode == "cooling":
                 avg_power = (thermal_power + self._last_cooling_power) / 2
                 energy = avg_power * time_diff_hours
                 self._daily_cooling_energy += energy
                 self._total_cooling_energy += energy
-                self._last_cooling_power = thermal_power
-                self._last_heating_power = 0.0
-        # First measurement
-        elif mode == "heating":
-            self._last_heating_power = thermal_power
-            self._last_cooling_power = 0.0
-        elif mode == "cooling":
-            self._last_cooling_power = thermal_power
-            self._last_heating_power = 0.0
+                # Note: last power updates are handled in update() method
 
         self._last_measurement_time = current_time
 
@@ -239,10 +296,6 @@ class ThermalPowerService:
 
         """
         self._accumulator = accumulator
-        self._last_heating_power = 0.0
-        self._last_cooling_power = 0.0
-        self._post_heating_lock = False
-        self._last_mode: str | None = None
 
     def update(
         self,
@@ -262,87 +315,47 @@ class ThermalPowerService:
             is_defrosting: True if heat pump is in defrost mode
 
         """
-        # Ignore during defrost
-        if is_defrosting:
-            if self._last_mode is not None:
-                self._accumulator.update(0.0, mode=self._last_mode)
-            self._last_heating_power = 0.0
-            self._last_cooling_power = 0.0
-            return
-
-        # Validate input data
-        if any(x is None for x in [water_inlet_temp, water_outlet_temp, water_flow]):
-            if self._last_mode is not None:
-                self._accumulator.update(0.0, mode=self._last_mode)
-            self._last_heating_power = 0.0
-            self._last_cooling_power = 0.0
-            return
-
         # Compressor running status
-        compressor_running = compressor_frequency is not None and compressor_frequency > 0
-
-        # If the compressor restarts, exit the post-heating lock
-        if compressor_running:
-            self._post_heating_lock = False
-
-        # Calculate heating power (delta T > 0)
-        heating_power = calculate_thermal_power_heating(
-            ThermalPowerInput(
-                water_inlet_temp,  # type: ignore
-                water_outlet_temp,  # type: ignore
-                water_flow,  # type: ignore
-            )
+        compressor_running = (
+            compressor_frequency is not None and compressor_frequency > 0
         )
 
-        # Calculate cooling power (delta T < 0)
-        cooling_power = calculate_thermal_power_cooling(
-            ThermalPowerInput(
-                water_inlet_temp,  # type: ignore
-                water_outlet_temp,  # type: ignore
-                water_flow,  # type: ignore
+        # Validate input data or handle defrost
+        if is_defrosting or any(
+            x is None for x in [water_inlet_temp, water_outlet_temp, water_flow]
+        ):
+            self._accumulator.update(
+                heating_power=0.0,
+                cooling_power=0.0,
+                compressor_running=compressor_running,
+                is_defrosting=is_defrosting,
             )
+            return
+
+        # Power calculation (pure calculation, no business logic)
+        thermal_input = ThermalPowerInput(
+            water_inlet_temp,  # type: ignore
+            water_outlet_temp,  # type: ignore
+            water_flow,  # type: ignore
         )
+        heating_power = calculate_thermal_power_heating(thermal_input)
+        cooling_power = calculate_thermal_power_cooling(thermal_input)
 
-        # Management of inertia and post-heating lock (heating only)
-        if not compressor_running:
-            # Compressor stopped: possible inertia phase
-            if heating_power <= 0:
-                # ΔT dropped to 0 with compressor stopped → lock is engaged
-                self._post_heating_lock = True
-
-            if self._post_heating_lock:
-                # Active lock → force heating power to 0
-                heating_power = 0.0
-
-        # Apply effective power values
-        if heating_power > 0:
-            # Active heating period OR inertia (without lock)
-            self._accumulator.update(heating_power, mode="heating")
-            self._last_heating_power = heating_power
-            self._last_cooling_power = 0.0
-            self._last_mode = "heating"  # <-- AJOUT
-        elif cooling_power > 0 and compressor_running:
-            # Cooling is only counted when the compressor is running
-            self._accumulator.update(cooling_power, mode="cooling")
-            self._last_cooling_power = cooling_power
-            self._last_heating_power = 0.0
-            self._last_mode = "cooling"  # <-- AJOUT
-        else:
-            # No significant power
-            # Still advance the accumulator's clock with 0 kW
-            if self._last_mode is not None:
-                self._accumulator.update(0.0, mode=self._last_mode)
-
-            self._last_heating_power = 0.0
-            self._last_cooling_power = 0.0
+        # Delegate all logic to accumulator
+        self._accumulator.update(
+            heating_power=heating_power,
+            cooling_power=cooling_power,
+            compressor_running=compressor_running,
+            is_defrosting=is_defrosting,
+        )
 
     def get_heating_power(self) -> float:
         """Get current heating power in kW."""
-        return round(self._last_heating_power, 2) if self._last_heating_power > 0 else 0
+        return round(self._accumulator.last_heating_power, 2)
 
     def get_cooling_power(self) -> float:
         """Get current cooling power in kW."""
-        return round(self._last_cooling_power, 2) if self._last_cooling_power > 0 else 0
+        return round(self._accumulator.last_cooling_power, 2)
 
     def get_daily_heating_energy(self) -> float:
         """Get daily heating energy in kWh."""
