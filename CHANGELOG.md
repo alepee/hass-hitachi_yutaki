@@ -23,7 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `thermal_energy_heating_daily` / `thermal_energy_cooling_daily`: Daily energy (resets at midnight)
   - `thermal_energy_heating_total` / `thermal_energy_cooling_total`: Total cumulative energy
   - Cooling sensors only created when unit has cooling circuits
-- **Post-cycle thermal inertia tracking** - Thermal energy from system inertia is now correctly counted after compressor stops, until water temperature delta reaches zero
+- **Post-cycle thermal inertia tracking** - Thermal energy from system inertia is now correctly counted after compressor stops in both heating and cooling modes, until water temperature delta reaches zero
 
 ### Changed
 - **Complete platform refactoring** to use domain-driven architecture - all platform files now act as pure orchestrators
@@ -41,8 +41,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **⚠️ BREAKING: Thermal energy calculation logic** - Fixes issue [#123](https://github.com/alepee/hass-hitachi_yutaki/issues/123):
   - Now correctly separates heating (ΔT > 0) from cooling (ΔT < 0)
   - **Defrost cycles are now filtered** (not counted as energy production)
-  - **Post-cycle lock mechanism** prevents counting noise/fluctuations after compressor stops while still capturing thermal inertia energy
-  - Only measures energy produced by the heat pump (compressor running for cooling, with inertia tracking for heating)
+  - **Post-cycle lock mechanism** prevents counting noise/fluctuations after compressor stops while still capturing thermal inertia energy in both heating and cooling modes
+  - Only measures energy produced by the heat pump (with inertia tracking for both heating and cooling)
   - This results in accurate COP calculations (previously inflated by counting defrost as production)
   - Universal logic: works for heating circuits, DHW, and pool automatically based on water temperature delta
 

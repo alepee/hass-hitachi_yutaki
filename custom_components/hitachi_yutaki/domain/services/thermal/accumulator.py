@@ -149,15 +149,20 @@ class ThermalEnergyAccumulator:
         if compressor_running:
             self._post_cycle_lock = False
 
-        # Handle inertia and post-cycle lock (heating only)
+        # Handle inertia and post-cycle lock (both modes)
         if not compressor_running:
-            if heating_power <= 0:
-                # ΔT dropped to 0 with compressor stopped → lock
+            # Activate lock when delta T drops to zero in current mode
+            if self._last_mode == "heating" and heating_power <= 0:
+                self._post_cycle_lock = True
+            elif self._last_mode == "cooling" and cooling_power <= 0:
                 self._post_cycle_lock = True
 
+            # When locked, force power to 0 for current mode
             if self._post_cycle_lock:
-                # Lock active → force heating power to 0
-                heating_power = 0.0
+                if self._last_mode == "heating":
+                    heating_power = 0.0
+                elif self._last_mode == "cooling":
+                    cooling_power = 0.0
 
         # Mode decision and accumulation
         if heating_power > 0:
@@ -165,8 +170,8 @@ class ThermalEnergyAccumulator:
             self._last_mode = "heating"
             self._last_heating_power = heating_power
             self._last_cooling_power = 0.0
-        elif cooling_power > 0 and compressor_running:
-            # Only count cooling when compressor is running
+        elif cooling_power > 0:
+            # Count cooling energy including thermal inertia after compressor stops
             self._update_energy(cooling_power, mode="cooling")
             self._last_mode = "cooling"
             self._last_cooling_power = cooling_power
