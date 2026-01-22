@@ -71,6 +71,37 @@ class TestThermalEnergyAccumulator:
         assert acc.last_heating_power == 2.0
 
     @patch("custom_components.hitachi_yutaki.domain.services.thermal.accumulator.time")
+    def test_post_cycle_lock_cooling(self, mock_time):
+        """Test the post-cycle lock logic for cooling mode."""
+        acc = ThermalEnergyAccumulator()
+        mock_time.return_value = 1000.0
+
+        # 1. Compressor running, cooling active
+        acc.update(heating_power=0.0, cooling_power=10.0, compressor_running=True)
+        assert acc.last_cooling_power == 10.0
+        assert acc._last_mode == "cooling"
+
+        # 2. Compressor stops, cooling still has inertia (delta T < 0)
+        acc.update(heating_power=0.0, cooling_power=5.0, compressor_running=False)
+        assert acc.last_cooling_power == 5.0
+        assert acc._post_cycle_lock is False
+
+        # 3. Delta T drops to 0 while compressor stopped -> lock engaged
+        acc.update(heating_power=0.0, cooling_power=0.0, compressor_running=False)
+        assert acc._post_cycle_lock is True
+        assert acc.last_cooling_power == 0.0
+
+        # 4. Delta T goes back (noise) but compressor still stopped -> stay locked
+        acc.update(heating_power=0.0, cooling_power=2.0, compressor_running=False)
+        assert acc._post_cycle_lock is True
+        assert acc.last_cooling_power == 0.0  # Power forced to 0
+
+        # 5. Compressor restarts -> lock released
+        acc.update(heating_power=0.0, cooling_power=2.0, compressor_running=True)
+        assert acc._post_cycle_lock is False
+        assert acc.last_cooling_power == 2.0
+
+    @patch("custom_components.hitachi_yutaki.domain.services.thermal.accumulator.time")
     def test_defrost_handling(self, mock_time):
         """Test handling of defrost mode."""
         acc = ThermalEnergyAccumulator()
