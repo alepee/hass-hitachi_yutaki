@@ -300,8 +300,12 @@ Features:
 - Cooling: Water temperature decrease (ΔT < 0) → cooling circuits
 
 **Filtering applied:**
-- **Compressor stopped** (`compressor_frequency <= 0`): No measurement
 - **Defrost mode** (`is_defrosting == True`): No measurement (prevents false cooling energy)
+- **Cooling mode**: Only counted when compressor is running
+- **Heating mode with post-cycle lock**: 
+  - Thermal inertia energy is counted after compressor stops (while ΔT > 0)
+  - Lock activates when ΔT drops to zero to prevent counting noise/fluctuations
+  - Lock releases when compressor restarts
 - This ensures accurate COP calculations (Thermal Energy / Electrical Energy)
 
 ### Migration from v1.x
@@ -368,7 +372,12 @@ hitachi_yutaki/
 │       │   └── services/     # Business logic services (COP, Thermal, Timing)
 │       │       ├── cop.py
 │       │       ├── electrical.py
-│       │       ├── thermal.py
+│       │       ├── thermal/      # Thermal power and energy calculation
+│       │       │   ├── __init__.py
+│       │       │   ├── calculators.py
+│       │       │   ├── accumulator.py
+│       │       │   ├── service.py
+│       │       │   └── constants.py
 │       │       └── timing.py
 │       ├── adapters/         # Concrete implementations (hexagonal architecture)
 │       │   ├── calculators/  # Power calculation adapters
