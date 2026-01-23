@@ -35,6 +35,7 @@ from .const import (
     PLATFORMS,
 )
 from .coordinator import HitachiYutakiDataCoordinator
+from .entity_migration import async_migrate_entities
 from .profiles import PROFILES
 
 _LOGGER = logging.getLogger(__name__)
@@ -67,6 +68,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         # Return False to prevent setup until repair is completed
         # The user will need to go to the integration options to fix this
         return False
+
+    # Migrate entities from 1.9.x to 2.0.0 format (remove slave_id from unique_id)
+    # This must be done before creating new entities to avoid conflicts
+    _LOGGER.debug("Checking for entity migrations")
+    await async_migrate_entities(hass, entry)
 
     # Get gateway and profile from config entry
     # At this point, these should exist (checked above)

@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `thermal_energy_heating_total` / `thermal_energy_cooling_total`: Total cumulative energy
   - Cooling sensors only created when unit has cooling circuits
 - **Post-cycle thermal inertia tracking** - Thermal energy from system inertia is now correctly counted after compressor stops in both heating and cooling modes, until water temperature delta reaches zero
+- **Automatic entity migration system** for seamless upgrade from v1.9.x to 2.0.0 
 
 ### Changed
 - **Complete platform refactoring** to use domain-driven architecture - all platform files now act as pure orchestrators
@@ -69,6 +70,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unit power switch** "Unknown" state issue due to inconsistent condition checks
 - **Circular import issues** and entity creation bugs during architectural refactoring
 - **COP measurement period calculation** - fixed negative time span values by ensuring measurements are sorted chronologically before calculating the measurement period
+- **Legacy entities still present** after upgrade from v1.9.x - entities now migrate automatically with preserved history
+
 
 ## [1.9.3] - 2025-10-06
 
