@@ -8,7 +8,7 @@ This release delivers a **complete migration solution** for users upgrading from
 
 ### 🔄 Automatic Entity Migration System
 
-Resolves issue [#8](https://github.com/alepee/hass-hitachi_yutaki/issues/8) where users upgrading from v1.9.x found old entities remaining in their entity registry as "unavailable" while new entities with different IDs were created. The migration:
+Resolves the "legacy entities still present" issue where users upgrading from v1.9.x found old entities remaining in their entity registry as "unavailable" while new entities with different IDs were created. The migration:
   * **100% Automatic:** Runs during integration setup - no user action required
   * **History Preserved:** Entity IDs remain unchanged, maintaining all historical data
   * **Clean Migration:** Old unavailable entities disappear automatically
@@ -44,7 +44,7 @@ Resolves issue [#8](https://github.com/alepee/hass-hitachi_yutaki/issues/8) wher
 
 ### 🔧 Functional Repair Flow for Migration
 
-**Critical Fix:** Resolves issue [#19](https://github.com/alepee/hass-hitachi_yutaki/issues/19) where the repair flow button was non-functional during migration from v1.9.3 to v2.0.0.
+**Critical Fix:** Resolves the non-functional repair flow button issue during migration from v1.9.3 to v2.0.0.
 
 **The Problem:**
 When upgrading from v1.9.3, users needed to provide `gateway_type` and `profile` parameters. A repair issue appeared in Home Assistant's repair system, but clicking the "Fix" button did nothing - no form appeared.
@@ -127,6 +127,7 @@ The migration system operates transparently during integration setup:
 * `2.0.0-beta/investigations/issue-8-entity-migration.md` (434 lines)
   * Complete investigation report
   * Technical implementation documentation
+  * Internal reference for tracking purposes
 
 * `2.0.0_entity_migration.md` (68 lines)
   * Device identifier comparison
@@ -146,6 +147,7 @@ The migration system operates transparently during integration setup:
 * `2.0.0-beta/investigations/issue-19-repair-flow-optimization.md`
   * Complete investigation of repair flow issue
   * Architecture analysis and solution design
+  * Internal reference for tracking purposes
 
 ### Files Modified
 
@@ -159,8 +161,7 @@ The migration system operates transparently during integration setup:
   * Cleaned up unused imports
 
 * `2.0.0-beta/tracking/issues-tracking.md`
-  * Updated Issue #8 status to "Fixed in beta.7"
-  * Updated Issue #19 status to "Fixed in beta.7"
+  * Updated internal tracking status for both fixes
 
 ### Key Migrations Mapping
 
@@ -235,8 +236,8 @@ Thanks to the community for their feedback and contributions:
 * **Beta Testers:** Thank you to all testers providing feedback on the v2.0.0-beta releases and helping identify this critical issue
 
 **Issues Resolved:**
-* [#8](https://github.com/alepee/hass-hitachi_yutaki/issues/8) - Legacy entities still present after upgrade
-* [#19](https://github.com/alepee/hass-hitachi_yutaki/issues/19) - Repair flow button not functional during migration
+* Legacy entities still present after upgrade from v1.9.x
+* Repair flow button not functional during migration from v1.9.3
 
 ## 🔮 Future Improvements
 
