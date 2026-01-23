@@ -7,7 +7,10 @@ from __future__ import annotations
 
 from ...models.thermal import ThermalPowerInput
 from .accumulator import ThermalEnergyAccumulator
-from .calculators import calculate_thermal_power_cooling, calculate_thermal_power_heating
+from .calculators import (
+    calculate_thermal_power_cooling,
+    calculate_thermal_power_heating,
+)
 
 
 class ThermalPowerService:
