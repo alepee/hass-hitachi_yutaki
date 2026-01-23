@@ -4,6 +4,46 @@ This changelog summarizes the evolution of the v2.0.0 beta releases.
 
 ---
 
+## [v2.0.0-beta.7] - 2026-01-23
+
+### Added
+- 🔄 **Automatic entity migration system** for seamless upgrade from v1.9.x (Issue #8)
+  - Migrates entity unique_ids from old format (with slave_id) to new format
+  - Handles simple migrations (~35 entities) and complex migrations with key renames (~6 entities)
+  - Supports circuit, DHW, and pool entity prefixes
+  - Preserves entity history and IDs
+- 🔧 **Functional repair flow** for 1.9.3 → 2.0.0 migration (Issue #19)
+  - Created dedicated `repairs.py` platform following HA conventions
+  - Implemented `MissingConfigRepairFlow` with proper RepairFlow inheritance
+  - Added `async_create_fix_flow()` factory function
+  - Automatic integration reload after repair completion
+- ✅ Comprehensive unit tests for entity migration
+- 📚 Complete investigation documentation for both issues
+
+### Fixed
+- **Critical**: Repair flow button not working during migration (Issue #19)
+  - Missing `async_create_fix_flow()` handler function
+  - Incorrect architecture (repair logic in wrong module)
+  - Wrong import path for RepairFlow
+- Legacy entities appearing as "unavailable" after upgrade (Issue #8)
+
+### Improved
+- Cleaned up OptionsFlow (removed repair redirect)
+- Better separation of concerns (repairs in dedicated platform)
+- Migration runs automatically during integration setup
+
+### Technical
+- New file: `custom_components/hitachi_yutaki/entity_migration.py` (223 lines)
+- New file: `custom_components/hitachi_yutaki/repairs.py` (100 lines)
+- New file: `tests/test_entity_migration.py` (140 lines)
+- Modified: `custom_components/hitachi_yutaki/__init__.py` (migration call)
+- Modified: `custom_components/hitachi_yutaki/config_flow.py` (cleanup)
+
+### Breaking Changes
+- None - migration is fully automatic
+
+---
+
 ## [v2.0.0-beta.6] - 2026-01-22
 
 ### Added

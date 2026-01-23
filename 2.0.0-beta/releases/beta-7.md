@@ -61,6 +61,36 @@ When upgrading from v1.9.x to v2.0.0, the integration now automatically migrates
 
 ---
 
+### 🔧 Functional Repair Flow for Migration
+
+**Issue Resolved**: [#19](https://github.com/alepee/hass-hitachi_yutaki/issues/19) - Repair flow button not working
+
+When upgrading from v1.9.3, users needed to provide `gateway_type` and `profile` parameters. A repair issue was created, but clicking the "Fix" button did nothing.
+
+**Root Cause**:
+- Missing `async_create_fix_flow()` handler function
+- Incorrect architecture (repair logic in `config_flow.py` instead of dedicated `repairs.py`)
+- Wrong import path for `RepairFlow`
+
+**Fix Implemented**:
+- ✅ Created dedicated `repairs.py` platform following Home Assistant conventions
+- ✅ Implemented `MissingConfigRepairFlow` class inheriting from `RepairsFlow`
+- ✅ Added `async_create_fix_flow()` factory function as entry point
+- ✅ Automatic integration reload after repair completion
+- ✅ Removed repair redirect from OptionsFlow
+- ✅ Fixed import: `homeassistant.components.repairs.RepairsFlow`
+
+**User Experience**:
+1. Upgrade from 1.9.3 to beta.7
+2. Integration setup fails (missing parameters)
+3. Repair issue appears in **Settings → System → Repairs**
+4. Click **"Fix"** → Form opens ✅
+5. Select gateway type and profile
+6. Click **"Submit"** → Integration reloads automatically
+7. Integration is immediately functional
+
+---
+
 ## 🧪 Testing
 
 ### Comprehensive Unit Tests
@@ -113,9 +143,18 @@ Run tests: `pytest tests/test_entity_migration.py`
   - `_calculate_new_unique_id()`: Migration logic
   - `async_remove_orphaned_entities()`: Cleanup function (not enabled)
 
+- `custom_components/hitachi_yutaki/repairs.py` (100 lines)
+  - Repair flows platform
+  - `MissingConfigRepairFlow`: Handles missing gateway_type/profile
+  - `async_create_fix_flow()`: Factory function for repair flows
+
 - `tests/test_entity_migration.py` (140 lines)
   - Comprehensive unit tests
   - All migration patterns covered
+
+- `2.0.0-beta/investigations/issue-19-repair-flow-optimization.md`
+  - Complete investigation of repair flow issue
+  - Architecture analysis and solution design
 
 ### Files Modified
 
@@ -123,8 +162,14 @@ Run tests: `pytest tests/test_entity_migration.py`
   - Added migration call before entity creation
   - Ensures migration runs early in setup process
 
+- `custom_components/hitachi_yutaki/config_flow.py`
+  - Removed repair redirect from OptionsFlow
+  - Removed `async_step_repair()` method (moved to repairs.py)
+  - Cleaned up unused imports
+
 - `2.0.0-beta/tracking/issues-tracking.md`
   - Updated Issue #8 status to "Fixed in beta.7"
+  - Updated Issue #19 status to "Fixed in beta.7"
 
 ### Key Migrations Mapping
 

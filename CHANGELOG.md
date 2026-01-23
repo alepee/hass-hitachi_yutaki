@@ -24,7 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `thermal_energy_heating_total` / `thermal_energy_cooling_total`: Total cumulative energy
   - Cooling sensors only created when unit has cooling circuits
 - **Post-cycle thermal inertia tracking** - Thermal energy from system inertia is now correctly counted after compressor stops in both heating and cooling modes, until water temperature delta reaches zero
-- **Automatic entity migration system** for seamless upgrade from v1.9.x to 2.0.0 
+- **Automatic entity migration system** for seamless upgrade from v1.9.x to 2.0.0 - migrates entity unique_ids from old format (with slave_id) to new format, preserving entity history and IDs
+- **Functional repair flow** for 1.9.3 → 2.0.0 migration - created dedicated `repairs.py` platform with proper RepairFlow implementation and automatic integration reload after repair completion 
 
 ### Changed
 - **Complete platform refactoring** to use domain-driven architecture - all platform files now act as pure orchestrators

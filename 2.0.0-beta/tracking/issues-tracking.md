@@ -5,8 +5,8 @@ This document tracks all feedbacks and issues reported during the v2.0.0 beta te
 ## Summary Statistics
 
 - **Total issues identified**: 19
-- **Fixed**: 5 (26%)
-- **In investigation**: 5 (26%)
+- **Fixed**: 6 (32%)
+- **In investigation**: 4 (21%)
 - **Not yet addressed**: 9 (47%)
 
 ---
@@ -174,25 +174,21 @@ This document tracks all feedbacks and issues reported during the v2.0.0 beta te
 - **Reporter**: Internal (code review)
 - **Date**: 2026-01-23
 - **Description**: Migration from v1.9.3 to v2.0.0 requires user to provide `gateway_type` and `profile` parameters. A repair issue is created, but clicking the "Fix" button does nothing - no repair form appears.
-- **Status**: 🔍 **In investigation**
-- **Root cause**: Missing `async_create_fix_flow()` handler function in `config_flow.py`
-- **Impact**: 
-  - Users upgrading from 1.9.3 cannot complete migration
-  - Integration remains in failed state
-  - Repair button appears but is non-functional
-  - Manual workaround requires going to integration options (but options flow also redirects to non-existent repair flow)
+- **Status**: ✅ **Fixed in beta.7**
+- **Root cause**: Missing `async_create_fix_flow()` handler function and incorrect architecture
+- **Fix**: 
+  - Created dedicated `repairs.py` platform following Home Assistant conventions
+  - Implemented `MissingConfigRepairFlow` class inheriting from `RepairsFlow`
+  - Added `async_create_fix_flow()` factory function as module-level entry point
+  - Integrated automatic integration reload after repair completion
+  - Removed repair redirect logic from `OptionsFlow`
+  - Fixed import to use `homeassistant.components.repairs.RepairsFlow`
 - **Technical details**:
   - Repair issue created with `is_fixable=True` in `__init__.py`
-  - Repair form logic exists in `HitachiYutakiOptionsFlow.async_step_repair()` but is unreachable
-  - Home Assistant requires module-level `async_create_fix_flow()` to route repair flows
-  - Current code has no flow factory function
-- **Proposed solution**:
-  1. Create dedicated `HitachiYutakiRepairFlow` class
-  2. Add `async_create_fix_flow()` handler function
-  3. Trigger integration reload after repair completion
-  4. Remove repair redirect from OptionsFlow
-- **Investigation document**: [Repair Flow Optimization](../investigations/repair-flow-optimization.md)
-- **Priority**: 🔴 **CRITICAL** - Blocks migration for all 1.9.x users
+  - Home Assistant requires `repairs.py` platform with `async_create_fix_flow()` function
+  - RepairFlow must be imported from `homeassistant.components.repairs` (not `data_entry_flow`)
+- **Investigation document**: [Issue #19 Investigation](../investigations/issue-19-repair-flow-optimization.md)
+- **Priority**: 🔴 **CRITICAL** - Was blocking migration for all 1.9.x users (now resolved)
 
 ---
 
@@ -222,7 +218,12 @@ This document tracks all feedbacks and issues reported during the v2.0.0 beta te
 - ✅ Handles simple migrations (slave_id removal)
 - ✅ Handles complex migrations (slave_id + key rename)
 - ✅ Comprehensive unit tests for migration logic
-- ❌ Repair flow non-functional (Issue #19 discovered)
+- ✅ **Functional repair flow for 1.9.3 → 2.0.0 migration** (Issue #19 fixed)
+- ✅ Created dedicated `repairs.py` platform following HA conventions
+- ✅ Implemented `MissingConfigRepairFlow` with proper RepairFlow inheritance
+- ✅ Added `async_create_fix_flow()` factory function
+- ✅ Automatic integration reload after repair completion
+- ✅ Cleaned up OptionsFlow (removed repair redirect)
 
 ---
 
