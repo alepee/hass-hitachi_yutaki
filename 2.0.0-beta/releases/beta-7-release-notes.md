@@ -1,12 +1,14 @@
-# Hitachi Yutaki – Automatic Entity Migration (v2.0.0-beta.7)
+# Hitachi Yutaki – Seamless Migration Experience (v2.0.0-beta.7)
 
 [![Downloads for this release](https://img.shields.io/github/downloads/alepee/hass-hitachi_yutaki/v2.0.0-beta.7/total.svg)](https://github.com/alepee/hass-hitachi_yutaki/releases/v2.0.0-beta.7)
 
-This release introduces **automatic entity migration** to solve the "legacy entities still present" issue for users upgrading from v1.9.x. The migration system ensures a seamless upgrade experience with no manual intervention required, preserving entity history and eliminating duplicate "unavailable" entities.
+This release delivers a **complete migration solution** for users upgrading from v1.9.x, addressing both entity migration and repair flow functionality. The system ensures a seamless upgrade experience with no manual intervention required, preserving entity history and providing a functional repair interface for missing configuration parameters.
 
 ## ✨ What's New?
 
-* **Automatic Entity Migration System:** Resolves issue [#8](https://github.com/alepee/hass-hitachi_yutaki/issues/8) where users upgrading from v1.9.x found old entities remaining in their entity registry as "unavailable" while new entities with different IDs were created. The migration:
+### 🔄 Automatic Entity Migration System
+
+Resolves issue [#8](https://github.com/alepee/hass-hitachi_yutaki/issues/8) where users upgrading from v1.9.x found old entities remaining in their entity registry as "unavailable" while new entities with different IDs were created. The migration:
   * **100% Automatic:** Runs during integration setup - no user action required
   * **History Preserved:** Entity IDs remain unchanged, maintaining all historical data
   * **Clean Migration:** Old unavailable entities disappear automatically
@@ -40,7 +42,42 @@ This release introduces **automatic entity migration** to solve the "legacy enti
   * Device identifier and unique ID comparison tables
   * Exhaustive entity inventory with migration classification
 
-## 🔧 How It Works
+### 🔧 Functional Repair Flow for Migration
+
+**Critical Fix:** Resolves issue [#19](https://github.com/alepee/hass-hitachi_yutaki/issues/19) where the repair flow button was non-functional during migration from v1.9.3 to v2.0.0.
+
+**The Problem:**
+When upgrading from v1.9.3, users needed to provide `gateway_type` and `profile` parameters. A repair issue appeared in Home Assistant's repair system, but clicking the "Fix" button did nothing - no form appeared.
+
+**Root Cause:**
+* Missing `async_create_fix_flow()` handler function
+* Incorrect architecture (repair logic in wrong module)
+* Wrong import path for `RepairFlow`
+
+**The Solution:**
+* ✅ Created dedicated `repairs.py` platform following Home Assistant conventions
+* ✅ Implemented `MissingConfigRepairFlow` class with proper `RepairFlow` inheritance
+* ✅ Added `async_create_fix_flow()` factory function as entry point
+* ✅ Automatic integration reload after repair completion
+* ✅ Cleaned up `OptionsFlow` (removed repair redirect)
+* ✅ Fixed import: `homeassistant.components.repairs.RepairsFlow`
+
+**User Experience:**
+1. Upgrade from v1.9.3 to beta.7
+2. Integration setup fails (missing parameters)
+3. Repair issue appears in **Settings → System → Repairs**
+4. Click **"Fix"** → Form opens ✅ (previously did nothing)
+5. Select gateway type and profile from dropdowns
+6. Click **"Submit"** → Integration reloads automatically
+7. Integration is immediately functional - no additional steps needed
+
+**Technical Implementation:**
+* New file: `custom_components/hitachi_yutaki/repairs.py` (100 lines)
+* Modified: `custom_components/hitachi_yutaki/config_flow.py` (cleanup)
+* Follows Home Assistant's official repair flow pattern
+* Proper separation of concerns (repairs in dedicated platform)
+
+## 🔧 How Entity Migration Works
 
 The migration system operates transparently during integration setup:
 
@@ -76,6 +113,7 @@ The migration system operates transparently during integration setup:
 
 ### New Files Added
 
+**Entity Migration:**
 * `custom_components/hitachi_yutaki/entity_migration.py` (223 lines)
   * Main migration module
   * `async_migrate_entities()`: Automatic migration orchestration
@@ -99,14 +137,30 @@ The migration system operates transparently during integration setup:
   * Platform-by-platform breakdown
   * Migration statistics
 
+**Repair Flow:**
+* `custom_components/hitachi_yutaki/repairs.py` (100 lines)
+  * Repair flows platform
+  * `MissingConfigRepairFlow`: Handles missing gateway_type/profile
+  * `async_create_fix_flow()`: Factory function for repair flows
+
+* `2.0.0-beta/investigations/issue-19-repair-flow-optimization.md`
+  * Complete investigation of repair flow issue
+  * Architecture analysis and solution design
+
 ### Files Modified
 
 * `custom_components/hitachi_yutaki/__init__.py`
   * Added migration call before entity creation
   * Ensures migration runs early in setup process
 
+* `custom_components/hitachi_yutaki/config_flow.py`
+  * Removed repair redirect from OptionsFlow
+  * Removed `async_step_repair()` method (moved to repairs.py)
+  * Cleaned up unused imports
+
 * `2.0.0-beta/tracking/issues-tracking.md`
   * Updated Issue #8 status to "Fixed in beta.7"
+  * Updated Issue #19 status to "Fixed in beta.7"
 
 ### Key Migrations Mapping
 
@@ -131,11 +185,18 @@ KEY_MIGRATIONS = {
 
 We would appreciate feedback on:
 
+**Entity Migration:**
 * **Migration Success:** Verify that old unavailable entities disappear after upgrade from v1.9.x
 * **Entity History:** Confirm that entity history is preserved after migration
 * **Different Slave IDs:** Test with non-default slave IDs (if applicable)
 * **Edge Cases:** Report any entities that fail to migrate properly
 * **Log Analysis:** Review logs to ensure migration completes successfully
+
+**Repair Flow:**
+* **Repair Button Functionality:** Confirm that clicking "Fix" in repairs opens the form
+* **Form Submission:** Verify that submitting the form reloads the integration automatically
+* **Integration Functionality:** Ensure the integration works immediately after repair
+* **Error Handling:** Test with invalid selections or network issues
 
 ## 🐛 Bug Reports
 
@@ -175,6 +236,7 @@ Thanks to the community for their feedback and contributions:
 
 **Issues Resolved:**
 * [#8](https://github.com/alepee/hass-hitachi_yutaki/issues/8) - Legacy entities still present after upgrade
+* [#19](https://github.com/alepee/hass-hitachi_yutaki/issues/19) - Repair flow button not functional during migration
 
 ## 🔮 Future Improvements
 
