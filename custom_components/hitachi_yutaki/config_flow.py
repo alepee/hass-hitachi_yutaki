@@ -20,7 +20,6 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 import homeassistant.helpers.config_validation as cv
-from homeassistant.helpers.issue_registry import async_delete_issue
 
 from .api import GATEWAY_INFO
 from .const import (
@@ -375,17 +374,6 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         config_data = self.config_entry.data  # type: ignore[attr-defined]
         options_data = self.config_entry.options  # type: ignore[attr-defined]
 
-        # Check if we need to repair missing configuration
-        missing_params = []
-        if "gateway_type" not in config_data:
-            missing_params.append("gateway_type")
-        if "profile" not in config_data:
-            missing_params.append("profile")
-
-        if missing_params:
-            # Redirect to repair step
-            return await self.async_step_repair()
-
         if user_input is not None:
             return self.async_create_entry(title="", data=user_input)
 
@@ -468,67 +456,4 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     ),
                 }
             ),
-        )
-
-    async def async_step_repair(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle repair step for missing configuration."""
-        config_data = self.config_entry.data  # type: ignore[attr-defined]
-
-        if user_input is not None:
-            # Update the config entry with the missing parameters
-            new_data = {
-                **config_data,
-                "gateway_type": user_input.get("gateway_type", "modbus_atw_mbs_02"),
-                "profile": user_input.get("profile"),
-            }
-
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=new_data
-            )
-
-            # Clear the repair issue
-            async_delete_issue(
-                self.hass,
-                DOMAIN,
-                f"missing_config_{self.config_entry.entry_id}",
-            )
-
-            return self.async_create_entry(
-                title="Configuration repaired",
-                data={},
-            )
-
-        # Show repair form
-        gateway_options = list(GATEWAY_INFO.keys())
-        profile_options = list(PROFILES.keys())
-
-        schema = vol.Schema(
-            {
-                vol.Required(
-                    "gateway_type",
-                    default=gateway_options[0]
-                    if gateway_options
-                    else "modbus_atw_mbs_02",
-                ): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=gateway_options,
-                        mode=selector.SelectSelectorMode.DROPDOWN,
-                    ),
-                ),
-                vol.Required(
-                    "profile", default=profile_options[0] if profile_options else None
-                ): selector.SelectSelector(
-                    selector.SelectSelectorConfig(
-                        options=profile_options,
-                        mode=selector.SelectSelectorMode.DROPDOWN,
-                    ),
-                ),
-            }
-        )
-
-        return self.async_show_form(
-            step_id="repair",
-            data_schema=schema,
         )

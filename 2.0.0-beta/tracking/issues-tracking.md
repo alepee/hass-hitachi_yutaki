@@ -4,10 +4,10 @@ This document tracks all feedbacks and issues reported during the v2.0.0 beta te
 
 ## Summary Statistics
 
-- **Total issues identified**: 18
-- **Fixed**: 5 (28%)
-- **In investigation**: 4 (22%)
-- **Not yet addressed**: 9 (50%)
+- **Total issues identified**: 19
+- **Fixed**: 5 (26%)
+- **In investigation**: 5 (26%)
+- **Not yet addressed**: 9 (47%)
 
 ---
 
@@ -170,6 +170,30 @@ This document tracks all feedbacks and issues reported during the v2.0.0 beta te
 - **Action**: Modbus gateway dump requested (provided in discussion #115)
 - **Notes**: Related to Issue #3
 
+### Issue #19: Repair flow not functional for 1.9.3 → 2.0.0 migration
+- **Reporter**: Internal (code review)
+- **Date**: 2026-01-23
+- **Description**: Migration from v1.9.3 to v2.0.0 requires user to provide `gateway_type` and `profile` parameters. A repair issue is created, but clicking the "Fix" button does nothing - no repair form appears.
+- **Status**: 🔍 **In investigation**
+- **Root cause**: Missing `async_create_fix_flow()` handler function in `config_flow.py`
+- **Impact**: 
+  - Users upgrading from 1.9.3 cannot complete migration
+  - Integration remains in failed state
+  - Repair button appears but is non-functional
+  - Manual workaround requires going to integration options (but options flow also redirects to non-existent repair flow)
+- **Technical details**:
+  - Repair issue created with `is_fixable=True` in `__init__.py`
+  - Repair form logic exists in `HitachiYutakiOptionsFlow.async_step_repair()` but is unreachable
+  - Home Assistant requires module-level `async_create_fix_flow()` to route repair flows
+  - Current code has no flow factory function
+- **Proposed solution**:
+  1. Create dedicated `HitachiYutakiRepairFlow` class
+  2. Add `async_create_fix_flow()` handler function
+  3. Trigger integration reload after repair completion
+  4. Remove repair redirect from OptionsFlow
+- **Investigation document**: [Repair Flow Optimization](../investigations/repair-flow-optimization.md)
+- **Priority**: 🔴 **CRITICAL** - Blocks migration for all 1.9.x users
+
 ---
 
 ## Improvements Delivered
@@ -198,6 +222,7 @@ This document tracks all feedbacks and issues reported during the v2.0.0 beta te
 - ✅ Handles simple migrations (slave_id removal)
 - ✅ Handles complex migrations (slave_id + key rename)
 - ✅ Comprehensive unit tests for migration logic
+- ❌ Repair flow non-functional (Issue #19 discovered)
 
 ---
 
@@ -212,6 +237,7 @@ This document tracks all feedbacks and issues reported during the v2.0.0 beta te
 
 - [Planned Improvements](./planned-improvements.md) - Planned improvements and enhancements
 - [Issue #8: Entity Migration](../investigations/issue-8-entity-migration.md) - Complete investigation and implementation
+- [Issue #19: Repair Flow Optimization](../investigations/repair-flow-optimization.md) - Investigation of non-functional repair flow for 1.9.x → 2.0.0 migration
 
 ---
 
@@ -223,4 +249,4 @@ This document tracks all feedbacks and issues reported during the v2.0.0 beta te
 
 ---
 
-*Last updated: 2026-01-22*
+*Last updated: 2026-01-23*
