@@ -8,11 +8,13 @@ Ce document liste les améliorations potentielles pour les futures versions de l
 
 **Priorité**: 🔴 Haute  
 **Complexité**: 🟡 Moyenne  
-**Version cible**: Beta.8 ou v2.1.0
+**Version cible**: Beta.8 ou v2.1.0  
+**GitHub Issue**: [#162](https://github.com/alepee/hass-hitachi_yutaki/issues/162)  
+**Investigation complète**: [issue-162-mac-based-unique-id.md](../investigations/issue-162-mac-based-unique-id.md)
 
 ### Problème actuel
 
-Actuellement, la config entry n'a **pas de unique_id** défini, ce qui pose plusieurs problèmes:
+Actuellement, la config entry utilise un unique_id basé sur `{IP}_{slave_id}`, ce qui pose plusieurs problèmes:
 
 1. **Doublons possibles**: Un utilisateur peut créer plusieurs config entries pour la même gateway
 2. **Pas de détection de changement d'IP**: Si l'IP de la gateway change (DHCP), HA ne peut pas le détecter automatiquement
@@ -365,7 +367,7 @@ Migrer l'historique des anciennes entités vers les nouvelles dans la base Recor
 **Priorité**: 🔴 Haute  
 **Complexité**: 🟡 Moyenne  
 **Version cible**: Beta.7 ou Beta.8  
-**Lié à**: Issue #3, Issue #18
+**Lié à**: [Issue #177 (Consolidated)](https://github.com/alepee/hass-hitachi_yutaki/issues/177)
 
 ### Description
 
@@ -373,8 +375,10 @@ Améliorer la détection et le support du refroidissement pour les installations
 
 #### Problèmes actuels
 
-- Auto-détection ne fonctionne pas toujours (Issue #18)
-- Certains capteurs de refroidissement ne sont pas créés (Issue #3)
+- Auto-détection du refroidissement ne fonctionne pas
+- Capteurs de refroidissement ne sont pas créés malgré la présence du hardware
+- Régression depuis v1.9.x où le refroidissement fonctionnait correctement
+- Voir [Issue #177 (Consolidated)](https://github.com/alepee/hass-hitachi_yutaki/issues/177) pour détails complets
 
 #### Investigation en cours
 
