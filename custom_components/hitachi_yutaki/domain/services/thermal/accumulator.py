@@ -183,7 +183,7 @@ class ThermalEnergyAccumulator:
             self._last_cooling_power = 0.0
 
     def _update_energy(self, thermal_power: float, mode: str) -> None:
-        """Internal method to update energy accumulation.
+        """Update energy accumulation.
 
         Args:
             thermal_power: Current thermal power in kW
