@@ -139,7 +139,7 @@ async def test_get_gateway_mac_lowercase_conversion():
     mock_arp_process.returncode = 0
     mock_arp_process.communicate = AsyncMock(
         return_value=(
-            b"? (192.168.1.100) at 11:22:33:44:55:66 [ether] on eth0\n",
+            b"? (192.168.1.100) at aa:bb:cc:dd:ee:ff [ether] on eth0\n",
             b"",
         )
     )
@@ -149,7 +149,7 @@ async def test_get_gateway_mac_lowercase_conversion():
         side_effect=[mock_ping_process, mock_arp_process],
     ):
         mac = await async_get_gateway_mac("192.168.1.100")
-        assert mac == "11:22:33:44:55:66"
+        assert mac == "AA:BB:CC:DD:EE:FF"
         assert mac.isupper()
 
 
