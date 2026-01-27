@@ -330,9 +330,27 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     # Further checks can be added here if needed
                     model_key = await api_client.get_model_key()
                     if model_key:
-                        await self.async_set_unique_id(
-                            f"{config[CONF_HOST]}_{config[CONF_SLAVE]}"
-                        )
+                        # Try to get hardware-based unique_id from Modbus input registers
+                        hw_id = await api_client.async_get_unique_id()
+
+                        if hw_id:
+                            # Use hardware identifier with domain prefix
+                            unique_id = f"{DOMAIN}_{hw_id}"
+                            _LOGGER.info(
+                                "Gateway hardware identifier detected: %s",
+                                unique_id,
+                            )
+                        else:
+                            # Fallback to IP+slave if Modbus read failed
+                            unique_id = f"{config[CONF_HOST]}_{config[CONF_SLAVE]}"
+                            _LOGGER.warning(
+                                "Could not retrieve gateway hardware identifier. "
+                                "Using IP-based unique_id: %s. "
+                                "Duplicate detection will be limited.",
+                                unique_id,
+                            )
+
+                        await self.async_set_unique_id(unique_id)
                         self._abort_if_unique_id_configured()
 
                         return self.async_create_entry(

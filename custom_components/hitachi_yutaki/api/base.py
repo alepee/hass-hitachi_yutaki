@@ -37,6 +37,21 @@ class HitachiApiClient(ABC):
         """Return the model of the heat pump."""
 
     @abstractmethod
+    async def async_get_unique_id(self) -> str | None:
+        """Get a unique hardware identifier for this gateway.
+
+        Reads hardware-specific registers to build a stable identifier
+        that persists across reboots and IP changes.
+
+        Returns:
+            A string identifier (e.g., "3846-103-56") or None if unavailable.
+
+        Note:
+            Connection must be established before calling this method.
+
+        """
+
+    @abstractmethod
     async def read_value(self, key: str) -> int | None:
         """Read a value from the API."""
 

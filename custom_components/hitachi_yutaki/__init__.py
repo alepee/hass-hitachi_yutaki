@@ -74,6 +74,48 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     _LOGGER.debug("Checking for entity migrations")
     await async_migrate_entities(hass, entry)
 
+    # Add unique_id if missing (for existing installations)
+    if entry.unique_id is None:
+        _LOGGER.info(
+            "Config entry has no unique_id, attempting to add one based on hardware identifier"
+        )
+
+        # Create temporary API client for unique_id retrieval
+        gateway_info = GATEWAY_INFO[entry.data["gateway_type"]]
+        temp_client = gateway_info.client_class(
+            hass,
+            name=entry.data[CONF_NAME],
+            host=entry.data[CONF_HOST],
+            port=entry.data[CONF_PORT],
+            slave=entry.data[CONF_SLAVE],
+        )
+
+        unique_id = None
+        try:
+            if await temp_client.connect():
+                hw_id = await temp_client.async_get_unique_id()
+                if hw_id:
+                    unique_id = f"{DOMAIN}_{hw_id}"
+                    _LOGGER.info(
+                        "Added hardware-based unique_id to existing config entry: %s",
+                        unique_id,
+                    )
+        except Exception as exc:
+            _LOGGER.debug("Error retrieving hardware identifier: %s", exc)
+        finally:
+            if temp_client.connected:
+                await temp_client.close()
+
+        # Fallback to IP+slave if hardware ID unavailable
+        if unique_id is None:
+            unique_id = f"{entry.data[CONF_HOST]}_{entry.data[CONF_SLAVE]}"
+            _LOGGER.warning(
+                "Could not retrieve hardware identifier, using IP-based unique_id: %s",
+                unique_id,
+            )
+
+        hass.config_entries.async_update_entry(entry, unique_id=unique_id)
+
     # Get gateway and profile from config entry
     # At this point, these should exist (checked above)
     gateway_type = entry.data["gateway_type"]

@@ -3,8 +3,8 @@
 ## Summary Statistics
 
 - **Total issues identified**: 20 (19 from beta testing + 1 enhancement)
-- **Fixed**: 6 (30%)
-- **In investigation**: 5 (25%)
+- **Fixed**: 7 (35%)
+- **In investigation**: 4 (20%)
 - **Not yet addressed**: 9 (45%)
 - **Tracked on GitHub**: 9 open issues (consolidated from 13 individual reports + 1 enhancement)
   - 4 consolidated issues: [#176](https://github.com/alepee/hass-hitachi_yutaki/issues/176), [#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177), [#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178), [#179](https://github.com/alepee/hass-hitachi_yutaki/issues/179)
@@ -213,11 +213,20 @@
 - ✅ Automatic integration reload after repair completion
 - ✅ Cleaned up OptionsFlow (removed repair redirect)
 
+### Beta.8 (2026-01-24)
+- ✅ **MAC-based unique_id for config entries** (Issue #162 implemented)
+- ✅ Prevents duplicate config entries for same physical gateway
+- ✅ Survives DHCP IP changes
+- ✅ Automatic migration for existing installations
+- ✅ Graceful fallback if MAC unavailable
+- ✅ Cross-platform support (Linux, macOS, Windows)
+- 📋 Manual testing pending
+
 ---
 
 ## Upcoming
 
-### Beta.8+ (Future)
+### Beta.9+ (Future)
 - See [Planned Improvements](./planned-improvements.md) for planned enhancements
 
 ---
@@ -230,11 +239,20 @@
 - **Date**: 2026-01-23
 - **Priority**: 🔴 HIGH
 - **Investigation**: [issue-162-mac-based-unique-id.md](../investigations/issue-162-mac-based-unique-id.md)
+- **Testing Guide**: [issue-162-testing-guide.md](../investigations/issue-162-testing-guide.md)
 - **Description**: Add MAC-based unique_id for config entry to prevent duplicates
 - **Current situation**: unique_id based on `{IP}_{slave_id}` is not stable (DHCP) and allows duplicates
-- **Proposed solution**: Use gateway's MAC address as unique_id via ARP table lookup
-- **Status**: 🔍 In investigation
-- **Target release**: Beta.8 or v2.1.0
+- **Implemented solution**: Use gateway's MAC address as unique_id via ARP table lookup
+- **Status**: ✅ **Implemented in Beta.8**
+- **Target release**: Beta.8
+- **Implementation**:
+  - ✅ MAC retrieval function (`utils.py`)
+  - ✅ Config flow integration
+  - ✅ Automatic migration for existing installations
+  - ✅ Graceful fallback if MAC unavailable
+  - ✅ Unit tests (8 tests)
+  - ✅ Linter passed
+  - 📋 Manual testing pending
 - **Benefits**:
   - ✅ Prevents duplicate config entries for same physical gateway
   - ✅ Stable identifier (survives IP changes)
@@ -285,4 +303,4 @@ As of 2026-01-23, related issues have been consolidated into fewer, more compreh
 
 ---
 
-*Last updated: 2026-01-24 - Added enhancement #162 (MAC-based unique_id)*
+*Last updated: 2026-01-24 - Issue #162 implemented in Beta.8*
