@@ -2,14 +2,13 @@
 
 ## Summary Statistics
 
-- **Total issues identified**: 20 (19 from beta testing + 1 enhancement)
-- **Fixed**: 7 (35%)
-- **In investigation**: 4 (20%)
-- **Not yet addressed**: 9 (45%)
-- **Tracked on GitHub**: 9 open issues (consolidated from 13 individual reports + 1 enhancement)
-  - 4 consolidated issues: [#176](https://github.com/alepee/hass-hitachi_yutaki/issues/176), [#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177), [#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178), [#179](https://github.com/alepee/hass-hitachi_yutaki/issues/179)
-  - 4 standalone issues: [#166](https://github.com/alepee/hass-hitachi_yutaki/issues/166), [#167](https://github.com/alepee/hass-hitachi_yutaki/issues/167), [#171](https://github.com/alepee/hass-hitachi_yutaki/issues/171), [#173](https://github.com/alepee/hass-hitachi_yutaki/issues/173)
-  - 1 enhancement: [#162](https://github.com/alepee/hass-hitachi_yutaki/issues/162)
+- **Total issues identified**: 23 (19 from beta testing + 4 enhancements)
+- **Fixed**: 10 (43%)
+- **In investigation**: 2 (9%)
+- **Not yet addressed**: 11 (48%)
+- **GitHub open issues**: 15 total
+  - **Beta v2.0.0 bugs (8)**: [#166](https://github.com/alepee/hass-hitachi_yutaki/issues/166), [#167](https://github.com/alepee/hass-hitachi_yutaki/issues/167), [#176](https://github.com/alepee/hass-hitachi_yutaki/issues/176), [#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177), [#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178), [#179](https://github.com/alepee/hass-hitachi_yutaki/issues/179), [#180](https://github.com/alepee/hass-hitachi_yutaki/issues/180), [#160](https://github.com/alepee/hass-hitachi_yutaki/issues/160)
+  - **Enhancements (7)**: [#77](https://github.com/alepee/hass-hitachi_yutaki/issues/77), [#81](https://github.com/alepee/hass-hitachi_yutaki/issues/81), [#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96), [#102](https://github.com/alepee/hass-hitachi_yutaki/issues/102), [#137](https://github.com/alepee/hass-hitachi_yutaki/issues/137), [#161](https://github.com/alepee/hass-hitachi_yutaki/issues/161), [#162](https://github.com/alepee/hass-hitachi_yutaki/issues/162)
 
 ---
 
@@ -130,29 +129,26 @@
 ## Issues from v2.0.0-beta.4
 
 ### Issue 14: Temperature set corrected sensor error
-- **GitHub**: [#171](https://github.com/alepee/hass-hitachi_yutaki/issues/171)
+- **GitHub**: [#171](https://github.com/alepee/hass-hitachi_yutaki/issues/171) ✅ CLOSED
 - **Reporter**: tijmenvanstraten
 - **Date**: 2025-11-21
 - **Description**: "Temperature set corrected" sensor shows 500°C instead of 50°C (10x too high)
-- **Status**: ❌ Not addressed
-- **Notes**: Regression from DHW temperature fix (issue 4) - sensor incorrectly affected
+- **Status**: ✅ **Fixed in beta.7**
+- **Resolution**: User confirmed temperature displays correct value
+- **Tested by**: tijmenvanstraten (Yutaki S Combi)
 
 ---
 
 ## Issues from v2.0.0-beta.4/beta.5
 
 ### Issue 16: Cannot change DHW temperature via water heater entity
-- **GitHub**: [#173](https://github.com/alepee/hass-hitachi_yutaki/issues/173)
+- **GitHub**: [#173](https://github.com/alepee/hass-hitachi_yutaki/issues/173) ✅ CLOSED
 - **Reporter**: tijmenvanstraten
 - **Date**: 2025-12-21
 - **Description**: Setting DHW temperature to 55°C via water heater entity fails, reverts to 50°C after 1-2 minutes
-- **Status**: 🔍 **In investigation**
-- **Notes**: 
-  - Heat pump display remains at 50°C (doesn't receive command)
-  - User confirmed no time schedule is running
-  - Heat pump supports temperatures above 50°C (Yutaki S Combi 2019)
-  - Remote control is enabled on heat pump
-  - Other settings (DHW boost) work correctly
+- **Status**: ✅ **Fixed in beta.7**
+- **Resolution**: User confirmed DHW temperature control works correctly in beta.7
+- **Tested by**: tijmenvanstraten (Yutaki S Combi 2019)
 
 ### Issue 18: See Issue 3
 - Consolidated into Issue 3 (Cooling support) - same root cause
@@ -243,7 +239,7 @@
 - **Description**: Add MAC-based unique_id for config entry to prevent duplicates
 - **Current situation**: unique_id based on `{IP}_{slave_id}` is not stable (DHCP) and allows duplicates
 - **Implemented solution**: Use gateway's MAC address as unique_id via ARP table lookup
-- **Status**: ✅ **Implemented in Beta.8**
+- **Status**: ✅ **Implemented in Beta.8** - 📋 GitHub issue à fermer
 - **Target release**: Beta.8
 - **Implementation**:
   - ✅ MAC retrieval function (`utils.py`)
@@ -261,6 +257,70 @@
 
 ---
 
+## Issues from v2.0.0-beta.7+
+
+### Issue #180: Gateway sync status stuck on "Initialising"
+- **GitHub**: [#180](https://github.com/alepee/hass-hitachi_yutaki/issues/180)
+- **Reporter**: À identifier
+- **Date**: 2026-01-25
+- **Description**: ATW-MBS-02 gateway_sync_status entity stuck on "Initialising" state
+- **Status**: ❌ Not addressed
+- **Priority**: 🟡 MEDIUM - Affects monitoring but not functionality
+
+### Issue #160: Thermal inertia in power calculation
+- **GitHub**: [#160](https://github.com/alepee/hass-hitachi_yutaki/issues/160)
+- **Reporter**: À identifier
+- **Date**: 2026-01-21
+- **Description**: Thermal power calculation should consider thermal inertia, not just compressor frequency
+- **Status**: 🔍 **In investigation**
+- **Priority**: 🟡 MEDIUM - Affects calculation accuracy
+- **Notes**: Related to thermal energy tracking improvements in Beta.6
+
+### Issue #161: Two3 sensor support for buffer tank systems
+- **GitHub**: [#161](https://github.com/alepee/hass-hitachi_yutaki/issues/161)
+- **Type**: Enhancement
+- **Reporter**: À identifier
+- **Date**: 2026-01-22
+- **Description**: Add support for reading Two3 sensor for systems with a buffer tank
+- **Status**: ❌ Not addressed
+- **Priority**: 🟢 LOW - Feature request
+
+---
+
+## Older Enhancement Requests (Pre-Beta)
+
+### Issue #137: Circuit thermostat displays 0°C
+- **GitHub**: [#137](https://github.com/alepee/hass-hitachi_yutaki/issues/137)
+- **Date**: 2025-11-19
+- **Description**: Circuit thermostat displays 0°C as target temperature
+- **Status**: ❌ Not addressed
+
+### Issue #102: Hitachi 8kW Split_Unit (2023) support
+- **GitHub**: [#102](https://github.com/alepee/hass-hitachi_yutaki/issues/102)
+- **Date**: 2025-09-16
+- **Description**: Request to add support for Hitachi 8kW Split_Unit (2023)
+- **Status**: ❌ Not addressed - Needs hardware access
+
+### Issue #96: HC-A16MB support request
+- **GitHub**: [#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96)
+- **Date**: 2025-09-01
+- **Description**: Heat pump support request for HC-A16MB model
+- **Status**: ❌ Not addressed - Needs hardware access
+
+### Issue #81: Autodetect Connected Heat Pump Type
+- **GitHub**: [#81](https://github.com/alepee/hass-hitachi_yutaki/issues/81)
+- **Date**: 2025-07-22
+- **Description**: Feature request to auto-detect connected heat pump type
+- **Status**: 🔄 Partially addressed - Auto-detection implemented but has issues (see #176)
+
+### Issue #77: Yutampo DHW max temp limited to 55°C
+- **GitHub**: [#77](https://github.com/alepee/hass-hitachi_yutaki/issues/77)
+- **Date**: 2025-07-19
+- **Description**: DHW feature only allows max temp of 55°C, HA UI thermostat allows setting of 60°C
+- **Status**: ❌ Not addressed
+
+---
+
 ## Related Documentation
 
 - [Planned Improvements](./planned-improvements.md) - Planned improvements and enhancements
@@ -272,20 +332,30 @@
 
 ## GitHub Issue Consolidation
 
-As of 2026-01-23, related issues have been consolidated into fewer, more comprehensive GitHub issues:
+As of 2026-01-27, related issues have been consolidated into fewer, more comprehensive GitHub issues:
 
-### Consolidated Issues
+### Beta v2.0.0 Consolidated Issues
 - **#176**: Auto-detection failure (Circuit 2 + Model name) ← Local issues 1, 2
 - **#177**: Cooling features not working ← Local issues 3, 18
 - **#178**: Anti-legionella features ← Local issues 10, 15, 17
 - **#179**: Migration UX issues ← Local issues 11, 12
 
-### Standalone Issues
+### Beta v2.0.0 Standalone Bug Issues
 - **#166**: COP values in graphs ← Local issue 7
 - **#167**: Modbus transaction ID errors ← Local issue 9
-- **#171**: Temperature corrected sensor error ← Local issue 14
-- **#173**: Cannot change DHW temperature ← Local issue 16
-- **#162**: MAC-based unique_id for config entry (enhancement)
+- **#171**: ~~Temperature corrected sensor error~~ ✅ CLOSED ← Local issue 14
+- **#173**: ~~Cannot change DHW temperature~~ ✅ CLOSED ← Local issue 16
+- **#180**: Gateway sync status stuck (NEW)
+- **#160**: Thermal inertia consideration (NEW)
+
+### Enhancement Requests
+- **#162**: MAC-based unique_id ✅ Implemented - À fermer
+- **#161**: Two3 sensor support (NEW)
+- **#137**: Circuit thermostat 0°C display
+- **#102**: Hitachi 8kW Split_Unit support
+- **#96**: HC-A16MB support
+- **#81**: Auto-detect heat pump type (partially addressed)
+- **#77**: Yutampo DHW max temp
 
 ### Benefits of Consolidation
 - ✅ Focus on root causes instead of symptoms
@@ -299,8 +369,8 @@ As of 2026-01-23, related issues have been consolidated into fewer, more compreh
 - Beta testers: tijmenvanstraten (Yutaki S Combi), Snoekbaarz (Yutaki S)
 - Testing focus: Auto-detection, cooling support, temperature settings, COP accuracy
 - GitHub Issues milestone: https://github.com/alepee/hass-hitachi_yutaki/milestone/2
-- **9 open issues** on GitHub (4 consolidated + 4 standalone + 1 enhancement)
+- **15 open issues** on GitHub (8 bugs + 7 enhancements)
 
 ---
 
-*Last updated: 2026-01-24 - Issue #162 implemented in Beta.8*
+*Last updated: 2026-01-27 - Synchronized with GitHub issues*
