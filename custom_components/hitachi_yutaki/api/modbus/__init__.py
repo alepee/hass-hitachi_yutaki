@@ -146,6 +146,58 @@ class ModbusApiClient(HitachiApiClient):
         """Return the model of the heat pump."""
         return self._data.get("unit_model")
 
+    async def async_get_unique_id(self) -> str | None:
+        """Get a unique hardware identifier from Modbus input registers.
+
+        Reads Input Registers 0-2 (function code 04) which contain
+        hardware-specific values that form a stable unique identifier.
+
+        Returns:
+            A string in format "REG0-REG1-REG2" (e.g., "3846-103-56")
+            or None if the registers cannot be read.
+
+        """
+        device_param = get_pymodbus_device_param()
+
+        try:
+            result = await self._hass.async_add_executor_job(
+                lambda: self._client.read_input_registers(
+                    address=0,
+                    count=3,
+                    **{device_param: self._slave},
+                )
+            )
+
+            if result.isError():
+                _LOGGER.warning(
+                    "Failed to read input registers for unique_id: %s",
+                    result,
+                )
+                return None
+
+            if len(result.registers) >= 3:
+                unique_id = (
+                    f"{result.registers[0]}-{result.registers[1]}-{result.registers[2]}"
+                )
+                _LOGGER.debug(
+                    "Read hardware identifier from input registers: %s",
+                    unique_id,
+                )
+                return unique_id
+
+            _LOGGER.warning(
+                "Unexpected number of registers returned: %d (expected 3)",
+                len(result.registers),
+            )
+            return None
+
+        except (ModbusException, ConnectionError, OSError) as exc:
+            _LOGGER.warning(
+                "Communication error reading input registers for unique_id: %s",
+                exc,
+            )
+            return None
+
     async def read_value(self, key: str) -> int | None:
         """Read a value from the API."""
         return self._data.get(key)
