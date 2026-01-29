@@ -219,6 +219,11 @@ Run tests: `pytest`
 - **Current work**: `beta/2.0.0` (major architecture refactor)
 - Feature branches should be created from `dev`
 
+## Git Conventions
+
+- **No AI signature**: Do not add "Co-Authored-By: Claude..." in commit messages
+- Follow conventional commit format when appropriate
+
 ## Documentation
 
 - **README.md**: User-facing documentation
