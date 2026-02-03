@@ -14,10 +14,13 @@ from ....const import (
 from . import HitachiRegisterMap
 
 # System configuration bit masks (from register 1089)
+# Bit order per Modbus documentation:
+#   Bit 0: Circuit 1 Heating, Bit 1: Circuit 2 Heating
+#   Bit 2: Circuit 1 Cooling, Bit 3: Circuit 2 Cooling
 MASKS_CIRCUIT = {
     (CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING): 0x0001,
-    (CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING): 0x0002,
-    (CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING): 0x0004,
+    (CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING): 0x0002,
+    (CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING): 0x0004,
     (CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING): 0x0008,
 }
 MASK_DHW = 0x0010

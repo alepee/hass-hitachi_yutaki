@@ -64,6 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Redundant climate number entities** (target_temp, current_temp) as functionality is now handled by climate entity
 
 ### Fixed
+- **Cooling capability detection** (issue [#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177)) - Fixed system_config bitmask order that was incorrectly swapped during v2.0.0 refactoring, causing cooling hardware to not be detected on units with optional cooling (e.g., Yutaki S Combi). Regression from v1.9.x now resolved.
 - **Architecture consistency** - all entity types now follow the same domain-driven pattern
 - **Code duplication** eliminated across platforms
 - **Import complexity** simplified with clear domain boundaries

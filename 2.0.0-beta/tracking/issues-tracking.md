@@ -3,11 +3,11 @@
 ## Summary Statistics
 
 - **Total issues identified**: 23 (19 from beta testing + 4 enhancements)
-- **Fixed**: 10 (43%)
+- **Fixed**: 11 (48%)
 - **In investigation**: 2 (9%)
-- **Not yet addressed**: 11 (48%)
-- **GitHub open issues**: 15 total
-  - **Beta v2.0.0 bugs (8)**: [#166](https://github.com/alepee/hass-hitachi_yutaki/issues/166), [#167](https://github.com/alepee/hass-hitachi_yutaki/issues/167), [#176](https://github.com/alepee/hass-hitachi_yutaki/issues/176), [#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177), [#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178), [#179](https://github.com/alepee/hass-hitachi_yutaki/issues/179), [#180](https://github.com/alepee/hass-hitachi_yutaki/issues/180), [#160](https://github.com/alepee/hass-hitachi_yutaki/issues/160)
+- **Not yet addressed**: 10 (43%)
+- **GitHub open issues**: 14 total
+  - **Beta v2.0.0 bugs (7)**: [#166](https://github.com/alepee/hass-hitachi_yutaki/issues/166), [#167](https://github.com/alepee/hass-hitachi_yutaki/issues/167), [#176](https://github.com/alepee/hass-hitachi_yutaki/issues/176), [#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178), [#179](https://github.com/alepee/hass-hitachi_yutaki/issues/179), [#180](https://github.com/alepee/hass-hitachi_yutaki/issues/180), [#160](https://github.com/alepee/hass-hitachi_yutaki/issues/160)
   - **Enhancements (7)**: [#77](https://github.com/alepee/hass-hitachi_yutaki/issues/77), [#81](https://github.com/alepee/hass-hitachi_yutaki/issues/81), [#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96), [#102](https://github.com/alepee/hass-hitachi_yutaki/issues/102), [#137](https://github.com/alepee/hass-hitachi_yutaki/issues/137), [#161](https://github.com/alepee/hass-hitachi_yutaki/issues/161), [#162](https://github.com/alepee/hass-hitachi_yutaki/issues/162)
 
 ---
@@ -29,11 +29,13 @@
 - **GitHub**: [#177 (Consolidated with issue 18)](https://github.com/alepee/hass-hitachi_yutaki/issues/177)
 - **Reporter**: tijmenvanstraten
 - **Date**: 2025-11-09 (first report), 2026-01-08 (follow-up as issue 18)
-- **Root cause**: Cooling capability auto-detection failure
+- **Root cause**: System_config bitmask order incorrectly swapped during v2.0.0 refactoring
 - **Description**: Cooling features that were available in v1.9 are missing in beta.3+
-- **Status**: ❌ Not addressed
-- **Data**: Modbus gateway dump available (discussion #115)
-- **Priority**: 🔴 HIGH - Regression affecting users with cooling hardware
+- **Status**: ✅ **Fixed in beta.8**
+- **Fix**: Corrected MASKS_CIRCUIT bit order in `atw_mbs_02.py` to match ATW-MBS-02 documentation
+- **Commit**: `6183bee`
+- **Data**: Modbus gateway dump from discussion #115 (system_config=21) confirmed the issue
+- **Investigation**: [Issue 177 Investigation](../investigations/issue-177-cooling-detection.md)
 
 ### Issue 4: DHW temperature decimal error
 - **Reporter**: tijmenvanstraten
@@ -209,13 +211,16 @@
 - ✅ Automatic integration reload after repair completion
 - ✅ Cleaned up OptionsFlow (removed repair redirect)
 
-### Beta.8 (2026-01-24)
+### Beta.8 (Upcoming)
 - ✅ **MAC-based unique_id for config entries** (Issue #162 implemented)
 - ✅ Prevents duplicate config entries for same physical gateway
 - ✅ Survives DHCP IP changes
 - ✅ Automatic migration for existing installations
 - ✅ Graceful fallback if MAC unavailable
 - ✅ Cross-platform support (Linux, macOS, Windows)
+- ✅ **Cooling capability detection fix** (Issue #177)
+- ✅ Corrected system_config bitmask order (regression from v1.9.x)
+- ✅ Users with optional cooling hardware now properly detected
 - 📋 Manual testing pending
 
 ---
@@ -336,7 +341,7 @@ As of 2026-01-27, related issues have been consolidated into fewer, more compreh
 
 ### Beta v2.0.0 Consolidated Issues
 - **#176**: Auto-detection failure (Circuit 2 + Model name) ← Local issues 1, 2
-- **#177**: Cooling features not working ← Local issues 3, 18
+- **#177**: ~~Cooling features not working~~ ✅ FIXED in beta.8 ← Local issues 3, 18
 - **#178**: Anti-legionella features ← Local issues 10, 15, 17
 - **#179**: Migration UX issues ← Local issues 11, 12
 
@@ -373,4 +378,4 @@ As of 2026-01-27, related issues have been consolidated into fewer, more compreh
 
 ---
 
-*Last updated: 2026-01-27 - Synchronized with GitHub issues*
+*Last updated: 2026-02-03 - Issue #177 fixed (cooling detection)*

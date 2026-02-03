@@ -92,21 +92,52 @@ Both scenarios are normal and the integration will work correctly.
 
 ## Bug Fixes
 
-None in this release (focused on enhancement).
+### Cooling Capability Detection
+
+**Issue**: [#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177)
+
+Fixed a regression from v1.9.x where cooling features were not detected on units with optional cooling hardware (e.g., Yutaki S Combi with cooling option).
+
+#### Root Cause
+
+During the v2.0.0 refactoring, the `system_config` bitmask order was incorrectly swapped:
+
+| Bit | Should Be | Was (Wrong) |
+|-----|-----------|-------------|
+| 1 | Circuit 2 Heating | Circuit 1 Cooling |
+| 2 | Circuit 1 Cooling | Circuit 2 Heating |
+
+This caused the integration to detect "Circuit 2 Heating" instead of "Circuit 1 Cooling" for users with cooling hardware.
+
+#### Symptoms (Now Fixed)
+
+- ❌ `operation_mode` select only showed "Auto" and "Heat" (no "Cool")
+- ❌ Cooling thermal power/energy sensors not created
+- ❌ Climate entities missing cooling HVAC mode
+
+#### After Fix
+
+- ✅ "Cool" option available in `operation_mode` select
+- ✅ `thermal_power_cooling` sensor created
+- ✅ `thermal_energy_cooling_daily` / `thermal_energy_cooling_total` sensors created
+- ✅ Climate entities show proper HVAC modes
+
+**Commit**: `6183bee`
+**Investigation**: [issue-177-cooling-detection.md](../investigations/issue-177-cooling-detection.md)
 
 ---
 
 ## Known Issues
 
-Same as Beta.7:
+Remaining from Beta.7:
 - **#176**: Auto-detection failure for some Yutaki S Combi models
-- **#177**: Cooling features not working for some configurations
+- ~~**#177**: Cooling features not working~~ → **Fixed in this release**
 - **#178**: Anti-legionella features need investigation
 - **#179**: Migration UX could be improved
 - **#166**: COP values in graphs need refinement
 - **#167**: Modbus transaction ID errors (intermittent)
-- **#171**: Temperature corrected sensor error
-- **#173**: Cannot change DHW temperature (some models)
+- **#180**: Gateway sync status stuck on "Initialising"
+- **#160**: Thermal inertia in power calculation
 
 ---
 
@@ -210,6 +241,7 @@ Direct upgrade:
 ### New/Modified
 - `api/base.py` - Added `async_get_unique_id()` abstract method
 - `api/modbus/__init__.py` - Implemented `async_get_unique_id()` using `read_input_registers`
+- `api/modbus/registers/atw_mbs_02.py` - Fixed `MASKS_CIRCUIT` bitmask order (issue #177)
 - `config_flow.py` - Uses new method for unique_id generation
 - `__init__.py` - Uses new method for existing installation migration
 - `tests/test_modbus_api.py` - New tests for unique_id retrieval
@@ -221,8 +253,9 @@ Direct upgrade:
 
 ## Documentation
 
-- **Investigation Summary**: [issue-162-implementation-summary.md](../investigations/issue-162-implementation-summary.md)
-- **ARP Investigation (historical)**: [issue-162-arp-investigation.md](../investigations/issue-162-arp-investigation.md)
+- **Issue #162 Investigation Summary**: [issue-162-implementation-summary.md](../investigations/issue-162-implementation-summary.md)
+- **Issue #162 ARP Investigation (historical)**: [issue-162-arp-investigation.md](../investigations/issue-162-arp-investigation.md)
+- **Issue #177 Cooling Detection**: [issue-177-cooling-detection.md](../investigations/issue-177-cooling-detection.md)
 - **Issues Tracking**: [issues-tracking.md](../tracking/issues-tracking.md)
 
 ---
@@ -242,10 +275,10 @@ Special thanks to beta testers:
 ### Beta.9+ Roadmap
 
 Focus areas for upcoming betas:
-1. **Auto-detection improvements** (issues #176, #177)
+1. **Auto-detection improvements** (issue #176)
 2. **Anti-legionella features** (issue #178)
 3. **COP calculation refinements** (issue #166)
-4. **Temperature control fixes** (issue #173)
+4. **Gateway sync status** (issue #180)
 
 See [Planned Improvements](../tracking/planned-improvements.md) for full roadmap.
 
@@ -260,4 +293,4 @@ See [Planned Improvements](../tracking/planned-improvements.md) for full roadmap
 ---
 
 **Status**: 🚧 Ready for Testing
-**Last Updated**: 2026-01-24
+**Last Updated**: 2026-02-03
