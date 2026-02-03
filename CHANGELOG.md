@@ -8,7 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **Robust Modbus connection recovery mechanism** with exponential backoff retry logic and automatic reconnection on network interruptions. Fixes issue [#118](https://github.com/alepee/hass-hitachi_yutaki/issues/118) where the integration failed to recover from temporary network disconnections.
+- **Robust Modbus connection recovery mechanism**
+- **Enhanced heat pump profile system** with explicit hardware capabilities per model:
+  - New properties: `dhw_min_temp`, `dhw_max_temp`, `max_circuits`, `supports_cooling`, `max_water_outlet_temp`, `supports_high_temperature`
+  - Each profile (S, S Combi, S80, M, Yutampo R32) now documents its exact hardware limits
+  - Improved Yutampo R32 detection: correctly identified as S Combi (unit_model=1) with DHW-only configuration
+  - Fixed S Combi detection to check all circuits (not just circuit 1) with exponential backoff retry logic and automatic reconnection on network interruptions. Fixes issue [#118](https://github.com/alepee/hass-hitachi_yutaki/issues/118) where the integration failed to recover from temporary network disconnections.
 - **Complete hexagonal architecture implementation** with clear separation of concerns:
   - Domain layer with pure business logic and zero Home Assistant dependencies
   - Adapters layer bridging domain with Home Assistant
@@ -64,6 +69,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Redundant climate number entities** (target_temp, current_temp) as functionality is now handled by climate entity
 
 ### Fixed
+- **Profile detection robustness** - Fixed Yutampo R32 `detect()` returning `None` instead of `False` when `has_dhw` key is missing from data
 - **Cooling capability detection** (issue [#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177)) - Fixed system_config bitmask order that was incorrectly swapped during v2.0.0 refactoring, causing cooling hardware to not be detected on units with optional cooling (e.g., Yutaki S Combi). Regression from v1.9.x now resolved.
 - **Architecture consistency** - all entity types now follow the same domain-driven pattern
 - **Code duplication** eliminated across platforms

@@ -96,13 +96,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             raise UpdateFailed("Failed to communicate with device") from exc
 
     def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
-        """Return True if circuit is configured."""
+        """Return True if circuit is configured in system_config."""
         return self.api_client.has_circuit(circuit_id, mode)
 
     def has_dhw(self) -> bool:
-        """Return True if DHW is configured."""
+        """Return True if DHW is configured in system_config."""
         return self.api_client.has_dhw
 
     def has_pool(self) -> bool:
-        """Return True if pool heating is configured."""
+        """Return True if pool heating is configured in system_config."""
         return self.api_client.has_pool
