@@ -90,6 +90,52 @@ Both scenarios are normal and the integration will work correctly.
 
 ---
 
+### Enhanced Heat Pump Profile System
+
+**Issues**: [#176](https://github.com/alepee/hass-hitachi_yutaki/issues/176), [#81](https://github.com/alepee/hass-hitachi_yutaki/issues/81), [#77](https://github.com/alepee/hass-hitachi_yutaki/issues/77)
+
+Profiles now define explicit hardware capabilities for each heat pump model, improving auto-detection accuracy and enabling model-specific features.
+
+#### New Profile Properties
+
+| Property | Description | Example |
+|----------|-------------|---------|
+| `dhw_min_temp` | Minimum DHW temperature (°C) | 30 |
+| `dhw_max_temp` | Maximum DHW temperature by HP (°C) | 55 (S Combi), 75 (S80) |
+| `max_circuits` | Maximum heating/cooling circuits | 2 (S), 1 (S Combi), 0 (Yutampo) |
+| `supports_cooling` | Cooling capability | True (S, M), False (S80, Yutampo) |
+| `max_water_outlet_temp` | Maximum water outlet (°C) | 60 (standard), 80 (S80) |
+| `supports_high_temperature` | High-temp model flag | True (S80 only) |
+
+#### Yutampo R32 Detection Fixed
+
+Yutampo R32 is now correctly detected as a special case of S Combi (unit_model=1) with DHW-only configuration:
+- ✅ `unit_model == "yutaki_s_combi"` AND
+- ✅ `has_dhw == True` AND
+- ✅ No circuits configured (heating/cooling)
+
+#### S Combi Detection Improved
+
+S Combi detection now checks ALL circuits (not just circuit 1):
+- Previously: Only checked `has_circuit1_heating` or `has_circuit1_cooling`
+- Now: Checks circuit1 AND circuit2 (heating and cooling)
+
+This handles edge cases where only circuit 2 might be configured.
+
+#### Profile Capabilities Summary
+
+| Model | DHW | Max Circuits | Cooling | Max Water Temp | Pool | Boiler |
+|-------|-----|--------------|---------|----------------|------|--------|
+| Yutaki S | 30-55°C | 2 | ✅ (kit) | 60°C | ✅ | ✅ |
+| Yutaki S Combi | 30-55°C | 1 | ✅ (kit) | 60°C | ✅ | ✅ |
+| Yutaki S80 | 30-75°C | 2 | ❌ | 80°C | ✅ | ❌ |
+| Yutaki M | 30-55°C | 2 | ✅ (native) | 60°C | ✅ | ✅ |
+| Yutampo R32 | 30-55°C | 0 | ❌ | - | ❌ | ❌ |
+
+**Investigation**: [profile-detection-refactoring.md](../investigations/profile-detection-refactoring.md)
+
+---
+
 ## Bug Fixes
 
 ### Cooling Capability Detection

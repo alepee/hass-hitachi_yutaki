@@ -109,16 +109,24 @@ def serialize_otc_method(value: str) -> int:
 
 
 def deserialize_unit_model(value: int | None) -> str:
-    """Convert a raw unit model ID to a model key."""
+    """Convert a raw unit model ID to a model key.
+
+    Mapping from ATW-MBS-02 documentation (register 1218):
+        0: YUTAKI S
+        1: YUTAKI S COMBI
+        2: S80
+        3: M
+
+    Note: Yutampo R32 uses unit_model=1 (S Combi) but with DHW only (no circuits).
+    Detection is handled in the profile's detect() method.
+    """
     if value is None:
         return "unknown"
-    # Mapping from numeric model ID to model key
     model_map = {
-        1: "yutaki_s",
+        0: "yutaki_s",
+        1: "yutaki_s_combi",
         2: "yutaki_s80",
-        3: "yutaki_s_combi",
-        4: "yutaki_m",
-        5: "yutampo_r32",
+        3: "yutaki_m",
     }
     return model_map.get(value, "unknown")
 
