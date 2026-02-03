@@ -4,6 +4,35 @@ This changelog summarizes the evolution of the v2.0.0 beta releases.
 
 ---
 
+## [v2.0.0-beta.8] - In Development
+
+### Added
+- 🔑 **Hardware-based config entry unique_id** (Issue #162)
+  - Uses Modbus Input Registers 0-2 for stable gateway identification
+  - Prevents duplicate config entries for same physical gateway
+  - Survives DHCP IP address changes
+  - Automatic migration for existing installations
+  - Fallback to IP+slave if registers unavailable
+- 🏭 **Enhanced heat pump profile system** (Issues #176, #81, #77)
+  - New profile properties: `dhw_min_temp`, `dhw_max_temp`, `max_circuits`, `supports_cooling`, `max_water_outlet_temp`
+  - Explicit hardware capabilities per model (S, S Combi, S80, M, Yutampo R32)
+  - Profile-specific entity overrides (e.g., boost temperature limits)
+- ✅ Unit tests for profile detection
+
+### Fixed
+- **Cooling capability detection** (Issue #177)
+  - Corrected system_config bitmask order (regression from v1.9.x)
+  - Users with optional cooling hardware now properly detected
+- **Yutampo R32 detection** - Now uses unit_model=1 + DHW-only check
+- **S Combi detection** - Checks all circuits, not just circuit 1
+
+### Technical
+- `async_get_unique_id()` method in API layer (port in `base.py`, adapter in `modbus/__init__.py`)
+- Profile classes with explicit capability declarations
+- Improved detection logic in `profile_detector.py`
+
+---
+
 ## [v2.0.0-beta.7] - 2026-01-23
 
 ### Added
@@ -172,40 +201,6 @@ This changelog summarizes the evolution of the v2.0.0 beta releases.
 - ⚠️ Breaking Change
 - ✅ Fix
 - 🚀 CI/CD
-
----
-
-## Upcoming
-
-### v2.0.0-beta.7 (In Development)
-
-#### Added
-- 🔄 Automatic entity migration system for seamless upgrade from v1.9.x
-- ✅ Comprehensive unit tests for migration logic (8 test cases)
-- 📚 Complete migration documentation and investigation reports
-
-#### Fixed
-- Issue #8 - Legacy entities appearing as "unavailable" after upgrade
-
-#### Improved
-- Zero manual intervention required for entity migration
-- Conflict detection and error handling for safe migrations
-- Detailed logging for troubleshooting migration issues
-- Support for simple migrations (slave_id removal) and complex migrations (slave_id + key rename)
-
-#### Technical
-- `async_migrate_entities()`: Automatic unique_id migration
-- `_calculate_new_unique_id()`: Migration calculation with key mappings
-- Handles all entity types and prefixes (circuit, dhw, pool)
-- Idempotent and non-blocking migration process
-
-#### Issues Resolved
-- #8 - Entity migration from 1.9.x to 2.0.0
-
----
-
-### v2.0.0-beta.8+ (Future)
-- See [Planned Improvements](../tracking/planned-improvements.md)
 
 ---
 
