@@ -20,11 +20,14 @@ Release history and detailed release notes for each beta version.
 - **[beta-4.md](releases/beta-4.md)**: v2.0.0-beta.4 - Data rehydration & temperature fixes (2025-11-20)
 - **[beta-5.md](releases/beta-5.md)**: v2.0.0-beta.5 - Separate heating/cooling sensors (2025-12-07)
 - **[beta-6.md](releases/beta-6.md)**: v2.0.0-beta.6 - Thermal service refactoring (2026-01-22)
+- **[beta-7.md](releases/beta-7.md)**: v2.0.0-beta.7 - Automatic entity migration (2026-01-23)
+- **[beta-8.md](releases/beta-8.md)**: v2.0.0-beta.8 - Hardware unique_id & enhanced profiles (In Development)
 
 ### 🔍 Investigations
 Detailed technical investigations and implementation documentation.
 
 - **[issue-8-entity-migration.md](investigations/issue-8-entity-migration.md)**: Complete investigation and implementation of entity unique_id migration system
+- **[issue-162-hardware-unique-id.md](investigations/issue-162-hardware-unique-id.md)**: Hardware-based config entry unique_id investigation
 
 ---
 
@@ -47,7 +50,8 @@ Detailed technical investigations and implementation documentation.
 | **v2.0.0-beta.4** | 2025-11-20 | Data rehydration & temperature fixes | ✅ Released |
 | **v2.0.0-beta.5** | 2025-12-07 | Separate heating/cooling sensors | ✅ Released |
 | **v2.0.0-beta.6** | 2026-01-22 | Thermal service refactoring | ✅ Released |
-| **v2.0.0-beta.7** | TBD | Entity migration system | 🔄 In Development |
+| **v2.0.0-beta.7** | 2026-01-23 | Entity migration system | ✅ Released |
+| **v2.0.0-beta.8** | TBD | Hardware unique_id & profiles | 🔄 In Development |
 
 ---
 
@@ -57,6 +61,8 @@ Special thanks to our beta testers for their valuable feedback:
 
 - **tijmenvanstraten**: Hitachi Yutaki S Combi with ATW-MBS-02 gateway
 - **Snoekbaarz**: Hitachi Yutaki S with ATW-MBS-02 gateway
+- **ragg987**: Hitachi Yutaki S with ATW-MBS-02 gateway
+- **driosalido**: Hitachi Yutaki S Combi with ATW-MBS-02 gateway
 
 ---
 
@@ -96,18 +102,25 @@ Special thanks to our beta testers for their valuable feedback:
 - ✅ Comprehensive unit tests
 - ✅ Enhanced CI/CD with automated testing
 
-### Beta.7 (In Development)
-- 🔄 Automatic entity unique_id migration system
-- 🔄 Resolves legacy entities issue (#8)
+### Beta.7 (2026-01-23)
+- ✅ Automatic entity unique_id migration system
+- ✅ Resolves legacy entities issue (#8)
+- ✅ Preserves entity history during migration
+- ✅ Handles simple and complex migrations (key renames)
+
+### Beta.8 (In Development)
+- 🔄 Hardware-based config entry unique_id (Issue #162)
+- 🔄 Enhanced heat pump profile system
+- 🔄 Cooling capability detection fix (Issue #177)
+- 🔄 Improved Yutampo R32 and S Combi detection
 
 ---
 
 ## 🚀 Next Steps
 
-### Upcoming in Beta.7+
-- Entity unique_id migration (Issue #8)
-- Cooling support improvements (Issues #3, #18)
-- Config entry unique_id based on gateway MAC address
+### Upcoming in Beta.8+
+- Config flow improvements for profile selection
+- UI integration of profile-specific temperature limits
 - Additional improvements based on beta tester feedback
 
 See [planned-improvements.md](tracking/planned-improvements.md) for the complete roadmap.
@@ -129,4 +142,4 @@ Beta testing feedback is tracked in [issues-tracking.md](tracking/issues-trackin
 
 ---
 
-*Last updated: 2026-01-22*
+*Last updated: 2026-02-04*
