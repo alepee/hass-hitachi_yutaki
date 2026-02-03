@@ -1,4 +1,4 @@
-# Hitachi Yutaki – v2.0.0-beta.8
+# Hitachi Yutaki – Hardware Identity & Enhanced Profiles (v2.0.0-beta.8)
 
 [![Downloads for this release](https://img.shields.io/github/downloads/alepee/hass-hitachi_yutaki/v2.0.0-beta.8/total.svg)](https://github.com/alepee/hass-hitachi_yutaki/releases/v2.0.0-beta.8)
 
