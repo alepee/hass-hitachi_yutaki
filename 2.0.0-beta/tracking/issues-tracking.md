@@ -19,11 +19,16 @@
 - **Reporter**: tijmenvanstraten
 - **Date**: 2025-11-09
 - **Root cause**: Auto-detection mechanism fails for Yutaki S Combi
-- **Impact**: 
+- **Impact**:
   - Issue 1: Circuit 2 entities incorrectly created for single-circuit model
   - Issue 2: Generic "Hitachi Yutaki" name instead of specific model
-- **Status**: ❌ Not addressed
-- **Note**: Both issues stem from same profile detection failure
+- **Status**: 🔄 **Partially addressed in beta.8**
+- **Progress**:
+  - ✅ Profile system enhanced with `max_circuits` property
+  - ✅ S Combi profile now correctly defines `max_circuits=1`
+  - ✅ S Combi detection checks all circuits (not just circuit 1)
+  - ⏳ Remaining: config_flow suggestion logic + coordinator intersection
+- **Note**: Full fix requires config_flow and coordinator updates (planned for beta.9)
 
 ### Issue 3: Cooling support missing (regression from v1.9)
 - **GitHub**: [#177 (Consolidated with issue 18)](https://github.com/alepee/hass-hitachi_yutaki/issues/177)
@@ -212,7 +217,7 @@
 - ✅ Cleaned up OptionsFlow (removed repair redirect)
 
 ### Beta.8 (Upcoming)
-- ✅ **MAC-based unique_id for config entries** (Issue #162 implemented)
+- ✅ **Hardware-based unique_id for config entries** (Issue #162 implemented)
 - ✅ Prevents duplicate config entries for same physical gateway
 - ✅ Survives DHCP IP changes
 - ✅ Automatic migration for existing installations
@@ -221,6 +226,12 @@
 - ✅ **Cooling capability detection fix** (Issue #177)
 - ✅ Corrected system_config bitmask order (regression from v1.9.x)
 - ✅ Users with optional cooling hardware now properly detected
+- ✅ **Enhanced profile system** (Issues #176, #81, #77 - partial)
+- ✅ New profile properties: dhw_min/max_temp, max_circuits, supports_cooling, max_water_outlet_temp
+- ✅ Explicit hardware capabilities per model (S, S Combi, S80, M, Yutampo R32)
+- ✅ Fixed Yutampo R32 detection (unit_model=1 + DHW only)
+- ✅ Fixed S Combi detection (checks all circuits, not just circuit 1)
+- ✅ Unit tests for profile detection
 - 📋 Manual testing pending
 
 ---
@@ -322,7 +333,10 @@
 - **GitHub**: [#77](https://github.com/alepee/hass-hitachi_yutaki/issues/77)
 - **Date**: 2025-07-19
 - **Description**: DHW feature only allows max temp of 55°C, HA UI thermostat allows setting of 60°C
-- **Status**: ❌ Not addressed
+- **Status**: 🔄 **Partially addressed in beta.8**
+- **Progress**:
+  - ✅ Yutampo R32 profile now defines `dhw_max_temp=55` and `entity_overrides` with `boost_temp=75`
+  - ⏳ Remaining: UI needs to use these profile values for temperature limits
 
 ---
 
@@ -378,4 +392,4 @@ As of 2026-01-27, related issues have been consolidated into fewer, more compreh
 
 ---
 
-*Last updated: 2026-02-03 - Issue #177 fixed (cooling detection)*
+*Last updated: 2026-02-03 - Enhanced profile system implemented (issues #176, #81, #77 partial)*
