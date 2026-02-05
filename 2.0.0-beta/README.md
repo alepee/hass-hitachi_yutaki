@@ -21,7 +21,8 @@ Release history and detailed release notes for each beta version.
 - **[beta-5.md](releases/beta-5.md)**: v2.0.0-beta.5 - Separate heating/cooling sensors (2025-12-07)
 - **[beta-6.md](releases/beta-6.md)**: v2.0.0-beta.6 - Thermal service refactoring (2026-01-22)
 - **[beta-7.md](releases/beta-7.md)**: v2.0.0-beta.7 - Automatic entity migration (2026-01-23)
-- **[beta-8.md](releases/beta-8.md)**: v2.0.0-beta.8 - Hardware unique_id & enhanced profiles (In Development)
+- **[beta-8.md](releases/beta-8.md)**: v2.0.0-beta.8 - Hardware unique_id & enhanced profiles (2026-02-03)
+- **[beta-9.md](releases/beta-9.md)**: v2.0.0-beta.9 - Anti-legionella fix & config flow translations (2026-02-06)
 
 ### 🔍 Investigations
 Detailed technical investigations and implementation documentation.
@@ -51,7 +52,8 @@ Detailed technical investigations and implementation documentation.
 | **v2.0.0-beta.5** | 2025-12-07 | Separate heating/cooling sensors | ✅ Released |
 | **v2.0.0-beta.6** | 2026-01-22 | Thermal service refactoring | ✅ Released |
 | **v2.0.0-beta.7** | 2026-01-23 | Entity migration system | ✅ Released |
-| **v2.0.0-beta.8** | TBD | Hardware unique_id & profiles | 🔄 In Development |
+| **v2.0.0-beta.8** | 2026-02-03 | Hardware unique_id & profiles | ✅ Released |
+| **v2.0.0-beta.9** | 2026-02-06 | Anti-legionella fix & translations | ✅ Released |
 
 ---
 
@@ -108,19 +110,21 @@ Special thanks to our beta testers for their valuable feedback:
 - ✅ Preserves entity history during migration
 - ✅ Handles simple and complex migrations (key renames)
 
-### Beta.8 (In Development)
-- 🔄 Hardware-based config entry unique_id (Issue #162)
-- 🔄 Enhanced heat pump profile system
-- 🔄 Cooling capability detection fix (Issue #177)
-- 🔄 Improved Yutampo R32 and S Combi detection
+### Beta.8 (2026-02-03)
+- ✅ Hardware-based config entry unique_id (Issue #162)
+- ✅ Enhanced heat pump profile system
+- ✅ Cooling capability detection fix (Issue #177)
+- ✅ Improved Yutampo R32 and S Combi detection
+
+### Beta.9 (2026-02-06)
+- ✅ Anti-legionella binary sensor fix — STATUS registers (Issue #178)
+- ✅ Config flow translations for gateway and profile steps
 
 ---
 
 ## 🚀 Next Steps
 
-### Upcoming in Beta.8+
-- Config flow improvements for profile selection
-- UI integration of profile-specific temperature limits
+### Upcoming
 - Additional improvements based on beta tester feedback
 
 See [planned-improvements.md](tracking/planned-improvements.md) for the complete roadmap.
@@ -142,4 +146,4 @@ Beta testing feedback is tracked in [issues-tracking.md](tracking/issues-trackin
 
 ---
 
-*Last updated: 2026-02-04*
+*Last updated: 2026-02-06*
