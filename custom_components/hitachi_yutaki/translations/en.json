@@ -26,6 +26,20 @@
     }
   },
   "selector": {
+    "gateway_type": {
+      "options": {
+        "modbus_atw_mbs_02": "Modbus ATW-MBS-02"
+      }
+    },
+    "profile": {
+      "options": {
+        "yutaki_s": "Yutaki S",
+        "yutaki_s_combi": "Yutaki S Combi",
+        "yutaki_s80": "Yutaki S80",
+        "yutaki_m": "Yutaki M",
+        "yutampo_r32": "Yutampo R32"
+      }
+    },
     "power_supply": {
       "options": {
         "single": "Single phase",
@@ -62,12 +76,26 @@
     "step": {
       "user": {
         "title": "Hitachi Yutaki Gateway",
+        "description": "Select the gateway type for your Hitachi Yutaki heat pump.",
+        "data": {
+          "gateway_type": "Gateway Type"
+        }
+      },
+      "gateway_config": {
+        "title": "Connection Settings",
         "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
         "data": {
           "name": "Name",
           "host": "Host/IP Address",
           "port": "Port",
           "show_advanced": "Show advanced options"
+        }
+      },
+      "profile": {
+        "title": "Heat Pump Model",
+        "description": "Select your heat pump model. The integration will try to auto-detect it, but you can change it manually if needed.",
+        "data": {
+          "profile": "Heat Pump Model"
         }
       },
       "power": {
