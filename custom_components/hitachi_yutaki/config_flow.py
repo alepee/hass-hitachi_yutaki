@@ -47,6 +47,7 @@ GATEWAY_SELECTION_SCHEMA = vol.Schema(
             selector.SelectSelectorConfig(
                 options=list(GATEWAY_INFO.keys()),
                 mode=selector.SelectSelectorMode.DROPDOWN,
+                translation_key="gateway_type",
             ),
         )
     }
@@ -244,6 +245,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     selector.SelectSelectorConfig(
                         options=profile_options,
                         mode=selector.SelectSelectorMode.DROPDOWN,
+                        translation_key="profile",
                     )
                 )
             }

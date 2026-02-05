@@ -26,6 +26,20 @@
     }
   },
   "selector": {
+    "gateway_type": {
+      "options": {
+        "modbus_atw_mbs_02": "Modbus ATW-MBS-02"
+      }
+    },
+    "profile": {
+      "options": {
+        "yutaki_s": "Yutaki S",
+        "yutaki_s_combi": "Yutaki S Combi",
+        "yutaki_s80": "Yutaki S80",
+        "yutaki_m": "Yutaki M",
+        "yutampo_r32": "Yutampo R32"
+      }
+    },
     "power_supply": {
       "options": {
         "single": "Monophasé",
@@ -62,12 +76,26 @@
     "step": {
       "user": {
         "title": "Passerelle Hitachi Yutaki",
+        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
+        "data": {
+          "gateway_type": "Type de passerelle"
+        }
+      },
+      "gateway_config": {
+        "title": "Paramètres de connexion",
         "description": "Entrez les détails de connexion pour votre passerelle de pompe à chaleur Hitachi Yutaki.",
         "data": {
           "name": "Nom",
           "host": "Hôte/Adresse IP",
           "port": "Port",
           "show_advanced": "Afficher les options avancées"
+        }
+      },
+      "profile": {
+        "title": "Modèle de pompe à chaleur",
+        "description": "Sélectionnez votre modèle de pompe à chaleur. L'intégration essaiera de le détecter automatiquement, mais vous pouvez le modifier manuellement si nécessaire.",
+        "data": {
+          "profile": "Modèle de pompe à chaleur"
         }
       },
       "power": {
@@ -489,6 +517,9 @@
       },
       "boost": {
         "name": "Forçage ECS"
+      },
+      "high_demand": {
+        "name": "Haute Demande"
       }
     },
     "button": {
