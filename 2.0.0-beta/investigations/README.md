@@ -13,21 +13,40 @@ Each investigation document provides:
 
 ## Active Investigations
 
-### Issue #162: MAC-based unique_id for Config Entry
-- **Status**: 🔍 Ready for Implementation
-- **Priority**: 🔴 High
-- **Target**: Beta.8 or v2.1.0
-- **Docs**: 
-  - [Full Investigation](./issue-162-mac-based-unique-id.md)
-  - [Quick Summary](./issue-162-summary.md)
+### Issue #178: Anti-legionella Features Not Working
+- **Status**: 📋 Ready for Implementation
+- **Priority**: 🟡 Medium
+- **Docs**: [issue-178-antilegionella-features.md](./issue-178-antilegionella-features.md)
+
+**Problem**: Three anti-legionella features don't work: temperature setting reverts, 60°C validation, cycle trigger button.
+
+**Root cause**: Code reads anti-legionella status from CONTROL registers (1030/1031) instead of STATUS registers (1084/1085). Control registers are one-shot command registers that don't reflect actual state. ATW-MBS-02 doc (Section 5.3) confirms separate status registers exist.
+
+**Secondary**: Footnote (*9) indicates anti-legionella requires the function to be enabled on the heat pump's LCD.
+
+**Fix**: Update `dhw_antilegionella_status` from RegisterDefinition(1030) to RegisterDefinition(1084), add new status register at 1085 for temperature read-back.
+
+## Completed Investigations
+
+### Issue #162: Hardware-based unique_id for Config Entry
+- **Status**: ✅ Resolved in Beta.8
+- **Docs**: [issue-162-hardware-unique-id.md](./issue-162-hardware-unique-id.md)
 
 **Problem**: Config entry uses IP-based unique_id, which is unstable and allows duplicates.
 
-**Solution**: Use gateway's MAC address from ARP table as unique_id.
+**Solution**: Use gateway's hardware identifier (Modbus Input Registers 0-2) as unique_id.
 
-**Status**: Technical investigation complete, prototype implemented, tests passing.
+**Result**: Implemented in Beta.8 with automatic migration for existing installations.
 
-## Completed Investigations
+### Issue #177: Cooling Capability Detection
+- **Status**: ✅ Resolved in Beta.8
+- **Docs**: [issue-177-cooling-detection.md](./issue-177-cooling-detection.md)
+
+**Problem**: Cooling features not detected on units with optional cooling hardware.
+
+**Solution**: Fixed system_config bitmask order (regression from v1.9.x refactoring).
+
+**Result**: Users with optional cooling hardware now properly detected.
 
 ### Issue #8: Entity Migration (1.9.x → 2.0.0)
 - **Status**: ✅ Resolved in Beta.7
@@ -97,4 +116,4 @@ When creating a new investigation:
 
 ---
 
-*Last updated: 2026-01-24*
+*Last updated: 2026-02-05*

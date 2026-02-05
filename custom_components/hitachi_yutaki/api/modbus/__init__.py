@@ -705,8 +705,8 @@ class ModbusApiClient(HitachiApiClient):
         return bool(value)
 
     def get_dhw_antilegionella_temperature(self) -> float | None:
-        """Get anti-legionella target temperature."""
-        temp = self._data.get("dhw_antilegionella_temp")
+        """Get anti-legionella target temperature from STATUS register."""
+        temp = self._data.get("dhw_antilegionella_temp_status")
         if temp is None:
             return None
         return float(temp)
@@ -730,11 +730,17 @@ class ModbusApiClient(HitachiApiClient):
 
     async def start_dhw_antilegionella(self) -> bool:
         """Start anti-legionella treatment cycle."""
-        return await self.write_value("dhw_antilegionella", 1)
+        _LOGGER.debug("Starting anti-legionella cycle (writing 1 to register 1030)")
+        result = await self.write_value("dhw_antilegionella", 1)
+        _LOGGER.debug("Anti-legionella start result: %s", result)
+        return result
 
     async def set_dhw_antilegionella_temperature(self, temperature: float) -> bool:
         """Set anti-legionella target temperature (stored in °C)."""
-        return await self.write_value("dhw_antilegionella_temp", int(temperature))
+        _LOGGER.debug("Setting anti-legionella temp to %s°C (register 1031)", temperature)
+        result = await self.write_value("dhw_antilegionella_temp", int(temperature))
+        _LOGGER.debug("Anti-legionella temp set result: %s", result)
+        return result
 
     # Pool control - Getters
     def get_pool_power(self) -> bool | None:
