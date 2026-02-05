@@ -4,7 +4,20 @@ This changelog summarizes the evolution of the v2.0.0 beta releases.
 
 ---
 
-## [v2.0.0-beta.8] - In Development
+## [v2.0.0-beta.9] - 2026-02-06
+
+### Fixed
+- 🌡️ **Anti-legionella binary sensor** (Issue #178)
+  - Read from STATUS registers instead of CONTROL registers for accurate state
+- 🌐 **Config flow translations** for gateway type and profile selection steps
+  - Added `translation_key` to gateway and profile selectors
+  - Added missing step translations (`gateway_config`, `profile`)
+  - Fixed `step.user` to match actual gateway selection form
+  - Added missing French translation for `switch.high_demand`
+
+---
+
+## [v2.0.0-beta.8]
 
 ### Added
 - 🔑 **Hardware-based config entry unique_id** (Issue #162)

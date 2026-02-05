@@ -1,8 +1,8 @@
 # Release Notes - Beta.8
 
-**Release Date**: TBD
+**Release Date**: 2026-02-03
 **Version**: 2.0.0-beta.8
-**Status**: 🚧 In Development
+**Status**: ✅ Released
 
 ---
 
@@ -338,5 +338,5 @@ See [Planned Improvements](../tracking/planned-improvements.md) for full roadmap
 
 ---
 
-**Status**: 🚧 Ready for Testing
+**Status**: ✅ Released
 **Last Updated**: 2026-02-03

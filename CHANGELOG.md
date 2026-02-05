@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Anti-legionella binary sensor** (issue [#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178)) - Read from STATUS registers instead of CONTROL registers for accurate anti-legionella cycle state
+- **Config flow translations** - Added missing translations for gateway type and profile selection steps in config flow (both EN and FR)
+
 ### Added
 - **Robust Modbus connection recovery mechanism**
 - **Enhanced heat pump profile system** with explicit hardware capabilities per model:
