@@ -380,41 +380,118 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
-    """Handle options."""
+    """Handle options as a multi-step flow mirroring initial setup."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
+        self._collected: dict[str, Any] = {}
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Manage the options."""
-        # Access the current entry using the base class attribute
-        # available during option flows.
-        config_data = self.config_entry.data  # type: ignore[attr-defined]
-        options_data = self.config_entry.options  # type: ignore[attr-defined]
-
+        """Step 1: Gateway type selection."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            self._collected.update(user_input)
+            return await self.async_step_connection()
+
+        current_gateway = self.config_entry.data.get(
+            "gateway_type", "modbus_atw_mbs_02"
+        )
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Required(
-                        CONF_HOST,
-                        default=options_data.get(CONF_HOST, config_data.get(CONF_HOST)),
+                        "gateway_type", default=current_gateway
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=list(GATEWAY_INFO.keys()),
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                            translation_key="gateway_type",
+                        ),
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_connection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 2: Connection settings."""
+        if user_input is not None:
+            self._collected.update(user_input)
+            return await self.async_step_profile()
+
+        data = self.config_entry.data
+
+        return self.async_show_form(
+            step_id="connection",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_HOST, default=data.get(CONF_HOST)
                     ): str,
                     vol.Required(
-                        CONF_PORT,
-                        default=options_data.get(CONF_PORT, config_data.get(CONF_PORT)),
+                        CONF_PORT, default=data.get(CONF_PORT)
                     ): cv.port,
+                }
+            ),
+        )
+
+    async def async_step_profile(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 3: Profile selection."""
+        if user_input is not None:
+            self._collected.update(user_input)
+            return await self.async_step_sensors()
+
+        current_profile = self.config_entry.data.get("profile", vol.UNDEFINED)
+
+        return self.async_show_form(
+            step_id="profile",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "profile", default=current_profile
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=list(PROFILES.keys()),
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                            translation_key="profile",
+                        ),
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_sensors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 4: Power supply and external sensors."""
+        if user_input is not None:
+            self._collected.update(user_input)
+
+            # Merge collected values into entry.data and reload
+            new_data = {**self.config_entry.data, **self._collected}
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data=new_data
+            )
+            self.hass.async_create_task(
+                self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            )
+            return self.async_create_entry(title="", data={})
+
+        data = self.config_entry.data
+
+        return self.async_show_form(
+            step_id="sensors",
+            data_schema=vol.Schema(
+                {
                     vol.Required(
                         CONF_POWER_SUPPLY,
-                        default=options_data.get(
-                            CONF_POWER_SUPPLY,
-                            config_data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
-                        ),
+                        default=data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=["single", "three"],
@@ -424,8 +501,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_VOLTAGE_ENTITY,
                         default=(
-                            options_data.get(CONF_VOLTAGE_ENTITY)
-                            if options_data.get(CONF_VOLTAGE_ENTITY) is not None
+                            data.get(CONF_VOLTAGE_ENTITY)
+                            if data.get(CONF_VOLTAGE_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
@@ -436,8 +513,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_POWER_ENTITY,
                         default=(
-                            options_data.get(CONF_POWER_ENTITY)
-                            if options_data.get(CONF_POWER_ENTITY) is not None
+                            data.get(CONF_POWER_ENTITY)
+                            if data.get(CONF_POWER_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
@@ -449,9 +526,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_WATER_INLET_TEMP_ENTITY,
                         default=(
-                            options_data.get(CONF_WATER_INLET_TEMP_ENTITY)
-                            if options_data.get(CONF_WATER_INLET_TEMP_ENTITY)
-                            is not None
+                            data.get(CONF_WATER_INLET_TEMP_ENTITY)
+                            if data.get(CONF_WATER_INLET_TEMP_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
@@ -463,9 +539,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_WATER_OUTLET_TEMP_ENTITY,
                         default=(
-                            options_data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
-                            if options_data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
-                            is not None
+                            data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
+                            if data.get(CONF_WATER_OUTLET_TEMP_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
