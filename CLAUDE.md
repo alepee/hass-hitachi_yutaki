@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Home Assistant custom integration for Hitachi air-to-water heat pumps (Yutaki and Yutampo models). It communicates via Modbus with ATW-MBS-02 gateways and follows hexagonal architecture principles.
 
-**Current Version**: 2.0.0-beta.6 (on branch `beta/2.0.0`)
+**Current Version**: see `manifest.json` (on branch `beta/2.0.0`)
 **Main Branch for PRs**: `dev`
 
 ## Development Commands
@@ -179,6 +179,16 @@ The integration creates multiple HA devices based on configuration:
 - Registers defined in `api/modbus/registers/atw_mbs_02.py`
 - Accessed via coordinator: `coordinator.data["register_key"]`
 - Gateway type info in `api/GATEWAY_INFO`
+- **CONTROL vs STATUS registers**: The ATW-MBS-02 gateway exposes two register ranges:
+  - **CONTROL** (R/W): commands sent to the heat pump
+  - **STATUS** (R): actual state read from the heat pump
+  - **Always read from STATUS registers** for sensor entities — reading CONTROL registers only reflects what was commanded, not the actual running state
+
+### Circuit Climate Architecture
+- **Operating mode is global**: register 1001 (`unit_mode`) controls heat/cool/auto for **all** circuits simultaneously
+- **Circuit power is per-circuit**: registers 1002 (circuit 1) and 1013 (circuit 2) toggle each circuit independently
+- **Single circuit active**: climate entity exposes `off`/`heat`/`cool`/`auto` and controls both power and global mode
+- **Two circuits active**: climate entities expose only `off`/`heat_cool` (power toggle only) — global mode is controlled exclusively via the `control_unit_operation_mode` select entity to avoid unintended side-effects between circuits
 
 ### Entity Migration (v2.0.0)
 - `entity_migration.py` handles unique_id migrations for beta users
@@ -241,8 +251,8 @@ Run tests: `pytest`
 # Via coordinator
 value = coordinator.data.get("register_key")
 
-# Check if feature exists
-if coordinator.has_circuit(CIRCUIT_PRIMARY_ID):
+# Check if feature exists (requires both circuit_id AND mode)
+if coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING):
     # ...
 
 if coordinator.profile.supports_dhw:
@@ -288,8 +298,9 @@ cop_value = cop_service.get_value()
 
 ## Version Management
 
-Current version in:
-- `setup.cfg`: `[bumpversion] current_version = 2.0.0-beta.6`
-- `manifest.json`: `"version": "2.0.0-beta.6"`
+Version is defined in three files (all must be updated together):
+- `setup.cfg`: `[bumpversion] current_version`
+- `manifest.json`: `"version"`
+- `Makefile`: `__VERSION__`
 
-Use `bump2version` for version updates (respects both files).
+Use `bump2version` for version updates (or update all three files manually).
