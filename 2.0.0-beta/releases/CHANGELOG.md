@@ -4,6 +4,19 @@ This changelog summarizes the evolution of the v2.0.0 beta releases.
 
 ---
 
+## [v2.0.0-beta.10] - 2026-02-06
+
+### Added
+- 📊 **Operation state numeric attribute** (Issue #187)
+  - Raw Modbus value (0-11) exposed as `code` attribute on operation state entity
+  - Enables simpler automation logic with numeric comparisons
+- 🎛️ **Conditional circuit climate modes** (Issue #186)
+  - Two circuits active: modes simplified to `off`/`heat_cool` (power toggle only)
+  - Single circuit active: unchanged (`off`/`heat`/`cool`/`auto`)
+  - Global operating mode controlled exclusively via `control_unit_operation_mode`
+
+---
+
 ## [v2.0.0-beta.9] - 2026-02-06
 
 ### Fixed
