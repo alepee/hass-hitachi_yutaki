@@ -50,11 +50,31 @@
   "options": {
     "step": {
       "init": {
-        "title": "Hitachi Yutaki Options",
-        "description": "Update your Hitachi Yutaki configuration.",
+        "title": "Hitachi Yutaki Gateway",
+        "description": "Select the gateway type for your Hitachi Yutaki heat pump.",
+        "data": {
+          "gateway_type": "Gateway Type"
+        }
+      },
+      "connection": {
+        "title": "Connection Settings",
+        "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
         "data": {
           "host": "Host/IP Address",
-          "port": "Port",
+          "port": "Port"
+        }
+      },
+      "profile": {
+        "title": "Heat Pump Model",
+        "description": "Select your heat pump model.",
+        "data": {
+          "profile": "Heat Pump Model"
+        }
+      },
+      "sensors": {
+        "title": "Power and Sensors Configuration",
+        "description": "Configure power supply and external sensors.",
+        "data": {
           "power_supply": "Power Supply",
           "voltage_entity": "Voltage Sensor (Optional)",
           "power_entity": "Power Sensor (Optional)",

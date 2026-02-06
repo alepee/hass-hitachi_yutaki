@@ -50,11 +50,31 @@
   "options": {
     "step": {
       "init": {
-        "title": "Options Hitachi Yutaki",
-        "description": "Mettez à jour votre configuration Hitachi Yutaki.",
+        "title": "Passerelle Hitachi Yutaki",
+        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
+        "data": {
+          "gateway_type": "Type de passerelle"
+        }
+      },
+      "connection": {
+        "title": "Paramètres de connexion",
+        "description": "Entrez les détails de connexion pour votre passerelle.",
         "data": {
           "host": "Hôte/Adresse IP",
-          "port": "Port",
+          "port": "Port"
+        }
+      },
+      "profile": {
+        "title": "Modèle de pompe à chaleur",
+        "description": "Sélectionnez votre modèle de pompe à chaleur.",
+        "data": {
+          "profile": "Modèle de pompe à chaleur"
+        }
+      },
+      "sensors": {
+        "title": "Configuration alimentation et capteurs",
+        "description": "Configurez l'alimentation et les capteurs externes.",
+        "data": {
           "power_supply": "Alimentation électrique",
           "voltage_entity": "Capteur de tension (Optionnel)",
           "power_entity": "Capteur de puissance (Optionnel)",
