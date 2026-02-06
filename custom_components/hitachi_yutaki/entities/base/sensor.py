@@ -508,6 +508,9 @@ class HitachiYutakiSensor(
 
     def _get_cop_value(self) -> StateType:
         """Get COP value using the COP sensor service."""
+        if not self.coordinator.defrost_guard.is_data_reliable:
+            return self._cop_service.get_value()
+
         cop_input = self._get_cop_input()
         if cop_input is None:
             return None
@@ -525,12 +528,16 @@ class HitachiYutakiSensor(
             return
 
         water_inlet, water_outlet, water_flow = thermal_data
+
+        if not self.coordinator.defrost_guard.is_data_reliable:
+            water_inlet = None
+            water_outlet = None
+
         self._thermal_service.update(
             water_inlet_temp=water_inlet,
             water_outlet_temp=water_outlet,
             water_flow=water_flow,
             compressor_frequency=self.coordinator.data.get("compressor_frequency"),
-            is_defrosting=self.coordinator.api_client.is_defrosting,
         )
 
     @property

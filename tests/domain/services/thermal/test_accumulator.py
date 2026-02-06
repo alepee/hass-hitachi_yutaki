@@ -102,19 +102,18 @@ class TestThermalEnergyAccumulator:
         assert acc.last_cooling_power == 2.0
 
     @patch("custom_components.hitachi_yutaki.domain.services.thermal.accumulator.time")
-    def test_defrost_handling(self, mock_time):
-        """Test handling of defrost mode."""
+    def test_zero_power_during_defrost(self, mock_time):
+        """Test that passing zero powers (as entity layer does during defrost) zeros energy."""
         acc = ThermalEnergyAccumulator()
         mock_time.return_value = 1000.0
         acc.update(heating_power=10.0, cooling_power=0.0, compressor_running=True)
 
-        # Defrost starts
+        # Defrost: entity layer passes zero powers
         mock_time.return_value = 1000.0 + 600.0  # 10 min
         acc.update(
             heating_power=0.0,
             cooling_power=0.0,
             compressor_running=True,
-            is_defrosting=True,
         )
 
         # Accumulation should have happened for the previous period (0.0 power used during defrost interval)

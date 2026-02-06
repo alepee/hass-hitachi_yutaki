@@ -126,7 +126,6 @@ class ThermalEnergyAccumulator:
         heating_power: float,
         cooling_power: float,
         compressor_running: bool,
-        is_defrosting: bool = False,
     ) -> None:
         """Update energy accumulation with thermal powers.
 
@@ -134,17 +133,8 @@ class ThermalEnergyAccumulator:
             heating_power: Positive thermal power (delta T > 0)
             cooling_power: Positive thermal power (delta T < 0, already negated)
             compressor_running: Whether compressor is active
-            is_defrosting: Whether heat pump is defrosting
 
         """
-        # Handle defrosting
-        if is_defrosting:
-            if self._last_mode is not None:
-                self._update_energy(0.0, mode=self._last_mode)
-            self._last_heating_power = 0.0
-            self._last_cooling_power = 0.0
-            return
-
         # If compressor restarts, exit post-cycle lock
         if compressor_running:
             self._post_cycle_lock = False

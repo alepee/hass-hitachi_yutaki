@@ -23,6 +23,7 @@ from .const import (
     CIRCUIT_MODES,
     DOMAIN,
 )
+from .domain.services.defrost_guard import DefrostGuard
 from .profiles import HitachiHeatPumpProfile
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +43,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.api_client = api_client
         self.profile = profile
         self.entities: list[Any] = []
+        self.defrost_guard = DefrostGuard()
 
         super().__init__(
             hass,
@@ -72,6 +74,19 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 data[key] = await self.api_client.read_value(key)
 
             self.system_config = data.get("system_config", 0)
+
+            # Update defrost guard with fresh data
+            water_inlet = data.get("water_inlet_temp")
+            water_outlet = data.get("water_outlet_temp")
+            delta_t = (
+                (water_outlet - water_inlet)
+                if water_inlet is not None and water_outlet is not None
+                else None
+            )
+            self.defrost_guard.update(
+                is_defrosting=self.api_client.is_defrosting,
+                delta_t=delta_t,
+            )
 
             # If we reach here, connection is successful, so delete any connection error issue
             ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
