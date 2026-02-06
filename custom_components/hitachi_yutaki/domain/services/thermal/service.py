@@ -35,7 +35,6 @@ class ThermalPowerService:
         water_outlet_temp: float | None,
         water_flow: float | None,
         compressor_frequency: float | None,
-        is_defrosting: bool = False,
     ) -> None:
         """Update thermal energy calculation with new data.
 
@@ -44,7 +43,6 @@ class ThermalPowerService:
             water_outlet_temp: Water outlet temperature in °C
             water_flow: Water flow rate in m³/h
             compressor_frequency: Compressor frequency in Hz (to check if running)
-            is_defrosting: True if heat pump is in defrost mode
 
         """
         # Compressor running status
@@ -52,15 +50,14 @@ class ThermalPowerService:
             compressor_frequency is not None and compressor_frequency > 0
         )
 
-        # Validate input data or handle defrost
-        if is_defrosting or any(
+        # Validate input data
+        if any(
             x is None for x in [water_inlet_temp, water_outlet_temp, water_flow]
         ):
             self._accumulator.update(
                 heating_power=0.0,
                 cooling_power=0.0,
                 compressor_running=compressor_running,
-                is_defrosting=is_defrosting,
             )
             return
 
@@ -78,7 +75,6 @@ class ThermalPowerService:
             heating_power=heating_power,
             cooling_power=cooling_power,
             compressor_running=compressor_running,
-            is_defrosting=is_defrosting,
         )
 
     def get_heating_power(self) -> float:
