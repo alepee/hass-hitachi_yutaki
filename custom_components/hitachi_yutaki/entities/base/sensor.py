@@ -610,6 +610,15 @@ class HitachiYutakiSensor(
             return {"code": value}
         return None
 
+    def _get_operation_state_attributes(self) -> dict[str, Any] | None:
+        """Get attributes for operation state sensor."""
+        if self.coordinator.data is None:
+            return None
+        code = self.coordinator.data.get("operation_state_code")
+        if code is not None:
+            return {"code": code}
+        return None
+
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes of the sensor."""
@@ -618,6 +627,8 @@ class HitachiYutakiSensor(
         # Dispatch attributes based on sensor key
         if key == "alarm":
             return self._get_alarm_attributes()
+        elif key == "operation_state":
+            return self._get_operation_state_attributes()
         elif key.startswith("cop_"):
             return self._get_cop_attributes()
 

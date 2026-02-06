@@ -229,6 +229,7 @@ REGISTER_CONTROL_UNIT = {
     "operation_state": RegisterDefinition(
         1090, deserializer=deserialize_operation_state
     ),
+    "operation_state_code": RegisterDefinition(1090),
     "outdoor_temp": RegisterDefinition(1091, deserializer=convert_signed_16bit),
     "water_inlet_temp": RegisterDefinition(1092, deserializer=convert_signed_16bit),
     "water_outlet_temp": RegisterDefinition(1093, deserializer=convert_signed_16bit),
