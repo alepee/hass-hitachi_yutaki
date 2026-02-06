@@ -48,11 +48,13 @@ class HitachiYutakiClimate(
         description: HitachiYutakiClimateEntityDescription,
         device_info: DeviceInfo,
         circuit_id: CIRCUIT_IDS,
+        multi_circuit: bool = False,
     ) -> None:
         """Initialize the climate entity."""
         super().__init__(coordinator)
         self.entity_description = description
         self._circuit_id = circuit_id
+        self._multi_circuit = multi_circuit
         self._register_prefix = f"circuit{circuit_id}"
         entry_id = coordinator.config_entry.entry_id
         self._attr_unique_id = f"{entry_id}_{self._register_prefix}_climate"
@@ -75,21 +77,31 @@ class HitachiYutakiClimate(
         self._attr_temperature_unit = UnitOfTemperature.CELSIUS
 
         # Set available modes
-        self._attr_hvac_modes = [HVACMode.OFF]
-        if (
-            coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
-            if circuit_id == CIRCUIT_PRIMARY_ID
-            else coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING)
-        ):
-            self._attr_hvac_modes.append(HVACMode.HEAT)
-        if (
-            coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
-            if circuit_id == CIRCUIT_PRIMARY_ID
-            else coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
-        ):
-            self._attr_hvac_modes.append(HVACMode.COOL)
-        if len(self._attr_hvac_modes) > 2:  # If both heating and cooling are available
-            self._attr_hvac_modes.append(HVACMode.AUTO)
+        if multi_circuit:
+            # Multi-circuit: only on/off, global mode is controlled via
+            # control_unit_operation_mode entity
+            self._attr_hvac_modes = [HVACMode.OFF, HVACMode.HEAT_COOL]
+        else:
+            # Single circuit: full mode control
+            self._attr_hvac_modes = [HVACMode.OFF]
+            if (
+                coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
+                if circuit_id == CIRCUIT_PRIMARY_ID
+                else coordinator.has_circuit(
+                    CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING
+                )
+            ):
+                self._attr_hvac_modes.append(HVACMode.HEAT)
+            if (
+                coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
+                if circuit_id == CIRCUIT_PRIMARY_ID
+                else coordinator.has_circuit(
+                    CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING
+                )
+            ):
+                self._attr_hvac_modes.append(HVACMode.COOL)
+            if len(self._attr_hvac_modes) > 2:
+                self._attr_hvac_modes.append(HVACMode.AUTO)
 
         # Set available presets
         self._attr_preset_modes = [PRESET_COMFORT, PRESET_ECO]
@@ -128,6 +140,9 @@ class HitachiYutakiClimate(
         power = self.coordinator.api_client.get_circuit_power(self._circuit_id)
         if not power:
             return HVACMode.OFF
+
+        if self._multi_circuit:
+            return HVACMode.HEAT_COOL
 
         return self.coordinator.api_client.get_unit_mode()
 
@@ -188,8 +203,10 @@ class HitachiYutakiClimate(
         # Ensure circuit is powered on
         await self.coordinator.api_client.set_circuit_power(self._circuit_id, True)
 
-        # Set unit mode
-        await self.coordinator.api_client.set_unit_mode(hvac_mode)
+        if not self._multi_circuit:
+            # Single circuit: also set the global unit mode
+            await self.coordinator.api_client.set_unit_mode(hvac_mode)
+
         await self.coordinator.async_request_refresh()
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
@@ -204,9 +221,14 @@ class HitachiYutakiClimate(
 
     async def async_turn_on(self) -> None:
         """Turn the entity on."""
-        await self.async_set_hvac_mode(
-            HVACMode.HEAT if HVACMode.HEAT in self._attr_hvac_modes else HVACMode.COOL
-        )
+        if self._multi_circuit:
+            await self.async_set_hvac_mode(HVACMode.HEAT_COOL)
+        else:
+            await self.async_set_hvac_mode(
+                HVACMode.HEAT
+                if HVACMode.HEAT in self._attr_hvac_modes
+                else HVACMode.COOL
+            )
 
     async def async_turn_off(self) -> None:
         """Turn the entity off."""

@@ -44,6 +44,15 @@ def build_circuit_climate(
     else:
         return None
 
+    # Count total active circuits
+    has_circuit1 = coordinator.has_circuit(
+        CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING
+    ) or coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
+    has_circuit2 = coordinator.has_circuit(
+        CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING
+    ) or coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
+    multi_circuit = has_circuit1 and has_circuit2
+
     description = HitachiYutakiClimateEntityDescription(
         key="climate",
         translation_key="climate",
@@ -58,4 +67,5 @@ def build_circuit_climate(
         description=description,
         device_info=device_info,
         circuit_id=circuit_id,
+        multi_circuit=multi_circuit,
     )
