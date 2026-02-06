@@ -4,6 +4,24 @@ This changelog summarizes the evolution of the v2.0.0 beta releases.
 
 ---
 
+## [v2.0.0-beta.11] - 2026-02-06
+
+### Added
+- 🛡️ **DefrostGuard: centralized defrost & recovery filtering** (Issue #190)
+  - State machine (NORMAL → DEFROST → RECOVERY) gates data upstream of COP and thermal services
+  - Eliminates false cooling COP values caused by defrost ΔT inversion in heating mode
+  - Filters post-defrost recovery noise from thermal energy measurements
+  - Comprehensive unit tests (205 lines)
+- ⚙️ **Multi-step options flow** (Discussion #117)
+  - Configure button now mirrors the initial setup: gateway type → connection → profile → sensors
+  - Users can change heat pump model and gateway type without deleting the integration
+  - All fields pre-filled with current values
+
+### Fixed
+- **Options flow saving to wrong store** — old flow wrote to `entry.options` but all code read from `entry.data`; changes via Configure were silently ignored
+
+---
+
 ## [v2.0.0-beta.10] - 2026-02-06
 
 ### Added
