@@ -608,6 +608,18 @@
       }
     }
   },
+  "services": {
+    "set_room_temperature": {
+      "name": "Définir la température ambiante",
+      "description": "Envoie la température ambiante mesurée à la pompe à chaleur. Utilisé lorsque le thermostat Modbus est activé pour fournir la mesure de température ambiante pour la régulation thermostatique.",
+      "fields": {
+        "temperature": {
+          "name": "Température",
+          "description": "La température ambiante mesurée en degrés Celsius."
+        }
+      }
+    }
+  },
   "issues": {
     "desync_warning": {
       "title": "Passerelle Hitachi Désynchronisée",

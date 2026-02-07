@@ -225,6 +225,16 @@ class HitachiApiClient(ABC):
         """Set target temperature for a circuit (in °C)."""
 
     @abstractmethod
+    async def set_circuit_room_temperature(
+        self, circuit_id: CIRCUIT_IDS, temperature: float
+    ) -> bool:
+        """Set the measured room temperature for a circuit (in °C).
+
+        Used when Modbus thermostat mode is enabled to push the ambient
+        temperature reading to the heat pump via the BMS interface.
+        """
+
+    @abstractmethod
     async def set_circuit_eco_mode(
         self, circuit_id: CIRCUIT_IDS, enabled: bool
     ) -> bool:

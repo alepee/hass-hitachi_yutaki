@@ -610,6 +610,14 @@ class ModbusApiClient(HitachiApiClient):
         value = int(temperature * 10)
         return await self.write_value(key, value)
 
+    async def set_circuit_room_temperature(
+        self, circuit_id: CIRCUIT_IDS, temperature: float
+    ) -> bool:
+        """Set measured room temperature for a circuit."""
+        key = f"circuit{circuit_id}_current_temp"
+        value = int(temperature * 10)
+        return await self.write_value(key, value)
+
     async def set_circuit_eco_mode(
         self, circuit_id: CIRCUIT_IDS, enabled: bool
     ) -> bool:

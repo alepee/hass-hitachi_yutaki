@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **`set_room_temperature` service** — New entity platform service (`hitachi_yutaki.set_room_temperature`) to write the measured room temperature to the heat pump. Targets climate entities and enables automations to push ambient temperature readings when the Modbus thermostat is enabled.
 - **Operation state numeric attribute** (issue [#187](https://github.com/alepee/hass-hitachi_yutaki/issues/187)) - The operation state entity now exposes the raw Modbus numeric value (0-11) as a `code` attribute, enabling simpler automation logic
 - **Conditional circuit climate modes** (issue [#186](https://github.com/alepee/hass-hitachi_yutaki/issues/186)) - When two circuits are active, climate entities expose only `off`/`heat_cool` modes (power toggle only), since the operating mode is global. Single-circuit setups retain full `heat`/`cool`/`auto`/`off` mode control
 
 ### Fixed
+- **COP DHW identical to COP Heating** (issue [#191](https://github.com/alepee/hass-hitachi_yutaki/issues/191)) - COP sensors now use `operation_state` (Modbus register 1090) instead of `hvac_action` to differentiate heating, DHW, cooling, and pool cycles. Fixes identical COP values for DHW and Heating since the v2.0.0 refactoring.
 - **Anti-legionella binary sensor** (issue [#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178)) - Read from STATUS registers instead of CONTROL registers for accurate anti-legionella cycle state
 - **Config flow translations** - Added missing translations for gateway type and profile selection steps in config flow (both EN and FR)
 

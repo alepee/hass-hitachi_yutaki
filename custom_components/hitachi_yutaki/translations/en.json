@@ -608,6 +608,18 @@
       }
     }
   },
+  "services": {
+    "set_room_temperature": {
+      "name": "Set room temperature",
+      "description": "Write the measured room temperature to the heat pump. Used when the Modbus thermostat is enabled to provide the ambient temperature reading for thermostat regulation.",
+      "fields": {
+        "temperature": {
+          "name": "Temperature",
+          "description": "The measured room temperature in degrees Celsius."
+        }
+      }
+    }
+  },
   "issues": {
     "desync_warning": {
       "title": "Hitachi Gateway Desynchronized",
