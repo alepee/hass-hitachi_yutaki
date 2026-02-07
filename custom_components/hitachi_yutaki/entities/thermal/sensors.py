@@ -105,41 +105,4 @@ def _build_thermal_sensor_descriptions(
             ),
         ])
 
-    # DEPRECATED sensors (disabled by default for migration)
-    sensors.extend([
-        HitachiYutakiSensorEntityDescription(
-            key="thermal_power",
-            translation_key="thermal_power",
-            description="[DEPRECATED] Use thermal_power_heating instead",
-            device_class=SensorDeviceClass.POWER,
-            state_class=SensorStateClass.MEASUREMENT,
-            native_unit_of_measurement="kW",
-            entity_category=EntityCategory.DIAGNOSTIC,
-            icon="mdi:heat-wave",
-            entity_registry_enabled_default=False,
-        ),
-        HitachiYutakiSensorEntityDescription(
-            key="daily_thermal_energy",
-            translation_key="daily_thermal_energy",
-            description="[DEPRECATED] Use thermal_energy_heating_daily instead",
-            device_class=SensorDeviceClass.ENERGY,
-            state_class=SensorStateClass.TOTAL,
-            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            entity_category=EntityCategory.DIAGNOSTIC,
-            icon="mdi:heat-wave",
-            entity_registry_enabled_default=False,
-        ),
-        HitachiYutakiSensorEntityDescription(
-            key="total_thermal_energy",
-            translation_key="total_thermal_energy",
-            description="[DEPRECATED] Use thermal_energy_heating_total instead",
-            device_class=SensorDeviceClass.ENERGY,
-            state_class=SensorStateClass.TOTAL_INCREASING,
-            native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            entity_category=EntityCategory.DIAGNOSTIC,
-            icon="mdi:heat-wave",
-            entity_registry_enabled_default=False,
-        ),
-    ])
-
     return tuple(sensors)
