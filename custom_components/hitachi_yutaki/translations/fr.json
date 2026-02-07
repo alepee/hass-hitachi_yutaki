@@ -78,6 +78,7 @@
           "power_supply": "Alimentation électrique",
           "voltage_entity": "Capteur de tension (Optionnel)",
           "power_entity": "Capteur de puissance (Optionnel)",
+          "energy_entity": "Compteur d'énergie (Optionnel)",
           "water_inlet_temp_entity": "Capteur de température d'entrée d'eau (Optionnel)",
           "water_outlet_temp_entity": "Capteur de température de sortie d'eau (Optionnel)"
         }
@@ -125,6 +126,7 @@
           "power_supply": "Alimentation électrique",
           "voltage_entity": "Capteur de tension (Optionnel)",
           "power_entity": "Capteur de puissance (Optionnel)",
+          "energy_entity": "Compteur d'énergie (Optionnel)",
           "water_inlet_temp_entity": "Capteur de température d'entrée d'eau (Optionnel)",
           "water_outlet_temp_entity": "Capteur de température de sortie d'eau (Optionnel)"
         }
@@ -428,15 +430,6 @@
       },
       "thermal_energy_cooling_total": {
         "name": "Énergie Thermique Refroidissement Totale"
-      },
-      "thermal_power": {
-        "name": "[OBSOLÈTE] Puissance Thermique"
-      },
-      "daily_thermal_energy": {
-        "name": "[OBSOLÈTE] Énergie Thermique Journalière"
-      },
-      "total_thermal_energy": {
-        "name": "[OBSOLÈTE] Énergie Thermique Totale"
       },
       "system_state": {
         "name": "État de synchronisation de la passerelle",

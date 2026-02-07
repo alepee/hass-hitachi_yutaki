@@ -8,11 +8,23 @@
 
 ## Overview
 
-Beta.12 fixes COP DHW values being identical to COP Heating (issue #191) and adds a new `set_room_temperature` entity platform service that allows automations to push the measured room temperature to the heat pump when the Modbus thermostat is enabled.
+Beta.12 fixes COP DHW values being identical to COP Heating (issue #191), adds a new `set_room_temperature` entity platform service that allows automations to push the measured room temperature to the heat pump when the Modbus thermostat is enabled, and introduces support for an external energy sensor (`CONF_ENERGY_ENTITY`) to replace the Modbus power consumption register.
 
 ---
 
 ## What's New
+
+### External Energy Sensor (`CONF_ENERGY_ENTITY`)
+
+The `power_consumption` sensor relies exclusively on Modbus register 1098 (kWh cumulative). Some models (e.g., Yutaki S80) don't have a reliable energy counter, and users may also have more accurate external energy meters (e.g., Shelly EM, smart meters).
+
+**New configuration option**: `energy_entity` — an optional external lifetime energy sensor (`device_class=energy`, kWh, `TOTAL_INCREASING`) that replaces the Modbus register for the `power_consumption` entity.
+
+**Behavior**:
+- If configured, the external sensor is used **exclusively** (no fallback to Modbus — avoids value jumps on `TOTAL_INCREASING`)
+- If not configured, Modbus register 1098 is used as today
+- Available in both config flow (power step) and options flow (sensors step)
+- The `power_consumption` entity exposes a `source` attribute: the external entity_id or `"gateway"`
 
 ### `set_room_temperature` Entity Platform Service
 
@@ -90,6 +102,11 @@ Remaining from previous betas:
 - `tests/domain/services/test_cop.py` - Unit tests for COP mode filtering (138 lines)
 
 ### Modified
+- `const.py` - Added `CONF_ENERGY_ENTITY` constant
+- `config_flow.py` - Added `energy_entity` field to config flow `POWER_SCHEMA` and options flow `async_step_sensors`
+- `entities/base/sensor.py` - Added `_get_energy_value()` method, dispatch in `native_value`, and `source` attribute for `power_consumption`
+- `translations/en.json` - Added `energy_entity` labels in config and options steps
+- `translations/fr.json` - Added `energy_entity` labels in config and options steps
 - `api/modbus/registers/atw_mbs_02.py` - Added `circuit1_current_temp` and `circuit2_current_temp` to `WRITABLE_KEYS`
 - `api/base.py` - Added abstract method `set_circuit_room_temperature()`
 - `api/modbus/__init__.py` - Implemented `set_circuit_room_temperature()`

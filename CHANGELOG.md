@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- **External energy sensor (`energy_entity`)** — New optional configuration to replace the Modbus power consumption register with an external lifetime energy sensor (`device_class=energy`, kWh, `TOTAL_INCREASING`). Useful for models with unreliable built-in kWh counters or users with more accurate external meters. No Modbus fallback when configured. The `power_consumption` entity exposes a `source` attribute for transparency.
 - **`set_room_temperature` service** — New entity platform service (`hitachi_yutaki.set_room_temperature`) to write the measured room temperature to the heat pump. Targets climate entities and enables automations to push ambient temperature readings when the Modbus thermostat is enabled.
 - **Operation state numeric attribute** (issue [#187](https://github.com/alepee/hass-hitachi_yutaki/issues/187)) - The operation state entity now exposes the raw Modbus numeric value (0-11) as a `code` attribute, enabling simpler automation logic
 - **Conditional circuit climate modes** (issue [#186](https://github.com/alepee/hass-hitachi_yutaki/issues/186)) - When two circuits are active, climate entities expose only `off`/`heat_cool` modes (power toggle only), since the operating mode is global. Single-circuit setups retain full `heat`/`cool`/`auto`/`off` mode control

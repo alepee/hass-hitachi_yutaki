@@ -1,10 +1,21 @@
-# Hitachi Yutaki – COP Fix & Room Temperature Service (v2.0.0-beta.12)
+# Hitachi Yutaki – COP Fix, External Energy Sensor & Room Temperature Service (v2.0.0-beta.12)
 
 [![Downloads for this release](https://img.shields.io/github/downloads/alepee/hass-hitachi_yutaki/v2.0.0-beta.12/total.svg)](https://github.com/alepee/hass-hitachi_yutaki/releases/v2.0.0-beta.12)
 
-This release fixes COP DHW showing identical values to COP Heating (#191) and adds a new `set_room_temperature` service for Modbus thermostat mode.
+This release fixes COP DHW showing identical values to COP Heating (#191), adds support for an external energy sensor to replace the Modbus power consumption register, and adds a new `set_room_temperature` service for Modbus thermostat mode.
 
 ## ✨ New Features
+
+### External Energy Sensor
+
+The `power_consumption` entity can now read from an external energy sensor (e.g., Shelly EM, smart meter) instead of the Modbus register 1098. This is useful for models like the Yutaki S80 where the built-in kWh counter is unreliable, or for users who have more accurate external meters.
+
+Configure it in **Settings > Devices & Services > Hitachi Yutaki > Configure** (sensors step), or during initial setup (power step). Select any `sensor` entity with `device_class: energy`.
+
+**Behavior:**
+- When configured, the external sensor is used **exclusively** — no fallback to Modbus (avoids value jumps on `TOTAL_INCREASING`)
+- When not configured, Modbus register 1098 is used as before
+- The entity exposes a `source` attribute (`"gateway"` or the external entity_id) for transparency
 
 ### `set_room_temperature` Service
 
