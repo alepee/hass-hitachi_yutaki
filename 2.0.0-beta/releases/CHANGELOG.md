@@ -4,6 +4,24 @@ This changelog summarizes the evolution of the v2.0.0 beta releases.
 
 ---
 
+## [v2.0.0-beta.12] - 2026-02-07
+
+### Added
+- 🎛️ **`set_room_temperature` service** — New entity platform service to write the measured room temperature to the heat pump via Modbus. Enables automations to push ambient temperature readings when the Modbus thermostat is enabled, replacing direct Modbus writes via the generic integration.
+  - Targets climate entities (`climate.hitachi_circuit_1`, `climate.hitachi_circuit_2`)
+  - Temperature range: 0–50°C with 0.1°C precision
+  - Full service UI in Developer Tools with number selector
+  - Translations: English and French
+
+### Fixed
+- 🔧 **COP DHW identical to COP Heating** (Issue #191)
+  - COP DHW and COP Heating showed identical values because mode filtering relied on `hvac_action` (derived from `unit_mode`) which bypassed DHW/Pool entirely
+  - Now uses `operation_state` (Modbus register 1090) to precisely identify heating/DHW/cooling/pool cycles
+  - All four COP sensors filter uniformly on `operation_state`, both in live updates and Recorder rehydration
+  - New unit tests for COP mode filtering (138 lines)
+
+---
+
 ## [v2.0.0-beta.11] - 2026-02-06
 
 ### Added

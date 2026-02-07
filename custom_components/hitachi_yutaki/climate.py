@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
+import voluptuous as vol
+
 from homeassistant.config_entries import ConfigEntry
+from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_platform import (
+    AddEntitiesCallback,
+    async_get_current_platform,
+)
 
 from .const import (
     DEVICE_CIRCUIT_1,
@@ -15,6 +21,8 @@ from .coordinator import HitachiYutakiDataCoordinator
 
 # Import builder from domain entity
 from .entities.circuit import build_circuit_climate
+
+SERVICE_SET_ROOM_TEMPERATURE = "set_room_temperature"
 
 
 async def async_setup_entry(
@@ -41,3 +49,14 @@ async def async_setup_entry(
         entities.append(climate2)
 
     async_add_entities(entities)
+
+    platform = async_get_current_platform()
+    platform.async_register_entity_service(
+        SERVICE_SET_ROOM_TEMPERATURE,
+        {
+            vol.Required(ATTR_TEMPERATURE): vol.All(
+                vol.Coerce(float), vol.Range(min=0, max=50.0)
+            ),
+        },
+        "async_set_room_temperature",
+    )

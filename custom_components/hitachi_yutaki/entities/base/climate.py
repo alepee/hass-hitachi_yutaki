@@ -193,6 +193,16 @@ class HitachiYutakiClimate(
         )
         await self.coordinator.async_request_refresh()
 
+    async def async_set_room_temperature(self, **kwargs) -> None:
+        """Set the measured room temperature (Modbus thermostat mode)."""
+        if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
+            return
+
+        await self.coordinator.api_client.set_circuit_room_temperature(
+            self._circuit_id, temperature
+        )
+        await self.coordinator.async_request_refresh()
+
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
         if hvac_mode == HVACMode.OFF:
