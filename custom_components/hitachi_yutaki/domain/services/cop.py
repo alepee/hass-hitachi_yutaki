@@ -247,25 +247,22 @@ class COPService:
             self._accumulator.add_measurement(thermal_power, electrical_power)
 
     def _is_mode_matching(self, data: COPInput) -> bool:
-        """Check if the current HVAC action matches the expected mode.
+        """Check if the current operation state matches the expected mode.
 
         Args:
-            data: Input data containing hvac_action
+            data: Input data containing operation_state
 
         Returns:
             True if the mode matches or no filtering is required
 
         """
-        # DHW and Pool modes don't need HVAC action filtering
-        if self._expected_mode in ("dhw", "pool", None):
+        if self._expected_mode is None:
             return True
 
-        # For heating/cooling, check if hvac_action matches
-        if data.hvac_action is None:
-            # If hvac_action is unknown, don't accumulate
+        if data.operation_state is None:
             return False
 
-        return data.hvac_action == self._expected_mode
+        return data.operation_state == self._expected_mode
 
     def get_value(self) -> float | None:
         """Get current COP value rounded to 2 decimals."""

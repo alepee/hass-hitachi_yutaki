@@ -27,6 +27,7 @@ async def async_replay_cop_history(
     window: timedelta,
     measurement_interval: int,
     max_measurements: int,
+    accepted_operation_states: set[str] | None = None,
 ) -> list[PowerMeasurement]:
     """Reconstruct power measurements from Recorder sensor history."""
     required_keys = {
@@ -47,29 +48,38 @@ async def async_replay_cop_history(
     if not states_map:
         return []
 
-    timeline: list[tuple[datetime, str, float]] = []
+    timeline: list[tuple[datetime, str, float | str]] = []
     for key, entity_id in entity_ids.items():
         states = states_map.get(entity_id)
         if not states:
             continue
-        parser = _parse_bool if key.endswith("_running") else _parse_float
-        for state in states:
-            parsed = parser(state)
-            if parsed is None:
-                continue
-            timeline.append(
+        if key == "operation_state":
+            timeline.extend(
                 (
                     _as_local_naive(state.last_changed or state.last_updated),
                     key,
-                    parsed,
+                    state.state,
                 )
+                for state in states
+                if state.state not in (None, "unknown", "unavailable")
             )
+        else:
+            parser = _parse_bool if key.endswith("_running") else _parse_float
+            for state in states:
+                parsed = parser(state)
+                if parsed is None:
+                    continue
+                timeline.append((
+                    _as_local_naive(state.last_changed or state.last_updated),
+                    key,
+                    parsed,
+                ))
 
     if not timeline:
         return []
 
     timeline.sort(key=lambda item: item[0])
-    latest: dict[str, float] = {}
+    latest: dict[str, float | str] = {}
     last_measurement: datetime | None = None
     measurements: list[PowerMeasurement] = []
 
@@ -79,6 +89,11 @@ async def async_replay_cop_history(
             continue
         if latest["compressor_frequency"] <= 0 or latest["compressor_current"] <= 0:
             continue
+        # Filter by operation_state when mode filtering is requested
+        if accepted_operation_states is not None:
+            current_op_state = latest.get("operation_state")
+            if current_op_state not in accepted_operation_states:
+                continue
         if (
             last_measurement
             and (timestamp - last_measurement).total_seconds() < measurement_interval
