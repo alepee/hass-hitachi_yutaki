@@ -7,6 +7,10 @@ This changelog summarizes the evolution of the v2.0.0 beta releases.
 ## [v2.0.0-beta.12] - 2026-02-07
 
 ### Added
+- ⚡ **External energy sensor (`energy_entity`)** — New optional configuration to replace the Modbus power consumption register (1098) with an external lifetime energy sensor (`device_class=energy`, kWh, `TOTAL_INCREASING`). Useful for models like Yutaki S80 with unreliable built-in kWh counters, or users with more accurate external meters (Shelly EM, smart meters).
+  - Available in config flow (power step) and options flow (sensors step)
+  - Exclusive mode: no Modbus fallback when configured (avoids `TOTAL_INCREASING` value jumps)
+  - `power_consumption` entity exposes a `source` attribute for transparency
 - 🎛️ **`set_room_temperature` service** — New entity platform service to write the measured room temperature to the heat pump via Modbus. Enables automations to push ambient temperature readings when the Modbus thermostat is enabled, replacing direct Modbus writes via the generic integration.
   - Targets climate entities (`climate.hitachi_circuit_1`, `climate.hitachi_circuit_2`)
   - Temperature range: 0–50°C with 0.1°C precision

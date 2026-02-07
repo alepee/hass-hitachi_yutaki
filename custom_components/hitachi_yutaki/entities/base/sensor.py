@@ -34,6 +34,7 @@ from ...adapters.storage.recorder_rehydrate import (
     async_replay_cop_history,
 )
 from ...const import (
+    CONF_ENERGY_ENTITY,
     CONF_POWER_SUPPLY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
@@ -207,6 +208,17 @@ class HitachiYutakiSensor(
                     return float(state.state)
         return self.coordinator.data.get(fallback_key)
 
+    def _get_energy_value(self) -> StateType:
+        """Get energy from configured external entity, or Modbus fallback."""
+        entity_id = self.coordinator.config_entry.data.get(CONF_ENERGY_ENTITY)
+        if entity_id:
+            state = self.hass.states.get(entity_id)
+            if state and state.state not in (None, "unknown", "unavailable"):
+                with suppress(ValueError):
+                    return float(state.state)
+            return None  # No fallback — external sensor configured but unavailable
+        return self.coordinator.data.get("power_consumption")
+
     @staticmethod
     def _get_cop_calculator_and_mode(key: str) -> tuple[Callable, str | None]:
         """Get the thermal calculator and expected mode for a COP sensor.
@@ -360,12 +372,6 @@ class HitachiYutakiSensor(
             elif self.entity_description.key == "thermal_energy_cooling_daily":
                 if self._is_same_day_reset(last_state):
                     self._thermal_service.restore_daily_cooling_energy(energy_value)
-            # DEPRECATED sensors (backward compatibility)
-            elif self.entity_description.key == "total_thermal_energy":
-                self._thermal_service.restore_total_heating_energy(energy_value)
-            elif self.entity_description.key == "daily_thermal_energy":
-                if self._is_same_day_reset(last_state):
-                    self._thermal_service.restore_daily_heating_energy(energy_value)
 
     async def _async_rehydrate_cop_history(self) -> None:
         """Replay Recorder data to rebuild the COP measurement buffer."""
@@ -596,13 +602,6 @@ class HitachiYutakiSensor(
                 return self._thermal_service.get_daily_cooling_energy()
             elif self.entity_description.key == "thermal_energy_cooling_total":
                 return self._thermal_service.get_total_cooling_energy()
-            # DEPRECATED sensors (for backward compatibility)
-            elif self.entity_description.key == "thermal_power":
-                return self._thermal_service.get_heating_power()
-            elif self.entity_description.key == "daily_thermal_energy":
-                return self._thermal_service.get_daily_heating_energy()
-            elif self.entity_description.key == "total_thermal_energy":
-                return self._thermal_service.get_total_heating_energy()
 
         if (
             "compressor" in self.entity_description.key
@@ -615,6 +614,9 @@ class HitachiYutakiSensor(
                 return timing.runtime
             elif "resttime" in self.entity_description.key:
                 return timing.resttime
+
+        if self.entity_description.key == "power_consumption":
+            return self._get_energy_value()
 
         # For simple sensors, use value_fn if provided
         if self.entity_description.value_fn:
@@ -666,5 +668,8 @@ class HitachiYutakiSensor(
             return self._get_operation_state_attributes()
         elif key.startswith("cop_"):
             return self._get_cop_attributes()
+        elif key == "power_consumption":
+            entity_id = self.coordinator.config_entry.data.get(CONF_ENERGY_ENTITY)
+            return {"source": entity_id if entity_id else "gateway"}
 
         return None

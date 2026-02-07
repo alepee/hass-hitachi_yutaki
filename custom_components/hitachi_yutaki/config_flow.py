@@ -23,6 +23,7 @@ import homeassistant.helpers.config_validation as cv
 
 from .api import GATEWAY_INFO
 from .const import (
+    CONF_ENERGY_ENTITY,
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
     CONF_VOLTAGE_ENTITY,
@@ -83,6 +84,12 @@ POWER_SCHEMA = vol.Schema(
             selector.EntitySelectorConfig(
                 domain=["sensor"],
                 device_class=["power"],
+            ),
+        ),
+        vol.Optional(CONF_ENERGY_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain=["sensor"],
+                device_class=["energy"],
             ),
         ),
         vol.Optional(CONF_WATER_INLET_TEMP_ENTITY): selector.EntitySelector(
@@ -521,6 +528,19 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                         selector.EntitySelectorConfig(
                             domain=["sensor"],
                             device_class=["power"],
+                        ),
+                    ),
+                    vol.Optional(
+                        CONF_ENERGY_ENTITY,
+                        default=(
+                            data.get(CONF_ENERGY_ENTITY)
+                            if data.get(CONF_ENERGY_ENTITY) is not None
+                            else vol.UNDEFINED
+                        ),
+                    ): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["sensor"],
+                            device_class=["energy"],
                         ),
                     ),
                     vol.Optional(

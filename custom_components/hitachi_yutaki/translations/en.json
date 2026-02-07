@@ -78,6 +78,7 @@
           "power_supply": "Power Supply",
           "voltage_entity": "Voltage Sensor (Optional)",
           "power_entity": "Power Sensor (Optional)",
+          "energy_entity": "Energy Sensor (Optional)",
           "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
           "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
         }
@@ -125,6 +126,7 @@
           "power_supply": "Power Supply",
           "voltage_entity": "Voltage Sensor (Optional)",
           "power_entity": "Power Sensor (Optional)",
+          "energy_entity": "Energy Sensor (Optional)",
           "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
           "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
         }
@@ -428,15 +430,6 @@
       },
       "thermal_energy_cooling_total": {
         "name": "Total Thermal Energy Cooling"
-      },
-      "thermal_power": {
-        "name": "[DEPRECATED] Thermal Power"
-      },
-      "daily_thermal_energy": {
-        "name": "[DEPRECATED] Daily Thermal Energy"
-      },
-      "total_thermal_energy": {
-        "name": "[DEPRECATED] Total Thermal Energy"
       },
       "system_state": {
         "name": "Gateway Sync State",
