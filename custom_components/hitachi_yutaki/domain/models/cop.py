@@ -27,6 +27,7 @@ class COPInput:
     secondary_compressor_current: float | None = None
     secondary_compressor_frequency: float | None = None
     hvac_action: str | None = None  # "heating", "cooling", or None
+    operation_state: str | None = None  # "heating", "cooling", "dhw", "pool"
 
 
 @dataclass
