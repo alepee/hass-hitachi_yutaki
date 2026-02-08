@@ -10,7 +10,6 @@ from homeassistant.const import Platform
 
 DOMAIN: Final = "hitachi_yutaki"
 MANUFACTURER = "Hitachi"
-VERSION = "1.9.3"
 
 # Default values
 DEFAULT_NAME = "Hitachi Heat Pump"
