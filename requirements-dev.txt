@@ -1,4 +1,0 @@
--r requirements-devcontainer.txt
-homeassistant
-pytest
-pytest-asyncio

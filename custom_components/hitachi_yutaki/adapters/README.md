@@ -110,7 +110,7 @@ cop_service = COPService(accumulator, thermal_adapter, MockElectricalAdapter())
 class DatabaseStorage(Storage[T]):
     def __init__(self, connection):
         self._conn = connection
-    
+
     def append(self, item: T) -> None:
         # Save to database
         pass

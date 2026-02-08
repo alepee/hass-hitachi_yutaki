@@ -118,7 +118,7 @@ if description.key.startswith("cop_"):
             CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY
         ),
     )
-    
+
     self._cop_service = COPService(
         accumulator=accumulator,
         thermal_calculator=thermal_power_calculator_wrapper,

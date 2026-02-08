@@ -24,4 +24,5 @@ repos:
           - id: check-yaml
             args: ['--unsafe']
           - id: check-added-large-files
+            args: ['--maxkb=1500']
           - id: check-shebang-scripts-are-executable
