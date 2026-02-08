@@ -25,4 +25,5 @@ repos:
             args: ['--unsafe']
           - id: check-added-large-files
             args: ['--maxkb=1500']
+            exclude: '\.pdf$'
           - id: check-shebang-scripts-are-executable
