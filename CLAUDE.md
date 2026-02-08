@@ -11,16 +11,20 @@ This is a Home Assistant custom integration for Hitachi air-to-water heat pumps 
 
 ## Development Commands
 
+### Setup
+```bash
+uv sync --group dev     # Install all dependencies (or: ./scripts/setup)
+```
+
 ### Linting
 ```bash
-./scripts/lint          # Run ruff linting with auto-fix
-ruff check . --fix      # Direct ruff command
+uv run ruff check custom_components --fix   # Lint with auto-fix
 ```
 
 ### Testing
 ```bash
-pytest                  # Run all tests
-pytest tests/domain/    # Run domain layer tests only
+uv run pytest                  # Run all tests
+uv run pytest tests/domain/    # Run domain layer tests only
 ```
 
 ### Home Assistant Development Instance
@@ -31,12 +35,7 @@ pytest tests/domain/    # Run domain layer tests only
 ./scripts/upgrade              # Upgrade to latest HA
 ```
 
-### Setup
-```bash
-./scripts/setup         # Install dev dependencies and pre-commit hooks
-```
-
-Pre-commit hooks are automatically installed and run ruff on every commit.
+Pre-commit hooks are automatically installed by `scripts/setup` and run ruff on every commit.
 
 ## Architecture
 
@@ -209,19 +208,21 @@ Tests are in `tests/` directory:
 - `tests/domain/`: Domain layer unit tests (pure Python, no HA)
 - Test files use `pytest` and `pytest-asyncio`
 
-Run tests: `pytest`
+Run tests: `uv run pytest`
 
 ## Dependencies
+
+All dependencies are declared in `pyproject.toml` (single source of truth).
 
 **Runtime**:
 - `pymodbus>=3.6.9,<4.0.0` (Modbus communication)
 - Home Assistant core
 
-**Development**:
+**Development** (via `[dependency-groups] dev`):
+- `pytest-homeassistant-custom-component` (pulls HA as transitive dep)
 - `ruff==0.13.3` (linting/formatting)
-- `pre-commit==4.3.0` (git hooks)
+- `pre-commit>=4.3.0` (git hooks)
 - `pytest`, `pytest-asyncio` (testing)
-- `bump2version==1.0.1` (version management)
 
 ## Branch Strategy
 
@@ -298,9 +299,8 @@ cop_value = cop_service.get_value()
 
 ## Version Management
 
-Version is defined in three files (all must be updated together):
-- `setup.cfg`: `[bumpversion] current_version`
-- `manifest.json`: `"version"`
-- `Makefile`: `__VERSION__`
+Version is defined in two files (kept in sync by `make bump`):
+- `manifest.json`: `"version"` — **source of truth** (read by HA core + HACS at runtime)
+- `pyproject.toml`: `version` — metadata only (uv/build tools)
 
-Use `bump2version` for version updates (or update all three files manually).
+Use `make bump` to increment the last numeric segment and update both files automatically.
