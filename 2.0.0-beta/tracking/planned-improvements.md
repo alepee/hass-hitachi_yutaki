@@ -6,10 +6,10 @@ Ce document liste les améliorations potentielles pour les futures versions de l
 
 ## 1. Unique ID basé sur l'adresse MAC pour la Config Entry
 
-**Priorité**: 🔴 Haute  
-**Complexité**: 🟡 Moyenne  
-**Version cible**: Beta.8 ou v2.1.0  
-**GitHub Issue**: [#162](https://github.com/alepee/hass-hitachi_yutaki/issues/162)  
+**Priorité**: 🔴 Haute
+**Complexité**: 🟡 Moyenne
+**Version cible**: Beta.8 ou v2.1.0
+**GitHub Issue**: [#162](https://github.com/alepee/hass-hitachi_yutaki/issues/162)
 **Investigation complète**: [issue-162-mac-based-unique-id.md](../investigations/issue-162-mac-based-unique-id.md)
 
 ### Problème actuel
@@ -26,10 +26,10 @@ Utiliser l'**adresse MAC de la gateway** comme unique_id pour la config entry.
 
 #### Avantages
 
-✅ **Détection de doublons**: Empêche la création de multiples config entries pour la même gateway physique  
-✅ **Stabilité**: Le unique_id ne change pas même si l'IP change  
-✅ **Conformité HA**: Respecte les bonnes pratiques recommandées  
-✅ **Future-proof**: Prépare pour une éventuelle discovery DHCP  
+✅ **Détection de doublons**: Empêche la création de multiples config entries pour la même gateway physique
+✅ **Stabilité**: Le unique_id ne change pas même si l'IP change
+✅ **Conformité HA**: Respecte les bonnes pratiques recommandées
+✅ **Future-proof**: Prépare pour une éventuelle discovery DHCP
 ✅ **Meilleure UX**: Message clair "Already configured" si tentative de duplication
 
 #### Implémentation technique
@@ -44,10 +44,10 @@ from typing import Optional
 
 async def async_get_gateway_mac(ip_address: str) -> Optional[str]:
     """Get gateway MAC address from ARP table.
-    
+
     Args:
         ip_address: IP address of the gateway
-        
+
     Returns:
         MAC address in format XX:XX:XX:XX:XX:XX or None
     """
@@ -58,7 +58,7 @@ async def async_get_gateway_mac(ip_address: str) -> Optional[str]:
             stdout=asyncio.subprocess.DEVNULL,
             stderr=asyncio.subprocess.DEVNULL
         )
-        
+
         # Read ARP table
         process = await asyncio.create_subprocess_exec(
             "arp", "-n", ip_address,
@@ -66,18 +66,18 @@ async def async_get_gateway_mac(ip_address: str) -> Optional[str]:
             stderr=asyncio.subprocess.PIPE
         )
         stdout, _ = await process.communicate()
-        
+
         # Parse MAC address
         mac_pattern = r'([0-9a-fA-F]{2}[:-]){5}([0-9a-fA-F]{2})'
         match = re.search(mac_pattern, stdout.decode())
-        
+
         if match:
             mac = match.group(0).replace('-', ':').upper()
             return mac
-            
+
     except Exception as err:
         _LOGGER.debug("Could not get MAC from ARP: %s", err)
-    
+
     return None
 ```
 
@@ -90,13 +90,13 @@ from homeassistant.helpers.device_registry import format_mac
 
 class HitachiYutakiConfigFlow(ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
-    
+
     VERSION = 2
-    
+
     async def async_step_user(self, user_input=None):
         """Handle the initial step."""
         errors = {}
-        
+
         if user_input is not None:
             # Validate connection
             try:
@@ -106,33 +106,33 @@ class HitachiYutakiConfigFlow(ConfigFlow, domain=DOMAIN):
                     user_input[CONF_PORT],
                     user_input[CONF_SLAVE]
                 )
-                
+
                 # Get gateway MAC address
                 mac = await async_get_gateway_mac(user_input[CONF_HOST])
-                
+
                 if mac:
                     # Format MAC and set as unique_id
                     unique_id = format_mac(mac)
                     await self.async_set_unique_id(unique_id)
                     self._abort_if_unique_id_configured()
-                    
+
                     _LOGGER.info("Gateway MAC address: %s", mac)
                 else:
                     _LOGGER.warning(
                         "Could not retrieve gateway MAC address. "
                         "Duplicate detection will not be available."
                     )
-                
+
                 # Continue with normal setup
                 return self.async_create_entry(
                     title=user_input[CONF_NAME],
                     data=user_input
                 )
-                
+
             except Exception as err:
                 _LOGGER.exception("Unexpected error")
                 errors["base"] = "unknown"
-        
+
         # Show form
         return self.async_show_form(
             step_id="user",
@@ -155,21 +155,21 @@ async def async_step_dhcp(self, discovery_info):
     """Handle DHCP discovery."""
     # Extract MAC from discovery
     mac = format_mac(discovery_info.macaddress)
-    
+
     # Set unique_id
     await self.async_set_unique_id(mac)
-    
+
     # If already configured, update IP silently
     self._abort_if_unique_id_configured(
         updates={CONF_HOST: discovery_info.ip}
     )
-    
+
     # Otherwise, propose configuration
     self.context["title_placeholders"] = {
         "name": "Hitachi Yutaki",
         "host": discovery_info.ip,
     }
-    
+
     return await self.async_step_user()
 ```
 
@@ -222,9 +222,9 @@ Ajouter dans le README:
 
 ## 2. Discovery DHCP pour détection automatique
 
-**Priorité**: 🟡 Moyenne  
-**Complexité**: 🟢 Faible  
-**Version cible**: v2.1.0 ou plus tard  
+**Priorité**: 🟡 Moyenne
+**Complexité**: 🟢 Faible
+**Version cible**: v2.1.0 ou plus tard
 **Prérequis**: Amélioration #1 (Unique ID MAC)
 
 ### Description
@@ -266,8 +266,8 @@ Implémenter la découverte automatique de la gateway via DHCP events.
 
 ## 3. Nettoyage automatique des entités orphelines
 
-**Priorité**: 🟡 Moyenne  
-**Complexité**: 🟢 Faible  
+**Priorité**: 🟡 Moyenne
+**Complexité**: 🟢 Faible
 **Version cible**: Beta.8
 
 ### Description
@@ -305,8 +305,8 @@ await async_remove_orphaned_entities(hass, entry)
 
 ## 4. Statistiques de migration dans les Repairs
 
-**Priorité**: 🟢 Basse  
-**Complexité**: 🟢 Faible  
+**Priorité**: 🟢 Basse
+**Complexité**: 🟢 Faible
 **Version cible**: Beta.8 ou plus tard
 
 ### Description
@@ -341,8 +341,8 @@ async_create_issue(
 
 ## 5. Migration de l'historique Recorder
 
-**Priorité**: 🟢 Basse  
-**Complexité**: 🔴 Élevée  
+**Priorité**: 🟢 Basse
+**Complexité**: 🔴 Élevée
 **Version cible**: Non planifié
 
 ### Description
@@ -364,9 +364,9 @@ Migrer l'historique des anciennes entités vers les nouvelles dans la base Recor
 
 ## 6. Support du refroidissement (Cooling)
 
-**Priorité**: 🔴 Haute  
-**Complexité**: 🟡 Moyenne  
-**Version cible**: Beta.7 ou Beta.8  
+**Priorité**: 🔴 Haute
+**Complexité**: 🟡 Moyenne
+**Version cible**: Beta.7 ou Beta.8
 **Lié à**: [Issue #177 (Consolidated)](https://github.com/alepee/hass-hitachi_yutaki/issues/177)
 
 ### Description
@@ -409,5 +409,5 @@ Améliorer la détection et le support du refroidissement pour les installations
 
 ---
 
-*Document créé: 2026-01-22*  
+*Document créé: 2026-01-22*
 *Dernière mise à jour: 2026-01-22*

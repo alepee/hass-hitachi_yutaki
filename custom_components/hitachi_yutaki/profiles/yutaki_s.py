@@ -63,4 +63,3 @@ class YutakiSProfile(HitachiHeatPumpProfile):
     def supports_boiler(self) -> bool:
         """Return True - backup boiler supported."""
         return True
-

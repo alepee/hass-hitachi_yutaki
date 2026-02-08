@@ -1,7 +1,7 @@
 # Issue #8: Entity Migration - Complete Documentation
 
-**Date**: 2026-01-22  
-**Status**: ✅ Resolved  
+**Date**: 2026-01-22
+**Status**: ✅ Resolved
 **Target Release**: Beta.7
 
 ---
@@ -112,14 +112,14 @@ await async_migrate_entities(hass, entry)
 
 Created `tests/test_entity_migration.py` with comprehensive test coverage:
 
-✅ Simple migrations (slave_id only)  
-✅ Complex migrations (slave_id + key rename)  
-✅ Circuit prefix handling  
-✅ DHW prefix handling  
-✅ Pool prefix handling  
-✅ OTC method key renames  
-✅ Different slave IDs (1, 2, 3, etc.)  
-✅ No migration needed cases  
+✅ Simple migrations (slave_id only)
+✅ Complex migrations (slave_id + key rename)
+✅ Circuit prefix handling
+✅ DHW prefix handling
+✅ Pool prefix handling
+✅ OTC method key renames
+✅ Different slave IDs (1, 2, 3, etc.)
+✅ No migration needed cases
 ✅ Invalid format handling
 
 **Test Results:** All tests passed ✓
@@ -179,9 +179,9 @@ After:  abc123_circuit1_otc_calculation_method_heating
 ## User Impact
 
 ### Benefits
-✅ **Automatic**: No user action required  
-✅ **History Preserved**: Entity IDs don't change  
-✅ **Clean**: No duplicate unavailable entities  
+✅ **Automatic**: No user action required
+✅ **History Preserved**: Entity IDs don't change
+✅ **Clean**: No duplicate unavailable entities
 ✅ **Seamless**: Works on first restart after upgrade
 
 ### User Experience
@@ -228,7 +228,7 @@ This section describes the technical implementation of the entity migration syst
 
 After upgrading from version 1.9.x to 2.0.0, users experienced:
 - Old entities from 1.9.x remained in the entity registry
-- These entities appeared as "unavailable" 
+- These entities appeared as "unavailable"
 - New entities with updated unique_ids were created alongside old ones
 - This caused confusion and duplicate entries
 
@@ -285,12 +285,12 @@ The migration is integrated into `__init__.py`:
 ```python
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     # ... check for missing config ...
-    
+
     # Migrate entities from 1.9.x to 2.0.0 format
     # This must be done before creating new entities to avoid conflicts
     _LOGGER.debug("Checking for entity migrations")
     await async_migrate_entities(hass, entry)
-    
+
     # ... continue with normal setup ...
 ```
 
@@ -320,21 +320,21 @@ async def async_migrate_entities(hass: HomeAssistant, entry: ConfigEntry) -> Non
     entity_registry = er.async_get(hass)
     slave_id = entry.data.get(CONF_SLAVE, 1)
     entry_id = entry.entry_id
-    
+
     entities = er.async_entries_for_config_entry(entity_registry, entry_id)
-    
+
     for entity_entry in entities:
         if f"_{slave_id}_" not in entity_entry.unique_id:
             continue
-            
+
         new_unique_id = _calculate_new_unique_id(
-            entity_entry.unique_id, 
+            entity_entry.unique_id,
             slave_id
         )
-        
+
         if new_unique_id:
             entity_registry.async_update_entity(
-                entity_entry.entity_id, 
+                entity_entry.entity_id,
                 new_unique_id=new_unique_id
             )
 ```

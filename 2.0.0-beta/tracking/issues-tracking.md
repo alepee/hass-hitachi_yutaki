@@ -78,7 +78,7 @@
 - **Description**: v1.9 entities remain listed but show as "unavailable" after migration to beta.3
 - **Status**: ✅ **Fixed in beta.7**
 - **Fix**: Automatic entity unique_id migration implemented
-- **Details**: 
+- **Details**:
   - Created `entity_migration.py` module for automatic migration
   - Handles simple migrations (slave_id removal)
   - Handles complex migrations (slave_id removal + key rename)
@@ -167,7 +167,7 @@
 - **Description**: Migration from v1.9.3 to v2.0.0 requires user to provide `gateway_type` and `profile` parameters. A repair issue is created, but clicking the "Fix" button does nothing - no repair form appears.
 - **Status**: ✅ **Fixed in beta.7**
 - **Root cause**: Missing `async_create_fix_flow()` handler function and incorrect architecture
-- **Fix**: 
+- **Fix**:
   - Created dedicated `repairs.py` platform following Home Assistant conventions
   - Implemented `MissingConfigRepairFlow` class inheriting from `RepairsFlow`
   - Added `async_create_fix_flow()` factory function as module-level entry point

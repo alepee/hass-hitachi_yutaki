@@ -1,6 +1,6 @@
 # v2.0.0-beta.7 Release Notes
 
-**Release Date**: 2026-01-23  
+**Release Date**: 2026-01-23
 **Status**: Ready for Testing
 
 ---

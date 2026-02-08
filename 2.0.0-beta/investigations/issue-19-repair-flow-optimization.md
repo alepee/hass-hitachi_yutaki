@@ -1,12 +1,12 @@
 # Investigation: Repair Flow Optimization for 1.9.3 → 2.0.0 Migration
 
-**Date**: 2026-01-23  
-**Context**: Version 2.0.0-beta.7 migration from 1.9.3  
+**Date**: 2026-01-23
+**Context**: Version 2.0.0-beta.7 migration from 1.9.3
 **Issue**: Suboptimal repair flow requiring multiple manual steps
 
 ## Problem Statement
 
-When users upgrade from version 1.9.3 to 2.0.0, the integration requires `gateway_type` and `profile` parameters that didn't exist in 1.9.3. 
+When users upgrade from version 1.9.3 to 2.0.0, the integration requires `gateway_type` and `profile` parameters that didn't exist in 1.9.3.
 
 ### Current Broken State ❌
 
@@ -40,7 +40,7 @@ The repair form code exists but is **completely unreachable** from the UI.
 ```python
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Hitachi Yutaki from a config entry."""
-    
+
     # Check for missing required configuration parameters
     missing_params = []
     if "gateway_type" not in entry.data:
@@ -60,12 +60,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             issue_domain=DOMAIN,
             translation_key="missing_config",
         )
-        
+
         # Return False to prevent setup until repair is completed
         return False
 ```
 
-**Analysis**: 
+**Analysis**:
 - ✅ Correctly detects missing parameters
 - ✅ Creates repair issue with `is_fixable=True`
 - ❌ **Issue has no associated fix flow handler** - button does nothing!
@@ -155,7 +155,7 @@ async def async_step_repair(
 
 **User Journey After Fix**:
 1. User clicks "Fix" in repairs → **Form now opens!** ✅
-2. User selects gateway type and profile  
+2. User selects gateway type and profile
 3. User clicks "Submit"
 4. Integration automatically reloads in background
 5. Success notification appears
@@ -193,7 +193,7 @@ class MissingConfigRepairFlow(RepairFlow):
                 (e for e in config_entries if e.entry_id in self.issue_id),
                 None
             )
-            
+
             if entry is None:
                 return self.async_abort(reason="entry_not_found")
 
@@ -247,7 +247,7 @@ And update `__init__.py`:
 ```python
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up Hitachi Yutaki from a config entry."""
-    
+
     if missing_params:
         async_create_issue(
             hass,
@@ -308,28 +308,28 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
                     port=config_entry.data[CONF_PORT],
                     slave=config_entry.data[CONF_SLAVE],
                 )
-                
+
                 if await api_client.connect():
                     keys_to_read = api_client.register_map.base_keys
                     await api_client.read_values(keys_to_read)
                     all_data = {key: await api_client.read_value(key) for key in keys_to_read}
                     decoded_data = api_client.decode_config(all_data)
-                    
+
                     # Detect profile
                     detected_profiles = [
                         key for key, profile in PROFILES.items()
                         if profile.detect(decoded_data)
                     ]
-                    
+
                     if detected_profiles:
                         new_data["profile"] = detected_profiles[0]
                         _LOGGER.info("Auto-detected profile: %s", detected_profiles[0])
                     else:
                         # Fallback: still need user input
                         _LOGGER.warning("Could not auto-detect profile")
-                    
+
                     await api_client.close()
-                    
+
             except Exception as err:
                 _LOGGER.error("Failed to auto-detect profile during migration: %s", err)
 
@@ -415,9 +415,9 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
 ## Success Criteria
 
-✅ User completes repair with gateway_type + profile selection  
-✅ Integration automatically reloads after repair  
-✅ Integration is immediately functional (no additional steps)  
-✅ No errors in logs during reload  
-✅ Repair issue is properly cleared  
+✅ User completes repair with gateway_type + profile selection
+✅ Integration automatically reloads after repair
+✅ Integration is immediately functional (no additional steps)
+✅ No errors in logs during reload
+✅ Repair issue is properly cleared
 ✅ Configuration persists across Home Assistant restarts
