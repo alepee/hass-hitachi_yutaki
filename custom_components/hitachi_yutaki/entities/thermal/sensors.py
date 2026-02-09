@@ -30,9 +30,7 @@ def build_thermal_sensors(
 
 def _build_thermal_sensor_descriptions(
     coordinator: HitachiYutakiDataCoordinator,
-) -> tuple[
-    HitachiYutakiSensorEntityDescription, ...
-]:
+) -> tuple[HitachiYutakiSensorEntityDescription, ...]:
     """Build thermal energy sensor descriptions."""
     has_cooling = coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
 
@@ -72,37 +70,39 @@ def _build_thermal_sensor_descriptions(
 
     # Cooling sensors (only if cooling circuit exists)
     if has_cooling:
-        sensors.extend([
-            HitachiYutakiSensorEntityDescription(
-                key="thermal_power_cooling",
-                translation_key="thermal_power_cooling",
-                description="Current thermal cooling power output",
-                device_class=SensorDeviceClass.POWER,
-                state_class=SensorStateClass.MEASUREMENT,
-                native_unit_of_measurement="kW",
-                entity_category=EntityCategory.DIAGNOSTIC,
-                icon="mdi:snowflake",
-            ),
-            HitachiYutakiSensorEntityDescription(
-                key="thermal_energy_cooling_daily",
-                translation_key="thermal_energy_cooling_daily",
-                description="Daily thermal cooling energy production (resets at midnight)",
-                device_class=SensorDeviceClass.ENERGY,
-                state_class=SensorStateClass.TOTAL,
-                native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                entity_category=EntityCategory.DIAGNOSTIC,
-                icon="mdi:snowflake",
-            ),
-            HitachiYutakiSensorEntityDescription(
-                key="thermal_energy_cooling_total",
-                translation_key="thermal_energy_cooling_total",
-                description="Total thermal cooling energy production",
-                device_class=SensorDeviceClass.ENERGY,
-                state_class=SensorStateClass.TOTAL_INCREASING,
-                native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                entity_category=EntityCategory.DIAGNOSTIC,
-                icon="mdi:snowflake",
-            ),
-        ])
+        sensors.extend(
+            [
+                HitachiYutakiSensorEntityDescription(
+                    key="thermal_power_cooling",
+                    translation_key="thermal_power_cooling",
+                    description="Current thermal cooling power output",
+                    device_class=SensorDeviceClass.POWER,
+                    state_class=SensorStateClass.MEASUREMENT,
+                    native_unit_of_measurement="kW",
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    icon="mdi:snowflake",
+                ),
+                HitachiYutakiSensorEntityDescription(
+                    key="thermal_energy_cooling_daily",
+                    translation_key="thermal_energy_cooling_daily",
+                    description="Daily thermal cooling energy production (resets at midnight)",
+                    device_class=SensorDeviceClass.ENERGY,
+                    state_class=SensorStateClass.TOTAL,
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    icon="mdi:snowflake",
+                ),
+                HitachiYutakiSensorEntityDescription(
+                    key="thermal_energy_cooling_total",
+                    translation_key="thermal_energy_cooling_total",
+                    description="Total thermal cooling energy production",
+                    device_class=SensorDeviceClass.ENERGY,
+                    state_class=SensorStateClass.TOTAL_INCREASING,
+                    native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
+                    entity_category=EntityCategory.DIAGNOSTIC,
+                    icon="mdi:snowflake",
+                ),
+            ]
+        )
 
     return tuple(sensors)
