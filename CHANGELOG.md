@@ -7,100 +7,80 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0-rc.1] - 2026-02-09
+
+This is the first Release Candidate for v2.0.0 — a major rewrite of the integration with hexagonal architecture, multi-gateway support, and significantly improved accuracy for thermal and COP calculations.
+
+### Highlights
+
+- **Multi-gateway support**: HC-A(16/64)MB alongside ATW-MBS-02
+- **Hexagonal architecture**: pure domain layer, testable without Home Assistant
+- **Accurate thermal energy**: separate heating/cooling tracking, defrost filtering
+- **Seamless migration**: automatic entity migration from v1.9.x with preserved history
+
 ### Added
-- **HC-A(16/64)MB gateway support (beta)** — New Modbus gateway type alongside ATW-MBS-02. Introduces a register abstraction layer (`HitachiRegisterMap` ABC) enabling polymorphic gateway support. Includes separate read/write address ranges, unit_id-based address computation, and gateway-specific deserialization (e.g., bitmask-based unit mode for HC-A(16/64)MB)
+- **HC-A(16/64)MB gateway support** — New Modbus gateway type alongside ATW-MBS-02. Both HC-A16MB and HC-A64MB are protocol-identical (same registers, same features — only the capacity differs: 16 vs 64 indoor units). Introduces a register abstraction layer (`HitachiRegisterMap` ABC) enabling polymorphic gateway support with separate read/write address ranges, unit_id-based address computation, and gateway-specific deserialization
 - **New heat pump profiles** — YCC and Yutaki SC Lite profiles for models only available via HC-A(16/64)MB gateway
-- **External energy sensor (`energy_entity`)** — New optional configuration to replace the Modbus power consumption register with an external lifetime energy sensor (`device_class=energy`, kWh, `TOTAL_INCREASING`). Useful for models with unreliable built-in kWh counters or users with more accurate external meters. No Modbus fallback when configured. The `power_consumption` entity exposes a `source` attribute for transparency.
-- **`set_room_temperature` service** — New entity platform service (`hitachi_yutaki.set_room_temperature`) to write the measured room temperature to the heat pump. Targets climate entities and enables automations to push ambient temperature readings when the Modbus thermostat is enabled.
-- **Operation state numeric attribute** (issue [#187](https://github.com/alepee/hass-hitachi_yutaki/issues/187)) - The operation state entity now exposes the raw Modbus numeric value (0-11) as a `code` attribute, enabling simpler automation logic
-- **Conditional circuit climate modes** (issue [#186](https://github.com/alepee/hass-hitachi_yutaki/issues/186)) - When two circuits are active, climate entities expose only `off`/`heat_cool` modes (power toggle only), since the operating mode is global. Single-circuit setups retain full `heat`/`cool`/`auto`/`off` mode control
-
-### Fixed
-- **OTC cooling serialization for HC-A(16/64)MB** — HC-A(16/64)MB cooling OTC uses a different mapping (Disabled=0, Points=1, Fix=2) than heating (Fix=3). Added `serialize_otc_method_cooling` to the register map ABC to handle this correctly
-- **Recorder database access warning** — Use `recorder.get_instance(hass).async_add_executor_job()` instead of `hass.async_add_executor_job()` for database operations in `recorder_rehydrate.py`
-- **Pressure sensor error handling** — Added `0xFFFF` sentinel check to `convert_pressure` in both gateway register maps, preventing bogus readings on sensor errors
-- **COP DHW identical to COP Heating** (issue [#191](https://github.com/alepee/hass-hitachi_yutaki/issues/191)) - COP sensors now use `operation_state` (Modbus register 1090) instead of `hvac_action` to differentiate heating, DHW, cooling, and pool cycles. Fixes identical COP values for DHW and Heating since the v2.0.0 refactoring.
-- **Anti-legionella binary sensor** (issue [#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178)) - Read from STATUS registers instead of CONTROL registers for accurate anti-legionella cycle state
-- **Config flow translations** - Added missing translations for gateway type and profile selection steps in config flow (both EN and FR)
-
-### Changed
-- **Register map factory** — Extracted `create_register_map()` into `api/__init__.py`, eliminating duplication between `__init__.py` and `config_flow.py`
-- **Yutampo model naming** — HC-A(16/64)MB `deserialize_unit_model` now returns `"yutampo_r32"` (matching the profile key) instead of `"yutampo"`
-- **Development tooling** — Added `make upgrade-deps` target; `ha-upgrade`/`ha-dev-branch`/`ha-version` are now documented as temporary overrides reset by `make install`
-
-### Added
-- **Robust Modbus connection recovery mechanism**
-- **Enhanced heat pump profile system** with explicit hardware capabilities per model:
-  - New properties: `dhw_min_temp`, `dhw_max_temp`, `max_circuits`, `supports_cooling`, `max_water_outlet_temp`, `supports_high_temperature`
-  - Each profile (S, S Combi, S80, M, Yutampo R32) now documents its exact hardware limits
-  - Improved Yutampo R32 detection: correctly identified as S Combi (unit_model=1) with DHW-only configuration
-  - Fixed S Combi detection to check all circuits (not just circuit 1) with exponential backoff retry logic and automatic reconnection on network interruptions. Fixes issue [#118](https://github.com/alepee/hass-hitachi_yutaki/issues/118) where the integration failed to recover from temporary network disconnections.
-- **Complete hexagonal architecture implementation** with clear separation of concerns:
-  - Domain layer with pure business logic and zero Home Assistant dependencies
-  - Adapters layer bridging domain with Home Assistant
-  - Enhanced testability with 100% testable domain layer
-- **Domain-driven entity organization** replacing technical grouping with business domain structure (circuit, compressor, control_unit, dhw, gateway, hydraulic, performance, pool, power, thermal)
-- **Builder pattern implementation** for all entity types with type-safe builders and conditional entity creation based on device capabilities
-- **Comprehensive business-level API** (`HitachiApiClient`) with typed methods for all controllable parameters, eliminating direct Modbus access from entities
-- **Smart profile auto-detection mechanism** with decentralized detection logic for more robust model identification
-- **Recorder-based data rehydration** for COP and compressor timing sensors - historical data is automatically reconstructed from Home Assistant's Recorder on startup, eliminating data loss after restarts. The integration now leverages existing sensor history instead of maintaining separate persistent storage
-- **Separate thermal energy sensors for heating and cooling** - New explicit sensors:
+- **External energy sensor (`energy_entity`)** — New optional configuration to replace the Modbus power consumption register with an external lifetime energy sensor (`device_class=energy`, kWh, `TOTAL_INCREASING`). The `power_consumption` entity exposes a `source` attribute for transparency
+- **`set_room_temperature` service** — New entity platform service to write measured room temperature to the heat pump via climate entities, enabling automations when the Modbus thermostat is enabled
+- **Operation state numeric attribute** ([#187](https://github.com/alepee/hass-hitachi_yutaki/issues/187)) — Raw Modbus numeric value (0-11) exposed as a `code` attribute for simpler automation logic
+- **Conditional circuit climate modes** ([#186](https://github.com/alepee/hass-hitachi_yutaki/issues/186)) — Two-circuit setups expose only `off`/`heat_cool` (power toggle); single-circuit retains full `heat`/`cool`/`auto`/`off` control
+- **Complete hexagonal architecture** — Domain layer with pure business logic (zero HA dependencies), adapters layer bridging domain with Home Assistant, 100% testable domain layer
+- **Domain-driven entity organization** — Business domain structure (circuit, compressor, control_unit, dhw, gateway, hydraulic, performance, pool, power, thermal) with builder pattern for all entity types
+- **Robust Modbus connection recovery** — Exponential backoff retry logic with automatic reconnection on network interruptions ([#118](https://github.com/alepee/hass-hitachi_yutaki/issues/118))
+- **Enhanced heat pump profile system** — Explicit hardware capabilities per model (`dhw_min_temp`, `dhw_max_temp`, `max_circuits`, `supports_cooling`, `max_water_outlet_temp`, `supports_high_temperature`)
+- **Smart profile auto-detection** — Decentralized detection logic with improved Yutampo R32 and S Combi detection
+- **Recorder-based data rehydration** — COP and compressor timing sensors automatically reconstruct history from HA Recorder on startup, eliminating data loss after restarts
+- **Separate thermal energy sensors for heating and cooling**:
   - `thermal_power_heating` / `thermal_power_cooling`: Real-time power output
   - `thermal_energy_heating_daily` / `thermal_energy_cooling_daily`: Daily energy (resets at midnight)
   - `thermal_energy_heating_total` / `thermal_energy_cooling_total`: Total cumulative energy
-  - Cooling sensors only created when unit has cooling circuits
-- **Post-cycle thermal inertia tracking** - Thermal energy from system inertia is now correctly counted after compressor stops in both heating and cooling modes, until water temperature delta reaches zero
-- **Automatic entity migration system** for seamless upgrade from v1.9.x to 2.0.0 - migrates entity unique_ids from old format (with slave_id) to new format, preserving entity history and IDs
-- **Functional repair flow** for 1.9.3 → 2.0.0 migration - created dedicated `repairs.py` platform with proper RepairFlow implementation and automatic integration reload after repair completion
-- **Hardware-based unique_id for config entries** (issue [#162](https://github.com/alepee/hass-hitachi_yutaki/issues/162)) - Config entries now use gateway's hardware identifier (read from Modbus Input Registers 0-2) as unique_id instead of IP+slave combination. This prevents duplicate entries for the same physical gateway and survives DHCP IP changes. Works in all environments including Docker containers. Includes automatic migration for existing installations and graceful fallback to IP-based unique_id if unavailable
+- **Post-cycle thermal inertia tracking** — Thermal energy from system inertia correctly counted after compressor stops
+- **Automatic entity migration** — Seamless upgrade from v1.9.x to 2.0.0 with preserved entity history and IDs
+- **Functional repair flow** — Dedicated `repairs.py` for 1.9.x → 2.0.0 migration with automatic integration reload
+- **Hardware-based unique_id** ([#162](https://github.com/alepee/hass-hitachi_yutaki/issues/162)) — Config entries use gateway hardware identifier (Modbus Input Registers 0-2) instead of IP+slave, preventing duplicates and surviving DHCP changes
 
 ### Changed
-- **Complete platform refactoring** to use domain-driven architecture - all platform files now act as pure orchestrators
-- **Entity organization** moved from technical grouping (sensor/, switch/, etc.) to business domain grouping (entities/circuit/, entities/dhw/, etc.)
-- **Data conversion improvements** with centralized deserialization logic and pattern-based naming
-- **Modbus register organization** by logical device for improved clarity and maintainability
-- **Alarm sensor enhancement** to display descriptions as state with numeric codes as attributes
-- **System state reporting** with proper deserialization and operation state mapping
-- **Storage strategy** - COP and compressor timing data now relies on Home Assistant's Recorder history instead of custom persistent storage, eliminating redundant data storage and ensuring consistency with Home Assistant's historical data
-- **Thermal service refactoring** - Split monolithic `thermal.py` into modular package structure:
-  - `calculators.py`: Pure thermal power calculation functions
-  - `accumulator.py`: Energy accumulation logic with post-cycle lock mechanism
-  - `service.py`: Orchestration layer coordinating calculations and accumulation
-  - `constants.py`: Physical constants (water specific heat, flow conversion)
-- **⚠️ BREAKING: Thermal energy calculation logic** - Fixes issue [#123](https://github.com/alepee/hass-hitachi_yutaki/issues/123):
-  - Now correctly separates heating (ΔT > 0) from cooling (ΔT < 0)
-  - **Defrost cycles are now filtered** (not counted as energy production)
-  - **Post-cycle lock mechanism** prevents counting noise/fluctuations after compressor stops while still capturing thermal inertia energy in both heating and cooling modes
-  - Only measures energy produced by the heat pump (with inertia tracking for both heating and cooling)
-  - This results in accurate COP calculations (previously inflated by counting defrost as production)
-  - Universal logic: works for heating circuits, DHW, and pool automatically based on water temperature delta
+- **Complete platform refactoring** to domain-driven architecture — all platform files act as pure orchestrators
+- **Entity organization** moved from technical grouping to business domain grouping
+- **Modbus register organization** by logical device for improved clarity
+- **Alarm sensor** displays descriptions as state with numeric codes as attributes
+- **Storage strategy** — COP and compressor data relies on HA Recorder instead of custom storage
+- **Thermal service** split into modular package: `calculators.py`, `accumulator.py`, `service.py`, `constants.py`
+- **Register map factory** extracted into `api/__init__.py`, eliminating duplication
+- **⚠️ BREAKING: Thermal energy calculation logic** ([#123](https://github.com/alepee/hass-hitachi_yutaki/issues/123)):
+  - Correctly separates heating (ΔT > 0) from cooling (ΔT < 0)
+  - Defrost cycles are now filtered (not counted as energy production)
+  - Post-cycle lock mechanism prevents counting noise after compressor stops
+  - Results in accurate COP calculations (previously inflated by defrost)
 
 ### Deprecated
-- **⚠️ Old thermal energy sensors** (disabled by default, but still available for backward compatibility):
+- **⚠️ Old thermal energy sensors** (disabled by default, still available for backward compatibility):
   - `thermal_power` → use `thermal_power_heating` instead
   - `daily_thermal_energy` → use `thermal_energy_heating_daily` instead
   - `total_thermal_energy` → use `thermal_energy_heating_total` instead
-  - **Migration required**: Update your Energy Dashboard and automations to use new sensors
-  - **Why deprecated**: Old sensors counted defrost cycles and lacked heating/cooling separation, resulting in incorrect COP values
+  - **Migration required**: Update your Energy Dashboard and automations to use the new sensors
 
 ### Removed
-- **Legacy technical modules** and monolithic entity files in favor of domain-specific builders
-- **Direct entity instantiation** replaced with builder pattern for better encapsulation
-- **Legacy services directory** after successful migration to hexagonal architecture
-- **Redundant climate number entities** (target_temp, current_temp) as functionality is now handled by climate entity
+- Legacy technical modules and monolithic entity files in favor of domain-specific builders
+- Direct entity instantiation replaced with builder pattern
+- Legacy services directory
+- Redundant climate number entities (target_temp, current_temp) — now handled by climate entity
 
 ### Fixed
-- **Profile detection robustness** - Fixed Yutampo R32 `detect()` returning `None` instead of `False` when `has_dhw` key is missing from data
-- **Cooling capability detection** (issue [#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177)) - Fixed system_config bitmask order that was incorrectly swapped during v2.0.0 refactoring, causing cooling hardware to not be detected on units with optional cooling (e.g., Yutaki S Combi). Regression from v1.9.x now resolved.
-- **Architecture consistency** - all entity types now follow the same domain-driven pattern
-- **Code duplication** eliminated across platforms
-- **Import complexity** simplified with clear domain boundaries
-- **Temperature deserialization** corrected by properly differentiating between tenths and signed 16-bit values
+- **COP DHW identical to COP Heating** ([#191](https://github.com/alepee/hass-hitachi_yutaki/issues/191)) — COP sensors now use `operation_state` to differentiate heating, DHW, cooling, and pool cycles
+- **Anti-legionella binary sensor** ([#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178)) — Read from STATUS registers instead of CONTROL registers
+- **Cooling capability detection** ([#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177)) — Fixed system_config bitmask order regression from v1.9.x
+- **OTC cooling serialization for HC-A(16/64)MB** — Correct mapping (Disabled=0, Points=1, Fix=2)
+- **Recorder database access warning** — Use recorder executor for database operations
+- **Pressure sensor error handling** — `0xFFFF` sentinel check in both gateway register maps
+- **Config flow translations** — Added missing translations for gateway/profile selection (EN and FR)
+- **Profile detection robustness** — Yutampo R32 `detect()` no longer returns `None` when `has_dhw` is missing
+- **Temperature deserialization** — Properly differentiates between tenths and signed 16-bit values
 - **Sensor reading accuracy** for secondary compressor current and pressure sensors
-- **Unit power switch** "Unknown" state issue due to inconsistent condition checks
-- **Circular import issues** and entity creation bugs during architectural refactoring
-- **COP measurement period calculation** - fixed negative time span values by ensuring measurements are sorted chronologically before calculating the measurement period
-- **Legacy entities still present** after upgrade from v1.9.x - entities now migrate automatically with preserved history
+- **Unit power switch** "Unknown" state due to inconsistent condition checks
+- **COP measurement period** — Fixed negative time span values
+- **Legacy entities** — Automatic migration with preserved history
 
 
 ## [1.9.3] - 2025-10-06
