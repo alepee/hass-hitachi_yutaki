@@ -2064,7 +2064,7 @@ wheels = [
 
 [[package]]
 name = "hass-hitachi-yutaki"
-version = "2.0.0b12"
+version = "2.0.0rc1"
 source = { virtual = "." }
 dependencies = [
     { name = "pymodbus" },
