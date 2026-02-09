@@ -519,20 +519,38 @@ cd hitachi_yutaki
 
 2. Set up the development environment:
 ```bash
-chmod +x scripts/setup
-./scripts/setup
+make setup
 ```
 
 3. Start Home Assistant in development mode:
 ```bash
-./scripts/develop
+make ha-run
 ```
 
-Additional development scripts:
-- `./scripts/lint` - Run code linting
-- `./scripts/dev-branch` - Install development branch of Home Assistant
-- `./scripts/specific-version` - Install specific Home Assistant version
-- `./scripts/upgrade` - Upgrade to latest Home Assistant version
+Home Assistant will be available at `http://localhost:8123`. To use a custom port, add the following to `config/configuration.yaml`:
+```yaml
+http:
+  server_port: 9125
+```
+
+Available `make` targets (run `make help` to list all):
+
+| Target | Description |
+|--------|-------------|
+| `make install` | Install all dependencies (dev included) |
+| `make setup` | Full project setup (deps + pre-commit hooks) |
+| `make lint` | Run ruff linter with auto-fix |
+| `make format` | Run ruff formatter |
+| `make check` | Run all code quality checks (lint + format) |
+| `make test` | Run all tests |
+| `make test-domain` | Run domain layer tests only (pure Python, no HA) |
+| `make test-coverage` | Run tests with coverage report |
+| `make ha-run` | Start a local HA dev instance with debug config |
+| `make ha-upgrade` | Upgrade HA to latest release |
+| `make ha-dev-branch` | Install HA from dev branch (bleeding edge) |
+| `make ha-version` | Install a specific HA version (interactive) |
+| `make bump` | Bump version (last numeric segment) |
+| `make version` | Show current version |
 
 ### Pre-commit Hooks
 
