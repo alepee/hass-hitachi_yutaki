@@ -8,7 +8,7 @@ from .base import HitachiHeatPumpProfile
 class YutakiScLiteProfile(HitachiHeatPumpProfile):
     """Profile for the Hitachi Yutaki SC Lite heat pump.
 
-    Variant of the S Combi line, reported as unit_model=4 by HC-A16MB.
+    Variant of the S Combi line, reported as unit_model=4 by HC-A(16/64)MB.
     Starting with S Combi-like capabilities; refine as more data is available.
     """
 

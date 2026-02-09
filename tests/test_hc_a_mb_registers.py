@@ -1,10 +1,10 @@
-"""Tests for the HC-A16MB register map."""
+"""Tests for the HC-A(16/64)MB register map."""
 
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
 )
-from custom_components.hitachi_yutaki.api.modbus.registers.hc_a16mb import (
-    HcA16mbRegisterMap,
+from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
+    HcAMbRegisterMap,
     _compute_base,
     convert_from_tenths,
     convert_signed_16bit,
@@ -37,7 +37,7 @@ class TestAddressComputation:
 
     def test_register_map_addresses_unit0(self):
         """Verify key addresses for unit_id=0."""
-        rmap = HcA16mbRegisterMap(unit_id=0)
+        rmap = HcAMbRegisterMap(unit_id=0)
         regs = rmap.all_registers
         # STATUS registers
         assert regs["unit_power"].address == 5100
@@ -52,7 +52,7 @@ class TestAddressComputation:
 
     def test_register_map_addresses_unit1(self):
         """Verify addresses shift correctly for unit_id=1."""
-        rmap = HcA16mbRegisterMap(unit_id=1)
+        rmap = HcAMbRegisterMap(unit_id=1)
         regs = rmap.all_registers
         assert regs["unit_power"].address == 5300
         assert regs["unit_power"].write_address == 5250
@@ -60,7 +60,7 @@ class TestAddressComputation:
 
 
 class TestDeserializers:
-    """Test HC-A16MB-specific deserializers."""
+    """Test HC-A(16/64)MB-specific deserializers."""
 
     def test_unit_model_standard(self):
         """Test standard model IDs."""
@@ -69,8 +69,8 @@ class TestDeserializers:
         assert deserialize_unit_model(2) == "yutaki_s80"
         assert deserialize_unit_model(3) == "yutaki_m"
 
-    def test_unit_model_hc_a16mb_only(self):
-        """Test HC-A16MB-specific model IDs."""
+    def test_unit_model_hc_a_mb_only(self):
+        """Test HC-A(16/64)MB-specific model IDs."""
         assert deserialize_unit_model(4) == "yutaki_sc_lite"
         assert deserialize_unit_model(5) == "yutampo_r32"
         assert deserialize_unit_model(6) == "ycc"
@@ -101,7 +101,7 @@ class TestDeserializers:
         assert deserialize_unit_mode_status(None) is None
 
     def test_otc_method_cooling(self):
-        """Test cooling OTC method (3 options, no gradient)."""
+        """Test HC-A(16/64)MB cooling OTC method (3 options, no gradient)."""
         assert deserialize_otc_method_cooling(0) == OTCCalculationMethod.DISABLED
         assert deserialize_otc_method_cooling(1) == OTCCalculationMethod.POINTS
         assert deserialize_otc_method_cooling(2) == OTCCalculationMethod.FIX
@@ -138,12 +138,12 @@ class TestDeserializers:
 
 
 class TestKeyNamingCompatibility:
-    """Test that HC-A16MB uses the same key names as ATW-MBS-02."""
+    """Test that HC-A(16/64)MB uses the same key names as ATW-MBS-02."""
 
     def test_shared_gateway_keys(self):
         """Essential gateway keys should exist in both maps."""
         atw = AtwMbs02RegisterMap()
-        hca = HcA16mbRegisterMap()
+        hca = HcAMbRegisterMap()
 
         # These keys must be present in both
         shared_keys = [
@@ -155,12 +155,12 @@ class TestKeyNamingCompatibility:
         ]
         for key in shared_keys:
             assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"
-            assert key in hca.all_registers, f"{key} missing from HC-A16MB"
+            assert key in hca.all_registers, f"{key} missing from HC-A(16/64)MB"
 
     def test_shared_control_unit_keys(self):
         """Essential control unit keys should exist in both maps."""
         atw = AtwMbs02RegisterMap()
-        hca = HcA16mbRegisterMap()
+        hca = HcAMbRegisterMap()
 
         shared_keys = [
             "unit_power",
@@ -175,12 +175,12 @@ class TestKeyNamingCompatibility:
         ]
         for key in shared_keys:
             assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"
-            assert key in hca.all_registers, f"{key} missing from HC-A16MB"
+            assert key in hca.all_registers, f"{key} missing from HC-A(16/64)MB"
 
     def test_shared_circuit_keys(self):
         """Essential circuit keys should exist in both maps."""
         atw = AtwMbs02RegisterMap()
-        hca = HcA16mbRegisterMap()
+        hca = HcAMbRegisterMap()
 
         for circuit in [1, 2]:
             shared_keys = [
@@ -193,12 +193,12 @@ class TestKeyNamingCompatibility:
             ]
             for key in shared_keys:
                 assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"
-                assert key in hca.all_registers, f"{key} missing from HC-A16MB"
+                assert key in hca.all_registers, f"{key} missing from HC-A(16/64)MB"
 
     def test_shared_dhw_keys(self):
         """Essential DHW keys should exist in both maps."""
         atw = AtwMbs02RegisterMap()
-        hca = HcA16mbRegisterMap()
+        hca = HcAMbRegisterMap()
 
         shared_keys = [
             "dhw_power",
@@ -209,21 +209,21 @@ class TestKeyNamingCompatibility:
         ]
         for key in shared_keys:
             assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"
-            assert key in hca.all_registers, f"{key} missing from HC-A16MB"
+            assert key in hca.all_registers, f"{key} missing from HC-A(16/64)MB"
 
     def test_shared_pool_keys(self):
         """Essential pool keys should exist in both maps."""
         atw = AtwMbs02RegisterMap()
-        hca = HcA16mbRegisterMap()
+        hca = HcAMbRegisterMap()
 
         shared_keys = ["pool_power", "pool_target_temp", "pool_current_temp"]
         for key in shared_keys:
             assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"
-            assert key in hca.all_registers, f"{key} missing from HC-A16MB"
+            assert key in hca.all_registers, f"{key} missing from HC-A(16/64)MB"
 
     def test_writable_keys_subset(self):
-        """HC-A16MB writable keys should be a subset of all_registers keys."""
-        hca = HcA16mbRegisterMap()
+        """HC-A(16/64)MB writable keys should be a subset of all_registers keys."""
+        hca = HcAMbRegisterMap()
         for key in hca.writable_keys:
             assert key in hca.all_registers, f"Writable key {key} not in all_registers"
 
@@ -233,7 +233,7 @@ class TestWriteAddressResolution:
 
     def test_registers_with_write_address(self):
         """Registers with write_address should have different read/write addresses."""
-        rmap = HcA16mbRegisterMap()
+        rmap = HcAMbRegisterMap()
         reg = rmap.all_registers["unit_power"]
         assert reg.address != reg.write_address
         assert reg.address == 5100  # STATUS
@@ -241,15 +241,15 @@ class TestWriteAddressResolution:
 
     def test_read_only_registers(self):
         """Read-only registers should have no write_address."""
-        rmap = HcA16mbRegisterMap()
+        rmap = HcAMbRegisterMap()
         reg = rmap.all_registers["outdoor_temp"]
         assert reg.write_address is None
 
     def test_pool_target_temp_no_tenths(self):
-        """HC-A16MB pool_target_temp should NOT have convert_from_tenths."""
-        rmap = HcA16mbRegisterMap()
+        """HC-A(16/64)MB pool_target_temp should NOT have convert_from_tenths."""
+        rmap = HcAMbRegisterMap()
         reg = rmap.all_registers["pool_target_temp"]
-        # HC-A16MB stores pool temp as integer °C, not tenths
+        # HC-A(16/64)MB stores pool temp as integer °C, not tenths
         assert reg.deserializer is None
 
 
@@ -259,13 +259,13 @@ class TestBitMasks:
     def test_circuit_masks_identical(self):
         """Circuit bit masks should match ATW-MBS-02."""
         atw = AtwMbs02RegisterMap()
-        hca = HcA16mbRegisterMap()
+        hca = HcAMbRegisterMap()
         assert atw.masks_circuit == hca.masks_circuit
 
     def test_status_masks_identical_base(self):
         """Base status masks (bits 0-9) should match ATW-MBS-02."""
         atw = AtwMbs02RegisterMap()
-        hca = HcA16mbRegisterMap()
+        hca = HcAMbRegisterMap()
         assert atw.mask_defrost == hca.mask_defrost
         assert atw.mask_solar == hca.mask_solar
         assert atw.mask_pump1 == hca.mask_pump1
@@ -275,18 +275,18 @@ class TestBitMasks:
         assert atw.mask_smart_function == hca.mask_smart_function
 
     def test_hvac_mode_auto_not_supported_for_write(self):
-        """HC-A16MB should return None for auto mode (can't write auto)."""
-        hca = HcA16mbRegisterMap()
+        """HC-A(16/64)MB should return None for auto mode (can't write auto)."""
+        hca = HcAMbRegisterMap()
         assert hca.hvac_unit_mode_auto is None
         assert hca.hvac_unit_mode_cool == 0
         assert hca.hvac_unit_mode_heat == 1
 
 
-class TestProfileDetectionWithHcA16mb:
-    """Test that profile detection works with HC-A16MB model names."""
+class TestProfileDetectionWithHcAMb:
+    """Test that profile detection works with HC-A(16/64)MB model names."""
 
     def test_yutampo_direct_detection(self):
-        """Yutampo should be detected by direct model name from HC-A16MB."""
+        """Yutampo should be detected by direct model name from HC-A(16/64)MB."""
         data = {"unit_model": "yutampo_r32"}
         matching = [key for key, profile in PROFILES.items() if profile.detect(data)]
         assert len(matching) == 1

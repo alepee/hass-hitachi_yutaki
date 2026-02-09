@@ -8,7 +8,7 @@ from .base import HitachiHeatPumpProfile
 class YccProfile(HitachiHeatPumpProfile):
     """Profile for the Hitachi YCC.
 
-    YCC is reported as unit_model=6 by HC-A16MB.
+    YCC is reported as unit_model=6 by HC-A(16/64)MB.
     Starting with minimal/default capabilities; refine as documentation
     and user feedback become available.
     """

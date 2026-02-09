@@ -8,15 +8,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- **HC-A16MB gateway support (beta)** — New Modbus gateway type alongside ATW-MBS-02. Introduces a register abstraction layer (`HitachiRegisterMap` ABC) enabling polymorphic gateway support. Includes separate read/write address ranges, unit_id-based address computation, and gateway-specific deserialization (e.g., bitmask-based unit mode for HC-A16MB)
-- **New heat pump profiles** — YCC and Yutaki SC Lite profiles for models only available via HC-A16MB gateway
+- **HC-A(16/64)MB gateway support (beta)** — New Modbus gateway type alongside ATW-MBS-02. Introduces a register abstraction layer (`HitachiRegisterMap` ABC) enabling polymorphic gateway support. Includes separate read/write address ranges, unit_id-based address computation, and gateway-specific deserialization (e.g., bitmask-based unit mode for HC-A(16/64)MB)
+- **New heat pump profiles** — YCC and Yutaki SC Lite profiles for models only available via HC-A(16/64)MB gateway
 - **External energy sensor (`energy_entity`)** — New optional configuration to replace the Modbus power consumption register with an external lifetime energy sensor (`device_class=energy`, kWh, `TOTAL_INCREASING`). Useful for models with unreliable built-in kWh counters or users with more accurate external meters. No Modbus fallback when configured. The `power_consumption` entity exposes a `source` attribute for transparency.
 - **`set_room_temperature` service** — New entity platform service (`hitachi_yutaki.set_room_temperature`) to write the measured room temperature to the heat pump. Targets climate entities and enables automations to push ambient temperature readings when the Modbus thermostat is enabled.
 - **Operation state numeric attribute** (issue [#187](https://github.com/alepee/hass-hitachi_yutaki/issues/187)) - The operation state entity now exposes the raw Modbus numeric value (0-11) as a `code` attribute, enabling simpler automation logic
 - **Conditional circuit climate modes** (issue [#186](https://github.com/alepee/hass-hitachi_yutaki/issues/186)) - When two circuits are active, climate entities expose only `off`/`heat_cool` modes (power toggle only), since the operating mode is global. Single-circuit setups retain full `heat`/`cool`/`auto`/`off` mode control
 
 ### Fixed
-- **OTC cooling serialization for HC-A16MB** — HC-A16MB cooling OTC uses a different mapping (Disabled=0, Points=1, Fix=2) than heating (Fix=3). Added `serialize_otc_method_cooling` to the register map ABC to handle this correctly
+- **OTC cooling serialization for HC-A(16/64)MB** — HC-A(16/64)MB cooling OTC uses a different mapping (Disabled=0, Points=1, Fix=2) than heating (Fix=3). Added `serialize_otc_method_cooling` to the register map ABC to handle this correctly
 - **Recorder database access warning** — Use `recorder.get_instance(hass).async_add_executor_job()` instead of `hass.async_add_executor_job()` for database operations in `recorder_rehydrate.py`
 - **Pressure sensor error handling** — Added `0xFFFF` sentinel check to `convert_pressure` in both gateway register maps, preventing bogus readings on sensor errors
 - **COP DHW identical to COP Heating** (issue [#191](https://github.com/alepee/hass-hitachi_yutaki/issues/191)) - COP sensors now use `operation_state` (Modbus register 1090) instead of `hvac_action` to differentiate heating, DHW, cooling, and pool cycles. Fixes identical COP values for DHW and Heating since the v2.0.0 refactoring.
@@ -25,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - **Register map factory** — Extracted `create_register_map()` into `api/__init__.py`, eliminating duplication between `__init__.py` and `config_flow.py`
-- **Yutampo model naming** — HC-A16MB `deserialize_unit_model` now returns `"yutampo_r32"` (matching the profile key) instead of `"yutampo"`
+- **Yutampo model naming** — HC-A(16/64)MB `deserialize_unit_model` now returns `"yutampo_r32"` (matching the profile key) instead of `"yutampo"`
 - **Development tooling** — Added `make upgrade-deps` target; `ha-upgrade`/`ha-dev-branch`/`ha-version` are now documented as temporary overrides reset by `make install`
 
 ### Added

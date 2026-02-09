@@ -175,8 +175,8 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_NAME: user_input[CONF_NAME],
                 CONF_PORT: user_input[CONF_PORT],
             }
-            # Store unit_id for HC-A16MB
-            if self.gateway_type == "modbus_hc_a16mb":
+            # Store unit_id for HC-A(16/64)MB
+            if self.gateway_type == "modbus_hc_a_mb":
                 self.basic_config[CONF_UNIT_ID] = user_input.get(
                     CONF_UNIT_ID, DEFAULT_UNIT_ID
                 )
@@ -236,7 +236,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         # Build schema dynamically based on gateway type
         schema = GATEWAY_SCHEMA
-        if self.gateway_type == "modbus_hc_a16mb":
+        if self.gateway_type == "modbus_hc_a_mb":
             schema = schema.extend(
                 {
                     vol.Required(CONF_UNIT_ID, default=DEFAULT_UNIT_ID): vol.All(

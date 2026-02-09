@@ -1,4 +1,4 @@
-"""Register map for the HC-A16MB gateway.
+"""Register map for the HC-A(16/64)MB gateway.
 
 The HC-A(8/16/64)MB is a newer Hitachi Network/Modbus gateway for ATW heat pumps.
 It uses a different addressing scheme from the ATW-MBS-02:
@@ -7,7 +7,7 @@ It uses a different addressing scheme from the ATW-MBS-02:
   - STATUS registers (R): offsets 100-192
 
 References:
-  - HC-A16MB Modbus documentation (section 5.2: Indoor Unit Register Block)
+  - HC-A(16/64)MB Modbus documentation (section 5.2: Indoor Unit Register Block)
   - Nathan-38 hardware validation (issue #96, Yutaki S2 6kW)
 
 """
@@ -41,7 +41,7 @@ MASK_CIRCUIT2_WIRELESS_TEMP = 0x0800
 
 # ──────────────────────────────────────────────────────────────────────────────
 # System status bit masks (from offset 166)
-# Bits 0-9 are identical to ATW-MBS-02; bits 10-12 are HC-A16MB extensions.
+# Bits 0-9 are identical to ATW-MBS-02; bits 10-12 are HC-A(16/64)MB extensions.
 # ──────────────────────────────────────────────────────────────────────────────
 MASK_DEFROST = 0x0001
 MASK_SOLAR = 0x0002
@@ -53,7 +53,7 @@ MASK_BOILER = 0x0040
 MASK_DHW_HEATER = 0x0080
 MASK_SPACE_HEATER = 0x0100
 MASK_SMART_FUNCTION = 0x0200
-# HC-A16MB extensions
+# HC-A(16/64)MB extensions
 MASK_FORCED_OFF = 0x0400
 MASK_DHW_RECIRCULATION = 0x0800
 MASK_SOLAR_PUMP = 0x1000
@@ -85,7 +85,7 @@ OPERATION_STATE_MAP = {
 # HVAC Unit mode values for CONTROL writes
 HVAC_UNIT_MODE_COOL = 0
 HVAC_UNIT_MODE_HEAT = 1
-# HC-A16MB does not support writing Auto mode directly;
+# HC-A(16/64)MB does not support writing Auto mode directly;
 # Auto is indicated in STATUS via bitmask only.
 HVAC_UNIT_MODE_AUTO = None
 
@@ -152,14 +152,14 @@ def deserialize_alarm_code(value: int | None) -> str:
 def deserialize_unit_model(value: int | None) -> str:
     """Convert a raw unit model ID to a model key.
 
-    HC-A16MB supports more models than ATW-MBS-02:
+    HC-A(16/64)MB supports more models than ATW-MBS-02:
         0: YUTAKI S
         1: YUTAKI S COMBI
         2: S80
         3: M
-        4: SC Lite (HC-A16MB only)
-        5: Yutampo (HC-A16MB only — identified directly)
-        6: YCC (HC-A16MB only)
+        4: SC Lite (HC-A(16/64)MB only)
+        5: Yutampo (HC-A(16/64)MB only — identified directly)
+        6: YCC (HC-A(16/64)MB only)
     """
     if value is None:
         return "unknown"
@@ -178,7 +178,7 @@ def deserialize_unit_model(value: int | None) -> str:
 def deserialize_unit_mode_status(value: int | None) -> int | None:
     """Decode unit mode from STATUS register bitmask.
 
-    HC-A16MB STATUS register encodes the mode as:
+    HC-A(16/64)MB STATUS register encodes the mode as:
         B0: 0=Cool, 1=Heat
         B1: 0=Normal, 1=Auto
 
@@ -221,7 +221,7 @@ def serialize_otc_method(value: str) -> int:
 def deserialize_otc_method_cooling(value: int | None) -> str | None:
     """Convert a raw cooling OTC method value to an OTC method constant.
 
-    HC-A16MB cooling OTC has only 3 options (no Gradient):
+    HC-A(16/64)MB cooling OTC has only 3 options (no Gradient):
         0=Disabled, 1=Points, 2=Fix
     """
     if value is None:
@@ -235,7 +235,7 @@ def deserialize_otc_method_cooling(value: int | None) -> str | None:
 
 
 def serialize_otc_method_cooling(value: str) -> int:
-    """Convert a cooling OTC method constant to a raw value (HC-A16MB)."""
+    """Convert a cooling OTC method constant to a raw value (HC-A(16/64)MB)."""
     method_map = {
         OTCCalculationMethod.DISABLED: 0,
         OTCCalculationMethod.POINTS: 1,
@@ -259,8 +259,8 @@ def _compute_base(unit_id: int) -> int:
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-class HcA16mbRegisterMap(HitachiRegisterMap):
-    """Register map for the HC-A16MB gateway.
+class HcAMbRegisterMap(HitachiRegisterMap):
+    """Register map for the HC-A(16/64)MB gateway.
 
     All absolute addresses are computed at construction time from the unit_id.
     """
@@ -446,7 +446,7 @@ class HcA16mbRegisterMap(HitachiRegisterMap):
         }
 
         # --- Pool (CONTROL + STATUS) ---
-        # Note: HC-A16MB pool_target_temp is integer °C (NOT tenths like ATW-MBS-02)
+        # Note: HC-A(16/64)MB pool_target_temp is integer °C (NOT tenths like ATW-MBS-02)
         self._register_pool: dict[str, RegisterDefinition] = {
             "pool_power": RegisterDefinition(
                 self._addr(132), write_address=self._addr(79)
@@ -460,7 +460,7 @@ class HcA16mbRegisterMap(HitachiRegisterMap):
         }
 
         # --- Primary Compressor (STATUS only, indoor unit block) ---
-        # HC-A16MB indoor block only exposes 3 registers for the primary compressor.
+        # HC-A(16/64)MB indoor block only exposes 3 registers for the primary compressor.
         # Full compressor data (discharge temp, evaporator, frequency, current)
         # is available via the outdoor unit register block at a separate Modbus_Id.
         self._register_primary_compressor: dict[str, RegisterDefinition] = {
@@ -681,7 +681,7 @@ class HcA16mbRegisterMap(HitachiRegisterMap):
 
     @property
     def hvac_unit_mode_auto(self) -> int | None:
-        """Return the raw value for auto mode (None — HC-A16MB cannot write Auto)."""
+        """Return the raw value for auto mode (None — HC-A(16/64)MB cannot write Auto)."""
         return HVAC_UNIT_MODE_AUTO
 
     def serialize_otc_method(self, value: str) -> int:
@@ -691,6 +691,6 @@ class HcA16mbRegisterMap(HitachiRegisterMap):
     def serialize_otc_method_cooling(self, value: str) -> int:
         """Convert a cooling OTC method constant to a raw register value.
 
-        HC-A16MB cooling has a different mapping (no Gradient): 0=Disabled, 1=Points, 2=Fix.
+        HC-A(16/64)MB cooling has a different mapping (no Gradient): 0=Disabled, 1=Points, 2=Fix.
         """
         return serialize_otc_method_cooling(value)

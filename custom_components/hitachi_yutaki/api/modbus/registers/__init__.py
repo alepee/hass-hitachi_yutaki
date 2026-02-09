@@ -14,7 +14,7 @@ class RegisterDefinition:
         address: Read address (STATUS register for gateways with separate R/W ranges).
         deserializer: Optional function to convert raw register value on read.
         serializer: Optional function to convert value before writing.
-        write_address: Write address if different from read address (e.g. HC-A16MB).
+        write_address: Write address if different from read address (e.g. HC-A(16/64)MB).
             When None, writes use the same address as reads.
 
     """

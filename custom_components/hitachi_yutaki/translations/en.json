@@ -29,7 +29,7 @@
     "gateway_type": {
       "options": {
         "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
-        "modbus_hc_a16mb": "Modbus HC-A16MB (Beta)"
+        "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
       }
     },
     "profile": {
@@ -112,7 +112,7 @@
           "name": "Name",
           "host": "Host/IP Address",
           "port": "Port",
-          "unit_id": "Unit ID (HC-A16MB only, 0-15)",
+          "unit_id": "Unit ID (HC-A(16/64)MB only, 0-15)",
           "show_advanced": "Show advanced options"
         }
       },

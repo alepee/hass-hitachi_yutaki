@@ -21,12 +21,12 @@ class YutampoR32Profile(HitachiHeatPumpProfile):
         """Return True if the profile is detected.
 
         Detection works via two paths:
-        - Direct match: HC-A16MB reports unit_model="yutampo" directly.
+        - Direct match: HC-A(16/64)MB reports unit_model="yutampo" directly.
         - Heuristic match: ATW-MBS-02 reports unit_model="yutaki_s_combi"
           but with DHW only and no heating/cooling circuits configured.
         """
         unit_model = data.get("unit_model")
-        # Direct match (HC-A16MB provides exact model)
+        # Direct match (HC-A(16/64)MB provides exact model)
         if unit_model == "yutampo_r32":
             return True
         # Heuristic match (ATW-MBS-02 reports S Combi, infer from config)
