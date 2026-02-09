@@ -6,7 +6,7 @@ from collections.abc import Callable
 from datetime import datetime, timedelta
 import logging
 
-from homeassistant.components.recorder import history
+from homeassistant.components.recorder import get_instance, history
 from homeassistant.core import HomeAssistant, State
 from homeassistant.util import dt as dt_util
 
@@ -218,7 +218,7 @@ async def _async_fetch_history(
         )
 
     try:
-        return await hass.async_add_executor_job(_get_states)
+        return await get_instance(hass).async_add_executor_job(_get_states)
     except Exception:  # noqa: BLE001
         _LOGGER.debug("Recorder history unavailable for entities: %s", entity_ids)
         return {}
