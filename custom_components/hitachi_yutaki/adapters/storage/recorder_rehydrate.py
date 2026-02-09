@@ -69,11 +69,13 @@ async def async_replay_cop_history(
                 parsed = parser(state)
                 if parsed is None:
                     continue
-                timeline.append((
-                    _as_local_naive(state.last_changed or state.last_updated),
-                    key,
-                    parsed,
-                ))
+                timeline.append(
+                    (
+                        _as_local_naive(state.last_changed or state.last_updated),
+                        key,
+                        parsed,
+                    )
+                )
 
     if not timeline:
         return []

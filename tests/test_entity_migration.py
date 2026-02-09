@@ -1,6 +1,5 @@
 """Tests for entity migration."""
 
-
 from custom_components.hitachi_yutaki.entity_migration import _calculate_new_unique_id
 
 

@@ -28,7 +28,8 @@
   "selector": {
     "gateway_type": {
       "options": {
-        "modbus_atw_mbs_02": "Modbus ATW-MBS-02"
+        "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
+        "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
       }
     },
     "profile": {
@@ -37,7 +38,9 @@
         "yutaki_s_combi": "Yutaki S Combi",
         "yutaki_s80": "Yutaki S80",
         "yutaki_m": "Yutaki M",
-        "yutampo_r32": "Yutampo R32"
+        "yutampo_r32": "Yutampo R32",
+        "yutaki_sc_lite": "Yutaki SC Lite",
+        "ycc": "YCC"
       }
     },
     "power_supply": {
@@ -109,6 +112,7 @@
           "name": "Nom",
           "host": "Hôte/Adresse IP",
           "port": "Port",
+          "unit_id": "ID de l'unité (HC-A(16/64)MB uniquement, 0-15)",
           "show_advanced": "Afficher les options avancées"
         }
       },

@@ -20,11 +20,18 @@ class YutampoR32Profile(HitachiHeatPumpProfile):
     def detect(data: dict[str, Any]) -> bool:
         """Return True if the profile is detected.
 
-        Yutampo R32 is a DHW-only unit that reports as unit_model=1 (S Combi)
-        but has no heating/cooling circuits configured.
+        Detection works via two paths:
+        - Direct match: HC-A(16/64)MB reports unit_model="yutampo" directly.
+        - Heuristic match: ATW-MBS-02 reports unit_model="yutaki_s_combi"
+          but with DHW only and no heating/cooling circuits configured.
         """
+        unit_model = data.get("unit_model")
+        # Direct match (HC-A(16/64)MB provides exact model)
+        if unit_model == "yutampo_r32":
+            return True
+        # Heuristic match (ATW-MBS-02 reports S Combi, infer from config)
         return (
-            data.get("unit_model") == "yutaki_s_combi"
+            unit_model == "yutaki_s_combi"
             and data.get("has_dhw") is True
             and not data.get("has_circuit1_heating")
             and not data.get("has_circuit1_cooling")

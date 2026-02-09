@@ -89,7 +89,9 @@ async def test_async_get_unique_id_modbus_exception(api_client, mock_client):
 @pytest.mark.asyncio
 async def test_async_get_unique_id_connection_error(api_client, mock_client):
     """Test unique_id retrieval when ConnectionError occurs."""
-    mock_client.read_input_registers.side_effect = ConnectionError("Network unreachable")
+    mock_client.read_input_registers.side_effect = ConnectionError(
+        "Network unreachable"
+    )
 
     result = await api_client.async_get_unique_id()
 
