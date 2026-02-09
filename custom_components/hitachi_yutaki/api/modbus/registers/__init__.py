@@ -184,4 +184,8 @@ class HitachiRegisterMap(ABC):
 
     @abstractmethod
     def serialize_otc_method(self, value: str) -> int:
-        """Convert an OTC method constant to a raw register value."""
+        """Convert a heating OTC method constant to a raw register value."""
+
+    @abstractmethod
+    def serialize_otc_method_cooling(self, value: str) -> int:
+        """Convert a cooling OTC method constant to a raw register value."""

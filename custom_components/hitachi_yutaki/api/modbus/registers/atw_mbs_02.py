@@ -196,6 +196,8 @@ def convert_pressure(value: int | None) -> float | None:
     """
     if value is None:
         return None
+    if value == 0xFFFF:
+        return None
     return float(value) / 10.0
 
 
@@ -522,4 +524,11 @@ class AtwMbs02RegisterMap(HitachiRegisterMap):
 
     def serialize_otc_method(self, value: str) -> int:
         """Convert an OTC method constant to a raw register value."""
+        return serialize_otc_method(value)
+
+    def serialize_otc_method_cooling(self, value: str) -> int:
+        """Convert a cooling OTC method constant to a raw register value.
+
+        ATW-MBS-02 uses the same mapping for heating and cooling.
+        """
         return serialize_otc_method(value)

@@ -27,7 +27,7 @@ class YutampoR32Profile(HitachiHeatPumpProfile):
         """
         unit_model = data.get("unit_model")
         # Direct match (HC-A16MB provides exact model)
-        if unit_model == "yutampo":
+        if unit_model == "yutampo_r32":
             return True
         # Heuristic match (ATW-MBS-02 reports S Combi, infer from config)
         return (

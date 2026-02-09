@@ -21,8 +21,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 import homeassistant.helpers.config_validation as cv
 
-from .api import GATEWAY_INFO
-from .api.modbus.registers.hc_a16mb import HcA16mbRegisterMap
+from .api import GATEWAY_INFO, create_register_map
 from .const import (
     CONF_ENERGY_ENTITY,
     CONF_POWER_ENTITY,
@@ -163,12 +162,6 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user", data_schema=GATEWAY_SELECTION_SCHEMA
         )
 
-    def _create_register_map(self, gateway_type: str, unit_id: int = DEFAULT_UNIT_ID):
-        """Create the appropriate register map for the gateway type."""
-        if gateway_type == "modbus_hc_a16mb":
-            return HcA16mbRegisterMap(unit_id=unit_id)
-        return None  # Default (ATW-MBS-02) uses built-in default
-
     async def async_step_gateway_config(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -192,7 +185,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             # Validate connection and read all data for detection
             api_client_class = GATEWAY_INFO[self.gateway_type].client_class
-            register_map = self._create_register_map(
+            register_map = create_register_map(
                 self.gateway_type,
                 self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
             )
@@ -345,7 +338,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         api_client_class = GATEWAY_INFO[config["gateway_type"]].client_class
-        register_map = self._create_register_map(
+        register_map = create_register_map(
             config["gateway_type"],
             config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
         )

@@ -123,6 +123,8 @@ def convert_pressure(value: int | None) -> float | None:
     """Convert pressure value to bar (raw = hundredths of MPa)."""
     if value is None:
         return None
+    if value == 0xFFFF:
+        return None
     return float(value) / 10.0
 
 
@@ -167,7 +169,7 @@ def deserialize_unit_model(value: int | None) -> str:
         2: "yutaki_s80",
         3: "yutaki_m",
         4: "yutaki_sc_lite",
-        5: "yutampo",
+        5: "yutampo_r32",
         6: "ycc",
     }
     return model_map.get(value, "unknown")
@@ -683,5 +685,12 @@ class HcA16mbRegisterMap(HitachiRegisterMap):
         return HVAC_UNIT_MODE_AUTO
 
     def serialize_otc_method(self, value: str) -> int:
-        """Convert an OTC method constant to a raw register value."""
+        """Convert a heating OTC method constant to a raw register value."""
         return serialize_otc_method(value)
+
+    def serialize_otc_method_cooling(self, value: str) -> int:
+        """Convert a cooling OTC method constant to a raw register value.
+
+        HC-A16MB cooling has a different mapping (no Gradient): 0=Disabled, 1=Points, 2=Fix.
+        """
+        return serialize_otc_method_cooling(value)

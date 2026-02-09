@@ -16,8 +16,7 @@ from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
 
-from .api import GATEWAY_INFO
-from .api.modbus.registers.hc_a16mb import HcA16mbRegisterMap
+from .api import GATEWAY_INFO, create_register_map
 from .const import (
     CIRCUIT_MODE_COOLING,
     CIRCUIT_MODE_HEATING,
@@ -42,13 +41,6 @@ from .entity_migration import async_migrate_entities
 from .profiles import PROFILES
 
 _LOGGER = logging.getLogger(__name__)
-
-
-def _create_register_map(gateway_type: str, data: dict):
-    """Create the appropriate register map for the gateway type."""
-    if gateway_type == "modbus_hc_a16mb":
-        return HcA16mbRegisterMap(unit_id=data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID))
-    return None  # ATW-MBS-02 uses built-in default
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -92,7 +84,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Create temporary API client for unique_id retrieval
         gateway_info = GATEWAY_INFO[entry.data["gateway_type"]]
-        register_map = _create_register_map(entry.data["gateway_type"], entry.data)
+        register_map = create_register_map(
+            entry.data["gateway_type"],
+            entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+        )
         temp_client = gateway_info.client_class(
             hass,
             name=entry.data[CONF_NAME],
@@ -145,7 +140,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Instantiate gateway client and profile
     api_client_class = gateway_info.client_class
-    register_map = _create_register_map(gateway_type, entry.data)
+    register_map = create_register_map(
+        gateway_type, entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
+    )
     api_client = api_client_class(
         hass,
         name=entry.data[CONF_NAME],

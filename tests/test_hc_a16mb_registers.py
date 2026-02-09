@@ -72,7 +72,7 @@ class TestDeserializers:
     def test_unit_model_hc_a16mb_only(self):
         """Test HC-A16MB-specific model IDs."""
         assert deserialize_unit_model(4) == "yutaki_sc_lite"
-        assert deserialize_unit_model(5) == "yutampo"
+        assert deserialize_unit_model(5) == "yutampo_r32"
         assert deserialize_unit_model(6) == "ycc"
 
     def test_unit_model_unknown(self):
@@ -287,7 +287,7 @@ class TestProfileDetectionWithHcA16mb:
 
     def test_yutampo_direct_detection(self):
         """Yutampo should be detected by direct model name from HC-A16MB."""
-        data = {"unit_model": "yutampo"}
+        data = {"unit_model": "yutampo_r32"}
         matching = [key for key, profile in PROFILES.items() if profile.detect(data)]
         assert len(matching) == 1
         assert matching[0] == "yutampo_r32"
@@ -322,5 +322,5 @@ class TestProfileDetectionWithHcA16mb:
 
     def test_yutampo_direct_does_not_match_s_combi(self):
         """Direct yutampo model name should not match S Combi profile."""
-        data = {"unit_model": "yutampo", "has_circuit1_heating": True}
+        data = {"unit_model": "yutampo_r32", "has_circuit1_heating": True}
         assert YutakiSCombiProfile.detect(data) is False

@@ -651,7 +651,7 @@ class ModbusApiClient(HitachiApiClient):
         """Set OTC calculation method for cooling."""
         key = f"circuit{circuit_id}_otc_calculation_method_cooling"
         return await self.write_value(
-            key, self._register_map.serialize_otc_method(method)
+            key, self._register_map.serialize_otc_method_cooling(method)
         )
 
     async def set_circuit_max_flow_temp_heating(
@@ -751,9 +751,7 @@ class ModbusApiClient(HitachiApiClient):
 
     async def set_dhw_antilegionella_temperature(self, temperature: float) -> bool:
         """Set anti-legionella target temperature (stored in °C)."""
-        _LOGGER.debug(
-            "Setting anti-legionella temp to %s°C (register 1031)", temperature
-        )
+        _LOGGER.debug("Setting anti-legionella temp to %s°C", temperature)
         result = await self.write_value("dhw_antilegionella_temp", int(temperature))
         _LOGGER.debug("Anti-legionella temp set result: %s", result)
         return result
