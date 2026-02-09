@@ -51,9 +51,7 @@ class ThermalPowerService:
         )
 
         # Validate input data
-        if any(
-            x is None for x in [water_inlet_temp, water_outlet_temp, water_flow]
-        ):
+        if any(x is None for x in [water_inlet_temp, water_outlet_temp, water_flow]):
             self._accumulator.update(
                 heating_power=0.0,
                 cooling_power=0.0,

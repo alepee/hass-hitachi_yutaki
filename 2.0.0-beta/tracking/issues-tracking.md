@@ -317,10 +317,10 @@
 - **Description**: Request to add support for Hitachi 8kW Split_Unit (2023)
 - **Status**: ❌ Not addressed - Needs hardware access
 
-### Issue #96: HC-A16MB support request
+### Issue #96: HC-A(16/64)MB support request
 - **GitHub**: [#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96)
 - **Date**: 2025-09-01
-- **Description**: Heat pump support request for HC-A16MB model
+- **Description**: Heat pump support request for HC-A(16/64)MB model
 - **Status**: ❌ Not addressed - Needs hardware access
 
 ### Issue #81: Autodetect Connected Heat Pump Type
@@ -372,7 +372,7 @@ As of 2026-01-27, related issues have been consolidated into fewer, more compreh
 - **#161**: Two3 sensor support (NEW)
 - **#137**: Circuit thermostat 0°C display
 - **#102**: Hitachi 8kW Split_Unit support
-- **#96**: HC-A16MB support
+- **#96**: HC-A(16/64)MB support
 - **#81**: Auto-detect heat pump type (partially addressed)
 - **#77**: Yutampo DHW max temp
 

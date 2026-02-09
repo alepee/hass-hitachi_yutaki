@@ -142,7 +142,12 @@ class ThermalEnergyAccumulator:
         # Handle inertia and post-cycle lock (both modes)
         if not compressor_running:
             # Activate lock when delta T drops to zero in current mode
-            if self._last_mode == "heating" and heating_power <= 0 or self._last_mode == "cooling" and cooling_power <= 0:
+            if (
+                self._last_mode == "heating"
+                and heating_power <= 0
+                or self._last_mode == "cooling"
+                and cooling_power <= 0
+            ):
                 self._post_cycle_lock = True
 
             # When locked, force power to 0 for current mode

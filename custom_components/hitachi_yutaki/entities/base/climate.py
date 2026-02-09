@@ -87,17 +87,13 @@ class HitachiYutakiClimate(
             if (
                 coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
                 if circuit_id == CIRCUIT_PRIMARY_ID
-                else coordinator.has_circuit(
-                    CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING
-                )
+                else coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING)
             ):
                 self._attr_hvac_modes.append(HVACMode.HEAT)
             if (
                 coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
                 if circuit_id == CIRCUIT_PRIMARY_ID
-                else coordinator.has_circuit(
-                    CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING
-                )
+                else coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
             ):
                 self._attr_hvac_modes.append(HVACMode.COOL)
             if len(self._attr_hvac_modes) > 2:
