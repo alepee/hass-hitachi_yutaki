@@ -539,6 +539,7 @@ Available `make` targets (run `make help` to list all):
 |--------|-------------|
 | `make install` | Install all dependencies (dev included) |
 | `make setup` | Full project setup (deps + pre-commit hooks) |
+| `make upgrade-deps` | Upgrade all deps (HA version follows `pytest-homeassistant-custom-component`) |
 | `make lint` | Run ruff linter with auto-fix |
 | `make format` | Run ruff formatter |
 | `make check` | Run all code quality checks (lint + format) |
@@ -546,11 +547,13 @@ Available `make` targets (run `make help` to list all):
 | `make test-domain` | Run domain layer tests only (pure Python, no HA) |
 | `make test-coverage` | Run tests with coverage report |
 | `make ha-run` | Start a local HA dev instance with debug config |
-| `make ha-upgrade` | Upgrade HA to latest release |
-| `make ha-dev-branch` | Install HA from dev branch (bleeding edge) |
-| `make ha-version` | Install a specific HA version (interactive) |
+| `make ha-upgrade` | Temporary HA upgrade (reset by `make install`) |
+| `make ha-dev-branch` | Temporary HA dev branch (reset by `make install`) |
+| `make ha-version` | Temporary HA specific version (reset by `make install`) |
 | `make bump` | Bump version (last numeric segment) |
 | `make version` | Show current version |
+
+> **Note**: The Home Assistant version in the dev environment is controlled by `pytest-homeassistant-custom-component` via the lockfile. Use `make upgrade-deps` to update it. The `ha-upgrade`, `ha-dev-branch`, and `ha-version` targets are temporary overrides for ad-hoc testing — `make install` will restore the lockfile version.
 
 ### Pre-commit Hooks
 
