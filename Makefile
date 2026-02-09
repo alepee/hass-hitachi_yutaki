@@ -13,6 +13,11 @@ install: ## Install all dependencies (dev included)
 setup: ## Full project setup (deps + pre-commit hooks + system libs)
 	./scripts/setup
 
+.PHONY: upgrade-deps
+upgrade-deps: ## Upgrade all deps (HA version follows pytest-homeassistant-custom-component)
+	uv lock --upgrade
+	uv sync --group dev
+
 # —— Quality ————————————————————————————————————————————
 
 .PHONY: lint
@@ -55,15 +60,15 @@ ha-run: ## Start a local HA dev instance with debug config
 	./scripts/develop
 
 .PHONY: ha-upgrade
-ha-upgrade: ## Upgrade HA to latest release
+ha-upgrade: ## Temporary HA upgrade (reset by make install)
 	./scripts/upgrade
 
 .PHONY: ha-dev-branch
-ha-dev-branch: ## Install HA from dev branch (bleeding edge)
+ha-dev-branch: ## Temporary HA dev branch (reset by make install)
 	./scripts/dev-branch
 
 .PHONY: ha-version
-ha-version: ## Install a specific HA version (interactive prompt)
+ha-version: ## Temporary HA specific version (reset by make install)
 	./scripts/specific-version
 
 # —— Release ———————————————————————————————————————————
