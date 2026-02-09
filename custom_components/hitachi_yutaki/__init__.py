@@ -17,11 +17,14 @@ from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
 
 from .api import GATEWAY_INFO
+from .api.modbus.registers.hc_a16mb import HcA16mbRegisterMap
 from .const import (
     CIRCUIT_MODE_COOLING,
     CIRCUIT_MODE_HEATING,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
+    CONF_UNIT_ID,
+    DEFAULT_UNIT_ID,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
     DEVICE_CONTROL_UNIT,
@@ -39,6 +42,13 @@ from .entity_migration import async_migrate_entities
 from .profiles import PROFILES
 
 _LOGGER = logging.getLogger(__name__)
+
+
+def _create_register_map(gateway_type: str, data: dict):
+    """Create the appropriate register map for the gateway type."""
+    if gateway_type == "modbus_hc_a16mb":
+        return HcA16mbRegisterMap(unit_id=data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID))
+    return None  # ATW-MBS-02 uses built-in default
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -82,12 +92,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Create temporary API client for unique_id retrieval
         gateway_info = GATEWAY_INFO[entry.data["gateway_type"]]
+        register_map = _create_register_map(entry.data["gateway_type"], entry.data)
         temp_client = gateway_info.client_class(
             hass,
             name=entry.data[CONF_NAME],
             host=entry.data[CONF_HOST],
             port=entry.data[CONF_PORT],
             slave=entry.data[CONF_SLAVE],
+            register_map=register_map,
         )
 
         unique_id = None
@@ -133,12 +145,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     # Instantiate gateway client and profile
     api_client_class = gateway_info.client_class
+    register_map = _create_register_map(gateway_type, entry.data)
     api_client = api_client_class(
         hass,
         name=entry.data[CONF_NAME],
         host=entry.data[CONF_HOST],
         port=entry.data[CONF_PORT],
         slave=entry.data[CONF_SLAVE],
+        register_map=register_map,
     )
     profile = PROFILES[profile_key]()
 

@@ -21,6 +21,11 @@ GATEWAY_INFO = {
         model="ATW-MBS-02",
         client_class=ModbusApiClient,
     ),
+    "modbus_hc_a16mb": GatewayInfo(
+        manufacturer="Hitachi",
+        model="HC-A16MB",
+        client_class=ModbusApiClient,
+    ),
 }
 
 __all__ = ["HitachiApiClient", "GATEWAY_INFO"]

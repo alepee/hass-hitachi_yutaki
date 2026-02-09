@@ -23,29 +23,8 @@ from ...const import (
     get_pymodbus_device_param,
 )
 from ..base import HitachiApiClient
-from .registers import HitachiRegisterMap, atw_mbs_02
-from .registers.atw_mbs_02 import (
-    ALL_REGISTERS,
-    HVAC_UNIT_MODE_AUTO,
-    HVAC_UNIT_MODE_COOL,
-    HVAC_UNIT_MODE_HEAT,
-    MASK_BOILER,
-    MASK_COMPRESSOR,
-    MASK_DEFROST,
-    MASK_DHW,
-    MASK_DHW_HEATER,
-    MASK_POOL,
-    MASK_PUMP1,
-    MASK_PUMP2,
-    MASK_PUMP3,
-    MASK_SMART_FUNCTION,
-    MASK_SOLAR,
-    MASK_SPACE_HEATER,
-    MASKS_CIRCUIT,
-    SYSTEM_STATE_ISSUES,
-    WRITABLE_KEYS,
-    serialize_otc_method,
-)
+from .registers import HitachiRegisterMap
+from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -54,7 +33,13 @@ class ModbusApiClient(HitachiApiClient):
     """Modbus client for Hitachi heat pumps."""
 
     def __init__(
-        self, hass: HomeAssistant, name: str, host: str, port: int, slave: int
+        self,
+        hass: HomeAssistant,
+        name: str,
+        host: str,
+        port: int,
+        slave: int,
+        register_map: HitachiRegisterMap | None = None,
     ) -> None:
         """Initialize the Modbus client."""
         self._hass = hass
@@ -66,7 +51,7 @@ class ModbusApiClient(HitachiApiClient):
         self._lock = None
         self._data = {}
         self._unsub_updater = None
-        self._register_map: HitachiRegisterMap = atw_mbs_02.AtwMbs02RegisterMap()
+        self._register_map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
         self._max_retries = 3
         self._connection_retries = 0
 
@@ -204,11 +189,14 @@ class ModbusApiClient(HitachiApiClient):
 
     async def write_value(self, key: str, value: int) -> bool:
         """Write a value to the API."""
-        if key not in WRITABLE_KEYS:
+        if key not in self._register_map.writable_keys:
             _LOGGER.error("Unknown or non-writable register key: %s", key)
             return False
 
-        register_address = ALL_REGISTERS[key].address
+        reg = self._register_map.all_registers[key]
+        register_address = (
+            reg.write_address if reg.write_address is not None else reg.address
+        )
         device_param = get_pymodbus_device_param()
 
         retry_count = 0
@@ -263,41 +251,44 @@ class ModbusApiClient(HitachiApiClient):
     def has_dhw(self) -> bool:
         """Return True if DHW is configured."""
         system_config = self._data.get("system_config", 0)
-        return bool(system_config & MASK_DHW)
+        return bool(system_config & self._register_map.mask_dhw)
 
     def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
         """Return True if circuit is configured."""
         system_config = self._data.get("system_config", 0)
-        return bool(system_config & MASKS_CIRCUIT.get((circuit_id, mode)))
+        return bool(
+            system_config & self._register_map.masks_circuit.get((circuit_id, mode))
+        )
 
     @property
     def has_pool(self) -> bool:
         """Return True if pool heating is configured."""
         system_config = self._data.get("system_config", 0)
-        return bool(system_config & MASK_POOL)
+        return bool(system_config & self._register_map.mask_pool)
 
     def decode_config(self, data: dict[str, Any]) -> dict[str, Any]:
         """Decode raw config data into a dictionary of boolean flags."""
         system_config = data.get("system_config", 0)
+        rmap = self._register_map
         decoded = data.copy()
-        decoded["has_dhw"] = bool(system_config & MASK_DHW)
+        decoded["has_dhw"] = bool(system_config & rmap.mask_dhw)
         decoded["has_circuit1_heating"] = bool(
             system_config
-            & MASKS_CIRCUIT.get((CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING))
+            & rmap.masks_circuit.get((CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING))
         )
         decoded["has_circuit1_cooling"] = bool(
             system_config
-            & MASKS_CIRCUIT.get((CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING))
+            & rmap.masks_circuit.get((CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING))
         )
         decoded["has_circuit2_heating"] = bool(
             system_config
-            & MASKS_CIRCUIT.get((CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING))
+            & rmap.masks_circuit.get((CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING))
         )
         decoded["has_circuit2_cooling"] = bool(
             system_config
-            & MASKS_CIRCUIT.get((CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING))
+            & rmap.masks_circuit.get((CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING))
         )
-        decoded["has_pool"] = bool(system_config & MASK_POOL)
+        decoded["has_pool"] = bool(system_config & rmap.mask_pool)
         return decoded
 
     async def read_values(self, keys: list[str]) -> None:
@@ -308,16 +299,19 @@ class ModbusApiClient(HitachiApiClient):
         while retry_count <= max_read_retries:
             try:
                 device_param = get_pymodbus_device_param()
+                all_regs = self._register_map.all_registers
 
                 # Build a map of registers to read for this update
                 registers_to_read = {
-                    key: ALL_REGISTERS[key] for key in keys if key in ALL_REGISTERS
+                    key: all_regs[key] for key in keys if key in all_regs
                 }
 
                 # Always perform a preflight check
+                system_state_addr = all_regs["system_state"].address
                 preflight_result = await self._hass.async_add_executor_job(
-                    lambda param=device_param: self._client.read_holding_registers(
-                        address=ALL_REGISTERS["system_state"].address,
+                    lambda param=device_param,
+                    addr=system_state_addr: self._client.read_holding_registers(
+                        address=addr,
                         count=1,
                         **{param: self._slave},
                     )
@@ -329,7 +323,10 @@ class ModbusApiClient(HitachiApiClient):
                 self._data["system_state"] = system_state
 
                 # Report system state issues and skip further reads
-                for issue_state, issue_key in SYSTEM_STATE_ISSUES.items():
+                for (
+                    issue_state,
+                    issue_key,
+                ) in self._register_map.system_state_issues.items():
                     if system_state == issue_state:
                         ir.async_create_issue(
                             self._hass,
@@ -399,61 +396,61 @@ class ModbusApiClient(HitachiApiClient):
     def is_defrosting(self) -> bool:
         """Return True if the unit is in defrost mode."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_DEFROST)
+        return bool(system_status & self._register_map.mask_defrost)
 
     @property
     def is_solar_active(self) -> bool:
         """Return True if solar system is active."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_SOLAR)
+        return bool(system_status & self._register_map.mask_solar)
 
     @property
     def is_pump1_running(self) -> bool:
         """Return True if pump 1 is running."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_PUMP1)
+        return bool(system_status & self._register_map.mask_pump1)
 
     @property
     def is_pump2_running(self) -> bool:
         """Return True if pump 2 is running."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_PUMP2)
+        return bool(system_status & self._register_map.mask_pump2)
 
     @property
     def is_pump3_running(self) -> bool:
         """Return True if pump 3 is running."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_PUMP3)
+        return bool(system_status & self._register_map.mask_pump3)
 
     @property
     def is_compressor_running(self) -> bool:
         """Return True if compressor is running."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_COMPRESSOR)
+        return bool(system_status & self._register_map.mask_compressor)
 
     @property
     def is_boiler_active(self) -> bool:
         """Return True if backup boiler is active."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_BOILER)
+        return bool(system_status & self._register_map.mask_boiler)
 
     @property
     def is_dhw_heater_active(self) -> bool:
         """Return True if DHW electric heater is active."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_DHW_HEATER)
+        return bool(system_status & self._register_map.mask_dhw_heater)
 
     @property
     def is_space_heater_active(self) -> bool:
         """Return True if space heating electric heater is active."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_SPACE_HEATER)
+        return bool(system_status & self._register_map.mask_space_heater)
 
     @property
     def is_smart_function_active(self) -> bool:
         """Return True if smart grid function is active."""
         system_status = self._data.get("system_status", 0)
-        return bool(system_status & MASK_SMART_FUNCTION)
+        return bool(system_status & self._register_map.mask_smart_function)
 
     @property
     def is_primary_compressor_running(self) -> bool:
@@ -491,11 +488,14 @@ class ModbusApiClient(HitachiApiClient):
         unit_mode = self._data.get("unit_mode")
         if unit_mode is None:
             return None
-        return {
-            HVAC_UNIT_MODE_COOL: HVACMode.COOL,
-            HVAC_UNIT_MODE_HEAT: HVACMode.HEAT,
-            HVAC_UNIT_MODE_AUTO: HVACMode.AUTO,
-        }.get(unit_mode)
+        rmap = self._register_map
+        mode_map = {
+            rmap.hvac_unit_mode_cool: HVACMode.COOL,
+            rmap.hvac_unit_mode_heat: HVACMode.HEAT,
+        }
+        if rmap.hvac_unit_mode_auto is not None:
+            mode_map[rmap.hvac_unit_mode_auto] = HVACMode.AUTO
+        return mode_map.get(unit_mode)
 
     # Unit control - Setters
     async def set_unit_power(self, enabled: bool) -> bool:
@@ -504,11 +504,13 @@ class ModbusApiClient(HitachiApiClient):
 
     async def set_unit_mode(self, mode) -> bool:
         """Set the unit operation mode."""
+        rmap = self._register_map
         mode_map = {
-            HVACMode.COOL: HVAC_UNIT_MODE_COOL,
-            HVACMode.HEAT: HVAC_UNIT_MODE_HEAT,
-            HVACMode.AUTO: HVAC_UNIT_MODE_AUTO,
+            HVACMode.COOL: rmap.hvac_unit_mode_cool,
+            HVACMode.HEAT: rmap.hvac_unit_mode_heat,
         }
+        if rmap.hvac_unit_mode_auto is not None:
+            mode_map[HVACMode.AUTO] = rmap.hvac_unit_mode_auto
         unit_mode = mode_map.get(mode)
         if unit_mode is None:
             return False
@@ -639,14 +641,18 @@ class ModbusApiClient(HitachiApiClient):
     ) -> bool:
         """Set OTC calculation method for heating."""
         key = f"circuit{circuit_id}_otc_calculation_method_heating"
-        return await self.write_value(key, serialize_otc_method(method))
+        return await self.write_value(
+            key, self._register_map.serialize_otc_method(method)
+        )
 
     async def set_circuit_otc_method_cooling(
         self, circuit_id: CIRCUIT_IDS, method: str
     ) -> bool:
         """Set OTC calculation method for cooling."""
         key = f"circuit{circuit_id}_otc_calculation_method_cooling"
-        return await self.write_value(key, serialize_otc_method(method))
+        return await self.write_value(
+            key, self._register_map.serialize_otc_method(method)
+        )
 
     async def set_circuit_max_flow_temp_heating(
         self, circuit_id: CIRCUIT_IDS, temperature: float
@@ -745,7 +751,9 @@ class ModbusApiClient(HitachiApiClient):
 
     async def set_dhw_antilegionella_temperature(self, temperature: float) -> bool:
         """Set anti-legionella target temperature (stored in °C)."""
-        _LOGGER.debug("Setting anti-legionella temp to %s°C (register 1031)", temperature)
+        _LOGGER.debug(
+            "Setting anti-legionella temp to %s°C (register 1031)", temperature
+        )
         result = await self.write_value("dhw_antilegionella_temp", int(temperature))
         _LOGGER.debug("Anti-legionella temp set result: %s", result)
         return result
@@ -778,5 +786,10 @@ class ModbusApiClient(HitachiApiClient):
         return await self.write_value("pool_power", 1 if enabled else 0)
 
     async def set_pool_target_temperature(self, temperature: float) -> bool:
-        """Set pool target temperature (stored in tenths of degrees)."""
-        return await self.write_value("pool_target_temp", int(temperature * 10))
+        """Set pool target temperature."""
+        reg = self._register_map.all_registers.get("pool_target_temp")
+        if reg and reg.serializer:
+            value = reg.serializer(temperature)
+        else:
+            value = int(temperature)
+        return await self.write_value("pool_target_temp", value)

@@ -1,9 +1,5 @@
 """Register map for the ATW-MBS-02 gateway."""
 
-from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any
-
 from ....const import (
     CIRCUIT_MODE_COOLING,
     CIRCUIT_MODE_HEATING,
@@ -11,7 +7,7 @@ from ....const import (
     CIRCUIT_SECONDARY_ID,
     OTCCalculationMethod,
 )
-from . import HitachiRegisterMap
+from . import HitachiRegisterMap, RegisterDefinition
 
 # System configuration bit masks (from register 1089)
 # Bit order per Modbus documentation:
@@ -203,15 +199,6 @@ def convert_pressure(value: int | None) -> float | None:
     return float(value) / 10.0
 
 
-@dataclass
-class RegisterDefinition:
-    """Class to define a register."""
-
-    address: int
-    deserializer: Callable[[Any], Any] | None = None
-    serializer: Callable[[Any], Any] | None = None
-
-
 # Registers grouped by logical device
 
 REGISTER_GATEWAY = {
@@ -335,7 +322,9 @@ REGISTER_DHW = {
 
 REGISTER_POOL = {
     "pool_power": RegisterDefinition(1028),
-    "pool_target_temp": RegisterDefinition(1029, deserializer=convert_from_tenths),
+    "pool_target_temp": RegisterDefinition(
+        1029, deserializer=convert_from_tenths, serializer=lambda v: int(v * 10)
+    ),
     "pool_current_temp": RegisterDefinition(1083, deserializer=convert_signed_16bit),
 }
 
@@ -435,3 +424,102 @@ class AtwMbs02RegisterMap(HitachiRegisterMap):
     def pool_keys(self) -> list[str]:
         """Return the list of pool keys."""
         return list(REGISTER_POOL.keys())
+
+    @property
+    def all_registers(self) -> dict[str, RegisterDefinition]:
+        """Return all registers in a single map."""
+        return ALL_REGISTERS
+
+    @property
+    def writable_keys(self) -> set[str]:
+        """Return the set of writable register keys."""
+        return WRITABLE_KEYS
+
+    @property
+    def system_state_issues(self) -> dict[int, str]:
+        """Return mapping of system state values to issue keys."""
+        return SYSTEM_STATE_ISSUES
+
+    @property
+    def masks_circuit(self) -> dict:
+        """Return circuit configuration bit masks."""
+        return MASKS_CIRCUIT
+
+    @property
+    def mask_dhw(self) -> int:
+        """Return DHW configuration bit mask."""
+        return MASK_DHW
+
+    @property
+    def mask_pool(self) -> int:
+        """Return pool configuration bit mask."""
+        return MASK_POOL
+
+    @property
+    def mask_defrost(self) -> int:
+        """Return defrost status bit mask."""
+        return MASK_DEFROST
+
+    @property
+    def mask_solar(self) -> int:
+        """Return solar status bit mask."""
+        return MASK_SOLAR
+
+    @property
+    def mask_pump1(self) -> int:
+        """Return pump 1 status bit mask."""
+        return MASK_PUMP1
+
+    @property
+    def mask_pump2(self) -> int:
+        """Return pump 2 status bit mask."""
+        return MASK_PUMP2
+
+    @property
+    def mask_pump3(self) -> int:
+        """Return pump 3 status bit mask."""
+        return MASK_PUMP3
+
+    @property
+    def mask_compressor(self) -> int:
+        """Return compressor status bit mask."""
+        return MASK_COMPRESSOR
+
+    @property
+    def mask_boiler(self) -> int:
+        """Return boiler status bit mask."""
+        return MASK_BOILER
+
+    @property
+    def mask_dhw_heater(self) -> int:
+        """Return DHW heater status bit mask."""
+        return MASK_DHW_HEATER
+
+    @property
+    def mask_space_heater(self) -> int:
+        """Return space heater status bit mask."""
+        return MASK_SPACE_HEATER
+
+    @property
+    def mask_smart_function(self) -> int:
+        """Return smart function status bit mask."""
+        return MASK_SMART_FUNCTION
+
+    @property
+    def hvac_unit_mode_cool(self) -> int:
+        """Return the raw value for cooling mode."""
+        return HVAC_UNIT_MODE_COOL
+
+    @property
+    def hvac_unit_mode_heat(self) -> int:
+        """Return the raw value for heating mode."""
+        return HVAC_UNIT_MODE_HEAT
+
+    @property
+    def hvac_unit_mode_auto(self) -> int | None:
+        """Return the raw value for auto mode."""
+        return HVAC_UNIT_MODE_AUTO
+
+    def serialize_otc_method(self, value: str) -> int:
+        """Convert an OTC method constant to a raw register value."""
+        return serialize_otc_method(value)

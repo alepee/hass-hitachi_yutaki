@@ -22,10 +22,12 @@ from homeassistant.helpers import selector
 import homeassistant.helpers.config_validation as cv
 
 from .api import GATEWAY_INFO
+from .api.modbus.registers.hc_a16mb import HcA16mbRegisterMap
 from .const import (
     CONF_ENERGY_ENTITY,
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
+    CONF_UNIT_ID,
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
@@ -35,6 +37,7 @@ from .const import (
     DEFAULT_POWER_SUPPLY,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
+    DEFAULT_UNIT_ID,
     DOMAIN,
 )
 from .profiles import PROFILES
@@ -160,6 +163,12 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user", data_schema=GATEWAY_SELECTION_SCHEMA
         )
 
+    def _create_register_map(self, gateway_type: str, unit_id: int = DEFAULT_UNIT_ID):
+        """Create the appropriate register map for the gateway type."""
+        if gateway_type == "modbus_hc_a16mb":
+            return HcA16mbRegisterMap(unit_id=unit_id)
+        return None  # Default (ATW-MBS-02) uses built-in default
+
     async def async_step_gateway_config(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -173,17 +182,27 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_NAME: user_input[CONF_NAME],
                 CONF_PORT: user_input[CONF_PORT],
             }
+            # Store unit_id for HC-A16MB
+            if self.gateway_type == "modbus_hc_a16mb":
+                self.basic_config[CONF_UNIT_ID] = user_input.get(
+                    CONF_UNIT_ID, DEFAULT_UNIT_ID
+                )
             # Store advanced mode preference
             self.show_advanced = user_input["show_advanced"]
 
             # Validate connection and read all data for detection
             api_client_class = GATEWAY_INFO[self.gateway_type].client_class
+            register_map = self._create_register_map(
+                self.gateway_type,
+                self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+            )
             api_client = api_client_class(
                 self.hass,
                 name=user_input[CONF_NAME],
                 host=user_input[CONF_HOST],
                 port=user_input[CONF_PORT],
                 slave=DEFAULT_SLAVE,  # Use default for initial check
+                register_map=register_map,
             )
             try:
                 if not await api_client.connect():
@@ -222,9 +241,20 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 if api_client.connected:
                     await api_client.close()
 
+        # Build schema dynamically based on gateway type
+        schema = GATEWAY_SCHEMA
+        if self.gateway_type == "modbus_hc_a16mb":
+            schema = schema.extend(
+                {
+                    vol.Required(CONF_UNIT_ID, default=DEFAULT_UNIT_ID): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=15)
+                    ),
+                }
+            )
+
         return self.async_show_form(
             step_id="gateway_config",
-            data_schema=GATEWAY_SCHEMA,
+            data_schema=schema,
             errors=errors,
         )
 
@@ -315,12 +345,17 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         api_client_class = GATEWAY_INFO[config["gateway_type"]].client_class
+        register_map = self._create_register_map(
+            config["gateway_type"],
+            config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+        )
         api_client = api_client_class(
             self.hass,
             name=config[CONF_NAME],
             host=config[CONF_HOST],
             port=config[CONF_PORT],
             slave=config[CONF_SLAVE],
+            register_map=register_map,
         )
 
         try:
@@ -436,12 +471,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             step_id="connection",
             data_schema=vol.Schema(
                 {
-                    vol.Required(
-                        CONF_HOST, default=data.get(CONF_HOST)
-                    ): str,
-                    vol.Required(
-                        CONF_PORT, default=data.get(CONF_PORT)
-                    ): cv.port,
+                    vol.Required(CONF_HOST, default=data.get(CONF_HOST)): str,
+                    vol.Required(CONF_PORT, default=data.get(CONF_PORT)): cv.port,
                 }
             ),
         )
