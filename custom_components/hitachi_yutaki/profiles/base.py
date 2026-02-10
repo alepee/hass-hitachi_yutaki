@@ -50,6 +50,23 @@ class HitachiHeatPumpProfile(ABC):
         """
         return 55
 
+    @property
+    def antilegionella_min_temp(self) -> int:
+        """Return minimum anti-legionella temperature in °C.
+
+        Default 50°C matches the LCD minimum setting.
+        """
+        return 50
+
+    @property
+    def antilegionella_max_temp(self) -> int:
+        """Return maximum anti-legionella temperature in °C.
+
+        ATW-MBS-02 documentation specifies 0~80 °C (*3) for this register.
+        The machine limits the actual value according to its rank.
+        """
+        return 80
+
     # --- Circuit capabilities ---
 
     @property

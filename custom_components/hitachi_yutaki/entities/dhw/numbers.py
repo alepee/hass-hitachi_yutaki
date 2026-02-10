@@ -23,21 +23,22 @@ def build_dhw_numbers(
     entry_id: str,
 ) -> list[HitachiYutakiNumber]:
     """Build DHW number entities."""
-    descriptions = _build_dhw_number_descriptions()
+    descriptions = _build_dhw_number_descriptions(coordinator)
     return _create_numbers(coordinator, entry_id, descriptions, DEVICE_DHW, "dhw")
 
 
-def _build_dhw_number_descriptions() -> tuple[
-    HitachiYutakiNumberEntityDescription, ...
-]:
+def _build_dhw_number_descriptions(
+    coordinator: HitachiYutakiDataCoordinator,
+) -> tuple[HitachiYutakiNumberEntityDescription, ...]:
     """Build DHW number descriptions."""
+    profile = coordinator.profile
     return (
         HitachiYutakiNumberEntityDescription(
             key="antilegionella_temp",
             translation_key="antilegionella_temp",
             description="Target temperature for anti-legionella treatment",
-            native_min_value=60,
-            native_max_value=80,
+            native_min_value=profile.antilegionella_min_temp,
+            native_max_value=profile.antilegionella_max_temp,
             native_step=1,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             mode=NumberMode.BOX,
