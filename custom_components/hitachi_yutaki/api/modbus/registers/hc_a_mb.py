@@ -459,11 +459,13 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             ),
         }
 
-        # --- Primary Compressor (STATUS only, indoor unit block) ---
-        # HC-A(16/64)MB indoor block only exposes 3 registers for the primary compressor.
-        # Full compressor data (discharge temp, evaporator, frequency, current)
-        # is available via the outdoor unit register block at a separate Modbus_Id.
+        # --- Primary Compressor (STATUS only) ---
+        # Indoor unit registers (offsets 156-158) provide gas temp, liquid temp, and
+        # indoor EVI valve.  Outdoor unit registers (offsets 0-17, section 5.3) provide
+        # discharge temp, evaporator temp, frequency, current, and outdoor expansion
+        # valve.  Both ranges coexist in the same unit_id block without conflict.
         self._register_primary_compressor: dict[str, RegisterDefinition] = {
+            # Indoor unit registers (offsets 156-158)
             "compressor_tg_gas_temp": RegisterDefinition(
                 self._addr(156), deserializer=convert_signed_16bit
             ),
@@ -472,6 +474,18 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             ),
             "compressor_evi_indoor_expansion_valve_opening": RegisterDefinition(
                 self._addr(158)
+            ),
+            # Outdoor unit registers (offsets 0-17, section 5.3)
+            "compressor_td_discharge_temp": RegisterDefinition(
+                self._addr(1), deserializer=convert_signed_16bit
+            ),
+            "compressor_te_evaporator_temp": RegisterDefinition(
+                self._addr(2), deserializer=convert_signed_16bit
+            ),
+            "compressor_current": RegisterDefinition(self._addr(6)),
+            "compressor_frequency": RegisterDefinition(self._addr(7)),
+            "compressor_evo_outdoor_expansion_valve_opening": RegisterDefinition(
+                self._addr(8)
             ),
         }
 
