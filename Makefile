@@ -96,6 +96,12 @@ bump: ## Bump version (last numeric segment)
 version: ## Show current version
 	@echo $(VERSION)
 
+# —— Diagnostics ———————————————————————————————————————
+
+.PHONY: scan
+scan: ## Scan Modbus gateway registers (use SCAN_ARGS for options, redirect stdout for file output)
+	uv run python scripts/scan_gateway.py $(SCAN_ARGS)
+
 # —— Help ——————————————————————————————————————————————
 
 .PHONY: help
