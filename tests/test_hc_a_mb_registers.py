@@ -50,6 +50,26 @@ class TestAddressComputation:
         assert regs["unit_power"].write_address == 5050
         assert regs["unit_mode"].write_address == 5051
 
+    def test_outdoor_register_addresses_unit0(self):
+        """Verify outdoor unit register addresses for unit_id=0."""
+        rmap = HcAMbRegisterMap(unit_id=0)
+        regs = rmap.all_registers
+        assert regs["compressor_td_discharge_temp"].address == 5001
+        assert regs["compressor_te_evaporator_temp"].address == 5002
+        assert regs["compressor_current"].address == 5006
+        assert regs["compressor_frequency"].address == 5007
+        assert regs["compressor_evo_outdoor_expansion_valve_opening"].address == 5008
+
+    def test_outdoor_register_addresses_unit1(self):
+        """Verify outdoor unit register addresses shift for unit_id=1."""
+        rmap = HcAMbRegisterMap(unit_id=1)
+        regs = rmap.all_registers
+        assert regs["compressor_td_discharge_temp"].address == 5201
+        assert regs["compressor_te_evaporator_temp"].address == 5202
+        assert regs["compressor_current"].address == 5206
+        assert regs["compressor_frequency"].address == 5207
+        assert regs["compressor_evo_outdoor_expansion_valve_opening"].address == 5208
+
     def test_register_map_addresses_unit1(self):
         """Verify addresses shift correctly for unit_id=1."""
         rmap = HcAMbRegisterMap(unit_id=1)
@@ -217,6 +237,25 @@ class TestKeyNamingCompatibility:
         hca = HcAMbRegisterMap()
 
         shared_keys = ["pool_power", "pool_target_temp", "pool_current_temp"]
+        for key in shared_keys:
+            assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"
+            assert key in hca.all_registers, f"{key} missing from HC-A(16/64)MB"
+
+    def test_shared_primary_compressor_keys(self):
+        """All 8 primary compressor keys should exist in both maps."""
+        atw = AtwMbs02RegisterMap()
+        hca = HcAMbRegisterMap()
+
+        shared_keys = [
+            "compressor_tg_gas_temp",
+            "compressor_ti_liquid_temp",
+            "compressor_td_discharge_temp",
+            "compressor_te_evaporator_temp",
+            "compressor_evi_indoor_expansion_valve_opening",
+            "compressor_evo_outdoor_expansion_valve_opening",
+            "compressor_frequency",
+            "compressor_current",
+        ]
         for key in shared_keys:
             assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"
             assert key in hca.all_registers, f"{key} missing from HC-A(16/64)MB"
