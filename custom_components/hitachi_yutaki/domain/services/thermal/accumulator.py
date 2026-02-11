@@ -8,6 +8,12 @@ from __future__ import annotations
 from datetime import date, datetime
 from time import time
 
+from ...models.operation import (
+    HEATING_ONLY_MODES,
+    MODE_COOLING,
+    MODE_HEATING,
+)
+
 
 class ThermalEnergyAccumulator:
     """Accumulates thermal energy over time for heating and cooling separately."""
@@ -126,6 +132,7 @@ class ThermalEnergyAccumulator:
         heating_power: float,
         cooling_power: float,
         compressor_running: bool,
+        operation_mode: str | None = None,
     ) -> None:
         """Update energy accumulation with thermal powers.
 
@@ -133,8 +140,21 @@ class ThermalEnergyAccumulator:
             heating_power: Positive thermal power (delta T > 0)
             cooling_power: Positive thermal power (delta T < 0, already negated)
             compressor_running: Whether compressor is active
+            operation_mode: Current operation mode (e.g. MODE_HEATING, MODE_COOLING,
+                MODE_DHW, MODE_POOL). DHW and pool are always heating operations.
 
         """
+        # DHW and pool are always heating operations regardless of ΔT.
+        # When the unit switches from cooling circuits to DHW, the water
+        # temperature sensors may still reflect circuit temps briefly,
+        # producing a negative ΔT that would be incorrectly classified
+        # as cooling energy.
+        if operation_mode in HEATING_ONLY_MODES:
+            # Use the absolute thermal power as heating, ignore cooling
+            total_power = heating_power + cooling_power
+            heating_power = total_power
+            cooling_power = 0.0
+
         # If compressor restarts, exit post-cycle lock
         if compressor_running:
             self._post_cycle_lock = False
@@ -143,30 +163,30 @@ class ThermalEnergyAccumulator:
         if not compressor_running:
             # Activate lock when delta T drops to zero in current mode
             if (
-                self._last_mode == "heating"
+                self._last_mode == MODE_HEATING
                 and heating_power <= 0
-                or self._last_mode == "cooling"
+                or self._last_mode == MODE_COOLING
                 and cooling_power <= 0
             ):
                 self._post_cycle_lock = True
 
             # When locked, force power to 0 for current mode
             if self._post_cycle_lock:
-                if self._last_mode == "heating":
+                if self._last_mode == MODE_HEATING:
                     heating_power = 0.0
-                elif self._last_mode == "cooling":
+                elif self._last_mode == MODE_COOLING:
                     cooling_power = 0.0
 
         # Mode decision and accumulation
         if heating_power > 0:
-            self._update_energy(heating_power, mode="heating")
-            self._last_mode = "heating"
+            self._update_energy(heating_power, mode=MODE_HEATING)
+            self._last_mode = MODE_HEATING
             self._last_heating_power = heating_power
             self._last_cooling_power = 0.0
         elif cooling_power > 0:
             # Count cooling energy including thermal inertia after compressor stops
-            self._update_energy(cooling_power, mode="cooling")
-            self._last_mode = "cooling"
+            self._update_energy(cooling_power, mode=MODE_COOLING)
+            self._last_mode = MODE_COOLING
             self._last_cooling_power = cooling_power
             self._last_heating_power = 0.0
         else:
@@ -182,7 +202,7 @@ class ThermalEnergyAccumulator:
 
         Args:
             thermal_power: Current thermal power in kW
-            mode: Operating mode ("heating" or "cooling")
+            mode: Operating mode (MODE_HEATING or MODE_COOLING)
 
         """
         current_time = time()
@@ -203,13 +223,13 @@ class ThermalEnergyAccumulator:
         if self._last_measurement_time > 0:
             time_diff_hours = (current_time - self._last_measurement_time) / 3600
 
-            if mode == "heating":
+            if mode == MODE_HEATING:
                 avg_power = (thermal_power + self._last_heating_power) / 2
                 energy = avg_power * time_diff_hours
                 self._daily_heating_energy += energy
                 self._total_heating_energy += energy
                 # Note: last power updates are handled in update() method
-            elif mode == "cooling":
+            elif mode == MODE_COOLING:
                 avg_power = (thermal_power + self._last_cooling_power) / 2
                 energy = avg_power * time_diff_hours
                 self._daily_cooling_energy += energy

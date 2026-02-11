@@ -174,8 +174,8 @@ class COPService:
             accumulator: Energy accumulator for measurements
             thermal_calculator: Calculator for thermal power
             electrical_calculator: Calculator for electrical power
-            expected_mode: Expected HVAC mode for this sensor ("heating", "cooling",
-                           "dhw", "pool"). If None, all modes are accepted.
+            expected_mode: Expected HVAC mode for this sensor (MODE_HEATING, MODE_COOLING,
+                           MODE_DHW, MODE_POOL). If None, all modes are accepted.
 
         """
         self._accumulator = accumulator
@@ -250,7 +250,7 @@ class COPService:
         """Check if the current operation state matches the expected mode.
 
         Args:
-            data: Input data containing operation_state
+            data: Input data containing operation_mode
 
         Returns:
             True if the mode matches or no filtering is required
@@ -259,10 +259,10 @@ class COPService:
         if self._expected_mode is None:
             return True
 
-        if data.operation_state is None:
+        if data.operation_mode is None:
             return False
 
-        return data.operation_state == self._expected_mode
+        return data.operation_mode == self._expected_mode
 
     def get_value(self) -> float | None:
         """Get current COP value rounded to 2 decimals."""
