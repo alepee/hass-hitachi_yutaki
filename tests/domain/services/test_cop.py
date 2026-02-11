@@ -1,9 +1,15 @@
-"""Tests for COP domain service — mode filtering via operation_state."""
+"""Tests for COP domain service — mode filtering via operation_mode."""
 
 from custom_components.hitachi_yutaki.adapters.storage.in_memory import InMemoryStorage
 from custom_components.hitachi_yutaki.domain.models.cop import (
     COPInput,
     PowerMeasurement,
+)
+from custom_components.hitachi_yutaki.domain.models.operation import (
+    MODE_COOLING,
+    MODE_DHW,
+    MODE_HEATING,
+    MODE_POOL,
 )
 from custom_components.hitachi_yutaki.domain.services.cop import (
     COP_MEASUREMENTS_HISTORY_SIZE,
@@ -14,9 +20,9 @@ from custom_components.hitachi_yutaki.domain.services.cop import (
 
 
 def _make_input(
-    *, operation_state: str | None = None, hvac_action: str | None = None
+    *, operation_mode: str | None = None, hvac_action: str | None = None
 ) -> COPInput:
-    """Create a COPInput with valid sensor data and the given operation_state."""
+    """Create a COPInput with valid sensor data and the given operation_mode."""
     return COPInput(
         water_inlet_temp=30.0,
         water_outlet_temp=35.0,
@@ -24,7 +30,7 @@ def _make_input(
         compressor_current=5.0,
         compressor_frequency=50.0,
         hvac_action=hvac_action,
-        operation_state=operation_state,
+        operation_mode=operation_mode,
     )
 
 
@@ -57,66 +63,66 @@ def _force_measurement(service: COPService, data: COPInput) -> None:
 
 
 class TestCOPModeFiltering:
-    """Tests for COP mode filtering via operation_state."""
+    """Tests for COP mode filtering via operation_mode."""
 
     def test_heating_mode_accumulates_only_during_heating(self):
-        """COP heating sensor should only accumulate when operation_state is 'heating'."""
-        service = _build_service(expected_mode="heating")
+        """COP heating sensor should only accumulate when operation_mode is 'heating'."""
+        service = _build_service(expected_mode=MODE_HEATING)
 
-        _force_measurement(service, _make_input(operation_state="heating"))
+        _force_measurement(service, _make_input(operation_mode=MODE_HEATING))
         assert service._accumulator.measurements, "Should accumulate during heating"
 
     def test_heating_mode_rejects_dhw(self):
         """COP heating sensor should NOT accumulate during DHW cycles."""
-        service = _build_service(expected_mode="heating")
+        service = _build_service(expected_mode=MODE_HEATING)
 
-        _force_measurement(service, _make_input(operation_state="dhw"))
+        _force_measurement(service, _make_input(operation_mode=MODE_DHW))
         assert not service._accumulator.measurements, "Should not accumulate during dhw"
 
     def test_dhw_mode_accumulates_only_during_dhw(self):
-        """COP DHW sensor should only accumulate when operation_state is 'dhw'."""
-        service = _build_service(expected_mode="dhw")
+        """COP DHW sensor should only accumulate when operation_mode is 'dhw'."""
+        service = _build_service(expected_mode=MODE_DHW)
 
-        _force_measurement(service, _make_input(operation_state="dhw"))
+        _force_measurement(service, _make_input(operation_mode=MODE_DHW))
         assert service._accumulator.measurements, "Should accumulate during dhw"
 
     def test_dhw_mode_rejects_heating(self):
         """COP DHW sensor should NOT accumulate during heating cycles."""
-        service = _build_service(expected_mode="dhw")
+        service = _build_service(expected_mode=MODE_DHW)
 
-        _force_measurement(service, _make_input(operation_state="heating"))
+        _force_measurement(service, _make_input(operation_mode=MODE_HEATING))
         assert not service._accumulator.measurements, (
             "Should not accumulate during heating"
         )
 
     def test_pool_mode_accumulates_only_during_pool(self):
-        """COP pool sensor should only accumulate when operation_state is 'pool'."""
-        service = _build_service(expected_mode="pool")
+        """COP pool sensor should only accumulate when operation_mode is 'pool'."""
+        service = _build_service(expected_mode=MODE_POOL)
 
-        _force_measurement(service, _make_input(operation_state="pool"))
+        _force_measurement(service, _make_input(operation_mode=MODE_POOL))
         assert service._accumulator.measurements, "Should accumulate during pool"
 
     def test_pool_mode_rejects_heating(self):
         """COP pool sensor should NOT accumulate during heating cycles."""
-        service = _build_service(expected_mode="pool")
+        service = _build_service(expected_mode=MODE_POOL)
 
-        _force_measurement(service, _make_input(operation_state="heating"))
+        _force_measurement(service, _make_input(operation_mode=MODE_HEATING))
         assert not service._accumulator.measurements, (
             "Should not accumulate during heating"
         )
 
     def test_cooling_mode_accumulates_only_during_cooling(self):
-        """COP cooling sensor should only accumulate when operation_state is 'cooling'."""
-        service = _build_service(expected_mode="cooling")
+        """COP cooling sensor should only accumulate when operation_mode is 'cooling'."""
+        service = _build_service(expected_mode=MODE_COOLING)
 
-        _force_measurement(service, _make_input(operation_state="cooling"))
+        _force_measurement(service, _make_input(operation_mode=MODE_COOLING))
         assert service._accumulator.measurements, "Should accumulate during cooling"
 
     def test_cooling_mode_rejects_heating(self):
         """COP cooling sensor should NOT accumulate during heating cycles."""
-        service = _build_service(expected_mode="cooling")
+        service = _build_service(expected_mode=MODE_COOLING)
 
-        _force_measurement(service, _make_input(operation_state="heating"))
+        _force_measurement(service, _make_input(operation_mode=MODE_HEATING))
         assert not service._accumulator.measurements, (
             "Should not accumulate during heating"
         )
@@ -125,26 +131,26 @@ class TestCOPModeFiltering:
         """COP sensor with no expected_mode should always accumulate."""
         service = _build_service(expected_mode=None)
 
-        _force_measurement(service, _make_input(operation_state="heating"))
+        _force_measurement(service, _make_input(operation_mode=MODE_HEATING))
         assert service._accumulator.measurements, (
-            "Should accumulate with any operation_state"
+            "Should accumulate with any operation_mode"
         )
 
     def test_no_expected_mode_accumulates_with_none_state(self):
-        """COP sensor with no expected_mode should accumulate even with None operation_state."""
+        """COP sensor with no expected_mode should accumulate even with None operation_mode."""
         service = _build_service(expected_mode=None)
 
-        _force_measurement(service, _make_input(operation_state=None))
+        _force_measurement(service, _make_input(operation_mode=None))
         assert service._accumulator.measurements, (
-            "Should accumulate with None operation_state"
+            "Should accumulate with None operation_mode"
         )
 
-    def test_none_operation_state_never_accumulates_when_mode_set(self):
-        """When expected_mode is set, None operation_state should prevent accumulation."""
-        for mode in ("heating", "cooling", "dhw", "pool"):
+    def test_none_operation_mode_never_accumulates_when_mode_set(self):
+        """When expected_mode is set, None operation_mode should prevent accumulation."""
+        for mode in (MODE_HEATING, MODE_COOLING, MODE_DHW, MODE_POOL):
             service = _build_service(expected_mode=mode)
 
-            _force_measurement(service, _make_input(operation_state=None))
+            _force_measurement(service, _make_input(operation_mode=None))
             assert not service._accumulator.measurements, (
-                f"Should not accumulate with None operation_state for mode={mode}"
+                f"Should not accumulate with None operation_mode for mode={mode}"
             )

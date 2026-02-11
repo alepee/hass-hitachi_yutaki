@@ -35,6 +35,7 @@ class ThermalPowerService:
         water_outlet_temp: float | None,
         water_flow: float | None,
         compressor_frequency: float | None,
+        operation_mode: str | None = None,
     ) -> None:
         """Update thermal energy calculation with new data.
 
@@ -43,6 +44,8 @@ class ThermalPowerService:
             water_outlet_temp: Water outlet temperature in °C
             water_flow: Water flow rate in m³/h
             compressor_frequency: Compressor frequency in Hz (to check if running)
+            operation_mode: Current operation mode (e.g. MODE_HEATING, MODE_COOLING,
+                MODE_DHW, MODE_POOL). Passed to accumulator for mode-aware classification.
 
         """
         # Compressor running status
@@ -56,6 +59,7 @@ class ThermalPowerService:
                 heating_power=0.0,
                 cooling_power=0.0,
                 compressor_running=compressor_running,
+                operation_mode=operation_mode,
             )
             return
 
@@ -73,6 +77,7 @@ class ThermalPowerService:
             heating_power=heating_power,
             cooling_power=cooling_power,
             compressor_running=compressor_running,
+            operation_mode=operation_mode,
         )
 
     def get_heating_power(self) -> float:

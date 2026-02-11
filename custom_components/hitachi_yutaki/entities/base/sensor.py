@@ -28,6 +28,10 @@ from ...adapters.calculators.thermal import (
     thermal_power_calculator_heating_wrapper,
     thermal_power_calculator_wrapper,
 )
+from ...adapters.providers.operation_mode import (
+    get_accepted_operation_states,
+    resolve_operation_mode,
+)
 from ...adapters.storage.in_memory import InMemoryStorage
 from ...adapters.storage.recorder_rehydrate import (
     async_replay_compressor_states,
@@ -43,6 +47,7 @@ from ...const import (
     DOMAIN,
 )
 from ...coordinator import HitachiYutakiDataCoordinator
+from ...domain.models.operation import MODE_COOLING, MODE_DHW, MODE_HEATING, MODE_POOL
 from ...domain.services.cop import (
     COP_MEASUREMENTS_HISTORY_SIZE,
     COP_MEASUREMENTS_INTERVAL,
@@ -55,14 +60,6 @@ from ...domain.services.thermal import ThermalEnergyAccumulator, ThermalPowerSer
 from ...domain.services.timing import CompressorHistory, CompressorTimingService
 
 _LOGGER = logging.getLogger(__name__)
-
-# Map Modbus operation_state values to domain-level COP modes
-_OPERATION_STATE_TO_MODE: dict[str, str] = {
-    "operation_state_heat_thermo_on": "heating",
-    "operation_state_cool_thermo_on": "cooling",
-    "operation_state_dhw_on": "dhw",
-    "operation_state_pool_on": "pool",
-}
 
 # This is a placeholder for a future configuration option
 COMPRESSOR_HISTORY_SIZE = 100
@@ -231,12 +228,12 @@ class HitachiYutakiSensor(
 
         """
         cop_calculators = {
-            "cop_heating": (thermal_power_calculator_heating_wrapper, "heating"),
-            "cop_cooling": (thermal_power_calculator_cooling_wrapper, "cooling"),
+            "cop_heating": (thermal_power_calculator_heating_wrapper, MODE_HEATING),
+            "cop_cooling": (thermal_power_calculator_cooling_wrapper, MODE_COOLING),
             # DHW uses heating calculator (outlet > inlet) with operation_state filtering
-            "cop_dhw": (thermal_power_calculator_heating_wrapper, "dhw"),
+            "cop_dhw": (thermal_power_calculator_heating_wrapper, MODE_DHW),
             # Pool uses heating calculator (outlet > inlet) with operation_state filtering
-            "cop_pool": (thermal_power_calculator_heating_wrapper, "pool"),
+            "cop_pool": (thermal_power_calculator_heating_wrapper, MODE_POOL),
         }
         # Fallback to absolute value calculator with no mode filtering
         return cop_calculators.get(key, (thermal_power_calculator_wrapper, None))
@@ -272,7 +269,7 @@ class HitachiYutakiSensor(
 
         # Map Modbus operation_state to domain-level mode
         operation_state_raw = self.coordinator.data.get("operation_state")
-        operation_mode = _OPERATION_STATE_TO_MODE.get(operation_state_raw)
+        operation_mode = resolve_operation_mode(operation_state_raw)
 
         return COPInput(
             water_inlet_temp=self._get_temperature(
@@ -295,7 +292,7 @@ class HitachiYutakiSensor(
                 else None
             ),
             hvac_action=hvac_action,
-            operation_state=operation_mode,
+            operation_mode=operation_mode,
         )
 
     def _get_hvac_action(self) -> str | None:
@@ -400,11 +397,7 @@ class HitachiYutakiSensor(
         # Compute accepted operation_state values for mode filtering
         accepted_states: set[str] | None = None
         if self._cop_expected_mode:
-            accepted_states = {
-                raw
-                for raw, mode in _OPERATION_STATE_TO_MODE.items()
-                if mode == self._cop_expected_mode
-            }
+            accepted_states = get_accepted_operation_states(self._cop_expected_mode)
 
         try:
             measurements = await async_replay_cop_history(
@@ -567,11 +560,17 @@ class HitachiYutakiSensor(
             water_inlet = None
             water_outlet = None
 
+        # Map operation_state to domain-level mode for correct energy classification.
+        # DHW and pool are always heating operations regardless of temperature delta.
+        operation_state_raw = self.coordinator.data.get("operation_state")
+        operation_mode = resolve_operation_mode(operation_state_raw)
+
         self._thermal_service.update(
             water_inlet_temp=water_inlet,
             water_outlet_temp=water_outlet,
             water_flow=water_flow,
             compressor_frequency=self.coordinator.data.get("compressor_frequency"),
+            operation_mode=operation_mode,
         )
 
     @property
