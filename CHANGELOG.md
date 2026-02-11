@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0-rc.2] - 2026-02-12
+
+### Added
+- **Outdoor unit registers for HC-A(16/64)MB gateway** ([#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96)) — Compressor frequency, current, discharge/liquid/gas/evaporator temperatures, and expansion valve openings now available on HC-A-MB gateways
+- **Annotated Modbus register scanner** — New `scripts/scan_gateway.py` tool with `make scan` target for diagnosing register values across all gateway types, with human-readable annotations and scan reference documentation
+
+### Changed
+- **Thermal energy classification uses operation mode** ([#196](https://github.com/alepee/hass-hitachi_yutaki/discussions/196)) — DHW and pool cycles now force heating classification regardless of ΔT sign, preventing transient negative deltas from being incorrectly counted as cooling energy
+- **Sensor subclasses extracted into dedicated package** — `entities/base/sensor.py` split into `entities/base/sensor/` package with specialized subclasses (COP, thermal, timing) for better maintainability
+
+### Fixed
+- **Anti-legionella temperature range** ([#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178)) — DHW anti-legionella target temperature now uses profile-based min/max instead of hardcoded values, respecting each model's actual capabilities
+
 ## [2.0.0-rc.1] - 2026-02-09
 
 This is the first Release Candidate for v2.0.0 — a major rewrite of the integration with hexagonal architecture, multi-gateway support, and significantly improved accuracy for thermal and COP calculations.
