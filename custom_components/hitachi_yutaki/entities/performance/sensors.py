@@ -48,6 +48,7 @@ def _build_performance_sensor_descriptions() -> tuple[
             icon="mdi:heat-pump",
             condition=lambda c: c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
             or c.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING),
+            sensor_class="cop",
         ),
         HitachiYutakiSensorEntityDescription(
             key="cop_cooling",
@@ -59,6 +60,7 @@ def _build_performance_sensor_descriptions() -> tuple[
             icon="mdi:heat-pump-outline",
             condition=lambda c: c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
             or c.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING),
+            sensor_class="cop",
         ),
         HitachiYutakiSensorEntityDescription(
             key="cop_dhw",
@@ -69,6 +71,7 @@ def _build_performance_sensor_descriptions() -> tuple[
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:water-boiler",
             condition=lambda c: c.has_dhw(),
+            sensor_class="cop",
         ),
         HitachiYutakiSensorEntityDescription(
             key="cop_pool",
@@ -79,5 +82,6 @@ def _build_performance_sensor_descriptions() -> tuple[
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:pool",
             condition=lambda c: c.has_pool(),
+            sensor_class="cop",
         ),
     )
