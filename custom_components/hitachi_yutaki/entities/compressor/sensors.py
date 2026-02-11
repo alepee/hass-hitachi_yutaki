@@ -147,6 +147,7 @@ def _build_compressor_sensor_descriptions(
                 native_unit_of_measurement="min",
                 entity_category=EntityCategory.DIAGNOSTIC,
                 icon="mdi:timer-outline",
+                sensor_class="timing",
             ),
             HitachiYutakiSensorEntityDescription(
                 key="compressor_runtime",
@@ -157,6 +158,7 @@ def _build_compressor_sensor_descriptions(
                 native_unit_of_measurement="min",
                 entity_category=EntityCategory.DIAGNOSTIC,
                 icon="mdi:timer-play-outline",
+                sensor_class="timing",
             ),
             HitachiYutakiSensorEntityDescription(
                 key="compressor_resttime",
@@ -167,6 +169,7 @@ def _build_compressor_sensor_descriptions(
                 native_unit_of_measurement="min",
                 entity_category=EntityCategory.DIAGNOSTIC,
                 icon="mdi:timer-stop-outline",
+                sensor_class="timing",
             ),
         )
     else:
@@ -260,6 +263,7 @@ def _build_compressor_sensor_descriptions(
                 entity_category=EntityCategory.DIAGNOSTIC,
                 icon="mdi:timer-outline",
                 condition=lambda c: c.profile.supports_secondary_compressor,
+                sensor_class="timing",
             ),
             HitachiYutakiSensorEntityDescription(
                 key="secondary_compressor_runtime",
@@ -271,6 +275,7 @@ def _build_compressor_sensor_descriptions(
                 entity_category=EntityCategory.DIAGNOSTIC,
                 icon="mdi:timer-play-outline",
                 condition=lambda c: c.profile.supports_secondary_compressor,
+                sensor_class="timing",
             ),
             HitachiYutakiSensorEntityDescription(
                 key="secondary_compressor_resttime",
@@ -282,5 +287,6 @@ def _build_compressor_sensor_descriptions(
                 entity_category=EntityCategory.DIAGNOSTIC,
                 icon="mdi:timer-stop-outline",
                 condition=lambda c: c.profile.supports_secondary_compressor,
+                sensor_class="timing",
             ),
         )
