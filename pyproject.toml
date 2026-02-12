@@ -1,7 +1,7 @@
 [project]
 name = "hass-hitachi-yutaki"
 version = "2.0.0-rc.2"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 description = "Home Assistant custom integration for Hitachi Yutaki heat pumps"
 license = "MIT"
 dependencies = [
@@ -31,7 +31,7 @@ norecursedirs = ["scripts", ".git", ".venv", "venv", "build", "dist"]
 # The contents of [tool.ruff] is based on https://github.com/home-assistant/core/blob/dev/pyproject.toml
 
 [tool.ruff]
-target-version = "py312"
+target-version = "py313"
 
 [tool.ruff.lint]
 select = [

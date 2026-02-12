@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- **Minimum Home Assistant version** raised to 2025.1.0 to align with `WaterHeaterEntityDescription` component signature
+- **Minimum Python version** raised to 3.13
+
 ## [2.0.0-rc.2] - 2026-02-12
 
 ### Added
