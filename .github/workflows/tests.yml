@@ -1,0 +1,57 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+    branches: [main, dev]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    # pytest-homeassistant-custom-component (phac) pins a specific HA version.
+    # To test against a given HA release, install the matching phac version.
+    #
+    # HA version  | phac version
+    # ------------|-------------
+    # 2025.1.0    | 0.13.201
+    # 2025.2.0    | 0.13.210
+    # 2025.3.0    | 0.13.221
+    # 2025.4.0    | 0.13.232
+    # 2025.5.0    | 0.13.243
+    # 2025.6.0    | 0.13.251
+    # 2025.7.0    | 0.13.260
+    # 2025.8.0    | 0.13.269
+    # 2025.9.0    | 0.13.277
+    # 2025.10.0   | 0.13.285
+    # 2025.11.0   | 0.13.294
+    # 2025.12.0   | 0.13.298
+    # 2026.1.0    | 0.13.305
+    # 2026.2.0    | 0.13.313
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - ha-version: "2025.1.0"
+            phac-version: "0.13.201"
+          - ha-version: "2026.2.0"
+            phac-version: "0.13.313"
+
+    name: "Tests (HA ${{ matrix.ha-version }})"
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python 3.13
+        run: uv python install 3.13
+
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Pin HA ${{ matrix.ha-version }}
+        run: uv pip install --prerelease=allow pytest-homeassistant-custom-component==${{ matrix.phac-version }}
+
+      - name: Run tests with pytest
+        run: uv run pytest
