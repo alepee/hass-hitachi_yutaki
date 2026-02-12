@@ -1,0 +1,638 @@
+{
+  "device": {
+    "gateway": {
+      "name": "Gateway"
+    },
+    "control_unit": {
+      "name": "Regeleenheid"
+    },
+    "primary_compressor": {
+      "name": "Buitencompressor"
+    },
+    "secondary_compressor": {
+      "name": "Binnencompressor"
+    },
+    "circuit1": {
+      "name": "Circuit 1"
+    },
+    "circuit2": {
+      "name": "Circuit 2"
+    },
+    "dhw": {
+      "name": "Warm tapwater"
+    },
+    "pool": {
+      "name": "Zwembad"
+    }
+  },
+  "selector": {
+    "gateway_type": {
+      "options": {
+        "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
+        "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
+      }
+    },
+    "profile": {
+      "options": {
+        "yutaki_s": "Yutaki S",
+        "yutaki_s_combi": "Yutaki S Combi",
+        "yutaki_s80": "Yutaki S80",
+        "yutaki_m": "Yutaki M",
+        "yutampo_r32": "Yutampo R32",
+        "yutaki_sc_lite": "Yutaki SC Lite",
+        "ycc": "YCC"
+      }
+    },
+    "power_supply": {
+      "options": {
+        "single": "Enkelfasig",
+        "three": "Driefasig"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Hitachi Yutaki Gateway",
+        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp.",
+        "data": {
+          "gateway_type": "Gatewaytype"
+        }
+      },
+      "connection": {
+        "title": "Verbindingsinstellingen",
+        "description": "Voer de verbindingsgegevens in voor uw gateway.",
+        "data": {
+          "host": "Host/IP-adres",
+          "port": "Poort"
+        }
+      },
+      "profile": {
+        "title": "Warmtepompmodel",
+        "description": "Selecteer uw warmtepompmodel.",
+        "data": {
+          "profile": "Warmtepompmodel"
+        }
+      },
+      "sensors": {
+        "title": "Voeding- en sensorconfiguratie",
+        "description": "Configureer de voeding en externe sensoren.",
+        "data": {
+          "power_supply": "Voeding",
+          "voltage_entity": "Spanningssensor (optioneel)",
+          "power_entity": "Vermogenssensor (optioneel)",
+          "energy_entity": "Energiemeter (optioneel)",
+          "water_inlet_temp_entity": "Waterinlaattemperatuursensor (optioneel)",
+          "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)"
+        }
+      },
+      "repair": {
+        "title": "Hitachi Yutaki Configuratie Herstellen",
+        "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters. Selecteer de ontbrekende parameters om door te gaan.",
+        "data": {
+          "gateway_type": "Gatewaytype",
+          "profile": "Warmtemompprofiel"
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Hitachi Yutaki Gateway",
+        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp.",
+        "data": {
+          "gateway_type": "Gatewaytype"
+        }
+      },
+      "gateway_config": {
+        "title": "Verbindingsinstellingen",
+        "description": "Voer de verbindingsgegevens in voor uw Hitachi Yutaki warmtepompgateway.",
+        "data": {
+          "name": "Naam",
+          "host": "Host/IP-adres",
+          "port": "Poort",
+          "unit_id": "Unit-ID (alleen HC-A(16/64)MB, 0-15)",
+          "show_advanced": "Geavanceerde opties tonen"
+        }
+      },
+      "profile": {
+        "title": "Warmtepompmodel",
+        "description": "Selecteer uw warmtepompmodel. De integratie zal proberen het automatisch te detecteren, maar u kunt het handmatig wijzigen indien nodig.",
+        "data": {
+          "profile": "Warmtepompmodel"
+        }
+      },
+      "power": {
+        "title": "Voedingsconfiguratie",
+        "description": "Configureer de voeding en externe temperatuursensoren.",
+        "data": {
+          "power_supply": "Voeding",
+          "voltage_entity": "Spanningssensor (optioneel)",
+          "power_entity": "Vermogenssensor (optioneel)",
+          "energy_entity": "Energiemeter (optioneel)",
+          "water_inlet_temp_entity": "Waterinlaattemperatuursensor (optioneel)",
+          "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)"
+        }
+      },
+      "advanced": {
+        "title": "Geavanceerde instellingen",
+        "description": "Configureer geavanceerde Modbus- en integratie-instellingen.",
+        "data": {
+          "slave": "Modbus Slave-ID",
+          "scan_interval": "Polling-interval (seconden)",
+          "dev_mode": "Ontwikkelaarsmodus (activeert alle entiteiten)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Kan geen verbinding maken met de gateway. Controleer de host en poort.",
+      "invalid_slave": "Ongeldig Modbus slave-ID. Controleer het ID en probeer het opnieuw.",
+      "modbus_error": "Er is een Modbus-fout opgetreden. Controleer de logboeken voor meer informatie.",
+      "invalid_central_control_mode": "De gateway moet in de 'Centraal' bedieningsmodus staan. Wijzig dit in de gatewayinstellingen.",
+      "unknown": "Er is een onbekende fout opgetreden. Controleer de logboeken.",
+      "system_initializing": "De Hitachi Yutaki gateway wordt geïnitialiseerd. Wacht even en probeer het opnieuw.",
+      "desync_error": "De gateway is niet gesynchroniseerd met de warmtepomp. Controleer of de warmtepomp is ingeschakeld en of de verbinding tussen beide apparaten correct is."
+    },
+    "abort": {
+      "already_configured": "Deze Hitachi Yutaki gateway is al geconfigureerd."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "operation_state": {
+        "name": "Bedrijfsstatus",
+        "state": {
+          "operation_state_off": "Uit",
+          "operation_state_cool_demand_off": "Geen koelvraag",
+          "operation_state_cool_thermo_off": "Koeling Thermo UIT",
+          "operation_state_cool_thermo_on": "Koeling Thermo AAN",
+          "operation_state_heat_demand_off": "Geen verwarmingsvraag",
+          "operation_state_heat_thermo_off": "Verwarming Thermo UIT",
+          "operation_state_heat_thermo_on": "Verwarming Thermo AAN",
+          "operation_state_dhw_off": "Warm tapwater UIT",
+          "operation_state_dhw_on": "Warm tapwater AAN",
+          "operation_state_pool_off": "Zwembad UIT",
+          "operation_state_pool_on": "Zwembad AAN",
+          "operation_state_alarm": "Alarm",
+          "operation_state_unknown": "Onbekende status"
+        }
+      },
+      "outdoor_temp": {
+        "name": "Buitentemperatuur"
+      },
+      "water_inlet_temp": {
+        "name": "Waterinlaattemperatuur"
+      },
+      "water_outlet_temp": {
+        "name": "Wateruitlaattemperatuur"
+      },
+      "water_target_temp": {
+        "name": "Gecorrigeerde doeltemperatuur"
+      },
+      "water_flow": {
+        "name": "Waterdebiet"
+      },
+      "pump_speed": {
+        "name": "Pompsnelheid"
+      },
+      "compressor_frequency": {
+        "name": "Compressorfrequentie"
+      },
+      "compressor_current": {
+        "name": "Compressorstroom"
+      },
+      "compressor_cycle_time": {
+        "name": "Compressorcyclustijd",
+        "state": {
+          "operation_state_off": "Uit"
+        }
+      },
+      "compressor_tg_gas_temp": {
+        "name": "Gastemperatuur"
+      },
+      "compressor_ti_liquid_temp": {
+        "name": "Vloeistoftemperatuur"
+      },
+      "compressor_td_discharge_temp": {
+        "name": "Perstemperatuur"
+      },
+      "compressor_te_evaporator_temp": {
+        "name": "Verdampertemperatuur"
+      },
+      "compressor_evi_indoor_expansion_valve_opening": {
+        "name": "Opening binnenexpansieventiel"
+      },
+      "compressor_evo_outdoor_expansion_valve_opening": {
+        "name": "Opening buitenexpansieventiel"
+      },
+      "power_consumption": {
+        "name": "Stroomverbruik"
+      },
+      "alarm": {
+        "name": "Alarm",
+        "state": {
+          "alarm_code_0": "Geen alarm",
+          "alarm_code_2": "Activering veiligheidsvoorziening buitenunit",
+          "alarm_code_3": "Abnormale communicatie tussen binnenunits en buitenunit",
+          "alarm_code_4": "Abnormale communicatie tussen regelprint en inverterprint van buitenunit",
+          "alarm_code_5": "Abnormale fasedetectie",
+          "alarm_code_6": "Te lage of te hoge spanning voor inverter",
+          "alarm_code_7": "Afname oververhitting persgas",
+          "alarm_code_8": "Te hoge persgastemperatuur boven compressor",
+          "alarm_code_11": "Storing waterinlaattemperatuursensor (THMWI)",
+          "alarm_code_12": "Storing wateruitlaattemperatuursensor (THMWO)",
+          "alarm_code_13": "Storing binnenleiding R410A vloeistoftemperatuursensor (THML)",
+          "alarm_code_14": "Storing binnenleiding R410A gastemperatuursensor (THMG)",
+          "alarm_code_15": "Storing wateruitlaattemperatuursensor circuit 2 (THMWO2)",
+          "alarm_code_16": "Storing warm tapwater temperatuursensor (THMDHW)",
+          "alarm_code_17": "Storing hulpsensor 2 (THMAUX2)",
+          "alarm_code_18": "Storing universele sensor",
+          "alarm_code_19": "Storing temperatuursensor",
+          "alarm_code_20": "Storing persgastemperatuursensor",
+          "alarm_code_21": "Storing hogedruksensor",
+          "alarm_code_22": "Storing buitentemperatuursensor (THM7)",
+          "alarm_code_23": "Storing persgastemperatuursensor (THM9)",
+          "alarm_code_24": "Storing verdampingstemperatuursensor bij verwarming (THM8)",
+          "alarm_code_25": "Storing hulpsensor 3 (THMAUX3)",
+          "alarm_code_26": "Fout in vermogensinstelling of gecombineerde vermogensinstelling tussen binnen- en buitenunit",
+          "alarm_code_35": "Fout in vermogensinstelling of gecombineerde vermogensinstelling tussen binnen- en buitenunit",
+          "alarm_code_36": "Fout in vermogensinstelling of gecombineerde vermogensinstelling tussen binnen- en buitenunit",
+          "alarm_code_38": "Storing beveiligingscircuit (buitenunit)",
+          "alarm_code_40": "Onjuiste instelling regeleenheid",
+          "alarm_code_41": "Overbelasting hogedrukschakelaar",
+          "alarm_code_42": "Overbelasting verwarming (hogedrukschakelaar moet geactiveerd zijn)",
+          "alarm_code_45": "Activering hogedrukbeveiliging",
+          "alarm_code_47": "Activering systeembeveiliging tegen te lage zuigdruk",
+          "alarm_code_48": "Activering overstroombeveiging",
+          "alarm_code_51": "Abnormale werking stroomsensor",
+          "alarm_code_53": "Activering transistormodule",
+          "alarm_code_54": "Storing inverter vintemperatuur",
+          "alarm_code_57": "Storing ventilatormotor beveiliging (DC-ventilatormotor)",
+          "alarm_code_70": "Waterdebietalarm en waterpompstoring",
+          "alarm_code_72": "Warmwaterboiler thermostaatalarm",
+          "alarm_code_73": "Maximale temperatuurlimietbeveiliging mengcircuit",
+          "alarm_code_74": "Temperatuurlimietbeveiliging unit",
+          "alarm_code_75": "Vorstbeveiliging door detectie koude waterinlaat-/uitlaattemperatuur",
+          "alarm_code_76": "Vorstbeveiliging gestopt door binnenunit vloeistoftemperatuursensor",
+          "alarm_code_77": "Communicatiestoring draadloze ontvanger",
+          "alarm_code_78": "RF-communicatiestoring",
+          "alarm_code_79": "Onjuiste vermogensinstelling",
+          "alarm_code_80": "H-LINK afstandsbediening communicatiestoring",
+          "alarm_code_81": "Kortstondige stroomonderbreking of lage spanning gedetecteerd",
+          "alarm_code_83": "Lagedrukstoring in hydraulisch circuit",
+          "alarm_code_101": "Commando activering hogedrukschakelaar",
+          "alarm_code_102": "Activering beveiliging buitensporig hoge druk",
+          "alarm_code_104": "Activering lagedrukbeveiliging",
+          "alarm_code_105": "Buitensporig lagedrukverschil",
+          "alarm_code_106": "Buitensporige persgastemperatuur",
+          "alarm_code_129": "Storing persdruksensor",
+          "alarm_code_130": "Storing zuigdruksensor",
+          "alarm_code_132": "Communicatiefout tussen inverterprint en hoofdprint",
+          "alarm_code_134": "Fasestoring voedingsbron",
+          "alarm_code_135": "Onjuiste printinstelling",
+          "alarm_code_151": "Storing inverterspanning",
+          "alarm_code_152": "Abnormale werking stroomsensor",
+          "alarm_code_153": "Activering overstroombeveiliging inverter (I)",
+          "alarm_code_154": "Activering transistormodulebeveiliging",
+          "alarm_code_155": "Storing inverter vinnen",
+          "alarm_code_156": "Inverterstoring",
+          "alarm_code_157": "Overige storingen",
+          "alarm_code_202": "Onjuiste PC-ARF HE regelaarinstellingen",
+          "alarm_code_203": "Slave PC-ARFHE gestopt door master PC-ARFHE",
+          "alarm_code_204": "Binnenunit verliest communicatie met master PC-ARFHE",
+          "alarm_code_205": "Centraal alarm, geen centraal bericht"
+        }
+      },
+      "secondary_compressor_discharge_temp": {
+        "name": "Perstemperatuur secundaire compressor"
+      },
+      "secondary_compressor_suction_temp": {
+        "name": "Zuigtemperatuur secundaire compressor"
+      },
+      "secondary_compressor_discharge_pressure": {
+        "name": "Persdruk secundaire compressor"
+      },
+      "secondary_compressor_suction_pressure": {
+        "name": "Zuigdruk secundaire compressor"
+      },
+      "secondary_compressor_frequency": {
+        "name": "Frequentie secundaire compressor"
+      },
+      "secondary_compressor_current": {
+        "name": "Stroom secundaire compressor"
+      },
+      "cop_heating": {
+        "name": "COP verwarming",
+        "state_attributes": {
+          "quality": {
+            "name": "Kwaliteit",
+            "state": {
+              "no_data": "Geen gegevens",
+              "insufficient_data": "Onvoldoende gegevens",
+              "preliminary": "Voorlopig",
+              "optimal": "Optimaal"
+            }
+          },
+          "measurements": {
+            "name": "Aantal metingen"
+          },
+          "time_span_minutes": {
+            "name": "Meetperiode"
+          }
+        }
+      },
+      "cop_cooling": {
+        "name": "COP koeling",
+        "state_attributes": {
+          "quality": {
+            "name": "Kwaliteit",
+            "state": {
+              "no_data": "Geen gegevens",
+              "insufficient_data": "Onvoldoende gegevens",
+              "preliminary": "Voorlopig",
+              "optimal": "Optimaal"
+            }
+          },
+          "measurements": {
+            "name": "Aantal metingen"
+          },
+          "time_span_minutes": {
+            "name": "Meetperiode"
+          }
+        }
+      },
+      "cop_dhw": {
+        "name": "COP warm tapwater",
+        "state_attributes": {
+          "quality": {
+            "name": "Kwaliteit",
+            "state": {
+              "no_data": "Geen gegevens",
+              "insufficient_data": "Onvoldoende gegevens",
+              "preliminary": "Voorlopig",
+              "optimal": "Optimaal"
+            }
+          },
+          "measurements": {
+            "name": "Aantal metingen"
+          },
+          "time_span_minutes": {
+            "name": "Meetperiode"
+          }
+        }
+      },
+      "cop_pool": {
+        "name": "COP zwembad",
+        "state_attributes": {
+          "quality": {
+            "name": "Kwaliteit",
+            "state": {
+              "no_data": "Geen gegevens",
+              "insufficient_data": "Onvoldoende gegevens",
+              "preliminary": "Voorlopig",
+              "optimal": "Optimaal"
+            }
+          },
+          "measurements": {
+            "name": "Aantal metingen"
+          },
+          "time_span_minutes": {
+            "name": "Meetperiode"
+          }
+        }
+      },
+      "compressor_runtime": {
+        "name": "Compressor looptijd"
+      },
+      "compressor_resttime": {
+        "name": "Compressor rusttijd"
+      },
+      "secondary_compressor_cycle_time": {
+        "name": "Cyclustijd secundaire compressor"
+      },
+      "secondary_compressor_runtime": {
+        "name": "Looptijd secundaire compressor"
+      },
+      "secondary_compressor_resttime": {
+        "name": "Rusttijd secundaire compressor"
+      },
+      "thermal_power_heating": {
+        "name": "Thermisch vermogen verwarming"
+      },
+      "thermal_power_cooling": {
+        "name": "Thermisch vermogen koeling"
+      },
+      "thermal_energy_heating_daily": {
+        "name": "Dagelijkse thermische energie verwarming"
+      },
+      "thermal_energy_heating_total": {
+        "name": "Totale thermische energie verwarming"
+      },
+      "thermal_energy_cooling_daily": {
+        "name": "Dagelijkse thermische energie koeling"
+      },
+      "thermal_energy_cooling_total": {
+        "name": "Totale thermische energie koeling"
+      },
+      "system_state": {
+        "name": "Gateway synchronisatiestatus",
+        "state": {
+          "synchronized": "Gesynchroniseerd",
+          "desynchronized": "Gedesynchroniseerd",
+          "initializing": "Initialiseren"
+        }
+      }
+    },
+    "binary_sensor": {
+      "connectivity": {
+        "name": "Verbinding"
+      },
+      "defrost": {
+        "name": "Ontdooien"
+      },
+      "solar": {
+        "name": "Zonne-energie"
+      },
+      "pump1": {
+        "name": "Pomp 1"
+      },
+      "pump2": {
+        "name": "Pomp 2"
+      },
+      "pump3": {
+        "name": "Pomp 3"
+      },
+      "compressor": {
+        "name": "Compressor"
+      },
+      "boiler": {
+        "name": "Ketel"
+      },
+      "dhw_heater": {
+        "name": "Warm tapwater verwarmer"
+      },
+      "space_heater": {
+        "name": "Bijverwarming"
+      },
+      "smart_function": {
+        "name": "Slimme functie"
+      },
+      "compressor_running": {
+        "name": "Compressor actief"
+      },
+      "secondary_compressor_running": {
+        "name": "Secundaire compressor actief"
+      },
+      "antilegionella_cycle": {
+        "name": "Anti-legionellacyclus"
+      }
+    },
+    "select": {
+      "operation_mode_heat": {
+        "name": "Bedrijfsmodus",
+        "state": {
+          "heat": "Verwarming",
+          "auto": "Auto"
+        }
+      },
+      "operation_mode_full": {
+        "name": "Bedrijfsmodus",
+        "state": {
+          "cool": "Koeling",
+          "heat": "Verwarming",
+          "auto": "Auto"
+        }
+      },
+      "otc_calculation_method_heating": {
+        "name": "Compensatiemethode verwarming",
+        "state": {
+          "disabled": "Uitgeschakeld",
+          "points": "Punten",
+          "gradient": "Gradiënt",
+          "fix": "Vast"
+        }
+      },
+      "otc_calculation_method_cooling": {
+        "name": "Compensatiemethode koeling",
+        "state": {
+          "disabled": "Uitgeschakeld",
+          "points": "Punten",
+          "fix": "Vast"
+        }
+      }
+    },
+    "switch": {
+      "power": {
+        "name": "Voeding"
+      },
+      "thermostat": {
+        "name": "Thermostaat"
+      },
+      "eco_mode": {
+        "name": "ECO-modus"
+      },
+      "boost": {
+        "name": "Boost"
+      },
+      "high_demand": {
+        "name": "Hoge vraag"
+      }
+    },
+    "button": {
+      "antilegionella": {
+        "name": "Anti-legionellacyclus starten"
+      }
+    },
+    "number": {
+      "max_flow_temp_heating_otc": {
+        "name": "Maximale aanvoertemperatuur verwarming"
+      },
+      "max_flow_temp_cooling_otc": {
+        "name": "Maximale aanvoertemperatuur koeling"
+      },
+      "heat_eco_offset": {
+        "name": "ECO-offset verwarming"
+      },
+      "cool_eco_offset": {
+        "name": "ECO-offset koeling"
+      },
+      "current_temp": {
+        "name": "Huidige temperatuur"
+      },
+      "target_temp": {
+        "name": "Doeltemperatuur"
+      },
+      "pool_current_temperature": {
+        "name": "Huidige temperatuur"
+      },
+      "pool_target_temperature": {
+        "name": "Doeltemperatuur"
+      },
+      "antilegionella_temp": {
+        "name": "Anti-legionellatemperatuur"
+      }
+    },
+    "climate": {
+      "climate": {
+        "name": "Klimaatregeling",
+        "state": {
+          "off": "Uit",
+          "heat": "Verwarming",
+          "cool": "Koeling",
+          "auto": "Auto",
+          "idle": "Inactief",
+          "defrost": "Ontdooien"
+        },
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "eco": "Eco",
+              "comfort": "Comfort"
+            }
+          }
+        }
+      }
+    },
+    "water_heater": {
+      "dhw": {
+        "name": "Warm tapwater regeling",
+        "state": {
+          "off": "Uit",
+          "standard": "Standaard",
+          "high_demand": "Hoge vraag"
+        }
+      }
+    }
+  },
+  "services": {
+    "set_room_temperature": {
+      "name": "Kamertemperatuur instellen",
+      "description": "Schrijf de gemeten kamertemperatuur naar de warmtepomp. Wordt gebruikt wanneer de Modbus-thermostaat is ingeschakeld om de omgevingstemperatuur voor thermostaatregeling door te geven.",
+      "fields": {
+        "temperature": {
+          "name": "Temperatuur",
+          "description": "De gemeten kamertemperatuur in graden Celsius."
+        }
+      }
+    }
+  },
+  "issues": {
+    "desync_warning": {
+      "title": "Hitachi Gateway gedesynchroniseerd",
+      "description": "De Hitachi gateway heeft de synchronisatie met de warmtepomp verloren gedurende meer dan 3 minuten. De entiteiten zijn niet beschikbaar totdat de verbinding is hersteld.\n\n**Om dit op te lossen:**\n1. Controleer de fysieke verbinding tussen de gateway en de warmtepomp.\n2. Controleer of de warmtepomp is ingeschakeld.\n3. Herstart de warmtepomp en de gateway als het probleem aanhoudt."
+    },
+    "connection_error": {
+      "title": "Hitachi Gateway onbereikbaar",
+      "description": "De integratie kon geen verbinding maken met de Hitachi Yutaki gateway. De entiteiten zijn niet beschikbaar totdat de verbinding is hersteld.\n\n**Om dit op te lossen:**\n1. Controleer of de gateway is ingeschakeld en verbonden met het netwerk.\n2. Controleer of het IP-adres en de poort in Home Assistant correct zijn geconfigureerd."
+    },
+    "initializing_warning": {
+      "title": "Hitachi Gateway wordt geïnitialiseerd",
+      "description": "De Hitachi Yutaki gateway wordt momenteel geïnitialiseerd. Dit is normaal na een herstart en duurt slechts enkele minuten. Als deze waarschuwing aanhoudt, herstart dan de gateway."
+    },
+    "missing_config": {
+      "title": "Hitachi Yutaki configuratie onvolledig",
+      "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters (gatewaytype en/of warmtemompprofiel). De integratie kan niet worden ingesteld totdat deze parameters zijn geconfigureerd.\n\n**Om dit op te lossen:**\n1. Ga naar Instellingen > Apparaten en services > Hitachi Yutaki\n2. Klik op de integratie en selecteer Configureren\n3. Selecteer de ontbrekende parameters (gatewaytype en warmtemompprofiel)\n4. Sla de configuratie op"
+    }
+  }
+}

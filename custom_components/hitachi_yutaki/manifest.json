@@ -1,11 +1,13 @@
 {
   "domain": "hitachi_yutaki",
-  "name": "Hitachi Yutaki Heat Pump",
+  "name": "Hitachi Heat Pump",
   "codeowners": [
     "@alepee"
   ],
   "config_flow": true,
-  "dependencies": [],
+  "dependencies": [
+    "recorder"
+  ],
   "documentation": "https://github.com/alepee/hass-hitachi_yutaki",
   "homekit": {},
   "iot_class": "local_polling",
@@ -13,5 +15,5 @@
   "requirements": [
     "pymodbus>=3.6.9,<4.0.0"
   ],
-  "version": "1.9.4"
+  "version": "2.0.0"
 }

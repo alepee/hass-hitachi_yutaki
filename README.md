@@ -5,6 +5,7 @@
 This custom integration allows you to control and monitor your Hitachi **Yutaki** and **Yutampo** air-to-water heat pumps through Home Assistant using a Modbus ATW-MBS-02 gateway.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=alepee&category=integration&repository=hass-hitachi_yutaki)
+
 ## Compatibility
 
 - **Compatible Models**: 2016 and newer Hitachi air-to-water heat pumps
@@ -25,6 +26,8 @@ The integration provides:
 - Advanced configuration options:
   - Single/Three phase power supply support
   - Real-time voltage monitoring (optional)
+  - External energy meter support (optional)
+  - External water temperature sensors (optional)
   - Customizable scan intervals
   - Developer mode for testing
 - Multiple device support:
@@ -42,20 +45,22 @@ The integration automatically detects your heat pump model and available feature
 
 ### ATW-MBS-02 Gateway Device
 
-| Entity | Type | Description | Unit |
-|--------|------|-------------|------|
-| connectivity | binary_sensor | Indicates if the gateway is connected and responding | - |
-| sync_state   | sensor        | Indicates the gateway synchronization state with the heat pump | - |
+| Entity | Type | Description | Category |
+|--------|------|-------------|----------|
+| connectivity | binary_sensor | Indicates if the gateway is connected and responding | diagnostic |
+| system_state | sensor | Gateway synchronization state with the heat pump | diagnostic |
 
 ### Heat Pump Control Unit Device
 
 #### Controls
-| Entity | Type | Description | Values/Unit | Category |
-|--------|------|-------------|-------------|----------|
-| power | switch | Main power switch for the heat pump unit | on/off | - |
-| operation_mode | select | Operating mode of the heat pump (modes depend on configuration) | heat only or heat/cool/auto | - |
+
+| Entity | Type | Description | Values |
+|--------|------|-------------|--------|
+| power | switch | Main power switch for the heat pump unit | on/off |
+| operation_mode | select | Operating mode of the heat pump (modes depend on configuration) | heat only, or heat/cool/auto |
 
 #### Temperatures
+
 | Entity | Type | Description | Unit |
 |--------|------|-------------|------|
 | outdoor_temp | sensor | Outdoor ambient temperature measurement | °C |
@@ -64,110 +69,135 @@ The integration automatically detects your heat pump model and available feature
 | water_target_temp | sensor | Corrected target water temperature | °C |
 
 #### System Status
-| Entity | Type | Description | Values |
-|--------|------|-------------|---------|
-| operation_state | sensor | Current operation state with detailed description | - |
-| alarm_code | sensor | Current alarm code with description | - |
-| defrost | binary_sensor | Indicates if the unit is currently in defrost mode | on/off |
-| solar | binary_sensor | Indicates if the solar system is active | on/off |
-| pump1 | binary_sensor | Indicates if water pump 1 is running | on/off |
-| pump2 | binary_sensor | Indicates if water pump 2 is running | on/off |
-| pump3 | binary_sensor | Indicates if water pump 3 is running | on/off |
-| compressor | binary_sensor | Indicates if the compressor is running | on/off |
-| boiler | binary_sensor | Indicates if the backup boiler is active | on/off |
-| dhw_heater | binary_sensor | Indicates if the DHW electric heater is active | on/off |
-| space_heater | binary_sensor | Indicates if the space heating electric heater is active | on/off |
-| smart_function | binary_sensor | Indicates if the smart grid function is active | on/off |
 
-#### Performance Metrics
+| Entity | Type | Description | Category |
+|--------|------|-------------|----------|
+| operation_state | sensor | Current operation state with detailed description | diagnostic |
+| alarm | sensor | Current alarm status | diagnostic |
+| defrost | binary_sensor | Unit is currently in defrost mode | diagnostic |
+| compressor | binary_sensor | Compressor is running | diagnostic |
+| boiler | binary_sensor | Backup boiler is active (if supported) | diagnostic |
+| dhw_heater | binary_sensor | DHW electric heater is active (if DHW configured) | diagnostic |
+| solar | binary_sensor | Solar system is active (disabled by default) | diagnostic |
+| space_heater | binary_sensor | Space heating electric heater is active (disabled by default) | diagnostic |
+| smart_function | binary_sensor | Smart grid function is active (disabled by default) | diagnostic |
+
+#### Hydraulic
+
 | Entity | Type | Description | Unit | Category |
 |--------|------|-------------|------|----------|
 | water_flow | sensor | Current water flow rate through the system | m³/h | diagnostic |
 | pump_speed | sensor | Current speed of the water circulation pump | % | diagnostic |
-| compressor_frequency | sensor | Current operating frequency of the compressor | Hz | diagnostic |
-| compressor_current | sensor | Current electrical consumption of the compressor | A | diagnostic |
-| compressor_cycle_time | sensor | Average time between compressor starts | min | diagnostic |
+| pump1 | binary_sensor | Water pump 1 is running (disabled by default) | - | diagnostic |
+| pump2 | binary_sensor | Water pump 2 is running (disabled by default) | - | diagnostic |
+| pump3 | binary_sensor | Water pump 3 is running (disabled by default) | - | diagnostic |
+
+#### Electrical Energy
+
+| Entity | Type | Description | Unit | Category |
+|--------|------|-------------|------|----------|
 | power_consumption | sensor | Total electrical energy consumed by the unit | kWh | diagnostic |
-| thermal_power | sensor | Real-time thermal power output | kW | diagnostic |
-| daily_thermal_energy | sensor | Daily thermal energy production (resets at midnight) | kWh | diagnostic |
-| total_thermal_energy | sensor | Total cumulative thermal energy production | kWh | diagnostic |
-| cop_heating | sensor | Space heating COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
-| cop_cooling | sensor | Space cooling COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
-| cop_dhw | sensor | Domestic hot water COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
-| cop_pool | sensor | Pool heating COP calculated from water flow, temperatures and electrical consumption | - | diagnostic |
+
+#### Thermal Energy
+
+| Entity | Type | Description | Unit | Category |
+|--------|------|-------------|------|----------|
+| thermal_power_heating | sensor | Real-time thermal heating power output | kW | diagnostic |
+| thermal_power_cooling | sensor | Real-time thermal cooling power output (cooling circuits only) | kW | diagnostic |
+| thermal_energy_heating_daily | sensor | Daily thermal heating energy (resets at midnight) | kWh | diagnostic |
+| thermal_energy_heating_total | sensor | Total cumulative thermal heating energy | kWh | diagnostic |
+| thermal_energy_cooling_daily | sensor | Daily thermal cooling energy (cooling circuits only) | kWh | diagnostic |
+| thermal_energy_cooling_total | sensor | Total cumulative thermal cooling energy (cooling circuits only) | kWh | diagnostic |
+
+#### Performance (COP)
+
+| Entity | Type | Description | Category |
+|--------|------|-------------|----------|
+| cop_heating | sensor | Space heating COP (water flow, temperatures, electrical consumption) | diagnostic |
+| cop_cooling | sensor | Space cooling COP (cooling circuits only) | diagnostic |
+| cop_dhw | sensor | Domestic hot water COP (if DHW configured) | diagnostic |
+| cop_pool | sensor | Pool heating COP (if pool configured) | diagnostic |
 
 ### Primary Compressor Device
 
-| Entity | Type | Description | Unit |
-|--------|------|-------------|------|
-| compressor_frequency | sensor | Operating frequency | Hz |
-| compressor_current | sensor | Electrical current draw | A |
-| compressor_tg_gas_temp | sensor | Gas temperature | °C |
-| compressor_ti_liquid_temp | sensor | Liquid temperature | °C |
-| compressor_td_discharge_temp | sensor | Discharge temperature | °C |
-| compressor_te_evaporator_temp | sensor | Evaporator temperature | °C |
-| compressor_evi_indoor_expansion_valve_opening | sensor | Indoor expansion valve opening | % |
-| compressor_evo_outdoor_expansion_valve_opening | sensor | Outdoor expansion valve opening | % |
+| Entity | Type | Description | Unit | Category |
+|--------|------|-------------|------|----------|
+| compressor_running | binary_sensor | Compressor is running | - | diagnostic |
+| compressor_frequency | sensor | Operating frequency | Hz | diagnostic |
+| compressor_current | sensor | Electrical current draw | A | diagnostic |
+| compressor_tg_gas_temp | sensor | Gas temperature | °C | diagnostic |
+| compressor_ti_liquid_temp | sensor | Liquid temperature | °C | diagnostic |
+| compressor_td_discharge_temp | sensor | Discharge temperature | °C | diagnostic |
+| compressor_te_evaporator_temp | sensor | Evaporator temperature | °C | diagnostic |
+| compressor_evi_indoor_expansion_valve_opening | sensor | Indoor expansion valve opening | % | diagnostic |
+| compressor_evo_outdoor_expansion_valve_opening | sensor | Outdoor expansion valve opening | % | diagnostic |
+| compressor_cycle_time | sensor | Average time between compressor starts | min | diagnostic |
+| compressor_runtime | sensor | Compressor runtime | min | diagnostic |
+| compressor_resttime | sensor | Compressor rest time | min | diagnostic |
 
 ### Secondary Compressor Device (S80 Model Only)
 
-| Entity | Type | Description | Unit |
-|--------|------|-------------|------|
-| r134a_discharge_temp | sensor | R134a discharge temperature | °C |
-| r134a_suction_temp | sensor | R134a suction temperature | °C |
-| r134a_discharge_pressure | sensor | R134a discharge pressure | mbar |
-| r134a_suction_pressure | sensor | R134a suction pressure | mbar |
-| r134a_compressor_frequency | sensor | R134a compressor frequency | Hz |
-| r134a_compressor_current | sensor | R134a compressor current | A |
+| Entity | Type | Description | Unit | Category |
+|--------|------|-------------|------|----------|
+| secondary_compressor_running | binary_sensor | Secondary compressor is running | - | diagnostic |
+| secondary_compressor_frequency | sensor | Operating frequency | Hz | diagnostic |
+| secondary_compressor_current | sensor | Electrical current draw | A | diagnostic |
+| secondary_compressor_discharge_temp | sensor | Discharge temperature | °C | diagnostic |
+| secondary_compressor_suction_temp | sensor | Suction temperature | °C | diagnostic |
+| secondary_compressor_discharge_pressure | sensor | Discharge pressure | bar | diagnostic |
+| secondary_compressor_suction_pressure | sensor | Suction pressure | bar | diagnostic |
+| secondary_compressor_cycle_time | sensor | Average time between compressor starts | min | diagnostic |
+| secondary_compressor_runtime | sensor | Compressor runtime | min | diagnostic |
+| secondary_compressor_resttime | sensor | Compressor rest time | min | diagnostic |
 
-### Climate Device (up to 2 circuits)
+### Circuit Device (up to 2 circuits)
 
-#### Controls
-| Entity | Type | Description | Values/Unit |
-|--------|------|-------------|-------------|
-| power | switch | Power switch for the circuit | on/off |
-| operation_mode | select | Operating mode selection | heat/cool/auto |
-| target_temperature | number | Target temperature setpoint | °C (5.0-35.0) |
-| current_temperature | sensor | Current measured temperature | °C |
-| preset_mode | select | Energy saving mode selection | comfort/eco |
-| hvac_action | sensor | Current operation status | off/idle/heating/cooling/defrost |
+Each circuit creates a climate entity with HVAC modes that depend on the system configuration:
+- **Single circuit**: Exposes `off` / `heat` / `cool` / `auto` modes with direct global mode control
+- **Two circuits**: Exposes `off` / `heat_cool` (power toggle only) — global mode is controlled via the Control Unit's `operation_mode` select to avoid conflicts between circuits
 
-#### Configuration
-| Entity | Type | Description | Values/Unit |
-|--------|------|-------------|-------------|
-| otc_calculation_method_heating | select | Method used for heating water temperature calculation | disabled/points/gradient/fix |
-| otc_calculation_method_cooling | select | Method used for cooling water temperature calculation | disabled/points/fix |
-| max_flow_temp_heating_otc | number | Maximum heating water temperature for OTC | °C (0-80) |
-| max_flow_temp_cooling_otc | number | Maximum cooling water temperature for OTC | °C (0-80) |
-| heat_eco_offset | number | Temperature offset in ECO mode for heating | °C (1-10) |
-| cool_eco_offset | number | Temperature offset in ECO mode for cooling | °C (1-10) |
-| thermostat | switch | Enable/disable Modbus thermostat function | on/off |
+#### Climate & Controls
+
+| Entity | Type | Description | Values |
+|--------|------|-------------|--------|
+| climate | climate | Main climate control entity | off/heat/cool/auto or off/heat_cool |
+| eco_mode | switch | Enable ECO mode (reduced temperatures) | on/off |
+| thermostat | switch | Enable Modbus thermostat function (if available) | on/off |
+
+#### Configuration (disabled by default)
+
+| Entity | Type | Description | Values/Unit | Category |
+|--------|------|-------------|-------------|----------|
+| otc_calculation_method_heating | select | Heating water temperature calculation method | disabled/points/gradient/fix | config |
+| otc_calculation_method_cooling | select | Cooling water temperature calculation method | disabled/points/fix | config |
+| max_flow_temp_heating_otc | number | Maximum heating water temperature for OTC | °C (0-80) | config |
+| max_flow_temp_cooling_otc | number | Maximum cooling water temperature for OTC | °C (0-80) | config |
+| heat_eco_offset | number | Temperature offset in ECO mode for heating | °C (1-10) | config |
+| cool_eco_offset | number | Temperature offset in ECO mode for cooling | °C (1-10) | config |
+
+#### Service
+
+| Service | Description | Fields |
+|---------|-------------|--------|
+| `hitachi_yutaki.set_room_temperature` | Set the room temperature for a circuit | `temperature` (0-50°C, step 0.1) |
 
 ### Domestic Hot Water Device (if configured)
 
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
-| dhw | water_heater | Main DHW control entity | - |
+| dhw | water_heater | Main DHW control entity | off/standard/high demand, 30-60°C |
 | boost | switch | Temporarily boost DHW production | on/off |
-| antilegionella_temperature | number | Target temperature for anti-legionella treatment | °C (60-80) |
-| antilegionella_cycle | binary_sensor | Indicates if an anti-legionella cycle is currently running | on/off |
-| antilegionella | button | Manually start a high temperature anti-legionella treatment cycle | - |
-
-The main DHW control entity (`water_heater`) provides:
-- Power control (on/off)
-- Operation modes (off, standard, high demand)
-- Temperature control (30-60°C)
-- Current temperature display
-
-Additional entities provide granular control over specific features.
+| antilegionella | button | Manually start a high temperature anti-legionella cycle | - |
+| antilegionella_temp | number | Target temperature for anti-legionella treatment (disabled by default) | °C (60-80) |
+| antilegionella_cycle | binary_sensor | Anti-legionella cycle is currently running | on/off |
 
 ### Swimming Pool Device (if configured)
 
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
 | power | switch | Power switch for swimming pool heating | on/off |
-| target_temperature | number | Target temperature for swimming pool water | °C (0-80) |
-| current_temperature | sensor | Current pool water temperature | °C |
+| pool_target_temp | number | Target temperature for swimming pool water | °C (0-80) |
+| pool_current_temp | sensor | Current pool water temperature | °C |
 
 ## Installation
 
@@ -195,26 +225,40 @@ Additional entities provide granular control over specific features.
 1. Copy the `custom_components/hitachi_yutaki` directory to your Home Assistant `custom_components` directory
 2. Restart Home Assistant
 
+## Removal
+
+1. Go to **Settings** > **Devices & Services**
+2. Find the **Hitachi Heat Pump** integration
+3. Click the three dots menu and select **Delete**
+4. Restart Home Assistant
+5. If installed via HACS, you can also remove the integration files through HACS > Integrations > Hitachi Yutaki > Remove
+
 ## Configuration
 
 > **Note:** The heat pump's central control mode must NOT be set to 'Local' (0). Accepted modes are: Air (1), Water (2), or Total (3). **The 'Air' (1) mode is recommended for most installations.** Please check this setting in your heat pump parameters (System Configuration > General Options > External Control Option > Control Mode).
 
-1. Go to Settings -> Devices & Services
-2. Click "Add Integration"
-3. Search for "Hitachi Yutaki"
-4. Fill in the required information:
+The configuration flow guides you through several steps:
+
+1. **Gateway selection**: Choose your gateway type (ATW-MBS-02)
+2. **Gateway configuration**: Enter connection details
     - Name (optional)
     - Modbus gateway IP address
     - Port (default: 502)
+    - Modbus slave ID (default: 1)
+3. **Profile selection**: Choose your heat pump model (or let the integration auto-detect)
+4. **Sensors & power**: Configure optional sensors
     - Power supply type (single phase/three phase)
     - Voltage entity (optional - for real-time voltage measurements)
-    - Power meter entity (optional - for real-time power measurements)
+    - Energy meter entity (optional - for real-time power measurements)
     - Water inlet temperature entity (optional - for more accurate COP and thermal energy calculations)
     - Water outlet temperature entity (optional - for more accurate COP and thermal energy calculations)
-    - Advanced settings (optional):
-        - Modbus slave ID (default: 1)
-        - Scan interval (seconds)
-        - Developer mode (enables all entities regardless of heat pump configuration)
+5. **Advanced settings** (optional):
+    - Scan interval (seconds)
+    - Developer mode (enables all entities regardless of heat pump configuration)
+
+### Reconfiguration
+
+You can reconfigure the integration at any time via **Settings** > **Devices & Services** > **Hitachi Heat Pump** > **Configure**. This allows you to change the gateway type, connection settings, heat pump profile, and optional sensors without removing and re-adding the integration.
 
 ## COP Calculation Methods
 
@@ -255,80 +299,197 @@ Each COP sensor provides additional attributes:
 
 ## Thermal Energy Monitoring
 
-The integration provides detailed thermal energy monitoring through three complementary sensors:
+The integration provides detailed thermal energy monitoring with **separate tracking for heating and cooling**:
 
 ### Real-time Power Output
 
-The `thermal_power` sensor shows the instantaneous thermal power output in kW, calculated from:
-- Water flow rate
-- Temperature difference between outlet and inlet (ΔT)
-- Water specific heat capacity
+Two sensors show instantaneous thermal power:
+- `thermal_power_heating`: Heating power (when ΔT > 0) in kW
+- `thermal_power_cooling`: Cooling power (when ΔT < 0) in kW - only for units with cooling circuits
 
-Additional attributes provide detailed measurement data:
-- `delta_t`: Temperature difference between outlet and inlet (°C)
-- `water_flow`: Current water flow rate (m³/h)
-- `last_update`: Timestamp of the last measurement
+Power is calculated from:
+- Water flow rate (m³/h)
+- Temperature difference between outlet and inlet (ΔT in °C)
+- Water specific heat capacity (4.185 kJ/kg·K)
 
 ### Daily Energy Production
 
-The `daily_thermal_energy` sensor tracks the thermal energy produced since midnight in kWh. It automatically resets at midnight and provides:
+Sensors track energy produced since midnight (auto-reset):
+- `thermal_energy_heating_daily`: Heating energy (kWh)
+- `thermal_energy_cooling_daily`: Cooling energy (kWh) - cooling circuits only
+
+Features:
 - Automatic state restoration after Home Assistant restart (same day only)
-- Average power calculation over the measurement period
-- Detailed timing information in attributes:
-  - `last_reset`: Last midnight reset timestamp
-  - `start_time`: First measurement timestamp of the day
-  - `average_power`: Average power over the measurement period (kW)
-  - `time_span_hours`: Duration of the measurement period
+- Independent counters for heating and cooling
 
 ### Total Energy Production
 
-The `total_thermal_energy` sensor maintains a running total of all thermal energy produced in kWh. It features:
+Sensors maintain running totals:
+- `thermal_energy_heating_total`: Total heating energy (kWh)
+- `thermal_energy_cooling_total`: Total cooling energy (kWh) - cooling circuits only
+
+Features:
 - Persistent state across Home Assistant restarts
 - Long-term performance tracking
-- Statistical information in attributes:
-  - `start_date`: Date of the first measurement
-  - `average_power`: Average power since start (kW)
-  - `time_span_days`: Number of days since first measurement
 
-### Measurement Accuracy
+### Measurement Logic
 
-To ensure accuracy:
-- Measurements are only taken when the compressor is running
-- Calculations use precise water flow and temperature measurements
-- Values are stored with 2 decimal places precision
-- All relevant units are clearly indicated in attributes
+**What is measured:**
+- Only energy **produced by the heat pump** (not auxiliary sources)
+- Heating: Water temperature increase (ΔT > 0) → circuits, DHW, pool
+- Cooling: Water temperature decrease (ΔT < 0) → cooling circuits
+
+**Filtering applied:**
+- **Defrost mode** (`is_defrosting == True`): No measurement (prevents false cooling energy)
+- **Cooling mode**: Only counted when compressor is running
+- **Heating mode with post-cycle lock**:
+  - Thermal inertia energy is counted after compressor stops (while ΔT > 0)
+  - Lock activates when ΔT drops to zero to prevent counting noise/fluctuations
+  - Lock releases when compressor restarts
+- This ensures accurate COP calculations (Thermal Energy / Electrical Energy)
+
+### Migration from v1.x
+
+In v2.0.0, the following sensors have been **replaced** (old entities are automatically migrated to new unique_ids):
+- `thermal_power` → `thermal_power_heating`
+- `daily_thermal_energy` → `thermal_energy_heating_daily`
+- `total_thermal_energy` → `thermal_energy_heating_total`
+
+**Why this change?** The old sensors counted defrost cycles as energy production, resulting in unrealistic COP values (e.g., COP > 8). The new sensors correctly separate heating from cooling and filter defrost periods.
+
+## Known Limitations
+
+- **Modbus TCP only**: The integration communicates via Modbus TCP over the ATW-MBS-02 gateway. Direct serial Modbus is not supported.
+- **Pre-2016 models**: Older Hitachi heat pumps use different Modbus register maps and are not compatible.
+- **Temperature precision**: Internal temperature sensors have 1°C precision. For more accurate COP calculations, configure external temperature sensors with higher resolution.
+- **Single gateway**: Each integration instance connects to one gateway. Multiple gateways require multiple integration instances.
+- **Global operating mode**: The heat/cool/auto mode is a global setting shared across all circuits. When two circuits are active, the mode can only be changed via the Control Unit's operation_mode select.
+- **No automatic discovery**: The gateway must be configured manually (IP address and port).
+
+## Troubleshooting
+
+### Gateway cannot connect
+
+- Verify the ATW-MBS-02 gateway is powered on and connected to your network
+- Check the IP address and port (default: 502) in the integration configuration
+- Ensure no other Modbus client is connected to the gateway (only one connection is supported)
+- Verify the Modbus slave ID matches your gateway configuration (default: 1)
+
+### Gateway shows "Desynchronized" state
+
+The gateway has lost synchronization with the heat pump. The integration creates a repair issue with guidance. Common causes:
+- Heat pump power interruption
+- Gateway firmware issue
+- Communication cable problem between gateway and heat pump
+
+### Entities show "Unavailable"
+
+- Check the gateway connectivity sensor — if it shows disconnected, see "Gateway cannot connect"
+- The integration automatically recovers when the gateway comes back online
+- After a Home Assistant restart, entities may briefly show unavailable while the connection is re-established
+
+### COP values seem inaccurate
+
+- Check the `quality` attribute of the COP sensor — `preliminary` or `optimal` quality is needed for reliable values
+- Configure external water temperature sensors for better precision (internal sensors have 1°C resolution)
+- COP is filtered during defrost cycles and post-compressor shutdown to avoid false readings
+- COP sensors track heating and DHW separately — ensure you're reading the right sensor for the operating mode
+
+### Heat pump control mode
+
+The heat pump's external control mode must NOT be set to 'Local' (0). Set it to Air (1), Water (2), or Total (3) via: **System Configuration** > **General Options** > **External Control Option** > **Control Mode**.
 
 ## Development
+
+### Architecture
+
+This integration follows the **Hexagonal Architecture** (Ports and Adapters) pattern, providing clear separation of concerns and improved maintainability:
+
+- **Domain Layer** (`domain/`): Pure business logic with zero Home Assistant dependencies
+  - `models/`: Data structures (COPInput, ThermalEnergyResult, PowerMeasurement, etc.)
+  - `ports/`: Abstract interfaces (Storage, DataProvider, StateProvider, Calculators)
+  - `services/`: Business logic services (COPService, ThermalPowerService, DefrostGuard, CompressorTimingService)
+
+- **Adapters Layer** (`adapters/`): Concrete implementations bridging domain with Home Assistant
+  - `calculators/`: Electrical and thermal power calculation adapters
+  - `providers/`: Data providers from HA coordinator and entity states
+  - `storage/`: Storage implementations (in-memory, Recorder rehydration)
+
+- **Entity Layer** (`entities/`): Domain-driven entity organization using domain services through adapters
+
+**Benefits:**
+- **Testability**: Domain layer is 100% testable without Home Assistant mocks
+- **Reusability**: COP and thermal logic can be shared across sensor, climate, and water_heater entities
+- **Maintainability**: Business logic centralized in domain layer, single point of truth for calculations
+- **Extensibility**: Easy to add new entity types or change storage implementations
+
+### Architecture Documentation
+
+For detailed information about each architectural layer, see the specialized README files:
+
+- **[Domain Layer](custom_components/hitachi_yutaki/domain/README.md)**: Pure business logic with zero Home Assistant dependencies
+- **[Adapters Layer](custom_components/hitachi_yutaki/adapters/README.md)**: Concrete implementations bridging domain with Home Assistant
+- **[Entities Layer](custom_components/hitachi_yutaki/entities/README.md)**: Domain-driven entity organization
 
 ### Project Structure
 
 ```
 hitachi_yutaki/
 ├── .github/
-│   └── workflows/           # CI/CD workflows
-├── custom_components/       # The actual integration
+│   └── workflows/              # CI/CD workflows
+├── custom_components/
 │   └── hitachi_yutaki/
-│       ├── translations/    # Language files (en.json, fr.json)
-│       ├── __init__.py     # Integration setup
-│       ├── binary_sensor.py # Binary sensor platform
-│       ├── climate.py      # Climate platform
-│       ├── config_flow.py  # Configuration flow
-│       ├── const.py        # Constants
-│       ├── coordinator.py  # Data update coordinator
-│       ├── manifest.json   # Integration manifest
-│       ├── number.py       # Number platform
-│       ├── select.py       # Select platform
-│       ├── sensor.py       # Sensor platform
-│       └── switch.py       # Switch platform
-├── scripts/                # Development scripts
-│   ├── dev-branch         # Install dev branch of Home Assistant
-│   ├── develop           # Run Home Assistant with debug config
-│   ├── lint             # Run code linting
-│   ├── setup            # Install development dependencies
-│   ├── specific-version # Install specific HA version
-│   └── upgrade          # Upgrade to latest HA version
-└── tests/               # Test files
-    └── __init__.py     # Tests package marker
+│       ├── domain/             # Pure business logic (hexagonal architecture)
+│       │   ├── models/         # Data structures (COPInput, ThermalEnergyResult, etc.)
+│       │   ├── ports/          # Abstract interfaces (Storage, DataProvider, etc.)
+│       │   └── services/       # Business logic services
+│       │       └── thermal/    # Thermal power and energy calculation
+│       ├── adapters/           # Concrete implementations (hexagonal architecture)
+│       │   ├── calculators/    # Power calculation adapters
+│       │   ├── providers/      # Data providers from HA coordinator/entities
+│       │   └── storage/        # Storage implementations (in-memory, Recorder)
+│       ├── entities/           # Domain-driven entity organization
+│       │   ├── base/           # Base entity classes for all platforms
+│       │   ├── circuit/        # Circuit climate, switches, selects, numbers
+│       │   ├── compressor/     # Compressor sensors and binary sensors
+│       │   ├── control_unit/   # Control unit sensors, selects, switches
+│       │   ├── dhw/            # Domestic Hot Water entities
+│       │   ├── gateway/        # Gateway connectivity sensors
+│       │   ├── hydraulic/      # Water flow, pumps, temperature sensors
+│       │   ├── performance/    # COP sensors
+│       │   ├── pool/           # Pool heating entities
+│       │   ├── power/          # Electrical power sensors
+│       │   └── thermal/        # Thermal energy sensors
+│       ├── api/                # Modbus communication layer
+│       │   └── modbus/
+│       │       └── registers/  # Register definitions (ATW-MBS-02)
+│       ├── profiles/           # Heat pump model profiles
+│       ├── translations/       # Language files (en.json, fr.json)
+│       ├── __init__.py         # Integration setup, migration, device registration
+│       ├── config_flow.py      # Multi-step configuration flow
+│       ├── coordinator.py      # Data update coordinator
+│       ├── entity_migration.py # Entity unique_id migration (v1.x → v2.0)
+│       ├── repairs.py          # HA Repairs integration
+│       ├── services.yaml       # Service definitions
+│       ├── sensor.py           # Sensor platform orchestrator
+│       ├── binary_sensor.py    # Binary sensor platform orchestrator
+│       ├── climate.py          # Climate platform orchestrator
+│       ├── water_heater.py     # Water heater platform orchestrator
+│       ├── switch.py           # Switch platform orchestrator
+│       ├── select.py           # Select platform orchestrator
+│       ├── number.py           # Number platform orchestrator
+│       ├── button.py           # Button platform orchestrator
+│       ├── const.py            # Constants
+│       └── manifest.json       # Integration manifest
+├── scripts/                    # Development scripts
+├── tests/                      # Test files
+│   ├── domain/                 # Domain layer unit tests (pure Python)
+│   │   └── services/
+│   │       └── thermal/        # Thermal service tests
+│   ├── profiles/               # Profile detection tests
+│   ├── test_entity_migration.py
+│   └── test_modbus_api.py
+└── documentation/              # Architecture and investigation docs
 ```
 
 ### Setting Up Development Environment
@@ -358,20 +519,41 @@ cd hitachi_yutaki
 
 2. Set up the development environment:
 ```bash
-chmod +x scripts/setup
-./scripts/setup
+make setup
 ```
 
 3. Start Home Assistant in development mode:
 ```bash
-./scripts/develop
+make ha-run
 ```
 
-Additional development scripts:
-- `./scripts/lint` - Run code linting
-- `./scripts/dev-branch` - Install development branch of Home Assistant
-- `./scripts/specific-version` - Install specific Home Assistant version
-- `./scripts/upgrade` - Upgrade to latest Home Assistant version
+Home Assistant will be available at `http://localhost:8123`. To use a custom port, add the following to `config/configuration.yaml`:
+```yaml
+http:
+  server_port: 9125
+```
+
+Available `make` targets (run `make help` to list all):
+
+| Target | Description |
+|--------|-------------|
+| `make install` | Install all dependencies (dev included) |
+| `make setup` | Full project setup (deps + pre-commit hooks) |
+| `make upgrade-deps` | Upgrade all deps (HA version follows `pytest-homeassistant-custom-component`) |
+| `make lint` | Run ruff linter with auto-fix |
+| `make format` | Run ruff formatter |
+| `make check` | Run all code quality checks (lint + format) |
+| `make test` | Run all tests |
+| `make test-domain` | Run domain layer tests only (pure Python, no HA) |
+| `make test-coverage` | Run tests with coverage report |
+| `make ha-run` | Start a local HA dev instance with debug config |
+| `make ha-upgrade` | Temporary HA upgrade (reset by `make install`) |
+| `make ha-dev-branch` | Temporary HA dev branch (reset by `make install`) |
+| `make ha-version` | Temporary HA specific version (reset by `make install`) |
+| `make bump` | Bump version (last numeric segment) |
+| `make version` | Show current version |
+
+> **Note**: The Home Assistant version in the dev environment is controlled by `pytest-homeassistant-custom-component` via the lockfile. Use `make upgrade-deps` to update it. The `ha-upgrade`, `ha-dev-branch`, and `ha-version` targets are temporary overrides for ad-hoc testing — `make install` will restore the lockfile version.
 
 ### Pre-commit Hooks
 

@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from pymodbus.client import ModbusTcpClient
 from pymodbus.exceptions import ConnectionException, ModbusException
 import voluptuous as vol
 
@@ -22,10 +21,12 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 import homeassistant.helpers.config_validation as cv
 
+from .api import GATEWAY_INFO, create_register_map
 from .const import (
-    CENTRAL_CONTROL_MODE_MAP,
+    CONF_ENERGY_ENTITY,
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
+    CONF_UNIT_ID,
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
@@ -35,15 +36,25 @@ from .const import (
     DEFAULT_POWER_SUPPLY,
     DEFAULT_SCAN_INTERVAL,
     DEFAULT_SLAVE,
+    DEFAULT_UNIT_ID,
     DOMAIN,
-    REGISTER_CENTRAL_CONTROL_MODE,
-    REGISTER_SYSTEM_CONFIG,
-    REGISTER_SYSTEM_STATE,
-    REGISTER_UNIT_MODEL,
-    get_pymodbus_device_param,
 )
+from .profiles import PROFILES
 
 _LOGGER = logging.getLogger(__name__)
+
+# Schema for gateway selection
+GATEWAY_SELECTION_SCHEMA = vol.Schema(
+    {
+        vol.Required("gateway_type"): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=list(GATEWAY_INFO.keys()),
+                mode=selector.SelectSelectorMode.DROPDOWN,
+                translation_key="gateway_type",
+            ),
+        )
+    }
+)
 
 # Basic schema for gateway configuration
 GATEWAY_SCHEMA = vol.Schema(
@@ -75,6 +86,12 @@ POWER_SCHEMA = vol.Schema(
             selector.EntitySelectorConfig(
                 domain=["sensor"],
                 device_class=["power"],
+            ),
+        ),
+        vol.Optional(CONF_ENERGY_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain=["sensor"],
+                device_class=["energy"],
             ),
         ),
         vol.Optional(CONF_WATER_INLET_TEMP_ENTITY): selector.EntitySelector(
@@ -109,12 +126,15 @@ ADVANCED_SCHEMA = vol.Schema(
 class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
 
-    VERSION = 1
+    VERSION = 2
     MINOR_VERSION = 1
 
     def __init__(self):
         """Initialize the config flow."""
+        self.gateway_type: str | None = None
         self.basic_config: dict[str, Any] = {}
+        self.all_data: dict[str, Any] = {}
+        self.detected_profiles: list[str] = []
         self.show_advanced = False
 
     @staticmethod
@@ -133,7 +153,19 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle the initial step."""
+        """Handle the initial step (gateway selection)."""
+        if user_input is not None:
+            self.gateway_type = user_input["gateway_type"]
+            return await self.async_step_gateway_config()
+
+        return self.async_show_form(
+            step_id="user", data_schema=GATEWAY_SELECTION_SCHEMA
+        )
+
+    async def async_step_gateway_config(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle gateway configuration."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -143,18 +175,113 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 CONF_NAME: user_input[CONF_NAME],
                 CONF_PORT: user_input[CONF_PORT],
             }
-
+            # Store unit_id for HC-A(16/64)MB
+            if self.gateway_type == "modbus_hc_a_mb":
+                self.basic_config[CONF_UNIT_ID] = user_input.get(
+                    CONF_UNIT_ID, DEFAULT_UNIT_ID
+                )
             # Store advanced mode preference
             self.show_advanced = user_input["show_advanced"]
 
+            # Validate connection and read all data for detection
+            api_client_class = GATEWAY_INFO[self.gateway_type].client_class
+            register_map = create_register_map(
+                self.gateway_type,
+                self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+            )
+            api_client = api_client_class(
+                self.hass,
+                name=user_input[CONF_NAME],
+                host=user_input[CONF_HOST],
+                port=user_input[CONF_PORT],
+                slave=DEFAULT_SLAVE,  # Use default for initial check
+                register_map=register_map,
+            )
+            try:
+                if not await api_client.connect():
+                    errors["base"] = "cannot_connect"
+                else:
+                    _LOGGER.debug(
+                        "Fetching all values to allow profiles to detect device"
+                    )
+                    keys_to_read = api_client.register_map.base_keys
+                    await api_client.read_values(keys_to_read)
+                    all_data = {
+                        key: await api_client.read_value(key) for key in keys_to_read
+                    }
+
+                    # Decode the raw config to get boolean flags
+                    decoded_data = api_client.decode_config(all_data)
+
+                    _LOGGER.debug("Detecting profile with data: %s", decoded_data)
+                    detected_profiles = [
+                        key
+                        for key, profile in PROFILES.items()
+                        if profile.detect(decoded_data)
+                    ]
+
+                    _LOGGER.debug("Detected profiles: %s", detected_profiles)
+                    self.detected_profiles = detected_profiles
+
+                    if not detected_profiles:
+                        _LOGGER.warning(
+                            "No profile detected, showing all available profiles"
+                        )
+                    return await self.async_step_profile()
+            except (ModbusException, ConnectionException, OSError):
+                errors["base"] = "cannot_connect"
+            finally:
+                if api_client.connected:
+                    await api_client.close()
+
+        # Build schema dynamically based on gateway type
+        schema = GATEWAY_SCHEMA
+        if self.gateway_type == "modbus_hc_a_mb":
+            schema = schema.extend(
+                {
+                    vol.Required(CONF_UNIT_ID, default=DEFAULT_UNIT_ID): vol.All(
+                        vol.Coerce(int), vol.Range(min=0, max=15)
+                    ),
+                }
+            )
+
+        return self.async_show_form(
+            step_id="gateway_config",
+            data_schema=schema,
+            errors=errors,
+        )
+
+    async def async_step_profile(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle profile selection."""
+        if user_input is not None:
+            self.basic_config["profile"] = user_input["profile"]
             # Go to power supply step
             return await self.async_step_power()
 
-        return self.async_show_form(
-            step_id="user",
-            data_schema=GATEWAY_SCHEMA,
-            errors=errors,
+        # Schema for profile selection
+        # Show all available profiles so user can manually select their machine
+        profile_options = list(PROFILES.keys())
+        # Use first detected profile if available, otherwise use UNDEFINED to force user selection
+        default_profile = (
+            self.detected_profiles[0] if self.detected_profiles else vol.UNDEFINED
         )
+        PROFILE_SCHEMA = vol.Schema(
+            {
+                vol.Required(
+                    "profile", default=default_profile
+                ): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=profile_options,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                        translation_key="profile",
+                    )
+                )
+            }
+        )
+
+        return self.async_show_form(step_id="profile", data_schema=PROFILE_SCHEMA)
 
     async def async_step_power(
         self, user_input: dict[str, Any] | None = None
@@ -171,6 +298,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # Otherwise, proceed with default values
             return await self.async_validate_connection(
                 {
+                    "gateway_type": self.gateway_type,
                     **self.basic_config,
                     CONF_SLAVE: DEFAULT_SLAVE,
                     CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
@@ -193,6 +321,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             # Combine basic and advanced configurations
             complete_config = {
+                "gateway_type": self.gateway_type,
                 **self.basic_config,
                 **user_input,
             }
@@ -208,161 +337,73 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Validate the Modbus connection."""
         errors: dict[str, str] = {}
 
+        api_client_class = GATEWAY_INFO[config["gateway_type"]].client_class
+        register_map = create_register_map(
+            config["gateway_type"],
+            config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+        )
+        api_client = api_client_class(
+            self.hass,
+            name=config[CONF_NAME],
+            host=config[CONF_HOST],
+            port=config[CONF_PORT],
+            slave=config[CONF_SLAVE],
+            register_map=register_map,
+        )
+
         try:
-            client = ModbusTcpClient(
-                host=config[CONF_HOST],
-                port=config[CONF_PORT],
-            )
-
-            if not client.connect():
+            if not await api_client.connect():
                 errors["base"] = "cannot_connect"
-                return self.async_show_form(
-                    step_id="advanced" if "show_advanced" in config else "user",
-                    data_schema=ADVANCED_SCHEMA
-                    if "show_advanced" in config
-                    else GATEWAY_SCHEMA,
-                    errors=errors,
-                )
+            else:
+                # Use the update method to fetch initial data for validation
+                await api_client.read_values(api_client.register_map.gateway_keys)
 
-            try:
-                # Preflight check for system state
-                device_param = get_pymodbus_device_param()
-                preflight_result = await self.hass.async_add_executor_job(
-                    lambda addr=REGISTER_SYSTEM_STATE: client.read_holding_registers(
-                        address=addr,
-                        count=1,
-                        **{device_param: config[CONF_SLAVE]},
-                    )
-                )
-
-                if preflight_result.isError():
-                    errors["base"] = "invalid_slave"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                system_state = preflight_result.registers[0]
-
+                system_state = await api_client.read_value("system_state")
                 if system_state == 2:  # Data init
                     errors["base"] = "system_initializing"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                if system_state == 1:  # Desync
+                elif system_state == 1:  # Desync
                     errors["base"] = "desync_error"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
+                else:
+                    # Further checks can be added here if needed
+                    model_key = await api_client.get_model_key()
+                    if model_key:
+                        # Try to get hardware-based unique_id from Modbus input registers
+                        hw_id = await api_client.async_get_unique_id()
 
-                # Verify the device by checking unit model
-                result = await self.hass.async_add_executor_job(
-                    lambda addr=REGISTER_UNIT_MODEL: client.read_holding_registers(
-                        address=addr,
-                        count=1,
-                        **{device_param: config[CONF_SLAVE]},
-                    )
-                )
+                        if hw_id:
+                            # Use hardware identifier with domain prefix
+                            unique_id = f"{DOMAIN}_{hw_id}"
+                            _LOGGER.info(
+                                "Gateway hardware identifier detected: %s",
+                                unique_id,
+                            )
+                        else:
+                            # Fallback to IP+slave if Modbus read failed
+                            unique_id = f"{config[CONF_HOST]}_{config[CONF_SLAVE]}"
+                            _LOGGER.warning(
+                                "Could not retrieve gateway hardware identifier. "
+                                "Using IP-based unique_id: %s. "
+                                "Duplicate detection will be limited.",
+                                unique_id,
+                            )
 
-                if result.isError():
-                    errors["base"] = "invalid_slave"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
+                        await self.async_set_unique_id(unique_id)
+                        self._abort_if_unique_id_configured()
 
-                unit_model = result.registers[0]
+                        return self.async_create_entry(
+                            title=config[CONF_NAME],
+                            data={
+                                k: v for k, v in config.items() if k != "show_advanced"
+                            },
+                        )
+                    else:
+                        errors["base"] = "invalid_slave"
 
-                # Check central control mode
-                mode_result = await self.hass.async_add_executor_job(
-                    lambda addr=REGISTER_CENTRAL_CONTROL_MODE: client.read_holding_registers(
-                        address=addr,
-                        count=1,
-                        **{device_param: config[CONF_SLAVE]},
-                    )
-                )
-
-                if mode_result.isError():
-                    errors["base"] = "modbus_error"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                if mode_result.registers[0] == CENTRAL_CONTROL_MODE_MAP["local"]:
-                    errors["base"] = "invalid_central_control_mode"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                # Read system configuration to store it
-                system_config_result = await self.hass.async_add_executor_job(
-                    lambda addr=REGISTER_SYSTEM_CONFIG: client.read_holding_registers(
-                        address=addr,
-                        count=1,
-                        **{device_param: config[CONF_SLAVE]},
-                    )
-                )
-
-                if system_config_result.isError():
-                    errors["base"] = "modbus_error"
-                    return self.async_show_form(
-                        step_id="advanced" if "show_advanced" in config else "user",
-                        data_schema=ADVANCED_SCHEMA
-                        if "show_advanced" in config
-                        else GATEWAY_SCHEMA,
-                        errors=errors,
-                    )
-
-                system_config = system_config_result.registers[0]
-
-                # Create entry if all validations pass
-                await self.async_set_unique_id(
-                    f"{config[CONF_HOST]}_{config[CONF_SLAVE]}"
-                )
-                self._abort_if_unique_id_configured()
-
-                config["unit_model"] = unit_model
-                config["system_config"] = system_config
-
-                return self.async_create_entry(
-                    title=config[CONF_NAME],
-                    data={k: v for k, v in config.items() if k != "show_advanced"},
-                )
-
-            except ModbusException:
-                errors["base"] = "modbus_error"
-            finally:
-                client.close()
-
-        except ConnectionException:
-            _LOGGER.exception("Connection exception")
-            errors["base"] = "unknown"
-        except OSError:
-            _LOGGER.exception("OS error")
-            errors["base"] = "unknown"
+        except (ModbusException, ConnectionException, OSError):
+            errors["base"] = "cannot_connect"
+        finally:
+            if api_client.connected:
+                await api_client.close()
 
         return self.async_show_form(
             step_id="advanced" if "show_advanced" in config else "user",
@@ -374,41 +415,114 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
-    """Handle options."""
+    """Handle options as a multi-step flow mirroring initial setup."""
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
+        self._collected: dict[str, Any] = {}
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Manage the options."""
+        """Step 1: Gateway type selection."""
         if user_input is not None:
-            return self.async_create_entry(title="", data=user_input)
+            self._collected.update(user_input)
+            return await self.async_step_connection()
 
-        # Access the current entry using the base class attribute
-        # available during option flows.
-        config_data = self.config_entry.data  # type: ignore[attr-defined]
-        options_data = self.config_entry.options  # type: ignore[attr-defined]
+        current_gateway = self.config_entry.data.get(
+            "gateway_type", "modbus_atw_mbs_02"
+        )
 
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
                     vol.Required(
-                        CONF_HOST,
-                        default=options_data.get(CONF_HOST, config_data.get(CONF_HOST)),
-                    ): str,
+                        "gateway_type", default=current_gateway
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=list(GATEWAY_INFO.keys()),
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                            translation_key="gateway_type",
+                        ),
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_connection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 2: Connection settings."""
+        if user_input is not None:
+            self._collected.update(user_input)
+            return await self.async_step_profile()
+
+        data = self.config_entry.data
+
+        return self.async_show_form(
+            step_id="connection",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_HOST, default=data.get(CONF_HOST)): str,
+                    vol.Required(CONF_PORT, default=data.get(CONF_PORT)): cv.port,
+                }
+            ),
+        )
+
+    async def async_step_profile(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 3: Profile selection."""
+        if user_input is not None:
+            self._collected.update(user_input)
+            return await self.async_step_sensors()
+
+        current_profile = self.config_entry.data.get("profile", vol.UNDEFINED)
+
+        return self.async_show_form(
+            step_id="profile",
+            data_schema=vol.Schema(
+                {
                     vol.Required(
-                        CONF_PORT,
-                        default=options_data.get(CONF_PORT, config_data.get(CONF_PORT)),
-                    ): cv.port,
+                        "profile", default=current_profile
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=list(PROFILES.keys()),
+                            mode=selector.SelectSelectorMode.DROPDOWN,
+                            translation_key="profile",
+                        ),
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_sensors(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 4: Power supply and external sensors."""
+        if user_input is not None:
+            self._collected.update(user_input)
+
+            # Merge collected values into entry.data and reload
+            new_data = {**self.config_entry.data, **self._collected}
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data=new_data
+            )
+            self.hass.async_create_task(
+                self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            )
+            return self.async_create_entry(title="", data={})
+
+        data = self.config_entry.data
+
+        return self.async_show_form(
+            step_id="sensors",
+            data_schema=vol.Schema(
+                {
                     vol.Required(
                         CONF_POWER_SUPPLY,
-                        default=options_data.get(
-                            CONF_POWER_SUPPLY,
-                            config_data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
-                        ),
+                        default=data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
                             options=["single", "three"],
@@ -418,8 +532,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_VOLTAGE_ENTITY,
                         default=(
-                            options_data.get(CONF_VOLTAGE_ENTITY)
-                            if options_data.get(CONF_VOLTAGE_ENTITY) is not None
+                            data.get(CONF_VOLTAGE_ENTITY)
+                            if data.get(CONF_VOLTAGE_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
@@ -430,8 +544,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_POWER_ENTITY,
                         default=(
-                            options_data.get(CONF_POWER_ENTITY)
-                            if options_data.get(CONF_POWER_ENTITY) is not None
+                            data.get(CONF_POWER_ENTITY)
+                            if data.get(CONF_POWER_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
@@ -441,11 +555,23 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                         ),
                     ),
                     vol.Optional(
+                        CONF_ENERGY_ENTITY,
+                        default=(
+                            data.get(CONF_ENERGY_ENTITY)
+                            if data.get(CONF_ENERGY_ENTITY) is not None
+                            else vol.UNDEFINED
+                        ),
+                    ): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["sensor"],
+                            device_class=["energy"],
+                        ),
+                    ),
+                    vol.Optional(
                         CONF_WATER_INLET_TEMP_ENTITY,
                         default=(
-                            options_data.get(CONF_WATER_INLET_TEMP_ENTITY)
-                            if options_data.get(CONF_WATER_INLET_TEMP_ENTITY)
-                            is not None
+                            data.get(CONF_WATER_INLET_TEMP_ENTITY)
+                            if data.get(CONF_WATER_INLET_TEMP_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(
@@ -457,9 +583,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     vol.Optional(
                         CONF_WATER_OUTLET_TEMP_ENTITY,
                         default=(
-                            options_data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
-                            if options_data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
-                            is not None
+                            data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
+                            if data.get(CONF_WATER_OUTLET_TEMP_ENTITY) is not None
                             else vol.UNDEFINED
                         ),
                     ): selector.EntitySelector(

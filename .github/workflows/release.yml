@@ -10,7 +10,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -23,7 +23,7 @@ jobs:
           cd ${{ github.workspace }}/custom_components/hitachi_yutaki
           zip hitachi_yutaki.zip -r ./
       - name: Upload zip to release
-        uses: svenstaro/upload-release-action@2.11.2
+        uses: svenstaro/upload-release-action@2.11.3
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: ${{ github.workspace }}/custom_components/hitachi_yutaki/hitachi_yutaki.zip
