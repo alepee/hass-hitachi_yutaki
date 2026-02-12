@@ -7,27 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
-- **Minimum Home Assistant version** raised to 2025.1.0 to align with `WaterHeaterEntityDescription` component signature
-- **Minimum Python version** raised to 3.13
-- **CI tests against min and latest HA versions** via matrix (HA 2025.1.0 and latest)
+## [2.0.0] - 2026-02-12
 
-## [2.0.0-rc.2] - 2026-02-12
-
-### Added
-- **Outdoor unit registers for HC-A(16/64)MB gateway** ([#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96)) — Compressor frequency, current, discharge/liquid/gas/evaporator temperatures, and expansion valve openings now available on HC-A-MB gateways
-- **Annotated Modbus register scanner** — New `scripts/scan_gateway.py` tool with `make scan` target for diagnosing register values across all gateway types, with human-readable annotations and scan reference documentation
-
-### Changed
-- **Thermal energy classification uses operation mode** ([#196](https://github.com/alepee/hass-hitachi_yutaki/discussions/196)) — DHW and pool cycles now force heating classification regardless of ΔT sign, preventing transient negative deltas from being incorrectly counted as cooling energy
-- **Sensor subclasses extracted into dedicated package** — `entities/base/sensor.py` split into `entities/base/sensor/` package with specialized subclasses (COP, thermal, timing) for better maintainability
-
-### Fixed
-- **Anti-legionella temperature range** ([#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178)) — DHW anti-legionella target temperature now uses profile-based min/max instead of hardcoded values, respecting each model's actual capabilities
-
-## [2.0.0-rc.1] - 2026-02-09
-
-This is the first Release Candidate for v2.0.0 — a major rewrite of the integration with hexagonal architecture, multi-gateway support, and significantly improved accuracy for thermal and COP calculations.
+A major rewrite of the integration with hexagonal architecture, multi-gateway support, and significantly improved accuracy for thermal and COP calculations.
 
 ### Highlights
 
@@ -38,6 +20,7 @@ This is the first Release Candidate for v2.0.0 — a major rewrite of the integr
 
 ### Added
 - **HC-A(16/64)MB gateway support** — New Modbus gateway type alongside ATW-MBS-02. Both HC-A16MB and HC-A64MB are protocol-identical (same registers, same features — only the capacity differs: 16 vs 64 indoor units). Introduces a register abstraction layer (`HitachiRegisterMap` ABC) enabling polymorphic gateway support with separate read/write address ranges, unit_id-based address computation, and gateway-specific deserialization
+- **Outdoor unit registers for HC-A(16/64)MB gateway** ([#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96)) — Compressor frequency, current, discharge/liquid/gas/evaporator temperatures, and expansion valve openings now available on HC-A-MB gateways
 - **New heat pump profiles** — YCC and Yutaki SC Lite profiles for models only available via HC-A(16/64)MB gateway
 - **External energy sensor (`energy_entity`)** — New optional configuration to replace the Modbus power consumption register with an external lifetime energy sensor (`device_class=energy`, kWh, `TOTAL_INCREASING`). The `power_consumption` entity exposes a `source` attribute for transparency
 - **`set_room_temperature` service** — New entity platform service to write measured room temperature to the heat pump via climate entities, enabling automations when the Modbus thermostat is enabled
@@ -57,14 +40,20 @@ This is the first Release Candidate for v2.0.0 — a major rewrite of the integr
 - **Automatic entity migration** — Seamless upgrade from v1.9.x to 2.0.0 with preserved entity history and IDs
 - **Functional repair flow** — Dedicated `repairs.py` for 1.9.x → 2.0.0 migration with automatic integration reload
 - **Hardware-based unique_id** ([#162](https://github.com/alepee/hass-hitachi_yutaki/issues/162)) — Config entries use gateway hardware identifier (Modbus Input Registers 0-2) instead of IP+slave, preventing duplicates and surviving DHCP changes
+- **Annotated Modbus register scanner** — New `scripts/scan_gateway.py` tool with `make scan` target for diagnosing register values across all gateway types, with human-readable annotations and scan reference documentation
 
 ### Changed
+- **Minimum Home Assistant version** raised to 2025.1.0 to align with `WaterHeaterEntityDescription` component signature
+- **Minimum Python version** raised to 3.13
+- **CI tests against min and latest HA versions** via matrix (HA 2025.1.0 and latest)
 - **Complete platform refactoring** to domain-driven architecture — all platform files act as pure orchestrators
 - **Entity organization** moved from technical grouping to business domain grouping
 - **Modbus register organization** by logical device for improved clarity
 - **Alarm sensor** displays descriptions as state with numeric codes as attributes
 - **Storage strategy** — COP and compressor data relies on HA Recorder instead of custom storage
 - **Thermal service** split into modular package: `calculators.py`, `accumulator.py`, `service.py`, `constants.py`
+- **Thermal energy classification uses operation mode** ([#196](https://github.com/alepee/hass-hitachi_yutaki/discussions/196)) — DHW and pool cycles now force heating classification regardless of ΔT sign, preventing transient negative deltas from being incorrectly counted as cooling energy
+- **Sensor subclasses extracted into dedicated package** — `entities/base/sensor.py` split into `entities/base/sensor/` package with specialized subclasses (COP, thermal, timing) for better maintainability
 - **Register map factory** extracted into `api/__init__.py`, eliminating duplication
 - **⚠️ BREAKING: Thermal energy calculation logic** ([#123](https://github.com/alepee/hass-hitachi_yutaki/issues/123)):
   - Correctly separates heating (ΔT > 0) from cooling (ΔT < 0)
@@ -86,6 +75,7 @@ This is the first Release Candidate for v2.0.0 — a major rewrite of the integr
 - Redundant climate number entities (target_temp, current_temp) — now handled by climate entity
 
 ### Fixed
+- **Anti-legionella temperature range** ([#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178)) — DHW anti-legionella target temperature now uses profile-based min/max instead of hardcoded values, respecting each model's actual capabilities
 - **COP DHW identical to COP Heating** ([#191](https://github.com/alepee/hass-hitachi_yutaki/issues/191)) — COP sensors now use `operation_state` to differentiate heating, DHW, cooling, and pool cycles
 - **Anti-legionella binary sensor** ([#178](https://github.com/alepee/hass-hitachi_yutaki/issues/178)) — Read from STATUS registers instead of CONTROL registers
 - **Cooling capability detection** ([#177](https://github.com/alepee/hass-hitachi_yutaki/issues/177)) — Fixed system_config bitmask order regression from v1.9.x
@@ -99,7 +89,6 @@ This is the first Release Candidate for v2.0.0 — a major rewrite of the integr
 - **Unit power switch** "Unknown" state due to inconsistent condition checks
 - **COP measurement period** — Fixed negative time span values
 - **Legacy entities** — Automatic migration with preserved history
-
 
 ## [1.9.3] - 2025-10-06
 
