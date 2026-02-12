@@ -4,5 +4,6 @@ set -e
 
 cd "$(dirname "$0")/.."
 
+echo "⚠ Temporary override — 'make install' will restore the lockfile version."
 read -p 'Set Home Assistant version: ' -r version
-python3 -m pip --disable-pip-version-check install --upgrade homeassistant=="$version"
+uv pip install --upgrade homeassistant=="$version"

@@ -1,8 +1,0 @@
-colorlog==6.10.1
-homeassistant
-pip>=21.0,<25.4
-ruff==0.14.14
-pre-commit==4.5.1
-bump2version==1.0.1
-
-pymodbus>=3.6.9,<4.0.0

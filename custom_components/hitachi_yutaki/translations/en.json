@@ -26,6 +26,23 @@
     }
   },
   "selector": {
+    "gateway_type": {
+      "options": {
+        "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
+        "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
+      }
+    },
+    "profile": {
+      "options": {
+        "yutaki_s": "Yutaki S",
+        "yutaki_s_combi": "Yutaki S Combi",
+        "yutaki_s80": "Yutaki S80",
+        "yutaki_m": "Yutaki M",
+        "yutampo_r32": "Yutampo R32",
+        "yutaki_sc_lite": "Yutaki SC Lite",
+        "ycc": "YCC"
+      }
+    },
     "power_supply": {
       "options": {
         "single": "Single phase",
@@ -36,16 +53,45 @@
   "options": {
     "step": {
       "init": {
-        "title": "Hitachi Yutaki Options",
-        "description": "Update your Hitachi Yutaki configuration.",
+        "title": "Hitachi Yutaki Gateway",
+        "description": "Select the gateway type for your Hitachi Yutaki heat pump.",
+        "data": {
+          "gateway_type": "Gateway Type"
+        }
+      },
+      "connection": {
+        "title": "Connection Settings",
+        "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
         "data": {
           "host": "Host/IP Address",
-          "port": "Port",
+          "port": "Port"
+        }
+      },
+      "profile": {
+        "title": "Heat Pump Model",
+        "description": "Select your heat pump model.",
+        "data": {
+          "profile": "Heat Pump Model"
+        }
+      },
+      "sensors": {
+        "title": "Power and Sensors Configuration",
+        "description": "Configure power supply and external sensors.",
+        "data": {
           "power_supply": "Power Supply",
           "voltage_entity": "Voltage Sensor (Optional)",
           "power_entity": "Power Sensor (Optional)",
+          "energy_entity": "Energy Sensor (Optional)",
           "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
           "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
+        }
+      },
+      "repair": {
+        "title": "Repair Hitachi Yutaki Configuration",
+        "description": "Your Hitachi Yutaki integration is missing required configuration parameters. Please select the missing parameters to continue.",
+        "data": {
+          "gateway_type": "Gateway Type",
+          "profile": "Heat Pump Profile"
         }
       }
     }
@@ -54,12 +100,27 @@
     "step": {
       "user": {
         "title": "Hitachi Yutaki Gateway",
+        "description": "Select the gateway type for your Hitachi Yutaki heat pump.",
+        "data": {
+          "gateway_type": "Gateway Type"
+        }
+      },
+      "gateway_config": {
+        "title": "Connection Settings",
         "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
         "data": {
           "name": "Name",
           "host": "Host/IP Address",
           "port": "Port",
+          "unit_id": "Unit ID (HC-A(16/64)MB only, 0-15)",
           "show_advanced": "Show advanced options"
+        }
+      },
+      "profile": {
+        "title": "Heat Pump Model",
+        "description": "Select your heat pump model. The integration will try to auto-detect it, but you can change it manually if needed.",
+        "data": {
+          "profile": "Heat Pump Model"
         }
       },
       "power": {
@@ -69,6 +130,7 @@
           "power_supply": "Power Supply",
           "voltage_entity": "Voltage Sensor (Optional)",
           "power_entity": "Power Sensor (Optional)",
+          "energy_entity": "Energy Sensor (Optional)",
           "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
           "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
         }
@@ -167,102 +229,98 @@
       "power_consumption": {
         "name": "Power Consumption"
       },
-      "alarm_code": {
-        "name": "Alarm Code",
-        "state_attributes": {
-          "description": {
-            "state": {
-              "alarm_code_0": "No Alarm",
-              "alarm_code_2": "Activation of outdoor unit safety device",
-              "alarm_code_3": "Abnormal transmission between indoor units and outdoor unit",
-              "alarm_code_4": "Abnormal transmission between outdoor unit control PCB and inverter PCB",
-              "alarm_code_5": "Phase detection signal abnormal operation code",
-              "alarm_code_6": "Excessively low or high voltage for inverter",
-              "alarm_code_7": "Decrease in discharge gas superheat",
-              "alarm_code_8": "Excessive discharge gas temperature at top of compressor",
-              "alarm_code_11": "Water inlet temperature thermistor abnormality (THMWI)",
-              "alarm_code_12": "Water outlet temperature thermistor abnormality (THMWO)",
-              "alarm_code_13": "Indoor R410A liquid pipe temperature thermistor abnormality (THML)",
-              "alarm_code_14": "Indoor R410A gas pipe temperature thermistor abnormality (THMG)",
-              "alarm_code_15": "Circuit 2 water outlet temperature thermistor abnormality (THMWO2)",
-              "alarm_code_16": "DHW temperature thermistor abnormality (THMDHW)",
-              "alarm_code_17": "Auxiliary sensor 2 abnormality (THMAUX2)",
-              "alarm_code_18": "Universal sensor abnormality",
-              "alarm_code_19": "Temperature thermistor abnormality",
-              "alarm_code_20": "Discharge gas temperature thermistor abnormality",
-              "alarm_code_21": "High pressure sensor abnormality",
-              "alarm_code_22": "Outdoor temperature thermistor abnormality (THM7)",
-              "alarm_code_23": "Discharge gas temperature thermistor abnormality (THM9)",
-              "alarm_code_24": "Evaporation temperature thermistor abnormality during heating (THM8)",
-              "alarm_code_25": "Auxiliary sensor 3 abnormality (THMAUX3)",
-              "alarm_code_26": "Power or combined power setting error between indoor and outdoor unit",
-              "alarm_code_35": "Power or combined power setting error between indoor and outdoor unit",
-              "alarm_code_36": "Power or combined power setting error between indoor and outdoor unit",
-              "alarm_code_38": "Protection circuit abnormality (outdoor unit)",
-              "alarm_code_40": "Incorrect unit controller setting",
-              "alarm_code_41": "High pressure switch overload",
-              "alarm_code_42": "Heating overload (high pressure switch must be activated)",
-              "alarm_code_45": "High pressure increase protection activation",
-              "alarm_code_47": "System protection activation against insufficient suction pressure",
-              "alarm_code_48": "Overcurrent protection activation",
-              "alarm_code_51": "Current sensor abnormal operation",
-              "alarm_code_53": "Transistor module activation",
-              "alarm_code_54": "Inverter fin temperature abnormality",
-              "alarm_code_57": "Fan motor protection abnormality (DC fan motor)",
-              "alarm_code_70": "Water flow alarm and water pump malfunction",
-              "alarm_code_72": "Water heater thermostat alarm",
-              "alarm_code_73": "Mixed circuit maximum temperature limit protection",
-              "alarm_code_74": "Unit temperature limit protection",
-              "alarm_code_75": "Anti-freeze protection by cold water inlet/outlet temperature detection",
-              "alarm_code_76": "Anti-freeze protection stop by indoor liquid temperature thermistor",
-              "alarm_code_77": "Smart wireless receiver communication fault",
-              "alarm_code_78": "RF communication fault",
-              "alarm_code_79": "Incorrect power setting",
-              "alarm_code_80": "H-LINK remote control communication fault",
-              "alarm_code_81": "Momentary power interruption or Low voltage detected",
-              "alarm_code_83": "Low pressure abnormality in hydraulic circuit",
-              "alarm_code_101": "High pressure switch activation command",
-              "alarm_code_102": "Excessive high pressure protection control activation",
-              "alarm_code_104": "Low pressure protection control activation",
-              "alarm_code_105": "Excessive low pressure difference",
-              "alarm_code_106": "Excessive discharge gas temperature",
-              "alarm_code_129": "Discharge gas pressure sensor failure",
-              "alarm_code_130": "Suction gas pressure sensor failure",
-              "alarm_code_132": "Transmission error between inverter PCB and main PCB",
-              "alarm_code_134": "Power source phase abnormality control",
-              "alarm_code_135": "Incorrect PCB setting",
-              "alarm_code_151": "Inverter voltage abnormality control",
-              "alarm_code_152": "Current sensor abnormal operation",
-              "alarm_code_153": "Inverter overcurrent protection activation (I)",
-              "alarm_code_154": "Transistor module protection activation",
-              "alarm_code_155": "Inverter fin abnormality control",
-              "alarm_code_156": "Inverter failure",
-              "alarm_code_157": "Other abnormalities",
-              "alarm_code_202": "Incorrect PC-ARF HE controller settings",
-              "alarm_code_203": "Slave PC-ARFHE stop in response to master PC-ARFHE",
-              "alarm_code_204": "Indoor unit loses communication with master PC-ARFHE",
-              "alarm_code_205": "Central alarm, no central message"
-            }
-          }
+      "alarm": {
+        "name": "Alarm",
+        "state": {
+          "alarm_code_0": "No Alarm",
+          "alarm_code_2": "Activation of outdoor unit safety device",
+          "alarm_code_3": "Abnormal transmission between indoor units and outdoor unit",
+          "alarm_code_4": "Abnormal transmission between outdoor unit control PCB and inverter PCB",
+          "alarm_code_5": "Phase detection signal abnormal operation code",
+          "alarm_code_6": "Excessively low or high voltage for inverter",
+          "alarm_code_7": "Decrease in discharge gas superheat",
+          "alarm_code_8": "Excessive discharge gas temperature at top of compressor",
+          "alarm_code_11": "Water inlet temperature thermistor abnormality (THMWI)",
+          "alarm_code_12": "Water outlet temperature thermistor abnormality (THMWO)",
+          "alarm_code_13": "Indoor R410A liquid pipe temperature thermistor abnormality (THML)",
+          "alarm_code_14": "Indoor R410A gas pipe temperature thermistor abnormality (THMG)",
+          "alarm_code_15": "Circuit 2 water outlet temperature thermistor abnormality (THMWO2)",
+          "alarm_code_16": "DHW temperature thermistor abnormality (THMDHW)",
+          "alarm_code_17": "Auxiliary sensor 2 abnormality (THMAUX2)",
+          "alarm_code_18": "Universal sensor abnormality",
+          "alarm_code_19": "Temperature thermistor abnormality",
+          "alarm_code_20": "Discharge gas temperature thermistor abnormality",
+          "alarm_code_21": "High pressure sensor abnormality",
+          "alarm_code_22": "Outdoor temperature thermistor abnormality (THM7)",
+          "alarm_code_23": "Discharge gas temperature thermistor abnormality (THM9)",
+          "alarm_code_24": "Evaporation temperature thermistor abnormality during heating (THM8)",
+          "alarm_code_25": "Auxiliary sensor 3 abnormality (THMAUX3)",
+          "alarm_code_26": "Power or combined power setting error between indoor and outdoor unit",
+          "alarm_code_35": "Power or combined power setting error between indoor and outdoor unit",
+          "alarm_code_36": "Power or combined power setting error between indoor and outdoor unit",
+          "alarm_code_38": "Protection circuit abnormality (outdoor unit)",
+          "alarm_code_40": "Incorrect unit controller setting",
+          "alarm_code_41": "High pressure switch overload",
+          "alarm_code_42": "Heating overload (high pressure switch must be activated)",
+          "alarm_code_45": "High pressure increase protection activation",
+          "alarm_code_47": "System protection activation against insufficient suction pressure",
+          "alarm_code_48": "Overcurrent protection activation",
+          "alarm_code_51": "Current sensor abnormal operation",
+          "alarm_code_53": "Transistor module activation",
+          "alarm_code_54": "Inverter fin temperature abnormality",
+          "alarm_code_57": "Fan motor protection abnormality (DC fan motor)",
+          "alarm_code_70": "Water flow alarm and water pump malfunction",
+          "alarm_code_72": "Water heater thermostat alarm",
+          "alarm_code_73": "Mixed circuit maximum temperature limit protection",
+          "alarm_code_74": "Unit temperature limit protection",
+          "alarm_code_75": "Anti-freeze protection by cold water inlet/outlet temperature detection",
+          "alarm_code_76": "Anti-freeze protection stop by indoor liquid temperature thermistor",
+          "alarm_code_77": "Smart wireless receiver communication fault",
+          "alarm_code_78": "RF communication fault",
+          "alarm_code_79": "Incorrect power setting",
+          "alarm_code_80": "H-LINK remote control communication fault",
+          "alarm_code_81": "Momentary power interruption or Low voltage detected",
+          "alarm_code_83": "Low pressure abnormality in hydraulic circuit",
+          "alarm_code_101": "High pressure switch activation command",
+          "alarm_code_102": "Excessive high pressure protection control activation",
+          "alarm_code_104": "Low pressure protection control activation",
+          "alarm_code_105": "Excessive low pressure difference",
+          "alarm_code_106": "Excessive discharge gas temperature",
+          "alarm_code_129": "Discharge gas pressure sensor failure",
+          "alarm_code_130": "Suction gas pressure sensor failure",
+          "alarm_code_132": "Transmission error between inverter PCB and main PCB",
+          "alarm_code_134": "Power source phase abnormality control",
+          "alarm_code_135": "Incorrect PCB setting",
+          "alarm_code_151": "Inverter voltage abnormality control",
+          "alarm_code_152": "Current sensor abnormal operation",
+          "alarm_code_153": "Inverter overcurrent protection activation (I)",
+          "alarm_code_154": "Transistor module protection activation",
+          "alarm_code_155": "Inverter fin abnormality control",
+          "alarm_code_156": "Inverter failure",
+          "alarm_code_157": "Other abnormalities",
+          "alarm_code_202": "Incorrect PC-ARF HE controller settings",
+          "alarm_code_203": "Slave PC-ARFHE stop in response to master PC-ARFHE",
+          "alarm_code_204": "Indoor unit loses communication with master PC-ARFHE",
+          "alarm_code_205": "Central alarm, no central message"
         }
       },
-      "r134a_discharge_temp": {
-        "name": "R134a Discharge Temperature"
+      "secondary_compressor_discharge_temp": {
+        "name": "Secondary Compressor Discharge Temperature"
       },
-      "r134a_suction_temp": {
-        "name": "R134a Suction Temperature"
+      "secondary_compressor_suction_temp": {
+        "name": "Secondary Compressor Suction Temperature"
       },
-      "r134a_discharge_pressure": {
-        "name": "R134a Discharge Pressure"
+      "secondary_compressor_discharge_pressure": {
+        "name": "Secondary Compressor Discharge Pressure"
       },
-      "r134a_suction_pressure": {
-        "name": "R134a Suction Pressure"
+      "secondary_compressor_suction_pressure": {
+        "name": "Secondary Compressor Suction Pressure"
       },
-      "r134a_compressor_frequency": {
-        "name": "R134a Compressor Frequency"
+      "secondary_compressor_frequency": {
+        "name": "Secondary Compressor Frequency"
       },
-      "r134a_compressor_current": {
-        "name": "R134a Compressor Current"
+      "secondary_compressor_current": {
+        "name": "Secondary Compressor Current"
       },
       "cop_heating": {
         "name": "Space Heating COP",
@@ -350,59 +408,32 @@
       "compressor_resttime": {
         "name": "Compressor rest time"
       },
-      "r134a_cycle_time": {
-        "name": "R134a compressor cycle time"
+      "secondary_compressor_cycle_time": {
+        "name": "Secondary compressor cycle time"
       },
-      "r134a_runtime": {
-        "name": "R134a compressor runtime"
+      "secondary_compressor_runtime": {
+        "name": "Secondary compressor runtime"
       },
-      "r134a_resttime": {
-        "name": "R134a compressor rest time"
+      "secondary_compressor_resttime": {
+        "name": "Secondary compressor rest time"
       },
-      "thermal_power": {
-        "name": "Thermal Power",
-        "state_attributes": {
-          "last_update": {
-            "name": "Last Update"
-          },
-          "delta_t": {
-            "name": "Delta T"
-          },
-          "water_flow": {
-            "name": "Water Flow"
-          }
-        }
+      "thermal_power_heating": {
+        "name": "Thermal Power Heating"
       },
-      "daily_thermal_energy": {
-        "name": "Daily Thermal Energy",
-        "state_attributes": {
-          "last_reset": {
-            "name": "Last Reset"
-          },
-          "start_time": {
-            "name": "Start Time"
-          },
-          "average_power": {
-            "name": "Average Power"
-          },
-          "time_span_hours": {
-            "name": "Measurement Period (hours)"
-          }
-        }
+      "thermal_power_cooling": {
+        "name": "Thermal Power Cooling"
       },
-      "total_thermal_energy": {
-        "name": "Total Thermal Energy",
-        "state_attributes": {
-          "start_date": {
-            "name": "Start Date"
-          },
-          "average_power": {
-            "name": "Average Power"
-          },
-          "time_span_days": {
-            "name": "Measurement Period (days)"
-          }
-        }
+      "thermal_energy_heating_daily": {
+        "name": "Daily Thermal Energy Heating"
+      },
+      "thermal_energy_heating_total": {
+        "name": "Total Thermal Energy Heating"
+      },
+      "thermal_energy_cooling_daily": {
+        "name": "Daily Thermal Energy Cooling"
+      },
+      "thermal_energy_cooling_total": {
+        "name": "Total Thermal Energy Cooling"
       },
       "system_state": {
         "name": "Gateway Sync State",
@@ -450,8 +481,8 @@
       "compressor_running": {
         "name": "Compressor running"
       },
-      "r134a_compressor_running": {
-        "name": "R134a compressor running"
+      "secondary_compressor_running": {
+        "name": "Secondary compressor running"
       },
       "antilegionella_cycle": {
         "name": "Anti-legionella cycle"
@@ -574,6 +605,18 @@
       }
     }
   },
+  "services": {
+    "set_room_temperature": {
+      "name": "Set room temperature",
+      "description": "Write the measured room temperature to the heat pump. Used when the Modbus thermostat is enabled to provide the ambient temperature reading for thermostat regulation.",
+      "fields": {
+        "temperature": {
+          "name": "Temperature",
+          "description": "The measured room temperature in degrees Celsius."
+        }
+      }
+    }
+  },
   "issues": {
     "desync_warning": {
       "title": "Hitachi Gateway Desynchronized",
@@ -582,6 +625,14 @@
     "connection_error": {
       "title": "Hitachi Gateway Unreachable",
       "description": "The integration could not connect to the Hitachi Yutaki gateway. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check if the gateway is powered on and connected to the network.\n2. Verify that the IP address and port configured in Home Assistant are correct."
+    },
+    "initializing_warning": {
+      "title": "Hitachi Gateway Initializing",
+      "description": "The Hitachi Yutaki gateway is currently initializing. This is normal after a restart and should only take a few minutes. If this warning persists, please try restarting the gateway."
+    },
+    "missing_config": {
+      "title": "Hitachi Yutaki Configuration Incomplete",
+      "description": "Your Hitachi Yutaki integration is missing required configuration parameters (gateway type and/or heat pump profile). The integration cannot be set up until these parameters are configured.\n\n**To resolve this:**\n1. Go to Settings > Devices & Services > Hitachi Yutaki\n2. Click on the integration and select Configure\n3. Select the missing parameters (gateway type and heat pump profile)\n4. Save the configuration"
     }
   }
 }
