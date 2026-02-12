@@ -51,7 +51,7 @@ jobs:
         run: uv sync --group dev
 
       - name: Pin HA ${{ matrix.ha-version }}
-        run: uv pip install pytest-homeassistant-custom-component==${{ matrix.phac-version }}
+        run: uv pip install --prerelease=allow pytest-homeassistant-custom-component==${{ matrix.phac-version }}
 
       - name: Run tests with pytest
         run: uv run pytest
