@@ -1,0 +1,638 @@
+{
+  "device": {
+    "gateway": {
+      "name": "Gateway"
+    },
+    "control_unit": {
+      "name": "Unitate de control"
+    },
+    "primary_compressor": {
+      "name": "Compresor exterior"
+    },
+    "secondary_compressor": {
+      "name": "Compresor interior"
+    },
+    "circuit1": {
+      "name": "Circuit 1"
+    },
+    "circuit2": {
+      "name": "Circuit 2"
+    },
+    "dhw": {
+      "name": "ACM"
+    },
+    "pool": {
+      "name": "Piscină"
+    }
+  },
+  "selector": {
+    "gateway_type": {
+      "options": {
+        "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
+        "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
+      }
+    },
+    "profile": {
+      "options": {
+        "yutaki_s": "Yutaki S",
+        "yutaki_s_combi": "Yutaki S Combi",
+        "yutaki_s80": "Yutaki S80",
+        "yutaki_m": "Yutaki M",
+        "yutampo_r32": "Yutampo R32",
+        "yutaki_sc_lite": "Yutaki SC Lite",
+        "ycc": "YCC"
+      }
+    },
+    "power_supply": {
+      "options": {
+        "single": "Monofazat",
+        "three": "Trifazat"
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Gateway Hitachi Yutaki",
+        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
+        "data": {
+          "gateway_type": "Tip gateway"
+        }
+      },
+      "connection": {
+        "title": "Setări de conexiune",
+        "description": "Introduceți detaliile de conexiune pentru gateway-ul dumneavoastră.",
+        "data": {
+          "host": "Gazdă/Adresă IP",
+          "port": "Port"
+        }
+      },
+      "profile": {
+        "title": "Model pompă de căldură",
+        "description": "Selectați modelul pompei de căldură.",
+        "data": {
+          "profile": "Model pompă de căldură"
+        }
+      },
+      "sensors": {
+        "title": "Configurare alimentare și senzori",
+        "description": "Configurați alimentarea și senzorii externi.",
+        "data": {
+          "power_supply": "Alimentare electrică",
+          "voltage_entity": "Senzor tensiune (opțional)",
+          "power_entity": "Senzor putere (opțional)",
+          "energy_entity": "Contor energie (opțional)",
+          "water_inlet_temp_entity": "Senzor temperatură intrare apă (opțional)",
+          "water_outlet_temp_entity": "Senzor temperatură ieșire apă (opțional)"
+        }
+      },
+      "repair": {
+        "title": "Reparare configurație Hitachi Yutaki",
+        "description": "Integrarea Hitachi Yutaki nu are parametrii de configurare necesari. Selectați parametrii lipsă pentru a continua.",
+        "data": {
+          "gateway_type": "Tip gateway",
+          "profile": "Profil pompă de căldură"
+        }
+      }
+    }
+  },
+  "config": {
+    "step": {
+      "user": {
+        "title": "Gateway Hitachi Yutaki",
+        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
+        "data": {
+          "gateway_type": "Tip gateway"
+        }
+      },
+      "gateway_config": {
+        "title": "Setări de conexiune",
+        "description": "Introduceți detaliile de conexiune pentru gateway-ul pompei de căldură Hitachi Yutaki.",
+        "data": {
+          "name": "Nume",
+          "host": "Gazdă/Adresă IP",
+          "port": "Port",
+          "unit_id": "ID unitate (doar HC-A(16/64)MB, 0-15)",
+          "show_advanced": "Afișare opțiuni avansate"
+        }
+      },
+      "profile": {
+        "title": "Model pompă de căldură",
+        "description": "Selectați modelul pompei de căldură. Integrarea va încerca să îl detecteze automat, dar îl puteți modifica manual dacă este necesar.",
+        "data": {
+          "profile": "Model pompă de căldură"
+        }
+      },
+      "power": {
+        "title": "Configurare alimentare",
+        "description": "Configurați alimentarea și senzorii de temperatură externi.",
+        "data": {
+          "power_supply": "Alimentare electrică",
+          "voltage_entity": "Senzor tensiune (opțional)",
+          "power_entity": "Senzor putere (opțional)",
+          "energy_entity": "Contor energie (opțional)",
+          "water_inlet_temp_entity": "Senzor temperatură intrare apă (opțional)",
+          "water_outlet_temp_entity": "Senzor temperatură ieșire apă (opțional)"
+        }
+      },
+      "advanced": {
+        "title": "Setări avansate",
+        "description": "Configurați setările avansate Modbus și ale integrării.",
+        "data": {
+          "slave": "ID Slave Modbus",
+          "scan_interval": "Interval de interogare (secunde)",
+          "dev_mode": "Mod dezvoltator (activează toate entitățile)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nu s-a putut conecta la gateway. Verificați gazda și portul.",
+      "invalid_slave": "ID slave Modbus invalid. Verificați ID-ul și încercați din nou.",
+      "modbus_error": "A apărut o eroare Modbus. Consultați jurnalele pentru mai multe detalii.",
+      "invalid_central_control_mode": "Gateway-ul trebuie să fie în modul de control 'Central'. Modificați această setare în configurarea gateway-ului.",
+      "unknown": "A apărut o eroare necunoscută. Consultați jurnalele.",
+      "system_initializing": "Gateway-ul Hitachi Yutaki se inițializează. Așteptați un moment și încercați din nou.",
+      "desync_error": "Gateway-ul este desincronizat de pompa de căldură. Asigurați-vă că pompa de căldură este pornită și că legătura dintre cele două dispozitive este corectă."
+    },
+    "abort": {
+      "already_configured": "Acest gateway Hitachi Yutaki este deja configurat."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "operation_state": {
+        "name": "Stare de funcționare",
+        "state": {
+          "operation_state_off": "Oprit",
+          "operation_state_cool_demand_off": "Fără cerere de răcire",
+          "operation_state_cool_thermo_off": "Răcire Termo OPRIT",
+          "operation_state_cool_thermo_on": "Răcire Termo PORNIT",
+          "operation_state_heat_demand_off": "Fără cerere de încălzire",
+          "operation_state_heat_thermo_off": "Încălzire Termo OPRIT",
+          "operation_state_heat_thermo_on": "Încălzire Termo PORNIT",
+          "operation_state_dhw_off": "ACM OPRIT",
+          "operation_state_dhw_on": "ACM PORNIT",
+          "operation_state_pool_off": "Piscină OPRIT",
+          "operation_state_pool_on": "Piscină PORNIT",
+          "operation_state_alarm": "Alarmă",
+          "operation_state_unknown": "Stare necunoscută"
+        }
+      },
+      "outdoor_temp": {
+        "name": "Temperatură exterioară"
+      },
+      "water_inlet_temp": {
+        "name": "Temperatură intrare apă"
+      },
+      "water_outlet_temp": {
+        "name": "Temperatură ieșire apă"
+      },
+      "water_target_temp": {
+        "name": "Temperatură țintă corectată"
+      },
+      "water_flow": {
+        "name": "Debit apă"
+      },
+      "pump_speed": {
+        "name": "Viteză pompă"
+      },
+      "compressor_frequency": {
+        "name": "Frecvență compresor"
+      },
+      "compressor_current": {
+        "name": "Curent compresor"
+      },
+      "compressor_cycle_time": {
+        "name": "Timp ciclu compresor",
+        "state": {
+          "operation_state_off": "Oprit"
+        }
+      },
+      "compressor_tg_gas_temp": {
+        "name": "Temperatură gaz"
+      },
+      "compressor_ti_liquid_temp": {
+        "name": "Temperatură lichid"
+      },
+      "compressor_td_discharge_temp": {
+        "name": "Temperatură refulare"
+      },
+      "compressor_te_evaporator_temp": {
+        "name": "Temperatură evaporator"
+      },
+      "compressor_evi_indoor_expansion_valve_opening": {
+        "name": "Deschidere supapă expansiune interioară"
+      },
+      "compressor_evo_outdoor_expansion_valve_opening": {
+        "name": "Deschidere supapă expansiune exterioară"
+      },
+      "power_consumption": {
+        "name": "Consum electric"
+      },
+      "alarm": {
+        "name": "Alarmă",
+        "state": {
+          "alarm_code_0": "Fără alarmă",
+          "alarm_code_2": "Activare dispozitiv de siguranță unitate exterioară",
+          "alarm_code_3": "Comunicare anormală între unitățile interioare și unitatea exterioară",
+          "alarm_code_4": "Comunicare anormală între placa de control și placa inverterului unității exterioare",
+          "alarm_code_5": "Cod de funcționare anormală detectare fază",
+          "alarm_code_6": "Tensiune excesiv de scăzută sau ridicată pentru inverter",
+          "alarm_code_7": "Scăderea supraîncălzirii gazului de refulare",
+          "alarm_code_8": "Temperatură excesivă a gazului de refulare în partea superioară a compresorului",
+          "alarm_code_11": "Anomalie termistor temperatură intrare apă (THMWI)",
+          "alarm_code_12": "Anomalie termistor temperatură ieșire apă (THMWO)",
+          "alarm_code_13": "Anomalie termistor temperatură conductă lichid R410A interior (THML)",
+          "alarm_code_14": "Anomalie termistor temperatură conductă gaz R410A interior (THMG)",
+          "alarm_code_15": "Anomalie termistor temperatură ieșire apă circuit 2 (THMWO2)",
+          "alarm_code_16": "Anomalie termistor temperatură ACM (THMDHW)",
+          "alarm_code_17": "Anomalie senzor auxiliar 2 (THMAUX2)",
+          "alarm_code_18": "Anomalie senzor universal",
+          "alarm_code_19": "Anomalie termistor temperatură",
+          "alarm_code_20": "Anomalie termistor temperatură gaz de refulare",
+          "alarm_code_21": "Anomalie senzor presiune înaltă",
+          "alarm_code_22": "Anomalie termistor temperatură exterioară (THM7)",
+          "alarm_code_23": "Anomalie termistor temperatură gaz de refulare (THM9)",
+          "alarm_code_24": "Anomalie termistor temperatură evaporare la încălzire (THM8)",
+          "alarm_code_25": "Anomalie senzor auxiliar 3 (THMAUX3)",
+          "alarm_code_26": "Eroare setare putere sau putere combinată între unitatea interioară și exterioară",
+          "alarm_code_35": "Eroare setare putere sau putere combinată între unitatea interioară și exterioară",
+          "alarm_code_36": "Eroare setare putere sau putere combinată între unitatea interioară și exterioară",
+          "alarm_code_38": "Anomalie circuit de protecție (unitate exterioară)",
+          "alarm_code_40": "Setare incorectă a controlerului unității",
+          "alarm_code_41": "Suprasarcină presostatul de înaltă presiune",
+          "alarm_code_42": "Suprasarcină încălzire (presostat de înaltă presiune trebuie activat)",
+          "alarm_code_45": "Activare protecție creștere presiune înaltă",
+          "alarm_code_47": "Activare protecție sistem împotriva presiunii insuficiente de aspirație",
+          "alarm_code_48": "Activare protecție supracurent",
+          "alarm_code_51": "Funcționare anormală senzor curent",
+          "alarm_code_53": "Activare modul tranzistor",
+          "alarm_code_54": "Anomalie temperatură radiator inverter",
+          "alarm_code_57": "Anomalie protecție motor ventilator (motor ventilator CC)",
+          "alarm_code_70": "Alarmă debit apă și defecțiune pompă apă",
+          "alarm_code_72": "Alarmă termostat boiler apă",
+          "alarm_code_73": "Protecție limită temperatură maximă circuit mixt",
+          "alarm_code_74": "Protecție limită temperatură unitate",
+          "alarm_code_75": "Protecție antigel prin detectare temperatură intrare/ieșire apă rece",
+          "alarm_code_76": "Oprire protecție antigel prin termistorul de temperatură lichid interior",
+          "alarm_code_77": "Defecțiune comunicare receptor wireless inteligent",
+          "alarm_code_78": "Defecțiune comunicare RF",
+          "alarm_code_79": "Setare incorectă a puterii",
+          "alarm_code_80": "Defecțiune comunicare telecomandă H-LINK",
+          "alarm_code_81": "Întrerupere momentană a alimentării sau tensiune scăzută detectată",
+          "alarm_code_83": "Anomalie presiune joasă în circuitul hidraulic",
+          "alarm_code_101": "Comandă activare presostat înaltă presiune",
+          "alarm_code_102": "Activare protecție presiune excesiv de înaltă",
+          "alarm_code_104": "Activare protecție presiune joasă",
+          "alarm_code_105": "Diferență excesivă de presiune joasă",
+          "alarm_code_106": "Temperatură excesivă gaz de refulare",
+          "alarm_code_129": "Defecțiune senzor presiune refulare",
+          "alarm_code_130": "Defecțiune senzor presiune aspirație",
+          "alarm_code_132": "Eroare comunicare între placa inverterului și placa principală",
+          "alarm_code_134": "Anomalie fază sursă alimentare",
+          "alarm_code_135": "Setare incorectă PCB",
+          "alarm_code_151": "Anomalie tensiune inverter",
+          "alarm_code_152": "Funcționare anormală senzor curent",
+          "alarm_code_153": "Activare protecție supracurent inverter (I)",
+          "alarm_code_154": "Activare protecție modul tranzistor",
+          "alarm_code_155": "Anomalie radiator inverter",
+          "alarm_code_156": "Defecțiune inverter",
+          "alarm_code_157": "Alte anomalii",
+          "alarm_code_202": "Setări incorecte controler PC-ARF HE",
+          "alarm_code_203": "Oprire PC-ARFHE secundar ca răspuns la PC-ARFHE principal",
+          "alarm_code_204": "Unitatea interioară pierde comunicarea cu PC-ARFHE principal",
+          "alarm_code_205": "Alarmă centrală, niciun mesaj central"
+        }
+      },
+      "secondary_compressor_discharge_temp": {
+        "name": "Temperatură refulare compresor secundar"
+      },
+      "secondary_compressor_suction_temp": {
+        "name": "Temperatură aspirație compresor secundar"
+      },
+      "secondary_compressor_discharge_pressure": {
+        "name": "Presiune refulare compresor secundar"
+      },
+      "secondary_compressor_suction_pressure": {
+        "name": "Presiune aspirație compresor secundar"
+      },
+      "secondary_compressor_frequency": {
+        "name": "Frecvență compresor secundar"
+      },
+      "secondary_compressor_current": {
+        "name": "Curent compresor secundar"
+      },
+      "cop_heating": {
+        "name": "COP încălzire",
+        "state_attributes": {
+          "quality": {
+            "name": "Calitate",
+            "state": {
+              "no_data": "Fără date",
+              "insufficient_data": "Date insuficiente",
+              "preliminary": "Preliminar",
+              "optimal": "Optim"
+            }
+          },
+          "measurements": {
+            "name": "Număr de măsurători"
+          },
+          "time_span_minutes": {
+            "name": "Perioadă de măsurare"
+          }
+        }
+      },
+      "cop_cooling": {
+        "name": "COP răcire",
+        "state_attributes": {
+          "quality": {
+            "name": "Calitate",
+            "state": {
+              "no_data": "Fără date",
+              "insufficient_data": "Date insuficiente",
+              "preliminary": "Preliminar",
+              "optimal": "Optim"
+            }
+          },
+          "measurements": {
+            "name": "Număr de măsurători"
+          },
+          "time_span_minutes": {
+            "name": "Perioadă de măsurare"
+          }
+        }
+      },
+      "cop_dhw": {
+        "name": "COP ACM",
+        "state_attributes": {
+          "quality": {
+            "name": "Calitate",
+            "state": {
+              "no_data": "Fără date",
+              "insufficient_data": "Date insuficiente",
+              "preliminary": "Preliminar",
+              "optimal": "Optim"
+            }
+          },
+          "measurements": {
+            "name": "Număr de măsurători"
+          },
+          "time_span_minutes": {
+            "name": "Perioadă de măsurare"
+          }
+        }
+      },
+      "cop_pool": {
+        "name": "COP piscină",
+        "state_attributes": {
+          "quality": {
+            "name": "Calitate",
+            "state": {
+              "no_data": "Fără date",
+              "insufficient_data": "Date insuficiente",
+              "preliminary": "Preliminar",
+              "optimal": "Optim"
+            }
+          },
+          "measurements": {
+            "name": "Număr de măsurători"
+          },
+          "time_span_minutes": {
+            "name": "Perioadă de măsurare"
+          }
+        }
+      },
+      "compressor_runtime": {
+        "name": "Timp funcționare compresor"
+      },
+      "compressor_resttime": {
+        "name": "Timp repaus compresor"
+      },
+      "secondary_compressor_cycle_time": {
+        "name": "Timp ciclu compresor secundar"
+      },
+      "secondary_compressor_runtime": {
+        "name": "Timp funcționare compresor secundar"
+      },
+      "secondary_compressor_resttime": {
+        "name": "Timp repaus compresor secundar"
+      },
+      "thermal_power_heating": {
+        "name": "Putere termică încălzire"
+      },
+      "thermal_power_cooling": {
+        "name": "Putere termică răcire"
+      },
+      "thermal_energy_heating_daily": {
+        "name": "Energie termică încălzire zilnică"
+      },
+      "thermal_energy_heating_total": {
+        "name": "Energie termică încălzire totală"
+      },
+      "thermal_energy_cooling_daily": {
+        "name": "Energie termică răcire zilnică"
+      },
+      "thermal_energy_cooling_total": {
+        "name": "Energie termică răcire totală"
+      },
+      "system_state": {
+        "name": "Stare sincronizare gateway",
+        "state": {
+          "synchronized": "Sincronizat",
+          "desynchronized": "Desincronizat",
+          "initializing": "Inițializare"
+        }
+      }
+    },
+    "binary_sensor": {
+      "connectivity": {
+        "name": "Conectivitate"
+      },
+      "defrost": {
+        "name": "Dezghețare"
+      },
+      "solar": {
+        "name": "Solar"
+      },
+      "pump1": {
+        "name": "Pompă 1"
+      },
+      "pump2": {
+        "name": "Pompă 2"
+      },
+      "pump3": {
+        "name": "Pompă 3"
+      },
+      "compressor": {
+        "name": "Compresor"
+      },
+      "boiler": {
+        "name": "Cazan"
+      },
+      "dhw_heater": {
+        "name": "Încălzitor ACM"
+      },
+      "space_heater": {
+        "name": "Încălzire suplimentară"
+      },
+      "smart_function": {
+        "name": "Funcție inteligentă"
+      },
+      "compressor_running": {
+        "name": "Compresor în funcțiune"
+      },
+      "secondary_compressor_running": {
+        "name": "Compresor secundar în funcțiune"
+      },
+      "antilegionella_cycle": {
+        "name": "Ciclu anti-legionella"
+      }
+    },
+    "select": {
+      "operation_mode_heat": {
+        "name": "Mod de funcționare",
+        "state": {
+          "heat": "Încălzire",
+          "auto": "Auto"
+        }
+      },
+      "operation_mode_full": {
+        "name": "Mod de funcționare",
+        "state": {
+          "cool": "Răcire",
+          "heat": "Încălzire",
+          "auto": "Auto"
+        }
+      },
+      "otc_calculation_method_heating": {
+        "name": "Metodă compensare încălzire",
+        "state": {
+          "disabled": "Dezactivat",
+          "points": "Puncte",
+          "gradient": "Gradient",
+          "fix": "Fix"
+        }
+      },
+      "otc_calculation_method_cooling": {
+        "name": "Metodă compensare răcire",
+        "state": {
+          "disabled": "Dezactivat",
+          "points": "Puncte",
+          "fix": "Fix"
+        }
+      }
+    },
+    "switch": {
+      "power": {
+        "name": "Alimentare"
+      },
+      "thermostat": {
+        "name": "Termostat"
+      },
+      "eco_mode": {
+        "name": "Mod ECO"
+      },
+      "boost": {
+        "name": "Boost"
+      },
+      "high_demand": {
+        "name": "Cerere ridicată"
+      }
+    },
+    "button": {
+      "antilegionella": {
+        "name": "Pornire ciclu anti-legionella"
+      }
+    },
+    "number": {
+      "max_flow_temp_heating_otc": {
+        "name": "Temperatură maximă tur încălzire"
+      },
+      "max_flow_temp_cooling_otc": {
+        "name": "Temperatură maximă tur răcire"
+      },
+      "heat_eco_offset": {
+        "name": "Offset ECO încălzire"
+      },
+      "cool_eco_offset": {
+        "name": "Offset ECO răcire"
+      },
+      "current_temp": {
+        "name": "Temperatură curentă"
+      },
+      "target_temp": {
+        "name": "Temperatură țintă"
+      },
+      "pool_current_temperature": {
+        "name": "Temperatură curentă"
+      },
+      "pool_target_temperature": {
+        "name": "Temperatură țintă"
+      },
+      "antilegionella_temp": {
+        "name": "Temperatură anti-legionella"
+      }
+    },
+    "climate": {
+      "climate": {
+        "name": "Control climatic",
+        "state": {
+          "off": "Oprit",
+          "heat": "Încălzire",
+          "cool": "Răcire",
+          "auto": "Auto",
+          "idle": "Inactiv",
+          "defrost": "Dezghețare"
+        },
+        "state_attributes": {
+          "preset_mode": {
+            "state": {
+              "eco": "Eco",
+              "comfort": "Confort"
+            }
+          }
+        }
+      }
+    },
+    "water_heater": {
+      "dhw": {
+        "name": "Control ACM",
+        "state": {
+          "off": "Oprit",
+          "standard": "Standard",
+          "high_demand": "Cerere ridicată"
+        }
+      }
+    }
+  },
+  "services": {
+    "set_room_temperature": {
+      "name": "Setare temperatură cameră",
+      "description": "Trimite temperatura camerei măsurată către pompa de căldură. Se utilizează când termostatul Modbus este activat pentru a furniza citirea temperaturii ambientale pentru reglarea termostatică.",
+      "fields": {
+        "temperature": {
+          "name": "Temperatură",
+          "description": "Temperatura camerei măsurată în grade Celsius."
+        }
+      }
+    }
+  },
+  "issues": {
+    "desync_warning": {
+      "title": "Gateway Hitachi desincronizat",
+      "description": "Gateway-ul Hitachi a pierdut sincronizarea cu pompa de căldură de mai mult de 3 minute. Entitățile nu vor fi disponibile până la restabilirea conexiunii.\n\n**Pentru a rezolva:**\n1. Verificați conexiunea fizică dintre gateway și pompa de căldură.\n2. Asigurați-vă că pompa de căldură este pornită.\n3. Reporniți pompa de căldură și gateway-ul dacă problema persistă."
+    },
+    "connection_error": {
+      "title": "Gateway Hitachi inaccesibil",
+      "description": "Integrarea nu s-a putut conecta la gateway-ul Hitachi Yutaki. Entitățile nu vor fi disponibile până la restabilirea conexiunii.\n\n**Pentru a rezolva:**\n1. Verificați dacă gateway-ul este pornit și conectat la rețea.\n2. Verificați dacă adresa IP și portul configurate în Home Assistant sunt corecte."
+    },
+    "initializing_warning": {
+      "title": "Gateway Hitachi în curs de inițializare",
+      "description": "Gateway-ul Hitachi Yutaki se inițializează în prezent. Acest lucru este normal după o repornire și ar trebui să dureze doar câteva minute. Dacă acest avertisment persistă, reporniți gateway-ul."
+    },
+    "missing_config": {
+      "title": "Configurație Hitachi Yutaki incompletă",
+      "description": "Integrarea Hitachi Yutaki nu are parametrii de configurare necesari (tip gateway și/sau profil pompă de căldură). Integrarea nu poate fi configurată până când acești parametri nu sunt definiți.\n\n**Pentru a rezolva:**\n1. Mergeți la Setări > Dispozitive și servicii > Hitachi Yutaki\n2. Faceți clic pe integrare și selectați Configurare\n3. Selectați parametrii lipsă (tip gateway și profil pompă de căldură)\n4. Salvați configurația"
+    }
+  }
+}
