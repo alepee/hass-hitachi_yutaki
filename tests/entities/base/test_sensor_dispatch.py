@@ -44,7 +44,9 @@ class TestSensorDispatch:
         descriptions = (_make_description("cop_heating", sensor_class="cop"),)
 
         with patch.object(HitachiYutakiCOPSensor, "__init__", return_value=None):
-            sensors = _create_sensors(coordinator, "test_entry", descriptions, "control_unit")
+            sensors = _create_sensors(
+                coordinator, "test_entry", descriptions, "control_unit"
+            )
 
         assert len(sensors) == 1
         assert isinstance(sensors[0], HitachiYutakiCOPSensor)
@@ -52,10 +54,14 @@ class TestSensorDispatch:
     def test_thermal_description_creates_thermal_sensor(self):
         """sensor_class='thermal' creates HitachiYutakiThermalSensor."""
         coordinator = _make_coordinator()
-        descriptions = (_make_description("thermal_power_heating", sensor_class="thermal"),)
+        descriptions = (
+            _make_description("thermal_power_heating", sensor_class="thermal"),
+        )
 
         with patch.object(HitachiYutakiThermalSensor, "__init__", return_value=None):
-            sensors = _create_sensors(coordinator, "test_entry", descriptions, "control_unit")
+            sensors = _create_sensors(
+                coordinator, "test_entry", descriptions, "control_unit"
+            )
 
         assert len(sensors) == 1
         assert isinstance(sensors[0], HitachiYutakiThermalSensor)
@@ -63,10 +69,14 @@ class TestSensorDispatch:
     def test_timing_description_creates_timing_sensor(self):
         """sensor_class='timing' creates HitachiYutakiTimingSensor."""
         coordinator = _make_coordinator()
-        descriptions = (_make_description("compressor_cycle_time", sensor_class="timing"),)
+        descriptions = (
+            _make_description("compressor_cycle_time", sensor_class="timing"),
+        )
 
         with patch.object(HitachiYutakiTimingSensor, "__init__", return_value=None):
-            sensors = _create_sensors(coordinator, "test_entry", descriptions, "control_unit")
+            sensors = _create_sensors(
+                coordinator, "test_entry", descriptions, "control_unit"
+            )
 
         assert len(sensors) == 1
         assert isinstance(sensors[0], HitachiYutakiTimingSensor)
@@ -76,7 +86,9 @@ class TestSensorDispatch:
         coordinator = _make_coordinator()
         descriptions = (_make_description("compressor_frequency"),)
 
-        sensors = _create_sensors(coordinator, "test_entry", descriptions, "control_unit")
+        sensors = _create_sensors(
+            coordinator, "test_entry", descriptions, "control_unit"
+        )
 
         assert len(sensors) == 1
         assert type(sensors[0]) is HitachiYutakiSensor
@@ -86,7 +98,9 @@ class TestSensorDispatch:
         coordinator = _make_coordinator()
         descriptions = (_make_description("some_sensor", condition=lambda _: False),)
 
-        sensors = _create_sensors(coordinator, "test_entry", descriptions, "control_unit")
+        sensors = _create_sensors(
+            coordinator, "test_entry", descriptions, "control_unit"
+        )
 
         assert len(sensors) == 0
 
@@ -95,7 +109,9 @@ class TestSensorDispatch:
         coordinator = _make_coordinator()
         descriptions = (_make_description("some_sensor", condition=lambda _: True),)
 
-        sensors = _create_sensors(coordinator, "test_entry", descriptions, "control_unit")
+        sensors = _create_sensors(
+            coordinator, "test_entry", descriptions, "control_unit"
+        )
 
         assert len(sensors) == 1
 
@@ -104,7 +120,9 @@ class TestSensorDispatch:
         coordinator = _make_coordinator()
         descriptions = (_make_description("mystery", sensor_class="unknown"),)
 
-        sensors = _create_sensors(coordinator, "test_entry", descriptions, "control_unit")
+        sensors = _create_sensors(
+            coordinator, "test_entry", descriptions, "control_unit"
+        )
 
         assert len(sensors) == 1
         assert type(sensors[0]) is HitachiYutakiSensor
@@ -124,7 +142,9 @@ class TestSensorDispatch:
             patch.object(HitachiYutakiThermalSensor, "__init__", return_value=None),
             patch.object(HitachiYutakiTimingSensor, "__init__", return_value=None),
         ):
-            sensors = _create_sensors(coordinator, "test_entry", descriptions, "control_unit")
+            sensors = _create_sensors(
+                coordinator, "test_entry", descriptions, "control_unit"
+            )
 
         assert len(sensors) == 4
         assert type(sensors[0]) is HitachiYutakiSensor
