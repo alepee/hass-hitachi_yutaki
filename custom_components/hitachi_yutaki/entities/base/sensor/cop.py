@@ -56,9 +56,7 @@ class HitachiYutakiCOPSensor(HitachiYutakiSensor):
         super().__init__(coordinator, description, device_info)
 
         storage = InMemoryStorage(max_len=COP_MEASUREMENTS_HISTORY_SIZE)
-        accumulator = EnergyAccumulator(
-            storage=storage, period=COP_MEASUREMENTS_PERIOD
-        )
+        accumulator = EnergyAccumulator(storage=storage, period=COP_MEASUREMENTS_PERIOD)
         electrical_calculator = ElectricalPowerCalculatorAdapter(
             hass=coordinator.hass,
             config_entry=coordinator.config_entry,
