@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- `CONTRIBUTING.md` with contributor workflow documentation
+
+### Changed
+- GitHub branch protection: rulesets for `main` (merge-only, required CI) and `dev` (squash-only, required CI, admin bypass)
+- `CLAUDE.md`: updated branch strategy, git conventions, and translations sections
+
 ## [2.0.0] - 2026-02-12
 
 A major rewrite of the integration with hexagonal architecture, multi-gateway support, and significantly improved accuracy for thermal and COP calculations.
