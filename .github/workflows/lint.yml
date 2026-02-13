@@ -23,3 +23,6 @@ jobs:
 
       - name: Lint with ruff
         run: uv run ruff check custom_components tests
+
+      - name: Check translation keys
+        run: uv run python scripts/check_translations.py
