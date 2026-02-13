@@ -6,8 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This is a Home Assistant custom integration for Hitachi air-to-water heat pumps (Yutaki and Yutampo models). It communicates via Modbus with ATW-MBS-02 gateways and follows hexagonal architecture principles.
 
-**Current Version**: see `manifest.json` (on branch `beta/2.0.0`)
-**Main Branch for PRs**: `dev`
+**Current Version**: see `manifest.json`
 
 ## Development Commands
 
@@ -194,6 +193,11 @@ The integration creates multiple HA devices based on configuration:
 - Runs automatically during integration setup
 - Migration tracking in `2.0.0_entity_migration*.md` files
 
+### Translations
+
+- **Source of truth**: `en.json` is edited by developers in the repo
+- **Other languages**: modified via pull request
+
 ## Code Quality Standards
 
 - **Linting**: Ruff with Home Assistant ruleset (see `.ruff.toml`)
@@ -226,14 +230,20 @@ All dependencies are declared in `pyproject.toml` (single source of truth).
 
 ## Branch Strategy
 
-- **Main branch**: `dev` (target for PRs)
-- **Current work**: `beta/2.0.0` (major architecture refactor)
-- Feature branches should be created from `dev`
+- **`main`**: released state — never push directly, only merge from `dev` via PR
+- **`dev`**: integration branch — target for all pull requests
+- **Feature branches**: created from `dev`, named `feat/...`, `fix/...`, or `chore/...`
+- **PRs to `dev`**: squash-merged (one commit per PR)
+- **Release PR (`dev` → `main`)**: merge commit (preserves full history)
+- **Release flow**: freeze `dev` → `make bump` on `dev` → PR to `main` → merge → create GitHub release
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor workflow.
 
 ## Git Conventions
 
 - **No AI signature**: Do not add "Co-Authored-By: Claude..." in commit messages
 - Follow conventional commit format when appropriate
+- **Changelog**: every PR must update `CHANGELOG.md` under `[Unreleased]` (Keep a Changelog format)
 
 ## Documentation
 
