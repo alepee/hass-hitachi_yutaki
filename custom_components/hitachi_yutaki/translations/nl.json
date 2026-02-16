@@ -7,10 +7,10 @@
       "name": "Regeleenheid"
     },
     "primary_compressor": {
-      "name": "Buitencompressor"
+      "name": "Primaire compressor"
     },
     "secondary_compressor": {
-      "name": "Binnencompressor"
+      "name": "Secundaire compressor"
     },
     "circuit1": {
       "name": "Circuit 1"
@@ -75,13 +75,13 @@
         }
       },
       "sensors": {
-        "title": "Voeding- en sensorconfiguratie",
-        "description": "Configureer de voeding en externe sensoren.",
+        "title": "Externe sensorconfiguratie",
+        "description": "Configureer de externe elektriciteit- en temperatuursensoren.",
         "data": {
           "power_supply": "Voeding",
           "voltage_entity": "Spanningssensor (optioneel)",
           "power_entity": "Vermogenssensor (optioneel)",
-          "energy_entity": "Energiemeter (optioneel)",
+          "energy_entity": "Energiesensor (optioneel)",
           "water_inlet_temp_entity": "Waterinlaattemperatuursensor (optioneel)",
           "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)"
         }
@@ -91,7 +91,7 @@
         "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters. Selecteer de ontbrekende parameters om door te gaan.",
         "data": {
           "gateway_type": "Gatewaytype",
-          "profile": "Warmtemompprofiel"
+          "profile": "Warmtepompmodel"
         }
       }
     }
@@ -124,13 +124,13 @@
         }
       },
       "power": {
-        "title": "Voedingsconfiguratie",
-        "description": "Configureer de voeding en externe temperatuursensoren.",
+        "title": "Externe sensorconfiguratie",
+        "description": "Configureer de externe elektriciteit- en temperatuursensoren.",
         "data": {
           "power_supply": "Voeding",
           "voltage_entity": "Spanningssensor (optioneel)",
           "power_entity": "Vermogenssensor (optioneel)",
-          "energy_entity": "Energiemeter (optioneel)",
+          "energy_entity": "Energiesensor (optioneel)",
           "water_inlet_temp_entity": "Waterinlaattemperatuursensor (optioneel)",
           "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)"
         }
@@ -165,17 +165,17 @@
         "state": {
           "operation_state_off": "Uit",
           "operation_state_cool_demand_off": "Geen koelvraag",
-          "operation_state_cool_thermo_off": "Koeling Thermo UIT",
-          "operation_state_cool_thermo_on": "Koeling Thermo AAN",
+          "operation_state_cool_thermo_off": "Koeling UIT",
+          "operation_state_cool_thermo_on": "Koeling AAN",
           "operation_state_heat_demand_off": "Geen verwarmingsvraag",
-          "operation_state_heat_thermo_off": "Verwarming Thermo UIT",
-          "operation_state_heat_thermo_on": "Verwarming Thermo AAN",
+          "operation_state_heat_thermo_off": "Verwarming UIT",
+          "operation_state_heat_thermo_on": "Verwarming AAN",
           "operation_state_dhw_off": "Warm tapwater UIT",
           "operation_state_dhw_on": "Warm tapwater AAN",
           "operation_state_pool_off": "Zwembad UIT",
           "operation_state_pool_on": "Zwembad AAN",
           "operation_state_alarm": "Alarm",
-          "operation_state_unknown": "Onbekende status"
+          "operation_state_unknown": "Onbekend"
         }
       },
       "outdoor_temp": {
@@ -215,30 +215,30 @@
         "name": "Vloeistoftemperatuur"
       },
       "compressor_td_discharge_temp": {
-        "name": "Perstemperatuur"
+        "name": "Afgiftetemperatuur"
       },
       "compressor_te_evaporator_temp": {
         "name": "Verdampertemperatuur"
       },
       "compressor_evi_indoor_expansion_valve_opening": {
-        "name": "Opening binnenexpansieventiel"
+        "name": "Binnen-expansieventielopening"
       },
       "compressor_evo_outdoor_expansion_valve_opening": {
-        "name": "Opening buitenexpansieventiel"
+        "name": "Buiten-expansieventielopening"
       },
       "power_consumption": {
-        "name": "Stroomverbruik"
+        "name": "Elektriciteitsverbruik"
       },
       "alarm": {
         "name": "Alarm",
         "state": {
           "alarm_code_0": "Geen alarm",
           "alarm_code_2": "Activering veiligheidsvoorziening buitenunit",
-          "alarm_code_3": "Abnormale communicatie tussen binnenunits en buitenunit",
+          "alarm_code_3": "Abnormale communicatie tussen binnenunit en buitenunit",
           "alarm_code_4": "Abnormale communicatie tussen regelprint en inverterprint van buitenunit",
-          "alarm_code_5": "Abnormale fasedetectie",
+          "alarm_code_5": "Fasedetectie-signaal: abnormale bedrijfscode",
           "alarm_code_6": "Te lage of te hoge spanning voor inverter",
-          "alarm_code_7": "Afname oververhitting persgas",
+          "alarm_code_7": "Afname van oververhitting na compressie (gas is minder heet dan verwacht)",
           "alarm_code_8": "Te hoge persgastemperatuur boven compressor",
           "alarm_code_11": "Storing waterinlaattemperatuursensor (THMWI)",
           "alarm_code_12": "Storing wateruitlaattemperatuursensor (THMWO)",
@@ -249,10 +249,10 @@
           "alarm_code_17": "Storing hulpsensor 2 (THMAUX2)",
           "alarm_code_18": "Storing universele sensor",
           "alarm_code_19": "Storing temperatuursensor",
-          "alarm_code_20": "Storing persgastemperatuursensor",
+          "alarm_code_20": "Storing thermistor uitlaatgas-temperatuur",
           "alarm_code_21": "Storing hogedruksensor",
           "alarm_code_22": "Storing buitentemperatuursensor (THM7)",
-          "alarm_code_23": "Storing persgastemperatuursensor (THM9)",
+          "alarm_code_23": "Storing thermistor uitlaatgas-temperatuur (THM9)",
           "alarm_code_24": "Storing verdampingstemperatuursensor bij verwarming (THM8)",
           "alarm_code_25": "Storing hulpsensor 3 (THMAUX3)",
           "alarm_code_26": "Fout in vermogensinstelling of gecombineerde vermogensinstelling tussen binnen- en buitenunit",
@@ -275,7 +275,7 @@
           "alarm_code_74": "Temperatuurlimietbeveiliging unit",
           "alarm_code_75": "Vorstbeveiliging door detectie koude waterinlaat-/uitlaattemperatuur",
           "alarm_code_76": "Vorstbeveiliging gestopt door binnenunit vloeistoftemperatuursensor",
-          "alarm_code_77": "Communicatiestoring draadloze ontvanger",
+          "alarm_code_77": "Communicatiestoring slimme draadloze ontvanger",
           "alarm_code_78": "RF-communicatiestoring",
           "alarm_code_79": "Onjuiste vermogensinstelling",
           "alarm_code_80": "H-LINK afstandsbediening communicatiestoring",
@@ -284,9 +284,9 @@
           "alarm_code_101": "Commando activering hogedrukschakelaar",
           "alarm_code_102": "Activering beveiliging buitensporig hoge druk",
           "alarm_code_104": "Activering lagedrukbeveiliging",
-          "alarm_code_105": "Buitensporig lagedrukverschil",
-          "alarm_code_106": "Buitensporige persgastemperatuur",
-          "alarm_code_129": "Storing persdruksensor",
+          "alarm_code_105": "Te groot lagedrukverschil",
+          "alarm_code_106": "Te hoge persgastemperatuur",
+          "alarm_code_129": "Storing afgiftedruksensor",
           "alarm_code_130": "Storing zuigdruksensor",
           "alarm_code_132": "Communicatiefout tussen inverterprint en hoofdprint",
           "alarm_code_134": "Fasestoring voedingsbron",
@@ -305,13 +305,13 @@
         }
       },
       "secondary_compressor_discharge_temp": {
-        "name": "Perstemperatuur secundaire compressor"
+        "name": "Afgiftetemperatuur secundaire compressor"
       },
       "secondary_compressor_suction_temp": {
         "name": "Zuigtemperatuur secundaire compressor"
       },
       "secondary_compressor_discharge_pressure": {
-        "name": "Persdruk secundaire compressor"
+        "name": "Afgiftedruk secundaire compressor"
       },
       "secondary_compressor_suction_pressure": {
         "name": "Zuigdruk secundaire compressor"
@@ -403,16 +403,16 @@
         }
       },
       "compressor_runtime": {
-        "name": "Compressor looptijd"
+        "name": "Draaitijd compressor"
       },
       "compressor_resttime": {
-        "name": "Compressor rusttijd"
+        "name": "Rusttijd compressor"
       },
       "secondary_compressor_cycle_time": {
         "name": "Cyclustijd secundaire compressor"
       },
       "secondary_compressor_runtime": {
-        "name": "Looptijd secundaire compressor"
+        "name": "Draaitijd secundaire compressor"
       },
       "secondary_compressor_resttime": {
         "name": "Rusttijd secundaire compressor"
@@ -467,13 +467,13 @@
         "name": "Compressor"
       },
       "boiler": {
-        "name": "Ketel"
+        "name": "Boiler"
       },
       "dhw_heater": {
-        "name": "Warm tapwater verwarmer"
+        "name": "Bijverwarmer warm tapwater"
       },
       "space_heater": {
-        "name": "Bijverwarming"
+        "name": "Bijverwarming ruimteverwarming"
       },
       "smart_function": {
         "name": "Slimme functie"
@@ -524,7 +524,7 @@
     },
     "switch": {
       "power": {
-        "name": "Voeding"
+        "name": "Aan/Uit"
       },
       "thermostat": {
         "name": "Thermostaat"
@@ -564,10 +564,10 @@
         "name": "Doeltemperatuur"
       },
       "pool_current_temperature": {
-        "name": "Huidige temperatuur"
+        "name": "Huidige temperatuur zwembad"
       },
       "pool_target_temperature": {
-        "name": "Doeltemperatuur"
+        "name": "Doeltemperatuur zwembad"
       },
       "antilegionella_temp": {
         "name": "Anti-legionellatemperatuur"
@@ -632,7 +632,7 @@
     },
     "missing_config": {
       "title": "Hitachi Yutaki configuratie onvolledig",
-      "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters (gatewaytype en/of warmtemompprofiel). De integratie kan niet worden ingesteld totdat deze parameters zijn geconfigureerd.\n\n**Om dit op te lossen:**\n1. Ga naar Instellingen > Apparaten en services > Hitachi Yutaki\n2. Klik op de integratie en selecteer Configureren\n3. Selecteer de ontbrekende parameters (gatewaytype en warmtemompprofiel)\n4. Sla de configuratie op"
+      "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters (gatewaytype en/of warmtepompmodel). De integratie kan niet worden ingesteld totdat deze parameters zijn geconfigureerd.\n\n**Om dit op te lossen:**\n1. Ga naar Instellingen > Apparaten en services > Hitachi Yutaki\n2. Klik op de integratie en selecteer Configureren\n3. Selecteer de ontbrekende parameters (gatewaytype en warmtepompmodel)\n4. Sla de configuratie op"
     }
   }
 }
