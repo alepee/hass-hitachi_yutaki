@@ -632,7 +632,7 @@
     },
     "missing_config": {
       "title": "Hitachi Yutaki configuratie onvolledig",
-      "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters (gatewaytype en/of warmtepmpmodel). De integratie kan niet worden ingesteld totdat deze parameters zijn geconfigureerd.\n\n**Om dit op te lossen:**\n1. Ga naar Instellingen > Apparaten en services > Hitachi Yutaki\n2. Klik op de integratie en selecteer Configureren\n3. Selecteer de ontbrekende parameters (gatewaytype en warmtepompmodel)\n4. Sla de configuratie op"
+      "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters (gatewaytype en/of warmtepompmodel). De integratie kan niet worden ingesteld totdat deze parameters zijn geconfigureerd.\n\n**Om dit op te lossen:**\n1. Ga naar Instellingen > Apparaten en services > Hitachi Yutaki\n2. Klik op de integratie en selecteer Configureren\n3. Selecteer de ontbrekende parameters (gatewaytype en warmtepompmodel)\n4. Sla de configuratie op"
     }
   }
 }
