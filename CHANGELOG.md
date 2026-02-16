@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - `CONTRIBUTING.md` with contributor workflow documentation
 
+### Fixed
+- Fix HC-A(16/64)MB outdoor compressor registers mapped to wrong address block (5000+offset instead of 30000+offset), causing discharge temp, evaporator temp, current, frequency, and EVO opening to show as unavailable ([#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96))
+
 ### Changed
 - GitHub branch protection: rulesets for `main` (merge-only, required CI) and `dev` (squash-only, required CI, admin bypass)
 - `CLAUDE.md`: updated branch strategy, git conventions, and translations sections
