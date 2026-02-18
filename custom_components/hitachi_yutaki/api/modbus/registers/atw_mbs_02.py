@@ -221,7 +221,11 @@ REGISTER_CONTROL_UNIT = {
     "operation_state_code": RegisterDefinition(1090),
     "outdoor_temp": RegisterDefinition(1091, deserializer=convert_signed_16bit),
     "water_inlet_temp": RegisterDefinition(1092, deserializer=convert_signed_16bit),
-    "water_outlet_temp": RegisterDefinition(1093, deserializer=convert_signed_16bit),
+    "water_outlet_temp": RegisterDefinition(
+        1200,  # HP-level outlet (reg 1201) — correct for all modes including DHW/pool
+        deserializer=convert_signed_16bit,
+        fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
+    ),
     "water_target_temp": RegisterDefinition(1219, deserializer=convert_signed_16bit),
     "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
     "pump_speed": RegisterDefinition(1221),

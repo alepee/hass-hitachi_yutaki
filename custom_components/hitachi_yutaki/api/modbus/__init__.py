@@ -23,7 +23,7 @@ from ...const import (
     get_pymodbus_device_param,
 )
 from ..base import HitachiApiClient
-from .registers import HitachiRegisterMap
+from .registers import HitachiRegisterMap, RegisterDefinition
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
 _LOGGER = logging.getLogger(__name__)
@@ -291,6 +291,26 @@ class ModbusApiClient(HitachiApiClient):
         decoded["has_pool"] = bool(system_config & rmap.mask_pool)
         return decoded
 
+    async def _read_register(
+        self, definition: RegisterDefinition, device_param: str
+    ) -> Any:
+        """Read and deserialize a single register.
+
+        Returns the deserialized value, or None on read error or sensor error.
+        """
+        result = await self._hass.async_add_executor_job(
+            lambda addr=definition.address,
+            param=device_param: self._client.read_holding_registers(
+                address=addr, count=1, **{param: self._slave}
+            )
+        )
+        if result.isError():
+            return None
+        value = result.registers[0]
+        if definition.deserializer:
+            return definition.deserializer(value)
+        return value
+
     async def read_values(self, keys: list[str]) -> None:
         """Fetch data from the heat pump for the given keys."""
         retry_count = 0
@@ -346,18 +366,13 @@ class ModbusApiClient(HitachiApiClient):
                         ir.async_delete_issue(self._hass, DOMAIN, issue_key)
 
                 for name, definition in registers_to_read.items():
-                    result = await self._hass.async_add_executor_job(
-                        lambda addr=definition.address,
-                        param=device_param: self._client.read_holding_registers(
-                            address=addr, count=1, **{param: self._slave}
+                    value = await self._read_register(definition, device_param)
+                    if value is None and definition.fallback:
+                        value = await self._read_register(
+                            definition.fallback, device_param
                         )
-                    )
-                    if not result.isError():
-                        value = result.registers[0]
-                        if definition.deserializer:
-                            self._data[name] = definition.deserializer(value)
-                        else:
-                            self._data[name] = value
+                    if value is not None:
+                        self._data[name] = value
                     else:
                         _LOGGER.debug(
                             "Error reading register %s at %s", name, definition.address
