@@ -64,7 +64,8 @@
         "description": "Voer de verbindingsgegevens in voor uw gateway.",
         "data": {
           "host": "Host/IP-adres",
-          "port": "Poort"
+          "port": "Poort",
+          "device_id": "Modbus Apparaat-ID"
         }
       },
       "profile": {
@@ -112,6 +113,7 @@
           "name": "Naam",
           "host": "Host/IP-adres",
           "port": "Poort",
+          "device_id": "Modbus Apparaat-ID",
           "unit_id": "Unit-ID (alleen HC-A(16/64)MB, 0-15)",
           "show_advanced": "Geavanceerde opties tonen"
         }
@@ -139,7 +141,6 @@
         "title": "Geavanceerde instellingen",
         "description": "Configureer geavanceerde Modbus- en integratie-instellingen.",
         "data": {
-          "slave": "Modbus Slave-ID",
           "scan_interval": "Polling-interval (seconden)"
         }
       }

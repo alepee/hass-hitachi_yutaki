@@ -64,7 +64,8 @@
         "description": "Introduceți detaliile de conexiune pentru gateway-ul dumneavoastră.",
         "data": {
           "host": "Gazdă/Adresă IP",
-          "port": "Port"
+          "port": "Port",
+          "device_id": "ID Dispozitiv Modbus"
         }
       },
       "profile": {
@@ -112,6 +113,7 @@
           "name": "Nume",
           "host": "Gazdă/Adresă IP",
           "port": "Port",
+          "device_id": "ID Dispozitiv Modbus",
           "unit_id": "ID unitate (doar HC-A(16/64)MB, 0-15)",
           "show_advanced": "Afișare opțiuni avansate"
         }
@@ -139,7 +141,6 @@
         "title": "Setări avansate",
         "description": "Configurați setările avansate Modbus și ale integrării.",
         "data": {
-          "slave": "ID Slave Modbus",
           "scan_interval": "Interval de interogare (secunde)"
         }
       }

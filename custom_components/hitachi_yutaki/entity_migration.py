@@ -13,10 +13,9 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from homeassistant.const import CONF_SLAVE
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN
+from .const import CONF_DEVICE_ID, DOMAIN
 
 if TYPE_CHECKING:
     from homeassistant.config_entries import ConfigEntry
@@ -45,7 +44,7 @@ async def async_migrate_entities(hass: HomeAssistant, entry: ConfigEntry) -> Non
 
     """
     entity_registry = er.async_get(hass)
-    slave_id = entry.data.get(CONF_SLAVE, 1)
+    slave_id = entry.data.get(CONF_DEVICE_ID, 1)
     entry_id = entry.entry_id
 
     # Get all entities for this integration
@@ -191,7 +190,7 @@ async def async_remove_orphaned_entities(
 
     """
     entity_registry = er.async_get(hass)
-    slave_id = entry.data.get(CONF_SLAVE, 1)
+    slave_id = entry.data.get(CONF_DEVICE_ID, 1)
     entry_id = entry.entry_id
 
     # Get all entities for this integration

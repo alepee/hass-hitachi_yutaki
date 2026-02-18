@@ -64,7 +64,8 @@
         "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
         "data": {
           "host": "Host/IP Address",
-          "port": "Port"
+          "port": "Port",
+          "device_id": "Modbus Device ID"
         }
       },
       "profile": {
@@ -112,6 +113,7 @@
           "name": "Name",
           "host": "Host/IP Address",
           "port": "Port",
+          "device_id": "Modbus Device ID",
           "unit_id": "Unit ID (HC-A(16/64)MB only, 0-15)",
           "show_advanced": "Show advanced options"
         }
@@ -139,7 +141,6 @@
         "title": "Advanced Settings",
         "description": "Configure advanced Modbus and integration settings.",
         "data": {
-          "slave": "Modbus Slave ID",
           "scan_interval": "Polling Interval (seconds)"
         }
       }
