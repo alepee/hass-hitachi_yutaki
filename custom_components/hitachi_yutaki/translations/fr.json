@@ -140,8 +140,7 @@
         "description": "Configurez les paramètres avancés de Modbus et de l'intégration.",
         "data": {
           "slave": "ID Esclave Modbus",
-          "scan_interval": "Intervalle d'interrogation (secondes)",
-          "dev_mode": "Mode développeur (active toutes les entités)"
+          "scan_interval": "Intervalle d'interrogation (secondes)"
         }
       }
     },

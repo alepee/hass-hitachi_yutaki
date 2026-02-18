@@ -140,8 +140,7 @@
         "description": "Configurați setările avansate Modbus și ale integrării.",
         "data": {
           "slave": "ID Slave Modbus",
-          "scan_interval": "Interval de interogare (secunde)",
-          "dev_mode": "Mod dezvoltator (activează toate entitățile)"
+          "scan_interval": "Interval de interogare (secunde)"
         }
       }
     },

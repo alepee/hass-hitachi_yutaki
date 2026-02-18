@@ -118,7 +118,6 @@ ADVANCED_SCHEMA = vol.Schema(
         vol.Optional(
             CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
         ): cv.positive_int,
-        vol.Optional("dev_mode", default=False): bool,
     }
 )
 
@@ -302,7 +301,6 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     **self.basic_config,
                     CONF_SLAVE: DEFAULT_SLAVE,
                     CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
-                    "dev_mode": False,
                 }
             )
 

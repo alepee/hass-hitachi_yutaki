@@ -102,8 +102,6 @@ CONF_ENERGY_ENTITY = "energy_entity"
 CONF_WATER_INLET_TEMP_ENTITY = "water_inlet_temp_entity"
 CONF_WATER_OUTLET_TEMP_ENTITY = "water_outlet_temp_entity"
 CONF_UNIT_ID = "unit_id"
-CONF_DEV_MODE = "dev_mode"
-
 DEFAULT_UNIT_ID = 0
 
 # COP calculation parameters

@@ -140,8 +140,7 @@
         "description": "Configure advanced Modbus and integration settings.",
         "data": {
           "slave": "Modbus Slave ID",
-          "scan_interval": "Polling Interval (seconds)",
-          "dev_mode": "Development Mode (enables all entities)"
+          "scan_interval": "Polling Interval (seconds)"
         }
       }
     },
