@@ -1,6 +1,6 @@
 [project]
 name = "hass-hitachi-yutaki"
-version = "2.0.1-beta.1"
+version = "2.0.1-beta.2"
 requires-python = ">=3.13"
 description = "Home Assistant custom integration for Hitachi Yutaki heat pumps"
 license = "MIT"

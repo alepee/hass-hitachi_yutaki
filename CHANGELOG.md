@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fix HC-A(16/64)MB outdoor compressor registers mapped to wrong address block (5000+offset instead of 30000+offset), causing discharge temp, evaporator temp, current, frequency, and EVO opening to show as unavailable ([#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96))
+- Use HP-level outlet register (1201) for correct DHW/pool COP calculation — register 1094 measures circuit outlet which becomes stale when the 3-way valve redirects to the tank, causing zero thermal power and no COP during DHW runs ([#205](https://github.com/alepee/hass-hitachi_yutaki/issues/205))
+- Update Dutch (nl) translations
 
 ### Changed
 - GitHub branch protection: rulesets for `main` (merge-only, required CI) and `dev` (squash-only, required CI, admin bypass)
