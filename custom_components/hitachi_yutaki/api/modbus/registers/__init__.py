@@ -16,6 +16,8 @@ class RegisterDefinition:
         serializer: Optional function to convert value before writing.
         write_address: Write address if different from read address (e.g. HC-A(16/64)MB).
             When None, writes use the same address as reads.
+        fallback: Optional fallback register to read when the primary returns None
+            (e.g. 0xFFFF sensor error) or a read error.
 
     """
 
@@ -23,6 +25,7 @@ class RegisterDefinition:
     deserializer: Callable[[Any], Any] | None = None
     serializer: Callable[[Any], Any] | None = None
     write_address: int | None = None
+    fallback: "RegisterDefinition | None" = None
 
 
 class HitachiRegisterMap(ABC):
