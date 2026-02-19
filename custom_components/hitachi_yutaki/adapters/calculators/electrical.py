@@ -4,6 +4,9 @@ from __future__ import annotations
 
 from contextlib import suppress
 
+from homeassistant.const import UnitOfPower
+from homeassistant.util.unit_conversion import PowerConverter
+
 from ...domain.models.electrical import ElectricalPowerInput
 from ...domain.ports.calculators import ElectricalPowerCalculator
 from ...domain.services.electrical import calculate_electrical_power
@@ -51,6 +54,32 @@ class ElectricalPowerCalculatorAdapter:
             return float(state.state)
         return None
 
+    def _get_power_in_kw(self) -> float | None:
+        """Get power measurement converted to kW using HA's PowerConverter.
+
+        Reads the power entity's value and unit_of_measurement attribute,
+        then converts to kW using Home Assistant's built-in converter.
+
+        Returns:
+            Power in kW, or None if unavailable or missing unit.
+
+        """
+        entity_id = self._config_entry.data.get("power_entity")
+        if not entity_id:
+            return None
+
+        state = self._hass.states.get(entity_id)
+        if not state or state.state in (None, "unknown", "unavailable"):
+            return None
+
+        with suppress(ValueError):
+            value = float(state.state)
+            from_unit = state.attributes.get("unit_of_measurement")
+            if from_unit is None:
+                return None
+            return PowerConverter.convert(value, from_unit, UnitOfPower.KILO_WATT)
+        return None
+
     def __call__(self, current: float) -> float:
         """Calculate electrical power in kW.
 
@@ -68,7 +97,7 @@ class ElectricalPowerCalculatorAdapter:
         return calculate_electrical_power(
             ElectricalPowerInput(
                 current=current,
-                measured_power=self._get_float_from_entity("power_entity"),
+                measured_power=self._get_power_in_kw(),
                 voltage=self._get_float_from_entity("voltage_entity"),
                 is_three_phase=self._is_three_phase,
             )

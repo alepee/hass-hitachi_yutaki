@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - GitHub branch protection: rulesets for `main` (merge-only, required CI) and `dev` (squash-only, required CI, admin bypass)
 - `CLAUDE.md`: updated branch strategy, git conventions, and translations sections
 
+### Fixed
+- Electrical power unit conversion now uses HA's `PowerConverter` instead of a naive `> 50` heuristic ([#182](https://github.com/alepee/hass-hitachi_yutaki/issues/182)) — a heat pump in standby consuming < 50 W was incorrectly interpreted as kW, causing wildly inaccurate COP values
+
 ## [2.0.0] - 2026-02-12
 
 A major rewrite of the integration with hexagonal architecture, multi-gateway support, and significantly improved accuracy for thermal and COP calculations.
