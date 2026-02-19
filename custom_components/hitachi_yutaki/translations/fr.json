@@ -63,8 +63,9 @@
         "title": "Paramètres de connexion",
         "description": "Entrez les détails de connexion pour votre passerelle.",
         "data": {
-          "host": "Hôte/Adresse IP",
-          "port": "Port"
+          "modbus_host": "Hôte/Adresse IP",
+          "modbus_port": "Port",
+          "modbus_device_id": "ID Périphérique Modbus"
         }
       },
       "profile": {
@@ -110,8 +111,9 @@
         "description": "Entrez les détails de connexion pour votre passerelle de pompe à chaleur Hitachi Yutaki.",
         "data": {
           "name": "Nom",
-          "host": "Hôte/Adresse IP",
-          "port": "Port",
+          "modbus_host": "Hôte/Adresse IP",
+          "modbus_port": "Port",
+          "modbus_device_id": "ID Périphérique Modbus",
           "unit_id": "ID de l'unité (HC-A(16/64)MB uniquement, 0-15)",
           "show_advanced": "Afficher les options avancées"
         }
@@ -139,9 +141,7 @@
         "title": "Paramètres avancés",
         "description": "Configurez les paramètres avancés de Modbus et de l'intégration.",
         "data": {
-          "slave": "ID Esclave Modbus",
-          "scan_interval": "Intervalle d'interrogation (secondes)",
-          "dev_mode": "Mode développeur (active toutes les entités)"
+          "scan_interval": "Intervalle d'interrogation (secondes)"
         }
       }
     },

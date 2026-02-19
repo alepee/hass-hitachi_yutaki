@@ -14,7 +14,7 @@ MANUFACTURER = "Hitachi"
 # Default values
 DEFAULT_NAME = "Hitachi Heat Pump"
 DEFAULT_HOST = "192.168.0.4"
-DEFAULT_SLAVE = 1
+DEFAULT_DEVICE_ID = 1
 DEFAULT_PORT = 502
 DEFAULT_SCAN_INTERVAL = 5
 DEFAULT_POWER_SUPPLY = "single"
@@ -93,8 +93,12 @@ class OTCCalculationMethod(StrEnum):
     FIX = "fix"
 
 
+# Modbus connection options
+CONF_MODBUS_HOST = "modbus_host"
+CONF_MODBUS_PORT = "modbus_port"
+CONF_MODBUS_DEVICE_ID = "modbus_device_id"
+
 # Configuration options
-CONF_SLAVE = "slave"
 CONF_POWER_SUPPLY = "power_supply"
 CONF_VOLTAGE_ENTITY = "voltage_entity"
 CONF_POWER_ENTITY = "power_entity"
@@ -102,8 +106,6 @@ CONF_ENERGY_ENTITY = "energy_entity"
 CONF_WATER_INLET_TEMP_ENTITY = "water_inlet_temp_entity"
 CONF_WATER_OUTLET_TEMP_ENTITY = "water_outlet_temp_entity"
 CONF_UNIT_ID = "unit_id"
-CONF_DEV_MODE = "dev_mode"
-
 DEFAULT_UNIT_ID = 0
 
 # COP calculation parameters
