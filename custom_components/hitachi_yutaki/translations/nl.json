@@ -63,9 +63,9 @@
         "title": "Verbindingsinstellingen",
         "description": "Voer de verbindingsgegevens in voor uw gateway.",
         "data": {
-          "host": "Host/IP-adres",
-          "port": "Poort",
-          "device_id": "Modbus Apparaat-ID"
+          "modbus_host": "Host/IP-adres",
+          "modbus_port": "Poort",
+          "modbus_device_id": "Modbus Apparaat-ID"
         }
       },
       "profile": {
@@ -111,9 +111,9 @@
         "description": "Voer de verbindingsgegevens in voor uw Hitachi Yutaki warmtepompgateway.",
         "data": {
           "name": "Naam",
-          "host": "Host/IP-adres",
-          "port": "Poort",
-          "device_id": "Modbus Apparaat-ID",
+          "modbus_host": "Host/IP-adres",
+          "modbus_port": "Poort",
+          "modbus_device_id": "Modbus Apparaat-ID",
           "unit_id": "Unit-ID (alleen HC-A(16/64)MB, 0-15)",
           "show_advanced": "Geavanceerde opties tonen"
         }

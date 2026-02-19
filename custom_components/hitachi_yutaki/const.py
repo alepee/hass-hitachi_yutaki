@@ -93,8 +93,12 @@ class OTCCalculationMethod(StrEnum):
     FIX = "fix"
 
 
+# Modbus connection options
+CONF_MODBUS_HOST = "modbus_host"
+CONF_MODBUS_PORT = "modbus_port"
+CONF_MODBUS_DEVICE_ID = "modbus_device_id"
+
 # Configuration options
-CONF_DEVICE_ID = "device_id"
 CONF_POWER_SUPPLY = "power_supply"
 CONF_VOLTAGE_ENTITY = "voltage_entity"
 CONF_POWER_ENTITY = "power_entity"
