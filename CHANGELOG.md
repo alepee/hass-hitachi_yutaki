@@ -18,6 +18,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - GitHub branch protection: rulesets for `main` (merge-only, required CI) and `dev` (squash-only, required CI, admin bypass)
 - `CLAUDE.md`: updated branch strategy, git conventions, and translations sections
+- Config flow: removed unused `dev_mode` option from advanced settings
+- Config flow: moved Modbus Device ID from advanced step to gateway configuration step
+- Config flow: namespaced Modbus connection keys with `modbus_` prefix (`modbus_host`, `modbus_port`, `modbus_device_id`) to prepare for future non-Modbus gateway support
+- Automatic config entry migration (v2.1 → v2.2) renames stored connection keys for existing installations
 
 ### Fixed
 - Electrical power unit conversion now uses HA's `PowerConverter` instead of a naive `> 50` heuristic ([#182](https://github.com/alepee/hass-hitachi_yutaki/issues/182)) — a heat pump in standby consuming < 50 W was incorrectly interpreted as kW, causing wildly inaccurate COP values

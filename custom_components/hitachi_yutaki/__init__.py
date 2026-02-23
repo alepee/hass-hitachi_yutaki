@@ -5,12 +5,7 @@ from __future__ import annotations
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import (
-    CONF_HOST,
-    CONF_NAME,
-    CONF_PORT,
-    CONF_SLAVE,
-)
+from homeassistant.const import CONF_NAME
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
@@ -22,7 +17,11 @@ from .const import (
     CIRCUIT_MODE_HEATING,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
+    CONF_MODBUS_DEVICE_ID,
+    CONF_MODBUS_HOST,
+    CONF_MODBUS_PORT,
     CONF_UNIT_ID,
+    DEFAULT_DEVICE_ID,
     DEFAULT_UNIT_ID,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
@@ -91,9 +90,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         temp_client = gateway_info.client_class(
             hass,
             name=entry.data[CONF_NAME],
-            host=entry.data[CONF_HOST],
-            port=entry.data[CONF_PORT],
-            slave=entry.data[CONF_SLAVE],
+            host=entry.data[CONF_MODBUS_HOST],
+            port=entry.data[CONF_MODBUS_PORT],
+            slave=entry.data[CONF_MODBUS_DEVICE_ID],
             register_map=register_map,
         )
 
@@ -115,7 +114,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Fallback to IP+slave if hardware ID unavailable
         if unique_id is None:
-            unique_id = f"{entry.data[CONF_HOST]}_{entry.data[CONF_SLAVE]}"
+            unique_id = f"{entry.data[CONF_MODBUS_HOST]}_{entry.data[CONF_MODBUS_DEVICE_ID]}"
             _LOGGER.warning(
                 "Could not retrieve hardware identifier, using IP-based unique_id: %s",
                 unique_id,
@@ -146,9 +145,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     api_client = api_client_class(
         hass,
         name=entry.data[CONF_NAME],
-        host=entry.data[CONF_HOST],
-        port=entry.data[CONF_PORT],
-        slave=entry.data[CONF_SLAVE],
+        host=entry.data[CONF_MODBUS_HOST],
+        port=entry.data[CONF_MODBUS_PORT],
+        slave=entry.data[CONF_MODBUS_DEVICE_ID],
         register_map=register_map,
     )
     profile = PROFILES[profile_key]()
@@ -183,7 +182,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         model=gateway_model,
         name=DEVICE_GATEWAY.title(),  # Fallback name
         translation_key="gateway",
-        configuration_url=f"http://{entry.data[CONF_HOST]}",
+        configuration_url=f"http://{entry.data[CONF_MODBUS_HOST]}",
     )
 
     # Add main unit device
@@ -304,6 +303,31 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
         hass.config_entries.async_update_entry(config_entry, data=new_data, version=2)
         _LOGGER.debug("Migration to version %s successful", config_entry.version)
+
+    if config_entry.version == 2 and config_entry.minor_version < 2:
+        # Version 2.1 to 2.2: Prefix Modbus connection keys with "modbus_"
+        new_data = {**config_entry.data}
+
+        # host → modbus_host
+        if "host" in new_data:
+            new_data["modbus_host"] = new_data.pop("host")
+        # port → modbus_port
+        if "port" in new_data:
+            new_data["modbus_port"] = new_data.pop("port")
+        # slave → modbus_device_id (direct from v2.1)
+        if "slave" in new_data:
+            new_data["modbus_device_id"] = new_data.pop("slave")
+        elif "modbus_device_id" not in new_data:
+            new_data["modbus_device_id"] = DEFAULT_DEVICE_ID
+
+        hass.config_entries.async_update_entry(
+            config_entry, data=new_data, minor_version=2
+        )
+        _LOGGER.debug(
+            "Migration to version %s.%s successful",
+            config_entry.version,
+            config_entry.minor_version,
+        )
 
     return True
 
