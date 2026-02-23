@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1] - 2026-02-23
+
+### Added
+- `CONTRIBUTING.md` with contributor workflow documentation
+
+### Changed
+- Config flow: removed unused `dev_mode` option from advanced settings
+- Config flow: moved Modbus Device ID from advanced step to gateway configuration step
+- Config flow: namespaced Modbus connection keys with `modbus_` prefix (`modbus_host`, `modbus_port`, `modbus_device_id`) to prepare for future non-Modbus gateway support
+- Automatic config entry migration (v2.1 → v2.2) renames stored connection keys for existing installations
+- Dev tooling: bump `ruff` from 0.13.3 to 0.15.2
+
+### Fixed
+- HC-A(16/64)MB outdoor compressor registers mapped to wrong address block (5000+offset instead of 30000+offset), causing discharge temp, evaporator temp, current, frequency, and EVO opening to show as unavailable ([#96](https://github.com/alepee/hass-hitachi_yutaki/issues/96))
+- DHW/pool COP calculation used circuit outlet register (1094) instead of HP-level outlet register (1201) — when the 3-way valve redirects to the tank, the circuit register becomes stale, causing zero thermal power and no COP during DHW runs ([#205](https://github.com/alepee/hass-hitachi_yutaki/issues/205))
+- Electrical power unit conversion now uses HA's `PowerConverter` instead of a naive `> 50` heuristic ([#182](https://github.com/alepee/hass-hitachi_yutaki/issues/182)) — a heat pump in standby consuming < 50 W was incorrectly interpreted as kW, causing wildly inaccurate COP values
+- Dutch (nl) translations updated
+
 ## [2.0.0] - 2026-02-12
 
 A major rewrite of the integration with hexagonal architecture, multi-gateway support, and significantly improved accuracy for thermal and COP calculations.

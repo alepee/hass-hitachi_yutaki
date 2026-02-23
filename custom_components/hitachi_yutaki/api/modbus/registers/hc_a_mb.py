@@ -250,8 +250,14 @@ def serialize_otc_method_cooling(value: str) -> int:
 
 
 def _compute_base(unit_id: int) -> int:
-    """Compute the base Modbus address for a given unit ID."""
+    """Compute the base Modbus address for a given indoor unit ID."""
     return 5000 + (unit_id * 200)
+
+
+# Outdoor unit register block (section 5.3 of the HC-A(16/64)MB documentation).
+# This is a separate address range from the indoor unit block (section 5.2).
+# The outdoor unit is shared across indoor units and uses a fixed base address.
+_OUTDOOR_UNIT_BASE = 30000
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -272,8 +278,18 @@ class HcAMbRegisterMap(HitachiRegisterMap):
         self._build_registers()
 
     def _addr(self, offset: int) -> int:
-        """Compute absolute address from offset."""
+        """Compute absolute address from indoor unit offset."""
         return self._base + offset
+
+    @staticmethod
+    def _outdoor_addr(offset: int) -> int:
+        """Compute absolute address for outdoor unit registers (section 5.3).
+
+        Outdoor unit registers use a fixed base address (30000), independent
+        of the indoor unit_id. The outdoor unit is shared across all indoor
+        units on the same H-LINK bus.
+        """
+        return _OUTDOOR_UNIT_BASE + offset
 
     def _build_registers(self) -> None:
         """Build all register dictionaries with computed absolute addresses."""
@@ -460,12 +476,13 @@ class HcAMbRegisterMap(HitachiRegisterMap):
         }
 
         # --- Primary Compressor (STATUS only) ---
-        # Indoor unit registers (offsets 156-158) provide gas temp, liquid temp, and
-        # indoor EVI valve.  Outdoor unit registers (offsets 0-17, section 5.3) provide
-        # discharge temp, evaporator temp, frequency, current, and outdoor expansion
-        # valve.  Both ranges coexist in the same unit_id block without conflict.
+        # Indoor unit registers (offsets 156-158, section 5.2) provide gas temp,
+        # liquid temp, and indoor EVI valve — addressed from the indoor unit base.
+        # Outdoor unit registers (offsets 0-17, section 5.3) provide discharge temp,
+        # evaporator temp, frequency, current, and outdoor expansion valve —
+        # addressed from a separate fixed base (30000).
         self._register_primary_compressor: dict[str, RegisterDefinition] = {
-            # Indoor unit registers (offsets 156-158)
+            # Indoor unit registers (section 5.2, offsets 156-158)
             "compressor_tg_gas_temp": RegisterDefinition(
                 self._addr(156), deserializer=convert_signed_16bit
             ),
@@ -475,17 +492,17 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             "compressor_evi_indoor_expansion_valve_opening": RegisterDefinition(
                 self._addr(158)
             ),
-            # Outdoor unit registers (offsets 0-17, section 5.3)
+            # Outdoor unit registers (section 5.3, base 30000)
             "compressor_td_discharge_temp": RegisterDefinition(
-                self._addr(1), deserializer=convert_signed_16bit
+                self._outdoor_addr(1), deserializer=convert_signed_16bit
             ),
             "compressor_te_evaporator_temp": RegisterDefinition(
-                self._addr(2), deserializer=convert_signed_16bit
+                self._outdoor_addr(2), deserializer=convert_signed_16bit
             ),
-            "compressor_current": RegisterDefinition(self._addr(6)),
-            "compressor_frequency": RegisterDefinition(self._addr(7)),
+            "compressor_current": RegisterDefinition(self._outdoor_addr(6)),
+            "compressor_frequency": RegisterDefinition(self._outdoor_addr(7)),
             "compressor_evo_outdoor_expansion_valve_opening": RegisterDefinition(
-                self._addr(8)
+                self._outdoor_addr(8)
             ),
         }
 

@@ -29,14 +29,9 @@ def calculate_electrical_power(data: ElectricalPowerInput) -> float:
         Electrical power in kW
 
     """
-    # Priority 1: Use direct power measurement if available
+    # Priority 1: Use direct power measurement if available (already in kW)
     if data.measured_power is not None:
-        # Simple heuristic to convert W to kW if necessary
-        return (
-            data.measured_power / 1000
-            if data.measured_power > 50
-            else data.measured_power
-        )
+        return data.measured_power
 
     # Priority 2: Calculate from voltage and current
     voltage = data.voltage

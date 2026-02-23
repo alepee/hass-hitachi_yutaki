@@ -50,25 +50,37 @@ class TestAddressComputation:
         assert regs["unit_power"].write_address == 5050
         assert regs["unit_mode"].write_address == 5051
 
-    def test_outdoor_register_addresses_unit0(self):
-        """Verify outdoor unit register addresses for unit_id=0."""
+    def test_outdoor_register_addresses(self):
+        """Verify outdoor unit registers use fixed base 30000 (section 5.3)."""
         rmap = HcAMbRegisterMap(unit_id=0)
         regs = rmap.all_registers
-        assert regs["compressor_td_discharge_temp"].address == 5001
-        assert regs["compressor_te_evaporator_temp"].address == 5002
-        assert regs["compressor_current"].address == 5006
-        assert regs["compressor_frequency"].address == 5007
-        assert regs["compressor_evo_outdoor_expansion_valve_opening"].address == 5008
+        assert regs["compressor_td_discharge_temp"].address == 30001
+        assert regs["compressor_te_evaporator_temp"].address == 30002
+        assert regs["compressor_current"].address == 30006
+        assert regs["compressor_frequency"].address == 30007
+        assert regs["compressor_evo_outdoor_expansion_valve_opening"].address == 30008
 
-    def test_outdoor_register_addresses_unit1(self):
-        """Verify outdoor unit register addresses shift for unit_id=1."""
-        rmap = HcAMbRegisterMap(unit_id=1)
-        regs = rmap.all_registers
-        assert regs["compressor_td_discharge_temp"].address == 5201
-        assert regs["compressor_te_evaporator_temp"].address == 5202
-        assert regs["compressor_current"].address == 5206
-        assert regs["compressor_frequency"].address == 5207
-        assert regs["compressor_evo_outdoor_expansion_valve_opening"].address == 5208
+    def test_outdoor_register_addresses_independent_of_unit_id(self):
+        """Outdoor unit addresses must NOT shift with unit_id.
+
+        The outdoor unit block (section 5.3) is shared across all indoor units
+        and uses a fixed base address of 30000, unlike indoor unit registers
+        which shift by 200 per unit_id.
+        """
+        rmap_unit0 = HcAMbRegisterMap(unit_id=0)
+        rmap_unit1 = HcAMbRegisterMap(unit_id=1)
+        outdoor_keys = [
+            "compressor_td_discharge_temp",
+            "compressor_te_evaporator_temp",
+            "compressor_current",
+            "compressor_frequency",
+            "compressor_evo_outdoor_expansion_valve_opening",
+        ]
+        for key in outdoor_keys:
+            assert (
+                rmap_unit0.all_registers[key].address
+                == rmap_unit1.all_registers[key].address
+            ), f"{key} address should not change with unit_id"
 
     def test_register_map_addresses_unit1(self):
         """Verify addresses shift correctly for unit_id=1."""

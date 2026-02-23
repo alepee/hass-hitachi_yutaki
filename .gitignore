@@ -1,6 +1,9 @@
 # Private files
 private/
 
+# Git worktrees
+.worktrees/
+
 # Home Assistant config
 config/
 

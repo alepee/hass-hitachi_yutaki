@@ -10,11 +10,8 @@ import voluptuous as vol
 
 from homeassistant import config_entries
 from homeassistant.const import (
-    CONF_HOST,
     CONF_NAME,
-    CONF_PORT,
     CONF_SCAN_INTERVAL,
-    CONF_SLAVE,
 )
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
@@ -24,18 +21,21 @@ import homeassistant.helpers.config_validation as cv
 from .api import GATEWAY_INFO, create_register_map
 from .const import (
     CONF_ENERGY_ENTITY,
+    CONF_MODBUS_DEVICE_ID,
+    CONF_MODBUS_HOST,
+    CONF_MODBUS_PORT,
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
     CONF_UNIT_ID,
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
+    DEFAULT_DEVICE_ID,
     DEFAULT_HOST,
     DEFAULT_NAME,
     DEFAULT_PORT,
     DEFAULT_POWER_SUPPLY,
     DEFAULT_SCAN_INTERVAL,
-    DEFAULT_SLAVE,
     DEFAULT_UNIT_ID,
     DOMAIN,
 )
@@ -60,8 +60,11 @@ GATEWAY_SELECTION_SCHEMA = vol.Schema(
 GATEWAY_SCHEMA = vol.Schema(
     {
         vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
-        vol.Required(CONF_HOST, default=DEFAULT_HOST): str,
-        vol.Required(CONF_PORT, default=DEFAULT_PORT): cv.port,
+        vol.Required(CONF_MODBUS_HOST, default=DEFAULT_HOST): str,
+        vol.Required(CONF_MODBUS_PORT, default=DEFAULT_PORT): cv.port,
+        vol.Required(CONF_MODBUS_DEVICE_ID, default=DEFAULT_DEVICE_ID): vol.All(
+            vol.Coerce(int), vol.Range(min=1, max=247)
+        ),
         vol.Required("show_advanced", default=False): bool,
     }
 )
@@ -112,13 +115,9 @@ POWER_SCHEMA = vol.Schema(
 # Advanced schema
 ADVANCED_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_SLAVE, default=DEFAULT_SLAVE): vol.All(
-            vol.Coerce(int), vol.Range(min=1, max=247)
-        ),
         vol.Optional(
             CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
         ): cv.positive_int,
-        vol.Optional("dev_mode", default=False): bool,
     }
 )
 
@@ -127,7 +126,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
 
     VERSION = 2
-    MINOR_VERSION = 1
+    MINOR_VERSION = 2
 
     def __init__(self):
         """Initialize the config flow."""
@@ -171,9 +170,10 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             # Store basic configuration
             self.basic_config = {
-                CONF_HOST: user_input[CONF_HOST],
+                CONF_MODBUS_HOST: user_input[CONF_MODBUS_HOST],
                 CONF_NAME: user_input[CONF_NAME],
-                CONF_PORT: user_input[CONF_PORT],
+                CONF_MODBUS_PORT: user_input[CONF_MODBUS_PORT],
+                CONF_MODBUS_DEVICE_ID: user_input[CONF_MODBUS_DEVICE_ID],
             }
             # Store unit_id for HC-A(16/64)MB
             if self.gateway_type == "modbus_hc_a_mb":
@@ -192,9 +192,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             api_client = api_client_class(
                 self.hass,
                 name=user_input[CONF_NAME],
-                host=user_input[CONF_HOST],
-                port=user_input[CONF_PORT],
-                slave=DEFAULT_SLAVE,  # Use default for initial check
+                host=user_input[CONF_MODBUS_HOST],
+                port=user_input[CONF_MODBUS_PORT],
+                slave=user_input[CONF_MODBUS_DEVICE_ID],
                 register_map=register_map,
             )
             try:
@@ -300,9 +300,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 {
                     "gateway_type": self.gateway_type,
                     **self.basic_config,
-                    CONF_SLAVE: DEFAULT_SLAVE,
                     CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
-                    "dev_mode": False,
                 }
             )
 
@@ -345,9 +343,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         api_client = api_client_class(
             self.hass,
             name=config[CONF_NAME],
-            host=config[CONF_HOST],
-            port=config[CONF_PORT],
-            slave=config[CONF_SLAVE],
+            host=config[CONF_MODBUS_HOST],
+            port=config[CONF_MODBUS_PORT],
+            slave=config[CONF_MODBUS_DEVICE_ID],
             register_map=register_map,
         )
 
@@ -379,7 +377,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                             )
                         else:
                             # Fallback to IP+slave if Modbus read failed
-                            unique_id = f"{config[CONF_HOST]}_{config[CONF_SLAVE]}"
+                            unique_id = f"{config[CONF_MODBUS_HOST]}_{config[CONF_MODBUS_DEVICE_ID]}"
                             _LOGGER.warning(
                                 "Could not retrieve gateway hardware identifier. "
                                 "Using IP-based unique_id: %s. "
@@ -464,8 +462,12 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             step_id="connection",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_HOST, default=data.get(CONF_HOST)): str,
-                    vol.Required(CONF_PORT, default=data.get(CONF_PORT)): cv.port,
+                    vol.Required(CONF_MODBUS_HOST, default=data.get(CONF_MODBUS_HOST)): str,
+                    vol.Required(CONF_MODBUS_PORT, default=data.get(CONF_MODBUS_PORT)): cv.port,
+                    vol.Required(
+                        CONF_MODBUS_DEVICE_ID,
+                        default=data.get(CONF_MODBUS_DEVICE_ID, DEFAULT_DEVICE_ID),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
                 }
             ),
         )
