@@ -85,8 +85,6 @@ class YutampoR32Profile(HitachiHeatPumpProfile):
         """
         return {
             "water_heater": {
-                "min_temp": 30,
-                "max_temp": 55,
                 "boost_temp": 75,
             }
         }

@@ -71,9 +71,11 @@ class HitachiYutakiWaterHeater(
             self._attr_max_temp = 60
             return
 
-        overrides = self.coordinator.profile.entity_overrides.get("water_heater", {})
-        self._attr_min_temp = overrides.get("min_temp", 30)
-        self._attr_max_temp = overrides.get("max_temp", 60)
+        profile = self.coordinator.profile
+        self._attr_min_temp = profile.dhw_min_temp or 30
+        self._attr_max_temp = profile.dhw_max_temp or 60
+
+        overrides = profile.entity_overrides.get("water_heater", {})
         self._temperature_entity_key = overrides.get(
             "temperature_entity_key", "dhw_target_temp"
         )
