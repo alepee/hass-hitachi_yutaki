@@ -240,32 +240,35 @@ class Storage[T](ABC):
 
 ## Integration Diagram
 
-```
-                         domain/ports/
-                  (Protocols & ABCs define contracts)
-                              |
-          +-------------------+-------------------+
-          |                   |                   |
-   ThermalPower-       ElectricalPower-       Storage[T]
-    Calculator           Calculator
-          |                   |                   |
-          v                   v                   v
-  adapters/calculators/   adapters/calculators/  adapters/storage/
-  (concrete impls)        (concrete impls)       InMemoryStorage
-          |                   |                   |
-          +--------+----------+-------------------+
-                   |
-            domain/services/
-    +------+------+--------+----------+
-    |      |      |        |          |
-   COP  Thermal  Defrost  Timing  Electrical
-  Service Service  Guard   Service  (function)
-    |      |      |        |          |
-    +------+------+--------+----------+
-                   |
-            entities/<domain>/
-          (HA entity classes call
-           services for values)
+```mermaid
+graph TD
+    PORTS(["domain/ports/<br>Protocols and ABCs define contracts"])
+
+    TP["ThermalPower-<br>Calculator"]
+    EP["ElectricalPower-<br>Calculator"]
+    ST["Storage T"]
+
+    ATC["adapters/calculators/<br>concrete impls"]
+    AEC["adapters/calculators/<br>concrete impls"]
+    AST["adapters/storage/<br>InMemoryStorage"]
+
+    SVC(["domain/services/"])
+
+    COP["COP<br>Service"]
+    THS["Thermal<br>Service"]
+    DFG["Defrost<br>Guard"]
+    TIM["Timing<br>Service"]
+    ELE["Electrical<br>function"]
+
+    ENT(["entities/domain/<br>HA entity classes call services for values"])
+
+    PORTS --> TP & EP & ST
+    TP --> ATC
+    EP --> AEC
+    ST --> AST
+    ATC & AEC & AST --> SVC
+    SVC --> COP & THS & DFG & TIM & ELE
+    COP & THS & DFG & TIM & ELE --> ENT
 ```
 
 Domain services receive their dependencies through constructor injection. Adapters

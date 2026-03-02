@@ -81,7 +81,7 @@ Domain logic goes in `domain/services/`, adapter logic in `adapters/calculators/
 
 ### Modbus Register Access
 
-**Always read from STATUS registers** for sensor entities -- CONTROL registers only reflect what was commanded, not the actual running state. See [docs/development/modbus-registers.md](docs/development/modbus-registers.md) for register maps and conventions.
+**Always read from STATUS registers** for sensor entities -- CONTROL registers only reflect what was commanded, not the actual running state. See [API Layer & Data Keys](docs/development/api-data-keys.md) for details.
 
 ### Circuit Climate Architecture
 - **Operating mode is global**: register 1001 (`unit_mode`) controls heat/cool/auto for **all** circuits simultaneously

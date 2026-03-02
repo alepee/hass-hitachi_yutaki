@@ -69,8 +69,8 @@ def _build_control_unit_sensor_descriptions() -> tuple[
     )
 ```
 
-The `key` must match the Modbus register key used in `coordinator.data`. The
-`translation_key` is looked up in translation files.
+The `key` must match a data key exposed by the coordinator in
+`coordinator.data`. The `translation_key` is looked up in translation files.
 
 ### 4. Add the translation key
 
@@ -237,10 +237,11 @@ a specific hardware feature is present (DHW, pool, cooling mode, second
 compressor), add a `condition` lambda. Without it, entities appear for users
 whose hardware does not support the feature and show permanently unavailable.
 
-**Reading CONTROL registers instead of STATUS registers.** The ATW-MBS-02
-gateway exposes two register ranges. CONTROL registers reflect what was
-*commanded*; STATUS registers reflect the *actual state*. Sensor entities must
-always read from STATUS registers.
+**Using the wrong data key.** If the value your entity reads seems stuck or
+does not reflect the actual hardware state, the underlying register may be
+wrong. See [API Layer & Data Keys](api-data-keys.md) for the CONTROL vs STATUS
+distinction -- this is handled in the API layer but affects which keys are
+available in `coordinator.data`.
 
 ## Checklist
 
@@ -248,11 +249,11 @@ Use this checklist before opening a PR:
 
 1. Entity is in the correct `entities/<domain>/` directory
 2. Description added to the `_build_*_descriptions()` function
-3. `key` matches the Modbus register key in `coordinator.data`
+3. `key` matches a data key in `coordinator.data`
 4. `translation_key` added to `translations/en.json` under the right platform
 5. `condition` lambda present for optional/hardware-dependent features
 6. Device type uses a constant from `const.py` (not a dynamic string)
 7. No business logic in entity descriptions -- only data access
-8. `value_fn` reads from STATUS registers, not CONTROL registers
+8. `value_fn` reads the correct data key (see [API Layer & Data Keys](api-data-keys.md) if unsure)
 9. Platform orchestrator updated if this is a new domain
 10. `make test && make lint` pass

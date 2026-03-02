@@ -4,6 +4,9 @@ private/
 # Git worktrees
 .worktrees/
 
+# AI session plans
+docs/plans/
+
 # Home Assistant config
 config/
 

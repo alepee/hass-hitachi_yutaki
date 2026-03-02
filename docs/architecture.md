@@ -6,35 +6,16 @@ The Hitachi Yutaki integration follows **Hexagonal Architecture** (Ports and Ada
 
 ## Layer Diagram
 
-```
-+-----------------------------------------------+
-|          Home Assistant (External)             |
-+----------------------+------------------------+
-                       |
-              +--------v--------+
-              |  Platform Files  |  sensor.py, climate.py, ...
-              |  (Entry Points)  |
-              +--------+--------+
-                       |
-              +--------v--------+
-              |  Entity Layer    |  entities/ (domain-based)
-              |   (Adapters)     |
-              +--------+--------+
-                       |
-              +--------v--------+
-              |  Domain Layer    |  domain/ (pure business logic)
-              |  (Core Business) |
-              +--------+--------+
-                       |
-              +--------v--------+
-              | Adapters Layer   |  adapters/ (infrastructure)
-              | (Infrastructure) |
-              +--------+--------+
-                       |
-              +--------v--------+
-              |    API Layer     |  api/ (Modbus communication)
-              |  (External API)  |
-              +------------------+
+```mermaid
+graph TD
+    HA["Home Assistant - External"]
+    PF["Platform Files<br>sensor.py, climate.py, ..."]
+    EL["Entity Layer<br>entities/ - domain-based"]
+    DL["Domain Layer<br>domain/ - pure business logic"]
+    AL["Adapters Layer<br>adapters/ - infrastructure"]
+    API["API Layer<br>api/ - gateway communication"]
+
+    HA --> PF --> EL --> DL --> AL --> API
 ```
 
 ## Repository Structure
@@ -219,7 +200,7 @@ The API layer handles Modbus communication with the ATW-MBS-02 gateway. Register
 
 Sensor entities must always read from STATUS registers. Reading CONTROL registers only reflects what was last commanded, not the current running state.
 
-See [Modbus Registers Guide](development/modbus-registers.md).
+See [API Layer & Data Keys](development/api-data-keys.md).
 
 ## Data Flow
 

@@ -15,9 +15,9 @@ This directory contains the register maps and technical documentation for the Mo
 |---|---|---|
 | Max units | 1 Yutaki | Up to 64 indoor units |
 | Protocol | Modbus RTU + TCP | Modbus RTU + TCP |
-| Addressing | Fixed (1000~1231) | `5000 + (unit_id × 200) + offset` |
-| Register layout | Single range | CONTROL (50~86) + STATUS (100~192) |
-| Heat pump models | S, S Combi, S80, M | S, SC, S80, M, SC Lite, Yutampo, YCC |
+| Addressing | Fixed (1000–1231) | `5000 + (unit_id × 200) + offset` |
+| Register layout | Single range | CONTROL (50–86) + STATUS (100–192) |
+| Heat pump models | S, S Combi, S80, M, Yutampo R32 | S, SC, S80, M, SC Lite, Yutampo, YCC |
 | Outdoor unit data | No | Yes |
 | YCC support | No | Yes |
 

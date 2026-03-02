@@ -12,11 +12,11 @@ that differ from the defaults. The rest of the integration reads profile propert
 decide which entities to create, which temperature ranges to enforce, and which registers
 to poll.
 
-See also: [Architecture](../architecture.md) | [Modbus Registers](modbus-registers.md)
+See also: [Architecture](../architecture.md) | [API Layer & Data Keys](api-data-keys.md)
 
 ## How Detection Works
 
-1. During the config flow, the integration reads Modbus registers from the ATW-MBS-02
+1. During the config flow, the integration reads Modbus registers from the gateway
    gateway. Register **1218** (`unit_model`) identifies the heat pump model and is
    decoded into a string key such as `"yutaki_s"`, `"yutaki_s80"`, etc.
 

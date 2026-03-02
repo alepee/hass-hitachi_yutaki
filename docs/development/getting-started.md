@@ -160,5 +160,5 @@ git commit -m "feat: add new sensor for X"
 
 - [Architecture](../architecture.md) -- hexagonal design, layer responsibilities, and key patterns
 - [Adding Entities](adding-entities.md) -- step-by-step guide for creating new entities
-- [Modbus Registers](modbus-registers.md) -- ATW-MBS-02 register map and conventions
+- [API Layer & Data Keys](api-data-keys.md) -- API abstraction, data keys, and Modbus implementation
 - [Heat Pump Profiles](profiles.md) -- model detection and capability definitions
