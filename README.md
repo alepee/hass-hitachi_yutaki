@@ -424,13 +424,7 @@ This integration follows the **Hexagonal Architecture** (Ports and Adapters) pat
 - **Maintainability**: Business logic centralized in domain layer, single point of truth for calculations
 - **Extensibility**: Easy to add new entity types or change storage implementations
 
-### Architecture Documentation
-
-For detailed information about each architectural layer, see the specialized README files:
-
-- **[Domain Layer](custom_components/hitachi_yutaki/domain/README.md)**: Pure business logic with zero Home Assistant dependencies
-- **[Adapters Layer](custom_components/hitachi_yutaki/adapters/README.md)**: Concrete implementations bridging domain with Home Assistant
-- **[Entities Layer](custom_components/hitachi_yutaki/entities/README.md)**: Domain-driven entity organization
+For detailed architecture documentation, see [docs/architecture.md](docs/architecture.md).
 
 ### Project Structure
 
@@ -490,7 +484,7 @@ hitachi_yutaki/
 │   ├── profiles/               # Profile detection tests
 │   ├── test_entity_migration.py
 │   └── test_modbus_api.py
-└── documentation/              # Architecture and investigation docs
+├── docs/                       # Developer documentation
 ```
 
 ### Setting Up Development Environment

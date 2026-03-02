@@ -4,9 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Home Assistant custom integration for Hitachi air-to-water heat pumps (Yutaki and Yutampo models). It communicates via Modbus with ATW-MBS-02 gateways and follows hexagonal architecture principles.
-
-**Current Version**: see `manifest.json`
+Home Assistant custom integration for Hitachi air-to-water heat pumps (Yutaki and Yutampo models). Communicates via Modbus with ATW-MBS-02 gateways. Follows hexagonal architecture. Version is in `manifest.json`. See [`docs/`](docs/) for detailed documentation.
 
 ## Development Commands
 
@@ -28,40 +26,7 @@ Pre-commit hooks are automatically installed by `make setup` and run ruff on eve
 
 ## Architecture
 
-This integration follows **Hexagonal Architecture** (Ports and Adapters) with strict separation of concerns.
-
-### Layer Structure
-
-```
-custom_components/hitachi_yutaki/
-├── domain/              # Pure business logic (NO HA dependencies)
-│   ├── models/          # Data structures (dataclasses, NamedTuples)
-│   ├── ports/           # Interfaces (Protocols) defining contracts
-│   └── services/        # Business logic services (COP, thermal, timing)
-├── adapters/            # Concrete implementations of domain ports
-│   ├── calculators/     # Power calculation adapters
-│   ├── providers/       # Data providers (coordinator, entity state)
-│   └── storage/         # Storage implementations (in-memory)
-├── entities/            # Domain-driven entity organization
-│   ├── base/            # Base classes for all entity types
-│   ├── performance/     # COP sensors
-│   ├── thermal/         # Thermal energy sensors
-│   ├── power/           # Electrical power sensors
-│   ├── gateway/         # Gateway connectivity sensors
-│   ├── hydraulic/       # Water pumps and hydraulic sensors
-│   ├── compressor/      # Compressor sensors
-│   ├── control_unit/    # Main control unit entities
-│   ├── circuit/         # Heating/cooling circuit entities (climate)
-│   ├── dhw/             # Domestic Hot Water entities (water_heater)
-│   └── pool/            # Pool heating entities
-├── api/                 # Modbus communication layer
-│   └── modbus/registers/
-├── profiles/            # Heat pump model profiles (Yutaki S, S80, M, etc.)
-├── sensor.py            # HA platform orchestrator
-├── binary_sensor.py     # HA platform orchestrator
-├── climate.py           # HA platform orchestrator
-└── ... (other platform files)
-```
+This integration follows **Hexagonal Architecture** (Ports and Adapters) with strict separation of concerns. See [docs/architecture.md](docs/architecture.md) for full architecture documentation.
 
 ### Critical Architecture Rules
 
@@ -84,99 +49,45 @@ custom_components/hitachi_yutaki/
 - Uses base classes from `entities/base/` for common HA entity patterns
 - Platform files (`sensor.py`, etc.) call builders and register entities
 
-### Entity Builder Pattern
-
-Each domain exports builder functions:
-
-```python
-# entities/<domain>/sensors.py
-def build_<domain>_sensors(
-    coordinator: HitachiYutakiDataCoordinator,
-    entry_id: str,
-    # domain-specific params (circuit_id, etc.)
-) -> list[SensorEntity]:
-    """Build sensor entities for <domain>."""
-    descriptions = _build_<domain>_sensor_descriptions()
-    from ..base.sensor import _create_sensors
-    return _create_sensors(coordinator, entry_id, descriptions, DEVICE_TYPE)
-```
-
-Platform files orchestrate by calling builders:
-```python
-# sensor.py
-async def async_setup_entry(...):
-    entities = []
-    entities.extend(build_gateway_sensors(coordinator, entry.entry_id))
-    entities.extend(build_performance_sensors(coordinator, entry.entry_id))
-    # ... etc
-    async_add_entities(entities)
-```
-
 ## Key Domain Concepts
 
+See [docs/reference/domain-services.md](docs/reference/domain-services.md) for detailed service documentation.
+
 ### Heat Pump Profiles
-- Auto-detected based on Modbus data
-- Defines capabilities: DHW, pool, circuits, compressors
-- Located in `profiles/`: `yutaki_s.py`, `yutaki_s80.py`, `yutaki_m.py`, etc.
+- Auto-detected based on Modbus data; defines capabilities (DHW, pool, circuits, compressors)
 - Base class: `HitachiHeatPumpProfile` with detection logic
 
 ### COP Calculation
-- Coefficient of Performance monitoring with quality indicators
-- Uses energy accumulation over time for accuracy
-- Supports both internal and external temperature sensors
+- Coefficient of Performance monitoring using energy accumulation over time
 - Quality levels: `no_data`, `insufficient_data`, `preliminary`, `optimal`
-- Located in `domain/services/cop.py`
 
 ### Thermal Energy Tracking
-- **Separate** tracking for heating and cooling
-- Real-time power: `thermal_power_heating`, `thermal_power_cooling`
-- Daily energy: auto-resets at midnight
-- Total energy: persistent across HA restarts
-- **Defrost filtering**: excludes defrost cycles from measurements
-- **Post-cycle lock**: prevents counting thermal inertia noise after compressor stops
-- Located in `domain/services/thermal/`
+- Separate tracking for heating and cooling (real-time power, daily energy, total energy)
+- **Defrost filtering** and **post-cycle lock** prevent measurement noise
 
 ### Devices Created
-The integration creates multiple HA devices based on configuration:
-- **ATW-MBS-02 Gateway**: connectivity monitoring
-- **Control Unit**: main heat pump control and sensors
-- **Primary Compressor**: always present
-- **Secondary Compressor**: S80 model only
-- **Circuit 1 & 2**: heating/cooling zones (climate entities)
-- **DHW**: domestic hot water (water_heater entity)
-- **Pool**: pool heating (if configured)
+- **ATW-MBS-02 Gateway**, **Control Unit**, **Primary Compressor** (always present)
+- **Secondary Compressor** (S80 only), **Circuit 1 & 2**, **DHW**, **Pool** (if configured)
 
 ## Important Development Notes
 
 ### When Adding New Entities
 
-1. Determine the **business domain** (not entity type)
-2. Add to appropriate `entities/<domain>/` folder
-3. Create builder function following the pattern
-4. Update platform orchestrator file to call builder
-5. **Never** add business logic to entity classes - use domain services
+Follow the domain builder pattern. See [docs/development/adding-entities.md](docs/development/adding-entities.md) for the step-by-step guide. **Never** add business logic to entity classes.
 
 ### When Modifying Calculations
 
-1. Business logic changes go in `domain/services/`
-2. Adapter changes go in `adapters/calculators/`
-3. Test domain services in isolation (no HA mocks needed)
-4. Domain layer must remain HA-agnostic
+Domain logic goes in `domain/services/`, adapter logic in `adapters/calculators/`. See [docs/reference/domain-services.md](docs/reference/domain-services.md). Domain layer must remain HA-agnostic.
 
 ### Modbus Register Access
-- Registers defined in `api/modbus/registers/atw_mbs_02.py`
-- Accessed via coordinator: `coordinator.data["register_key"]`
-- Gateway type info in `api/GATEWAY_INFO`
-- **CONTROL vs STATUS registers**: The ATW-MBS-02 gateway exposes two register ranges:
-  - **CONTROL** (R/W): commands sent to the heat pump
-  - **STATUS** (R): actual state read from the heat pump
-  - **Always read from STATUS registers** for sensor entities — reading CONTROL registers only reflects what was commanded, not the actual running state
+
+**Always read from STATUS registers** for sensor entities -- CONTROL registers only reflect what was commanded, not the actual running state. See [docs/development/modbus-registers.md](docs/development/modbus-registers.md) for register maps and conventions.
 
 ### Circuit Climate Architecture
 - **Operating mode is global**: register 1001 (`unit_mode`) controls heat/cool/auto for **all** circuits simultaneously
 - **Circuit power is per-circuit**: registers 1002 (circuit 1) and 1013 (circuit 2) toggle each circuit independently
 - **Single circuit active**: climate entity exposes `off`/`heat`/`cool`/`auto` and controls both power and global mode
-- **Two circuits active**: climate entities expose only `off`/`heat_cool` (power toggle only) — global mode is controlled exclusively via the `control_unit_operation_mode` select entity to avoid unintended side-effects between circuits
+- **Two circuits active**: climate entities expose only `off`/`heat_cool` (power toggle only) -- global mode is controlled exclusively via the `control_unit_operation_mode` select entity to avoid unintended side-effects between circuits
 
 ### Entity Migration (v2.0.0)
 - `entity_migration.py` handles unique_id migrations for beta users
@@ -187,7 +98,7 @@ The integration creates multiple HA devices based on configuration:
 
 - **Source of truth**: `en.json` is edited by developers in the repo
 - **Other languages**: edited directly in JSON files or contributed via [Weblate](https://hosted.weblate.org/engage/hass-hitachi_yutaki/)
-- **Weblate**: external contributors can translate without coding — changes sync both ways. If editing a JSON file that was also modified on Weblate, check for conflicts on the same keys
+- **Weblate**: external contributors can translate without coding -- changes sync both ways. If editing a JSON file that was also modified on Weblate, check for conflicts on the same keys
 
 ## Code Quality Standards
 
@@ -209,22 +120,17 @@ Run tests: `make test`
 
 All dependencies are declared in `pyproject.toml` (single source of truth).
 
-**Runtime**:
-- `pymodbus>=3.6.9,<4.0.0` (Modbus communication)
-- Home Assistant core
-
-**Development** (via `[dependency-groups] dev` in `pyproject.toml`):
-- `pytest-homeassistant-custom-component` (pulls HA as transitive dep)
-- `ruff`, `pre-commit`, `pytest`, `pytest-asyncio`
+- **Runtime**: `pymodbus>=3.6.9,<4.0.0`, Home Assistant core
+- **Dev**: `pytest-homeassistant-custom-component`, `ruff`, `pre-commit`, `pytest`, `pytest-asyncio`
 
 ## Branch Strategy
 
-- **`main`**: released state — never push directly, only merge from `dev` via PR
-- **`dev`**: integration branch — target for all pull requests
+- **`main`**: released state -- never push directly, only merge from `dev` via PR
+- **`dev`**: integration branch -- target for all pull requests
 - **Feature branches**: created from `dev`, named `feat/...`, `fix/...`, or `chore/...`
 - **PRs to `dev`**: squash-merged (one commit per PR)
-- **Release PR (`dev` → `main`)**: merge commit (preserves full history)
-- **Release flow**: freeze `dev` → `make bump` on `dev` → PR to `main` → merge → create GitHub release
+- **Release PR (`dev` -> `main`)**: merge commit (preserves full history)
+- **Release flow**: freeze `dev` -> `make bump` on `dev` -> PR to `main` -> merge -> create GitHub release
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor workflow.
 
@@ -236,70 +142,16 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor workflow.
 
 ## Documentation
 
-- **README.md**: User-facing documentation
-- **documentation/architecture.md**: Detailed French architecture docs
-- **documentation/entities.md**: Entity organization patterns
-- **domain/README.md**: Domain layer specifics
-- **adapters/README.md**: Adapter layer specifics
-- **entities/README.md**: Entity layer specifics
-- Each `entities/<domain>/` has focused README files
-
-## Common Patterns
-
-### Accessing Heat Pump Data
-```python
-# Via coordinator
-value = coordinator.data.get("register_key")
-
-# Check if feature exists (requires both circuit_id AND mode)
-if coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING):
-    # ...
-
-if coordinator.profile.supports_dhw:
-    # ...
-```
-
-### Creating Domain-Based Entities
-```python
-# Avoid: Creating entities directly in platform files
-# Do: Use domain builders
-
-# In entities/mydomain/sensors.py
-def build_mydomain_sensors(coordinator, entry_id):
-    descriptions = [
-        HitachiYutakiSensorEntityDescription(
-            key="my_sensor",
-            translation_key="my_sensor",
-            device_type=DEVICE_CONTROL_UNIT,
-            # ...
-        )
-    ]
-    from ..base.sensor import _create_sensors
-    return _create_sensors(coordinator, entry_id, descriptions, DEVICE_CONTROL_UNIT)
-
-# In sensor.py
-entities.extend(build_mydomain_sensors(coordinator, entry.entry_id))
-```
-
-### Using Domain Services
-```python
-# Inject dependencies via adapters
-electrical_calc = ElectricalPowerCalculatorAdapter(hass, entry, power_supply)
-thermal_calc = thermal_power_calculator_wrapper
-storage = InMemoryStorage(max_len=100)
-accumulator = EnergyAccumulator(storage, threshold_seconds=180)
-
-# Create service
-cop_service = COPService(accumulator, thermal_calc, electrical_calc)
-
-# Use in entity
-cop_value = cop_service.get_value()
-```
+Detailed documentation is in [`docs/`](docs/):
+- [Architecture](docs/architecture.md) -- hexagonal layers, data flow, domain matrix
+- [Development guides](docs/development/) -- getting started, adding entities, registers, profiles
+- [Reference](docs/reference/) -- entity patterns, domain services, quality scale
+- [Gateway docs](docs/gateway/) -- register maps, scan reference, datasheets
 
 ## Version Management
 
 Version is defined in two files (kept in sync by `make bump`):
-- `manifest.json`: `"version"` — **source of truth** (read by HA core + HACS at runtime)
-- `pyproject.toml`: `version` — metadata only (uv/build tools)
+- `manifest.json`: `"version"` -- **source of truth** (read by HA core + HACS at runtime)
+- `pyproject.toml`: `version` -- metadata only (uv/build tools)
 
 Use `make bump` to increment the last numeric segment and update both files automatically.
