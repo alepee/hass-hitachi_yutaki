@@ -115,7 +115,7 @@
           "modbus_port": "Port",
           "modbus_device_id": "Modbus Device ID",
           "unit_id": "Unit ID (HC-A(16/64)MB only, 0-15)",
-          "show_advanced": "Show advanced options"
+          "scan_interval": "Polling Interval (seconds)"
         }
       },
       "profile": {
@@ -135,13 +135,6 @@
           "energy_entity": "Energy Sensor (Optional)",
           "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
           "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
-        }
-      },
-      "advanced": {
-        "title": "Advanced Settings",
-        "description": "Configure advanced Modbus and integration settings.",
-        "data": {
-          "scan_interval": "Polling Interval (seconds)"
         }
       }
     },

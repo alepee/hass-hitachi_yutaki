@@ -115,7 +115,7 @@
           "modbus_port": "Port",
           "modbus_device_id": "ID Périphérique Modbus",
           "unit_id": "ID de l'unité (HC-A(16/64)MB uniquement, 0-15)",
-          "show_advanced": "Afficher les options avancées"
+          "scan_interval": "Intervalle d'interrogation (secondes)"
         }
       },
       "profile": {
@@ -135,13 +135,6 @@
           "energy_entity": "Compteur d'énergie (Optionnel)",
           "water_inlet_temp_entity": "Capteur de température d'entrée d'eau (Optionnel)",
           "water_outlet_temp_entity": "Capteur de température de sortie d'eau (Optionnel)"
-        }
-      },
-      "advanced": {
-        "title": "Paramètres avancés",
-        "description": "Configurez les paramètres avancés de Modbus et de l'intégration.",
-        "data": {
-          "scan_interval": "Intervalle d'interrogation (secondes)"
         }
       }
     },

@@ -65,7 +65,9 @@ GATEWAY_SCHEMA = vol.Schema(
         vol.Required(CONF_MODBUS_DEVICE_ID, default=DEFAULT_DEVICE_ID): vol.All(
             vol.Coerce(int), vol.Range(min=1, max=247)
         ),
-        vol.Required("show_advanced", default=False): bool,
+        vol.Optional(
+            CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+        ): cv.positive_int,
     }
 )
 
@@ -112,21 +114,11 @@ POWER_SCHEMA = vol.Schema(
     }
 )
 
-# Advanced schema
-ADVANCED_SCHEMA = vol.Schema(
-    {
-        vol.Optional(
-            CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
-        ): cv.positive_int,
-    }
-)
-
-
 class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
 
     VERSION = 2
-    MINOR_VERSION = 2
+    MINOR_VERSION = 3
 
     def __init__(self):
         """Initialize the config flow."""
@@ -134,7 +126,6 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self.basic_config: dict[str, Any] = {}
         self.all_data: dict[str, Any] = {}
         self.detected_profiles: list[str] = []
-        self.show_advanced = False
 
     @staticmethod
     def is_matching(_, other_flow: dict) -> bool:
@@ -170,18 +161,19 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         if user_input is not None:
             # Store basic configuration
             self.basic_config = {
-                CONF_MODBUS_HOST: user_input[CONF_MODBUS_HOST],
                 CONF_NAME: user_input[CONF_NAME],
+                CONF_MODBUS_HOST: user_input[CONF_MODBUS_HOST],
                 CONF_MODBUS_PORT: user_input[CONF_MODBUS_PORT],
                 CONF_MODBUS_DEVICE_ID: user_input[CONF_MODBUS_DEVICE_ID],
+                CONF_SCAN_INTERVAL: user_input.get(
+                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+                ),
             }
             # Store unit_id for HC-A(16/64)MB
             if self.gateway_type == "modbus_hc_a_mb":
                 self.basic_config[CONF_UNIT_ID] = user_input.get(
                     CONF_UNIT_ID, DEFAULT_UNIT_ID
                 )
-            # Store advanced mode preference
-            self.show_advanced = user_input["show_advanced"]
 
             # Validate connection and read all data for detection
             api_client_class = GATEWAY_INFO[self.gateway_type].client_class
@@ -291,43 +283,16 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self.basic_config.update(user_input)
-
-            if self.show_advanced:
-                return await self.async_step_advanced()
-
-            # Otherwise, proceed with default values
             return await self.async_validate_connection(
                 {
                     "gateway_type": self.gateway_type,
                     **self.basic_config,
-                    CONF_SCAN_INTERVAL: DEFAULT_SCAN_INTERVAL,
                 }
             )
 
         return self.async_show_form(
             step_id="power",
             data_schema=POWER_SCHEMA,
-            errors=errors,
-        )
-
-    async def async_step_advanced(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle advanced configuration step."""
-        errors: dict[str, str] = {}
-
-        if user_input is not None:
-            # Combine basic and advanced configurations
-            complete_config = {
-                "gateway_type": self.gateway_type,
-                **self.basic_config,
-                **user_input,
-            }
-            return await self.async_validate_connection(complete_config)
-
-        return self.async_show_form(
-            step_id="advanced",
-            data_schema=ADVANCED_SCHEMA,
             errors=errors,
         )
 
@@ -390,9 +355,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
                         return self.async_create_entry(
                             title=config[CONF_NAME],
-                            data={
-                                k: v for k, v in config.items() if k != "show_advanced"
-                            },
+                            data=config,
                         )
                     else:
                         errors["base"] = "invalid_slave"
@@ -404,10 +367,8 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await api_client.close()
 
         return self.async_show_form(
-            step_id="advanced" if "show_advanced" in config else "user",
-            data_schema=ADVANCED_SCHEMA
-            if "show_advanced" in config
-            else GATEWAY_SCHEMA,
+            step_id="user",
+            data_schema=GATEWAY_SCHEMA,
             errors=errors,
         )
 
@@ -462,8 +423,12 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             step_id="connection",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_MODBUS_HOST, default=data.get(CONF_MODBUS_HOST)): str,
-                    vol.Required(CONF_MODBUS_PORT, default=data.get(CONF_MODBUS_PORT)): cv.port,
+                    vol.Required(
+                        CONF_MODBUS_HOST, default=data.get(CONF_MODBUS_HOST)
+                    ): str,
+                    vol.Required(
+                        CONF_MODBUS_PORT, default=data.get(CONF_MODBUS_PORT)
+                    ): cv.port,
                     vol.Required(
                         CONF_MODBUS_DEVICE_ID,
                         default=data.get(CONF_MODBUS_DEVICE_ID, DEFAULT_DEVICE_ID),

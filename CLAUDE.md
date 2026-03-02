@@ -145,7 +145,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor workflow.
 Detailed documentation is in [`docs/`](docs/):
 - [Architecture](docs/architecture.md) -- hexagonal layers, data flow, domain matrix
 - [Development guides](docs/development/) -- getting started, adding entities, registers, profiles
-- [Reference](docs/reference/) -- entity patterns, domain services, quality scale
+- [Reference](docs/reference/) -- entity reference, entity patterns, domain services, quality scale
 - [Gateway docs](docs/gateway/) -- register maps, scan reference, datasheets
 
 ## Version Management
