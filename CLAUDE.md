@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Home Assistant custom integration for Hitachi air-to-water heat pumps (Yutaki and Yutampo models). Communicates via Modbus with ATW-MBS-02 gateways. Follows hexagonal architecture. Version is in `manifest.json`. See [`docs/`](docs/) for detailed documentation.
+Home Assistant custom integration for Hitachi air-to-water heat pumps (Yutaki and Yutampo models). Communicates via Modbus with ATW-MBS-02 and HC-A(16/64)MB gateways. Follows hexagonal architecture. Version is in `manifest.json`. See [`docs/`](docs/) for detailed documentation.
 
 ## Development Commands
 
@@ -66,7 +66,7 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - **Defrost filtering** and **post-cycle lock** prevent measurement noise
 
 ### Devices Created
-- **ATW-MBS-02 Gateway**, **Control Unit**, **Primary Compressor** (always present)
+- **Gateway**, **Control Unit**, **Primary Compressor** (always present)
 - **Secondary Compressor** (S80 only), **Circuit 1 & 2**, **DHW**, **Pool** (if configured)
 
 ## Important Development Notes
