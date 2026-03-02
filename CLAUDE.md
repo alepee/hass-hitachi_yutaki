@@ -10,31 +10,21 @@ This is a Home Assistant custom integration for Hitachi air-to-water heat pumps 
 
 ## Development Commands
 
-### Setup
+All commands are available as `make` targets. Run `make help` to list them.
+
 ```bash
-uv sync --group dev     # Install all dependencies (or: ./scripts/setup)
+make setup          # Full project setup (deps + pre-commit hooks)
+make install        # Install/reinstall all dependencies
+make check          # Run all code quality checks (lint + format)
+make lint           # Run ruff linter with auto-fix
+make test           # Run all tests
+make test-domain    # Run domain layer tests only (pure Python, no HA)
+make test-coverage  # Run tests with coverage report
+make ha-run         # Start a local HA dev instance with debug config
+make bump           # Bump version (last numeric segment)
 ```
 
-### Linting
-```bash
-uv run ruff check custom_components --fix   # Lint with auto-fix
-```
-
-### Testing
-```bash
-uv run pytest                  # Run all tests
-uv run pytest tests/domain/    # Run domain layer tests only
-```
-
-### Home Assistant Development Instance
-```bash
-./scripts/develop              # Run HA with debug config
-./scripts/dev-branch           # Install HA dev branch
-./scripts/specific-version     # Install specific HA version
-./scripts/upgrade              # Upgrade to latest HA
-```
-
-Pre-commit hooks are automatically installed by `scripts/setup` and run ruff on every commit.
+Pre-commit hooks are automatically installed by `make setup` and run ruff on every commit.
 
 ## Architecture
 
@@ -213,7 +203,7 @@ Tests are in `tests/` directory:
 - `tests/domain/`: Domain layer unit tests (pure Python, no HA)
 - Test files use `pytest` and `pytest-asyncio`
 
-Run tests: `uv run pytest`
+Run tests: `make test`
 
 ## Dependencies
 
@@ -223,11 +213,9 @@ All dependencies are declared in `pyproject.toml` (single source of truth).
 - `pymodbus>=3.6.9,<4.0.0` (Modbus communication)
 - Home Assistant core
 
-**Development** (via `[dependency-groups] dev`):
+**Development** (via `[dependency-groups] dev` in `pyproject.toml`):
 - `pytest-homeassistant-custom-component` (pulls HA as transitive dep)
-- `ruff==0.13.3` (linting/formatting)
-- `pre-commit>=4.3.0` (git hooks)
-- `pytest`, `pytest-asyncio` (testing)
+- `ruff`, `pre-commit`, `pytest`, `pytest-asyncio`
 
 ## Branch Strategy
 
