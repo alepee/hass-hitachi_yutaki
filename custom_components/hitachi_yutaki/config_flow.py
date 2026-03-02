@@ -114,6 +114,7 @@ POWER_SCHEMA = vol.Schema(
     }
 )
 
+
 class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
 
