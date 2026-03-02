@@ -3,7 +3,7 @@
 
 # Hitachi air-to-water heat pumps Integration for Home Assistant
 
-This custom integration allows you to control and monitor your Hitachi **Yutaki** and **Yutampo** air-to-water heat pumps through Home Assistant using a Modbus ATW-MBS-02 gateway.
+This custom integration allows you to control and monitor your Hitachi **Yutaki** and **Yutampo** air-to-water heat pumps through Home Assistant using an ATW-MBS-02 or HC-A(16/64)MB Modbus gateway.
 
 [![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=alepee&category=integration&repository=hass-hitachi_yutaki)
 
@@ -11,7 +11,7 @@ This custom integration allows you to control and monitor your Hitachi **Yutaki*
 
 - **Compatible Models**: 2016 and newer Hitachi air-to-water heat pumps
 - **Tested With**: Yutaki S80, Yutaki S, Yutaki S Combi, Yutampo R32
-- **Required Hardware**: ATW-MBS-02 Modbus gateway
+- **Required Hardware**: ATW-MBS-02 or HC-A(16/64)MB Modbus gateway
 
 > **Important**: Models manufactured before 2016 use different Modbus registers and are not compatible. If you do have an older Heat Pump already equiped with a Modbus gateway, you can [open an issue](https://github.com/alepee/hass-hitachi_yutaki/issues/new?title=Pre-2016%20Heat%20Pump%20support%20request) if your have time to help me add support for your model.
 
@@ -240,7 +240,7 @@ Each circuit creates a climate entity with HVAC modes that depend on the system 
 
 The configuration flow guides you through several steps:
 
-1. **Gateway selection**: Choose your gateway type (ATW-MBS-02)
+1. **Gateway selection**: Choose your gateway type (ATW-MBS-02 or HC-A(16/64)MB)
 2. **Gateway configuration**: Enter connection details
     - Name (optional)
     - Modbus gateway IP address
@@ -360,7 +360,7 @@ In v2.0.0, the following sensors have been **replaced** (old entities are automa
 
 ## Known Limitations
 
-- **Modbus TCP only**: The integration communicates via Modbus TCP over the ATW-MBS-02 gateway. Direct serial Modbus is not supported.
+- **Modbus TCP only**: The integration communicates via Modbus TCP over the ATW-MBS-02 or HC-A(16/64)MB gateway. Direct serial Modbus is not supported.
 - **Pre-2016 models**: Older Hitachi heat pumps use different Modbus register maps and are not compatible.
 - **Temperature precision**: Internal temperature sensors have 1°C precision. For more accurate COP calculations, configure external temperature sensors with higher resolution.
 - **Single gateway**: Each integration instance connects to one gateway. Multiple gateways require multiple integration instances.
@@ -457,7 +457,7 @@ hitachi_yutaki/
 │       │   └── thermal/        # Thermal energy sensors
 │       ├── api/                # Modbus communication layer
 │       │   └── modbus/
-│       │       └── registers/  # Register definitions (ATW-MBS-02)
+│       │       └── registers/  # Register definitions per gateway
 │       ├── profiles/           # Heat pump model profiles
 │       ├── translations/       # Language files (en.json, fr.json)
 │       ├── __init__.py         # Integration setup, migration, device registration
