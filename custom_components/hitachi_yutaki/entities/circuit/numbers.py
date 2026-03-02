@@ -96,9 +96,11 @@ def _build_circuit_number_descriptions(
             condition=lambda coordinator: coordinator.has_circuit(
                 circuit_id, CIRCUIT_MODE_HEATING
             ),
-            get_fn=lambda api, circuit_id: float(value)
-            if (value := api.get_circuit_heat_eco_offset(circuit_id)) is not None
-            else None,
+            get_fn=lambda api, circuit_id: (
+                float(value)
+                if (value := api.get_circuit_heat_eco_offset(circuit_id)) is not None
+                else None
+            ),
             set_fn=lambda api, circuit_id, value: api.set_circuit_heat_eco_offset(
                 circuit_id, int(value)
             ),
@@ -116,9 +118,11 @@ def _build_circuit_number_descriptions(
             condition=lambda coordinator: coordinator.has_circuit(
                 circuit_id, CIRCUIT_MODE_COOLING
             ),
-            get_fn=lambda api, circuit_id: float(value)
-            if (value := api.get_circuit_cool_eco_offset(circuit_id)) is not None
-            else None,
+            get_fn=lambda api, circuit_id: (
+                float(value)
+                if (value := api.get_circuit_cool_eco_offset(circuit_id)) is not None
+                else None
+            ),
             set_fn=lambda api, circuit_id, value: api.set_circuit_cool_eco_offset(
                 circuit_id, int(value)
             ),

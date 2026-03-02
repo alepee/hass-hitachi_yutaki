@@ -44,7 +44,9 @@ def _build_compressor_binary_sensor_descriptions(
                 device_class=BinarySensorDeviceClass.RUNNING,
                 icon="mdi:engine",
                 entity_category=EntityCategory.DIAGNOSTIC,
-                value_fn=lambda coordinator: coordinator.api_client.is_primary_compressor_running,
+                value_fn=lambda coordinator: (
+                    coordinator.api_client.is_primary_compressor_running
+                ),
             ),
         )
     else:
@@ -57,7 +59,9 @@ def _build_compressor_binary_sensor_descriptions(
                 device_class=BinarySensorDeviceClass.RUNNING,
                 icon="mdi:engine",
                 entity_category=EntityCategory.DIAGNOSTIC,
-                value_fn=lambda coordinator: coordinator.api_client.is_secondary_compressor_running,
+                value_fn=lambda coordinator: (
+                    coordinator.api_client.is_secondary_compressor_running
+                ),
                 condition=lambda c: c.profile.supports_secondary_compressor,
             ),
         )

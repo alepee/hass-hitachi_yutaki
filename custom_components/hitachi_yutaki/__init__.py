@@ -114,7 +114,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Fallback to IP+slave if hardware ID unavailable
         if unique_id is None:
-            unique_id = f"{entry.data[CONF_MODBUS_HOST]}_{entry.data[CONF_MODBUS_DEVICE_ID]}"
+            unique_id = (
+                f"{entry.data[CONF_MODBUS_HOST]}_{entry.data[CONF_MODBUS_DEVICE_ID]}"
+            )
             _LOGGER.warning(
                 "Could not retrieve hardware identifier, using IP-based unique_id: %s",
                 unique_id,

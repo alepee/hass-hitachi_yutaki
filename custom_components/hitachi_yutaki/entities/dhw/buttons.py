@@ -35,6 +35,8 @@ def _build_dhw_button_descriptions() -> tuple[
             icon="mdi:biohazard",
             description="Start a high temperature anti-legionella treatment cycle. Once started, the cycle cannot be stopped.",
             entity_registry_enabled_default=True,
-            action_fn=lambda coordinator: coordinator.api_client.start_dhw_antilegionella(),
+            action_fn=lambda coordinator: (
+                coordinator.api_client.start_dhw_antilegionella()
+            ),
         ),
     )
