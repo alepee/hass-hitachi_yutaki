@@ -71,6 +71,28 @@ In v2.0.0, the following sensors have been **replaced** (old entities are automa
 The old sensors counted defrost cycles as energy production, resulting in unrealistic COP values (e.g., COP > 8). The new sensors correctly separate heating from cooling and filter defrost periods.
 </details>
 
+## Service Actions
+
+### `hitachi_yutaki.set_room_temperature`
+
+Sets the room thermostat temperature setpoint for a circuit climate entity. This is useful when the circuit is configured in thermostat mode with a room temperature sensor.
+
+| Parameter | Required | Description |
+|-----------|----------|-------------|
+| `entity_id` | Yes | Target climate entity (`climate.circuit_1`, `climate.circuit_2`) |
+| `temperature` | Yes | Temperature setpoint in °C (0–50, step 0.1) |
+
+**Example automation:**
+
+```yaml
+action:
+  - action: hitachi_yutaki.set_room_temperature
+    target:
+      entity_id: climate.circuit_1
+    data:
+      temperature: 21.5
+```
+
 ## Installation
 
 ### HACS Installation (Recommended)
