@@ -6,14 +6,25 @@ Thank you for your interest in contributing! This guide explains how to get star
 
 1. **Fork** the repository on GitHub
 2. **Clone** your fork locally
-3. **Install** dependencies:
+3. **Set up** the project (dependencies + pre-commit hooks):
    ```bash
-   uv sync --group dev     # or: make install
+   make setup
    ```
-4. **Set up** pre-commit hooks:
-   ```bash
-   ./scripts/setup
-   ```
+
+### Useful Make Targets
+
+| Target | Description |
+|--------|-------------|
+| `make setup` | Full project setup (deps + pre-commit hooks) |
+| `make install` | Install/reinstall all dependencies |
+| `make check` | Run all code quality checks (lint + format) |
+| `make test` | Run all tests |
+| `make test-domain` | Run domain layer tests only (pure Python, no HA) |
+| `make test-coverage` | Run tests with coverage report |
+| `make ha-run` | Start a local HA dev instance with debug config |
+| `make bump` | Bump version (last numeric segment) |
+
+Run `make help` to see the complete list.
 
 ## Branch Strategy
 
@@ -81,7 +92,8 @@ PRs that don't affect user-facing behavior (CI config, dev tooling) can use the 
 ## Translations
 
 - `en.json` is the source of truth — edit it directly when adding new translatable strings
-- Other language files can be updated via PR
+- Other languages can be contributed via [Weblate](https://hosted.weblate.org/engage/hass-hitachi_yutaki/) (no coding required) or via PR
+- If editing JSON files directly, check for concurrent Weblate changes on the same keys to avoid merge conflicts
 
 ## Code Style
 
