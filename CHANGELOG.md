@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scan interval not editable in reconfiguration flow (options flow missing the field)
 
 ### Changed
+- Migrated runtime data storage from `hass.data[DOMAIN]` to `ConfigEntry.runtime_data` (modern HA pattern)
 - Restructured documentation: unified `docs/` directory, all English, centralized architecture docs
 - Slimmed `CLAUDE.md` to rules and conventions only (details moved to `docs/`)
 - Slimmed `CONTRIBUTING.md` with pointers to `docs/development/`
