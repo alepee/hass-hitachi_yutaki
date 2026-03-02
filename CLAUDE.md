@@ -196,7 +196,8 @@ The integration creates multiple HA devices based on configuration:
 ### Translations
 
 - **Source of truth**: `en.json` is edited by developers in the repo
-- **Other languages**: modified via pull request
+- **Other languages**: edited directly in JSON files or contributed via [Weblate](https://hosted.weblate.org/engage/hass-hitachi_yutaki/)
+- **Weblate**: external contributors can translate without coding — changes sync both ways. If editing a JSON file that was also modified on Weblate, check for conflicts on the same keys
 
 ## Code Quality Standards
 

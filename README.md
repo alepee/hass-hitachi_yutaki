@@ -1,4 +1,5 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
+[![Translation status](https://hosted.weblate.org/widget/hass-hitachi_yutaki/source/svg-badge.svg)](https://hosted.weblate.org/engage/hass-hitachi_yutaki/)
 
 # Hitachi air-to-water heat pumps Integration for Home Assistant
 
@@ -20,7 +21,7 @@ The integration provides:
 - Automatic model detection and configuration
 - Resilient to gateway connection issues at startup
 - Gateway synchronization status monitoring with automated repair suggestions
-- Multi-language support (English, French)
+- Multi-language support ([help translate](https://hosted.weblate.org/engage/hass-hitachi_yutaki/))
 - Real-time performance monitoring (COP calculation)
 - Comprehensive alarm descriptions with translations
 - Advanced configuration options:
@@ -562,6 +563,14 @@ The project uses pre-commit hooks to ensure code quality. They are automatically
 ```bash
 pre-commit install
 ```
+
+## Translations
+
+This integration is translated using [Weblate](https://hosted.weblate.org/engage/hass-hitachi_yutaki/).
+
+[![Translation status](https://hosted.weblate.org/widget/hass-hitachi_yutaki/source/multi-auto.svg)](https://hosted.weblate.org/engage/hass-hitachi_yutaki/)
+
+To help translate the integration into your language, visit the [Weblate project page](https://hosted.weblate.org/engage/hass-hitachi_yutaki/) and start contributing — no coding required!
 
 ## Contributing
 
