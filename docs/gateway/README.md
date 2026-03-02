@@ -6,8 +6,8 @@ This directory contains the register maps and technical documentation for the Mo
 
 | Gateway | Integration Key | Document | PDF Source |
 |---|---|---|---|
-| ATW-MBS-02 | `modbus_atw_mbs_02` | [ATW-MBS-02.md](ATW-MBS-02.md) | `ATW-MBS-02_line_up_2016.pdf`, `ATW-MBS-02_before_line_up_2016.pdf` |
-| HC-A(16/64)MB | `modbus_hc_a_mb` | [HC-A-MB.md](HC-A-MB.md) | `HC-A16MB.pdf` |
+| ATW-MBS-02 | `modbus_atw_mbs_02` | [atw-mbs-02.md](atw-mbs-02.md) | [`ATW-MBS-02_line_up_2016.pdf`](datasheets/ATW-MBS-02_line_up_2016.pdf), [`ATW-MBS-02_before_line_up_2016.pdf`](datasheets/ATW-MBS-02_before_line_up_2016.pdf) |
+| HC-A(16/64)MB | `modbus_hc_a_mb` | [hc-a-mb.md](hc-a-mb.md) | [`HC-A16MB.pdf`](datasheets/HC-A16MB.pdf) |
 
 ## Quick Comparison
 
@@ -23,11 +23,11 @@ This directory contains the register maps and technical documentation for the Mo
 
 ## PDF Source Documents
 
-The original Hitachi PDF documentation is stored alongside the markdown files:
+The original Hitachi PDF documentation is stored in the `datasheets/` subfolder:
 
-- `ATW-MBS-02_before_line_up_2016.pdf` — PMML0419A rev.1 (05/2016), Yutaki series before 2016
-- `ATW-MBS-02_line_up_2016.pdf` — PMML0419A rev.1 (05/2016), Yutaki 2016 series
-- `HC-A16MB.pdf` — PMML0351A rev.4 (04/2020), HC-A(8/16/64)MB / HC-A64NET series
+- [`ATW-MBS-02_before_line_up_2016.pdf`](datasheets/ATW-MBS-02_before_line_up_2016.pdf) — PMML0419A rev.1 (05/2016), Yutaki series before 2016
+- [`ATW-MBS-02_line_up_2016.pdf`](datasheets/ATW-MBS-02_line_up_2016.pdf) — PMML0419A rev.1 (05/2016), Yutaki 2016 series
+- [`HC-A16MB.pdf`](datasheets/HC-A16MB.pdf) — PMML0351A rev.4 (04/2020), HC-A(8/16/64)MB / HC-A64NET series
 
 ## Integration Register Mapping
 
