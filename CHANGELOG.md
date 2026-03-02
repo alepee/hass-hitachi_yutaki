@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Restructured documentation: unified `docs/` directory, all English, centralized architecture docs
+- Slimmed `CLAUDE.md` to rules and conventions only (details moved to `docs/`)
+- Slimmed `CONTRIBUTING.md` with pointers to `docs/development/`
+
+### Added
+- `docs/architecture.md`: unified architecture reference (merged 5 sources)
+- `docs/development/`: getting started, adding entities, Modbus registers, profiles guides
+- `docs/reference/`: entity patterns, domain services, quality scale references
+- GitHub issue templates (bug report, feature request) and PR template
+
+### Removed
+- `documentation/` directory (content migrated to `docs/`)
+- In-code READMEs (`domain/`, `adapters/`, `entities/`) absorbed into `docs/`
+- Root `TODO-hc-a-mb-registers.md` (content in gateway docs)
+
 ## [2.0.1] - 2026-02-23
 
 ### Added
