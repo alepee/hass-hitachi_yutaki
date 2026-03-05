@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Base entity module (`entity.py`) for common-modules quality standard
 - Documentation for `set_room_temperature` service action
 - Quality scale tracking file (`quality_scale.yaml`) for Bronze tier
+- Config flow test suite: 12 tests covering user, gateway_config, profile, power, validation, options flow
 - `docs/architecture.md`: unified architecture reference (merged 5 sources)
 - `docs/development/`: getting started, adding entities, Modbus registers, profiles guides
 - `docs/reference/`: entity patterns, domain services, quality scale references
