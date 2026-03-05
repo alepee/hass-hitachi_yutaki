@@ -62,7 +62,7 @@ jobs:
         run: uv pip install --prerelease=allow pytest-homeassistant-custom-component==${{ matrix.phac-version }}
 
       - name: Show resolved HA version
-        run: uv run python -c "import homeassistant as ha; print('HA version:', ha.__version__)"
+        run: uv run python -c "from homeassistant.const import __version__; print('HA version:', __version__)"
 
       - name: Run tests with pytest
         run: uv run pytest
