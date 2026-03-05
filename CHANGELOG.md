@@ -16,6 +16,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Slimmed `CONTRIBUTING.md` with pointers to `docs/development/`
 
 ### Added
+- Local brand assets for HA 2026.3+ brand proxy API
+- Base entity module (`entity.py`) for common-modules quality standard
+- Documentation for `set_room_temperature` service action
+- Quality scale tracking file (`quality_scale.yaml`) for Bronze tier
 - `docs/architecture.md`: unified architecture reference (merged 5 sources)
 - `docs/development/`: getting started, adding entities, Modbus registers, profiles guides
 - `docs/reference/`: entity patterns, domain services, quality scale references
