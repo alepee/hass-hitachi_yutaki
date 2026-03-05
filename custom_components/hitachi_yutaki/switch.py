@@ -2,19 +2,17 @@
 
 from __future__ import annotations
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import HitachiYutakiConfigEntry
 from .const import (
     CIRCUIT_MODE_HEATING,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
-    DOMAIN,
 )
-from .coordinator import HitachiYutakiDataCoordinator
 
 # Import builders from domain entities
 from .entities.circuit import build_circuit_switches
@@ -25,11 +23,11 @@ from .entities.pool import build_pool_switches
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: HitachiYutakiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the switches."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     entities = []
 

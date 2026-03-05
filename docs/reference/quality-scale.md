@@ -15,18 +15,18 @@
 
 | Tier | Score | Statut |
 |------|-------|--------|
-| Bronze | 14/18 | Non atteint |
+| Bronze | 18/18 | Atteint |
 | Silver | 6/10 | Non atteint |
 | Gold | 7/21 | Non atteint |
 | Platinum | 1/3 | Non atteint |
 
-**Niveau actuel : juste en-dessous de Bronze** (4 règles manquantes)
+**Niveau actuel : Bronze** (toutes les règles validées)
 
 ---
 
 ## Bronze (18 règles)
 
-### Règles validées (14)
+### Règles validées (18/18)
 
 | Règle | Détail |
 |-------|--------|
@@ -44,15 +44,10 @@
 | `docs-high-level-description` | Présent dans README.md |
 | `docs-installation-instructions` | Présent dans README.md |
 | `docs-actions` | Service documenté dans services.yaml |
-
-### Règles non validées (4)
-
-| Règle | Détail | Effort |
-|-------|--------|--------|
-| `brands` | Pas d'assets branding (logo/icon) | Faible |
-| `config-flow-test-coverage` | Pas de tests pour le config flow | Important |
-| `runtime-data` | Utilise `hass.data[DOMAIN]` au lieu de `ConfigEntry.runtime_data` | Moyen |
-| `docs-removal-instructions` | Pas d'instructions de suppression dans README | Faible |
+| `brands` | Logo et icon dans `brand/` |
+| `config-flow-test-coverage` | 12 tests couvrant config flow + options flow (`tests/test_config_flow.py`) |
+| `runtime-data` | `ConfigEntry.runtime_data` avec type alias `HitachiYutakiConfigEntry` |
+| `docs-removal-instructions` | Section "Uninstall" dans README.md |
 
 ---
 
@@ -126,17 +121,7 @@
 
 ## Plan d'action suggéré
 
-### Pour atteindre Bronze (4 actions)
-
-**Quick wins :**
-1. `brands` -- Ajouter logo et icon dans le repo
-2. `docs-removal-instructions` -- Ajouter une section "Uninstall" dans README
-
-**Travail plus conséquent :**
-3. `runtime-data` -- Migrer de `hass.data[DOMAIN][entry_id]` vers `ConfigEntry.runtime_data`
-4. `config-flow-test-coverage` -- Écrire des tests couvrant tout le config flow
-
-### Pour atteindre Silver (4 actions supplémentaires)
+### Pour atteindre Silver (4 actions)
 
 **Quick wins :**
 1. `parallel-updates` -- Ajouter `PARALLEL_UPDATES = 0` dans chaque fichier plateforme

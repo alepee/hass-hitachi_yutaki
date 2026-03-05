@@ -11,6 +11,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scan interval not editable in reconfiguration flow (options flow missing the field)
 
 ### Changed
+- Migrated runtime data storage from `hass.data[DOMAIN]` to `ConfigEntry.runtime_data` (modern HA pattern)
 - Restructured documentation: unified `docs/` directory, all English, centralized architecture docs
 - Slimmed `CLAUDE.md` to rules and conventions only (details moved to `docs/`)
 - Slimmed `CONTRIBUTING.md` with pointers to `docs/development/`
@@ -20,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Base entity module (`entity.py`) for common-modules quality standard
 - Documentation for `set_room_temperature` service action
 - Quality scale tracking file (`quality_scale.yaml`) for Bronze tier
+- Config flow test suite: 12 tests covering user, gateway_config, profile, power, validation, options flow
 - `docs/architecture.md`: unified architecture reference (merged 5 sources)
 - `docs/development/`: getting started, adding entities, Modbus registers, profiles guides
 - `docs/reference/`: entity patterns, domain services, quality scale references

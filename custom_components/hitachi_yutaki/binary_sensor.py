@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from . import HitachiYutakiConfigEntry
 from .const import (
     DEVICE_PRIMARY_COMPRESSOR,
     DEVICE_SECONDARY_COMPRESSOR,
-    DOMAIN,
 )
-from .coordinator import HitachiYutakiDataCoordinator
 
 # Import builders from domain entities
 from .entities.compressor import build_compressor_binary_sensors
@@ -23,11 +21,11 @@ from .entities.hydraulic import build_hydraulic_binary_sensors
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: HitachiYutakiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the binary sensors."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     entities = []
 
