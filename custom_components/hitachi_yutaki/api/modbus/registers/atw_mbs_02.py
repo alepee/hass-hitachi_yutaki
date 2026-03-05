@@ -270,12 +270,6 @@ REGISTER_SECONDARY_COMPRESSOR = {
         1230, deserializer=convert_from_tenths
     ),
     "secondary_compressor_retry_code": RegisterDefinition(1231),
-    "secondary_compressor_hp_pressure": RegisterDefinition(
-        1150, deserializer=convert_pressure
-    ),
-    "secondary_compressor_lp_pressure": RegisterDefinition(
-        1151, deserializer=convert_pressure
-    ),
 }
 
 REGISTER_CIRCUIT_1 = {

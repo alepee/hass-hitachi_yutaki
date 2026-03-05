@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Remove phantom secondary compressor pressure registers at non-existent addresses 1150/1151 (#225)
 - Scan interval not editable in reconfiguration flow (options flow missing the field)
 
 ### Changed
