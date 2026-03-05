@@ -226,6 +226,8 @@ REGISTER_CONTROL_UNIT = {
         deserializer=convert_signed_16bit,
         fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
     ),
+    "water_outlet_2_temp": RegisterDefinition(1204, deserializer=convert_signed_16bit),
+    "water_outlet_3_temp": RegisterDefinition(1205, deserializer=convert_signed_16bit),
     "water_target_temp": RegisterDefinition(1219, deserializer=convert_signed_16bit),
     "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
     "pump_speed": RegisterDefinition(1221),

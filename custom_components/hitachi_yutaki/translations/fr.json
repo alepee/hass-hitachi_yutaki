@@ -180,6 +180,12 @@
       "water_outlet_temp": {
         "name": "Température de Sortie d'Eau"
       },
+      "water_outlet_2_temp": {
+        "name": "Température de Sortie d'Eau 2"
+      },
+      "water_outlet_3_temp": {
+        "name": "Température de Sortie d'Eau 3"
+      },
       "water_target_temp": {
         "name": "Température Cible Corrigée"
       },

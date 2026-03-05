@@ -180,6 +180,12 @@
       "water_outlet_temp": {
         "name": "Temperatură ieșire apă"
       },
+      "water_outlet_2_temp": {
+        "name": "Temperatură ieșire apă 2"
+      },
+      "water_outlet_3_temp": {
+        "name": "Temperatură ieșire apă 3"
+      },
       "water_target_temp": {
         "name": "Temperatură țintă corectată"
       },
