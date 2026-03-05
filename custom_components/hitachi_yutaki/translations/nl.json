@@ -180,6 +180,12 @@
       "water_outlet_temp": {
         "name": "Wateruitlaattemperatuur"
       },
+      "water_outlet_2_temp": {
+        "name": "Wateruitlaattemperatuur 2"
+      },
+      "water_outlet_3_temp": {
+        "name": "Wateruitlaattemperatuur 3"
+      },
       "water_target_temp": {
         "name": "Gecorrigeerde doeltemperatuur"
       },

@@ -30,6 +30,8 @@ For patterns and conventions used to build these entities, see
 | outdoor_temp | sensor | Outdoor ambient temperature measurement | °C |
 | water_inlet_temp | sensor | Water temperature at the heat pump inlet | °C |
 | water_outlet_temp | sensor | Water temperature at the heat pump outlet | °C |
+| water_outlet_2_temp | sensor | Water outlet 2 temperature (Two2, conditional) | °C |
+| water_outlet_3_temp | sensor | Water outlet 3 temperature (Two3, conditional) | °C |
 | water_target_temp | sensor | Corrected target water temperature | °C |
 
 ### System Status

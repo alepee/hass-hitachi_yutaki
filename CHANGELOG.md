@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Slimmed `CONTRIBUTING.md` with pointers to `docs/development/`
 
 ### Added
+- Water Outlet 2 (Two2) and Water Outlet 3 (Two3) temperature sensors for systems with buffer tanks (#161)
 - Local brand assets for HA 2026.3+ brand proxy API
 - Base entity module (`entity.py`) for common-modules quality standard
 - Documentation for `set_room_temperature` service action

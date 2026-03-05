@@ -331,6 +331,12 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             "water_outlet_temp": RegisterDefinition(
                 self._addr(144), deserializer=convert_signed_16bit
             ),
+            "water_outlet_2_temp": RegisterDefinition(
+                self._addr(154), deserializer=convert_signed_16bit
+            ),
+            "water_outlet_3_temp": RegisterDefinition(
+                self._addr(155), deserializer=convert_signed_16bit
+            ),
             "water_target_temp": RegisterDefinition(
                 self._addr(163), deserializer=convert_signed_16bit
             ),

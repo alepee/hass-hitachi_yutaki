@@ -180,6 +180,12 @@
       "water_outlet_temp": {
         "name": "Water Outlet Temperature"
       },
+      "water_outlet_2_temp": {
+        "name": "Water Outlet 2 Temperature"
+      },
+      "water_outlet_3_temp": {
+        "name": "Water Outlet 3 Temperature"
+      },
       "water_target_temp": {
         "name": "Corrected Target Temperature"
       },
