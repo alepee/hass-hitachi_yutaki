@@ -114,6 +114,7 @@ POWER_SCHEMA = vol.Schema(
     }
 )
 
+
 class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
 
@@ -433,6 +434,10 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                         CONF_MODBUS_DEVICE_ID,
                         default=data.get(CONF_MODBUS_DEVICE_ID, DEFAULT_DEVICE_ID),
                     ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL,
+                        default=data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                    ): cv.positive_int,
                 }
             ),
         )
