@@ -44,7 +44,9 @@ _LOGGER = logging.getLogger(__name__)
 type HitachiYutakiConfigEntry = ConfigEntry[HitachiYutakiDataCoordinator]
 
 
-async def async_setup_entry(hass: HomeAssistant, entry: HitachiYutakiConfigEntry) -> bool:
+async def async_setup_entry(
+    hass: HomeAssistant, entry: HitachiYutakiConfigEntry
+) -> bool:
     """Set up Hitachi Yutaki from a config entry."""
     _LOGGER.info("Setting up Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
 
@@ -288,7 +290,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: HitachiYutakiConfigEntry
     return True
 
 
-async def async_migrate_entry(hass: HomeAssistant, config_entry: HitachiYutakiConfigEntry) -> bool:
+async def async_migrate_entry(
+    hass: HomeAssistant, config_entry: HitachiYutakiConfigEntry
+) -> bool:
     """Migrate config entry to new version."""
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
@@ -336,7 +340,9 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: HitachiYutakiCo
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: HitachiYutakiConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: HitachiYutakiConfigEntry
+) -> bool:
     """Unload a config entry."""
     _LOGGER.info("Unloading Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
 
