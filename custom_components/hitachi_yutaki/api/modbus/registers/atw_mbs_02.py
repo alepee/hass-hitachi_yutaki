@@ -324,9 +324,7 @@ REGISTER_DHW = {
 
 REGISTER_POOL = {
     "pool_power": RegisterDefinition(1028),
-    "pool_target_temp": RegisterDefinition(
-        1029, deserializer=convert_from_tenths, serializer=lambda v: int(v * 10)
-    ),
+    "pool_target_temp": RegisterDefinition(1029),
     "pool_current_temp": RegisterDefinition(1083, deserializer=convert_signed_16bit),
 }
 
