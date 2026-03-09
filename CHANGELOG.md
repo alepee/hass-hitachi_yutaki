@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-03-09
+
 ### Fixed
+- Remove incorrect tenths conversion on pool target temperature (#233)
 - Remove phantom secondary compressor pressure registers at non-existent addresses 1150/1151 (#225)
 - Scan interval not editable in reconfiguration flow (options flow missing the field)
 
@@ -28,6 +31,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/development/`: getting started, adding entities, Modbus registers, profiles guides
 - `docs/reference/`: entity patterns, domain services, quality scale references
 - GitHub issue templates (bug report, feature request) and PR template
+- MIT LICENSE file
+- CI: test against Python 3.13 and 3.14
 
 ### Removed
 - `documentation/` directory (content migrated to `docs/`)
