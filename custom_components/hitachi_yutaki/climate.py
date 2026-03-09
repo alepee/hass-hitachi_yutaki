@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import ATTR_TEMPERATURE
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import (
@@ -12,12 +11,11 @@ from homeassistant.helpers.entity_platform import (
     async_get_current_platform,
 )
 
+from . import HitachiYutakiConfigEntry
 from .const import (
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
-    DOMAIN,
 )
-from .coordinator import HitachiYutakiDataCoordinator
 
 # Import builder from domain entity
 from .entities.circuit import build_circuit_climate
@@ -27,11 +25,11 @@ SERVICE_SET_ROOM_TEMPERATURE = "set_room_temperature"
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: HitachiYutakiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the climate entities."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     entities = []
 

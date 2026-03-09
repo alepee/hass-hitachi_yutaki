@@ -331,6 +331,12 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             "water_outlet_temp": RegisterDefinition(
                 self._addr(144), deserializer=convert_signed_16bit
             ),
+            "water_outlet_2_temp": RegisterDefinition(
+                self._addr(154), deserializer=convert_signed_16bit
+            ),
+            "water_outlet_3_temp": RegisterDefinition(
+                self._addr(155), deserializer=convert_signed_16bit
+            ),
             "water_target_temp": RegisterDefinition(
                 self._addr(163), deserializer=convert_signed_16bit
             ),
@@ -462,7 +468,7 @@ class HcAMbRegisterMap(HitachiRegisterMap):
         }
 
         # --- Pool (CONTROL + STATUS) ---
-        # Note: HC-A(16/64)MB pool_target_temp is integer °C (NOT tenths like ATW-MBS-02)
+        # Note: pool_target_temp is integer °C (0~80), no tenths conversion
         self._register_pool: dict[str, RegisterDefinition] = {
             "pool_power": RegisterDefinition(
                 self._addr(132), write_address=self._addr(79)

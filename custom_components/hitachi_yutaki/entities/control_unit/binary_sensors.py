@@ -98,7 +98,9 @@ def _build_control_unit_binary_sensor_descriptions() -> tuple[
             description="Indicates if the smart grid function is active",
             device_class=BinarySensorDeviceClass.RUNNING,
             entity_category=EntityCategory.DIAGNOSTIC,
-            value_fn=lambda coordinator: coordinator.api_client.is_smart_function_active,
+            value_fn=lambda coordinator: (
+                coordinator.api_client.is_smart_function_active
+            ),
             entity_registry_enabled_default=False,
         ),
     )

@@ -115,7 +115,7 @@
           "modbus_port": "Port",
           "modbus_device_id": "ID Dispozitiv Modbus",
           "unit_id": "ID unitate (doar HC-A(16/64)MB, 0-15)",
-          "show_advanced": "Afișare opțiuni avansate"
+          "scan_interval": "Interval de interogare (secunde)"
         }
       },
       "profile": {
@@ -135,13 +135,6 @@
           "energy_entity": "Contor energie (opțional)",
           "water_inlet_temp_entity": "Senzor temperatură intrare apă (opțional)",
           "water_outlet_temp_entity": "Senzor temperatură ieșire apă (opțional)"
-        }
-      },
-      "advanced": {
-        "title": "Setări avansate",
-        "description": "Configurați setările avansate Modbus și ale integrării.",
-        "data": {
-          "scan_interval": "Interval de interogare (secunde)"
         }
       }
     },
@@ -186,6 +179,12 @@
       },
       "water_outlet_temp": {
         "name": "Temperatură ieșire apă"
+      },
+      "water_outlet_2_temp": {
+        "name": "Temperatură ieșire apă 2"
+      },
+      "water_outlet_3_temp": {
+        "name": "Temperatură ieșire apă 3"
       },
       "water_target_temp": {
         "name": "Temperatură țintă corectată"

@@ -115,7 +115,7 @@
           "modbus_port": "Poort",
           "modbus_device_id": "Modbus Apparaat-ID",
           "unit_id": "Unit-ID (alleen HC-A(16/64)MB, 0-15)",
-          "show_advanced": "Geavanceerde opties tonen"
+          "scan_interval": "Polling-interval (seconden)"
         }
       },
       "profile": {
@@ -135,13 +135,6 @@
           "energy_entity": "Energiesensor (optioneel)",
           "water_inlet_temp_entity": "Waterinlaattemperatuursensor (optioneel)",
           "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)"
-        }
-      },
-      "advanced": {
-        "title": "Geavanceerde instellingen",
-        "description": "Configureer geavanceerde Modbus- en integratie-instellingen.",
-        "data": {
-          "scan_interval": "Polling-interval (seconden)"
         }
       }
     },
@@ -186,6 +179,12 @@
       },
       "water_outlet_temp": {
         "name": "Wateruitlaattemperatuur"
+      },
+      "water_outlet_2_temp": {
+        "name": "Wateruitlaattemperatuur 2"
+      },
+      "water_outlet_3_temp": {
+        "name": "Wateruitlaattemperatuur 3"
       },
       "water_target_temp": {
         "name": "Gecorrigeerde doeltemperatuur"

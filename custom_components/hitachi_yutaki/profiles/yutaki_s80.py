@@ -93,6 +93,4 @@ class YutakiS80Profile(HitachiHeatPumpProfile):
             "secondary_compressor_valve_opening",
             "secondary_compressor_current",
             "secondary_compressor_retry_code",
-            "secondary_compressor_hp_pressure",
-            "secondary_compressor_lp_pressure",
         ]

@@ -30,18 +30,14 @@ def test_measured_power_small_value_not_divided():
 
 def test_fallback_to_voltage_current_single_phase():
     """Without measured_power, single-phase P = U * I * cos(phi) / 1000."""
-    data = ElectricalPowerInput(
-        current=10.0, voltage=230.0, is_three_phase=False
-    )
+    data = ElectricalPowerInput(current=10.0, voltage=230.0, is_three_phase=False)
     expected = (230.0 * 10.0 * POWER_FACTOR) / 1000
     assert calculate_electrical_power(data) == expected
 
 
 def test_fallback_to_voltage_current_three_phase():
     """Without measured_power, three-phase P = U * I * cos(phi) * sqrt(3) / 1000."""
-    data = ElectricalPowerInput(
-        current=10.0, voltage=400.0, is_three_phase=True
-    )
+    data = ElectricalPowerInput(current=10.0, voltage=400.0, is_three_phase=True)
     expected = (400.0 * 10.0 * POWER_FACTOR * THREE_PHASE_FACTOR) / 1000
     assert calculate_electrical_power(data) == expected
 

@@ -45,9 +45,13 @@ def _build_control_unit_select_descriptions() -> tuple[
                 "heat": HVACMode.HEAT,
                 "auto": HVACMode.AUTO,
             },
-            condition=lambda coordinator: not (
-                coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
-                or coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
+            condition=lambda coordinator: (
+                not (
+                    coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
+                    or coordinator.has_circuit(
+                        CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING
+                    )
+                )
             ),
             get_fn=lambda api, _: api.get_unit_mode(),
             set_fn=lambda api, _, value: api.set_unit_mode(value),
@@ -62,10 +66,10 @@ def _build_control_unit_select_descriptions() -> tuple[
                 "heat": HVACMode.HEAT,
                 "auto": HVACMode.AUTO,
             },
-            condition=lambda coordinator: coordinator.has_circuit(
-                CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
-            )
-            or coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING),
+            condition=lambda coordinator: (
+                coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
+                or coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
+            ),
             get_fn=lambda api, _: api.get_unit_mode(),
             set_fn=lambda api, _, value: api.set_unit_mode(value),
         ),

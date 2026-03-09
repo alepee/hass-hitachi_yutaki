@@ -46,8 +46,10 @@ def _build_performance_sensor_descriptions() -> tuple[
             state_class=SensorStateClass.MEASUREMENT,
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-pump",
-            condition=lambda c: c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
-            or c.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING),
+            condition=lambda c: (
+                c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
+                or c.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING)
+            ),
             sensor_class="cop",
         ),
         HitachiYutakiSensorEntityDescription(
@@ -58,8 +60,10 @@ def _build_performance_sensor_descriptions() -> tuple[
             state_class=SensorStateClass.MEASUREMENT,
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-pump-outline",
-            condition=lambda c: c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
-            or c.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING),
+            condition=lambda c: (
+                c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
+                or c.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
+            ),
             sensor_class="cop",
         ),
         HitachiYutakiSensorEntityDescription(

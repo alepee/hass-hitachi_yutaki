@@ -41,8 +41,12 @@ from .profiles import PROFILES
 
 _LOGGER = logging.getLogger(__name__)
 
+type HitachiYutakiConfigEntry = ConfigEntry[HitachiYutakiDataCoordinator]
 
-async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: HitachiYutakiConfigEntry
+) -> bool:
     """Set up Hitachi Yutaki from a config entry."""
     _LOGGER.info("Setting up Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
 
@@ -114,7 +118,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
         # Fallback to IP+slave if hardware ID unavailable
         if unique_id is None:
-            unique_id = f"{entry.data[CONF_MODBUS_HOST]}_{entry.data[CONF_MODBUS_DEVICE_ID]}"
+            unique_id = (
+                f"{entry.data[CONF_MODBUS_HOST]}_{entry.data[CONF_MODBUS_DEVICE_ID]}"
+            )
             _LOGGER.warning(
                 "Could not retrieve hardware identifier, using IP-based unique_id: %s",
                 unique_id,
@@ -163,7 +169,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     _LOGGER.debug("Data coordinator initialized")
 
-    hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
+    entry.runtime_data = coordinator
 
     # Wait for the first refresh to succeed before setting up platforms
     await coordinator.async_config_entry_first_refresh()
@@ -284,7 +290,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     return True
 
 
-async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> bool:
+async def async_migrate_entry(
+    hass: HomeAssistant, config_entry: HitachiYutakiConfigEntry
+) -> bool:
     """Migrate config entry to new version."""
     _LOGGER.debug("Migrating from version %s", config_entry.version)
 
@@ -332,19 +340,20 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
     return True
 
 
-async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+async def async_unload_entry(
+    hass: HomeAssistant, entry: HitachiYutakiConfigEntry
+) -> bool:
     """Unload a config entry."""
     _LOGGER.info("Unloading Hitachi Yutaki integration for %s", entry.data[CONF_NAME])
 
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
-        coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+        coordinator = entry.runtime_data
 
         # Close API connection
         if coordinator.api_client.connected:
             _LOGGER.debug("Closing API connection")
             await coordinator.api_client.close()
 
-        hass.data[DOMAIN].pop(entry.entry_id)
         _LOGGER.info("Hitachi Yutaki integration unloaded successfully")
 
     return unload_ok

@@ -299,9 +299,10 @@ class ModbusApiClient(HitachiApiClient):
         Returns the deserialized value, or None on read error or sensor error.
         """
         result = await self._hass.async_add_executor_job(
-            lambda addr=definition.address,
-            param=device_param: self._client.read_holding_registers(
-                address=addr, count=1, **{param: self._slave}
+            lambda addr=definition.address, param=device_param: (
+                self._client.read_holding_registers(
+                    address=addr, count=1, **{param: self._slave}
+                )
             )
         )
         if result.isError():
@@ -329,11 +330,12 @@ class ModbusApiClient(HitachiApiClient):
                 # Always perform a preflight check
                 system_state_addr = all_regs["system_state"].address
                 preflight_result = await self._hass.async_add_executor_job(
-                    lambda param=device_param,
-                    addr=system_state_addr: self._client.read_holding_registers(
-                        address=addr,
-                        count=1,
-                        **{param: self._slave},
+                    lambda param=device_param, addr=system_state_addr: (
+                        self._client.read_holding_registers(
+                            address=addr,
+                            count=1,
+                            **{param: self._slave},
+                        )
                     )
                 )
                 if preflight_result.isError():

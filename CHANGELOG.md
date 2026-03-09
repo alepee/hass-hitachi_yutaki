@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.2] - 2026-03-09
+
+### Fixed
+- Remove incorrect tenths conversion on pool target temperature (#233)
+- Remove phantom secondary compressor pressure registers at non-existent addresses 1150/1151 (#225)
+- Scan interval not editable in reconfiguration flow (options flow missing the field)
+
+### Changed
+- Migrated runtime data storage from `hass.data[DOMAIN]` to `ConfigEntry.runtime_data` (modern HA pattern)
+- Restructured documentation: unified `docs/` directory, all English, centralized architecture docs
+- Slimmed `CLAUDE.md` to rules and conventions only (details moved to `docs/`)
+- Slimmed `CONTRIBUTING.md` with pointers to `docs/development/`
+
+### Added
+- Water Outlet 2 (Two2) and Water Outlet 3 (Two3) temperature sensors for systems with buffer tanks (#161)
+- Local brand assets for HA 2026.3+ brand proxy API
+- Base entity module (`entity.py`) for common-modules quality standard
+- Documentation for `set_room_temperature` service action
+- Quality scale tracking file (`quality_scale.yaml`) for Bronze tier
+- Config flow test suite: 12 tests covering user, gateway_config, profile, power, validation, options flow
+- `docs/architecture.md`: unified architecture reference (merged 5 sources)
+- `docs/development/`: getting started, adding entities, Modbus registers, profiles guides
+- `docs/reference/`: entity patterns, domain services, quality scale references
+- GitHub issue templates (bug report, feature request) and PR template
+- MIT LICENSE file
+- CI: test against Python 3.13 and 3.14
+
+### Removed
+- `documentation/` directory (content migrated to `docs/`)
+- In-code READMEs (`domain/`, `adapters/`, `entities/`) absorbed into `docs/`
+- Root `TODO-hc-a-mb-registers.md` (content in gateway docs)
+
 ## [2.0.1] - 2026-02-23
 
 ### Added

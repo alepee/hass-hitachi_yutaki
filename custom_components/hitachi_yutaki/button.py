@@ -2,12 +2,10 @@
 
 from __future__ import annotations
 
-from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
-from .const import DOMAIN
-from .coordinator import HitachiYutakiDataCoordinator
+from . import HitachiYutakiConfigEntry
 
 # Import builders from domain entities
 from .entities.dhw import build_dhw_buttons
@@ -15,11 +13,11 @@ from .entities.dhw import build_dhw_buttons
 
 async def async_setup_entry(
     hass: HomeAssistant,
-    entry: ConfigEntry,
+    entry: HitachiYutakiConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     """Set up the buttons."""
-    coordinator: HitachiYutakiDataCoordinator = hass.data[DOMAIN][entry.entry_id]
+    coordinator = entry.runtime_data
 
     entities = []
 
