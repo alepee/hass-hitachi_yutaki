@@ -131,10 +131,10 @@ This runs both the linter (with auto-fix) and the formatter in a single command.
 
 ## Your First Contribution
 
-1. **Create a branch** from `dev`:
+1. **Create a branch** from `main`:
 
 ```bash
-git checkout dev && git pull
+git checkout main && git pull
 git checkout -b feat/my-feature
 ```
 
@@ -154,7 +154,7 @@ make check && make test
 git commit -m "feat: add new sensor for X"
 ```
 
-6. **Open a pull request** targeting the `dev` branch. PRs are squash-merged, so each PR becomes a single commit on `dev`. All CI checks (tests, lint, HACS/hassfest validation) must pass before merge.
+6. **Open a pull request** targeting the `main` branch. PRs are squash-merged, so each PR becomes a single commit on `main`. All CI checks (tests, lint, HACS/hassfest validation) must pass before merge.
 
 ## Further Reading
 

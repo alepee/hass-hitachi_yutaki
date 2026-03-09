@@ -15,13 +15,12 @@ For detailed setup instructions, see [Getting Started](docs/development/getting-
 
 | Branch | Purpose |
 |--------|---------|
-| `main` | Released state. Never push directly. Protected by ruleset. |
-| `dev` | Integration branch. Target for all pull requests. |
-| Feature branches | Created from `dev`, named `feat/...`, `fix/...`, or `chore/...`. |
+| `main` | Single branch for development and releases. Protected by ruleset. |
+| Feature branches | Created from `main`, named `feat/...`, `fix/...`, or `chore/...`. |
 
 ## Making Changes
 
-1. Create a branch from `dev` (`git checkout dev && git pull && git checkout -b feat/my-feature`)
+1. Create a branch from `main` (`git checkout main && git pull && git checkout -b feat/my-feature`)
 2. Follow the [hexagonal architecture](docs/architecture.md)
 3. Run `make check && make test`
 4. Update `CHANGELOG.md` under `[Unreleased]` (see [Changelog](#changelog))
@@ -29,8 +28,8 @@ For detailed setup instructions, see [Getting Started](docs/development/getting-
 
 ## Pull Requests
 
-- **Base branch**: always `dev`
-- **Squash merged**: each PR becomes a single commit on `dev`
+- **Base branch**: always `main`
+- **Squash merged**: each PR becomes a single commit on `main`
 - Provide a clear description of what changes and why
 - All CI checks must pass before merge:
   - **Tests** (HA 2025.1.0 + latest)

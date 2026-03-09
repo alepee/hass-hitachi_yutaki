@@ -125,12 +125,10 @@ All dependencies are declared in `pyproject.toml` (single source of truth).
 
 ## Branch Strategy
 
-- **`main`**: released state -- never push directly, only merge from `dev` via PR
-- **`dev`**: integration branch -- target for all pull requests
-- **Feature branches**: created from `dev`, named `feat/...`, `fix/...`, or `chore/...`
-- **PRs to `dev`**: squash-merged (one commit per PR)
-- **Release PR (`dev` -> `main`)**: merge commit (preserves full history)
-- **Release flow**: freeze `dev` -> `make bump` on `dev` -> PR to `main` -> merge -> create GitHub release
+- **`main`**: single branch -- all development and releases happen here
+- **Feature branches**: created from `main`, named `feat/...`, `fix/...`, or `chore/...`
+- **PRs to `main`**: squash-merged (one commit per PR)
+- **Release flow**: `make bump` on `main` -> commit -> push -> create GitHub release with tag
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor workflow.
 
