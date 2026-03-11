@@ -79,8 +79,8 @@ def deserialize_system_state(value: int | None) -> str:
     return SYSTEM_STATE_MAP.get(value, "unknown")
 
 
-def deserialize_otc_method(value: int | None) -> str | None:
-    """Convert a raw OTC method value to an OTC method constant."""
+def deserialize_otc_method_heating(value: int | None) -> str | None:
+    """Convert a raw heating OTC method value to an OTC method constant."""
     if value is None:
         return None
     # Mapping from numeric method ID to OTC method
@@ -93,13 +93,39 @@ def deserialize_otc_method(value: int | None) -> str | None:
     return method_map.get(value)
 
 
-def serialize_otc_method(value: str) -> int:
-    """Convert an OTC method constant to a raw value."""
+def serialize_otc_method_heating(value: str) -> int:
+    """Convert a heating OTC method constant to a raw value."""
     method_map = {
         OTCCalculationMethod.DISABLED: 0,
         OTCCalculationMethod.POINTS: 1,
         OTCCalculationMethod.GRADIENT: 2,
         OTCCalculationMethod.FIX: 3,
+    }
+    return method_map.get(value, 0)
+
+
+def deserialize_otc_method_cooling(value: int | None) -> str | None:
+    """Convert a raw cooling OTC method value to an OTC method constant.
+
+    ATW-MBS-02 cooling OTC has only 3 options (no Gradient):
+        0=Disabled, 1=Points, 2=Fix
+    """
+    if value is None:
+        return None
+    method_map = {
+        0: OTCCalculationMethod.DISABLED,
+        1: OTCCalculationMethod.POINTS,
+        2: OTCCalculationMethod.FIX,
+    }
+    return method_map.get(value)
+
+
+def serialize_otc_method_cooling(value: str) -> int:
+    """Convert a cooling OTC method constant to a raw value (ATW-MBS-02)."""
+    method_map = {
+        OTCCalculationMethod.DISABLED: 0,
+        OTCCalculationMethod.POINTS: 1,
+        OTCCalculationMethod.FIX: 2,
     }
     return method_map.get(value, 0)
 
@@ -277,10 +303,10 @@ REGISTER_SECONDARY_COMPRESSOR = {
 REGISTER_CIRCUIT_1 = {
     "circuit1_power": RegisterDefinition(1002),
     "circuit1_otc_calculation_method_heating": RegisterDefinition(
-        1003, deserializer=deserialize_otc_method
+        1003, deserializer=deserialize_otc_method_heating
     ),
     "circuit1_otc_calculation_method_cooling": RegisterDefinition(
-        1004, deserializer=deserialize_otc_method
+        1004, deserializer=deserialize_otc_method_cooling
     ),
     "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1005),
     "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1006),
@@ -295,10 +321,10 @@ REGISTER_CIRCUIT_1 = {
 REGISTER_CIRCUIT_2 = {
     "circuit2_power": RegisterDefinition(1013),
     "circuit2_otc_calculation_method_heating": RegisterDefinition(
-        1014, deserializer=deserialize_otc_method
+        1014, deserializer=deserialize_otc_method_heating
     ),
     "circuit2_otc_calculation_method_cooling": RegisterDefinition(
-        1015, deserializer=deserialize_otc_method
+        1015, deserializer=deserialize_otc_method_cooling
     ),
     "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1016),
     "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1017),
@@ -520,13 +546,13 @@ class AtwMbs02RegisterMap(HitachiRegisterMap):
         """Return the raw value for auto mode."""
         return HVAC_UNIT_MODE_AUTO
 
-    def serialize_otc_method(self, value: str) -> int:
-        """Convert an OTC method constant to a raw register value."""
-        return serialize_otc_method(value)
+    def serialize_otc_method_heating(self, value: str) -> int:
+        """Convert a heating OTC method constant to a raw register value."""
+        return serialize_otc_method_heating(value)
 
     def serialize_otc_method_cooling(self, value: str) -> int:
         """Convert a cooling OTC method constant to a raw register value.
 
-        ATW-MBS-02 uses the same mapping for heating and cooling.
+        ATW-MBS-02 cooling has a different mapping (no Gradient): 0=Disabled, 1=Points, 2=Fix.
         """
-        return serialize_otc_method(value)
+        return serialize_otc_method_cooling(value)

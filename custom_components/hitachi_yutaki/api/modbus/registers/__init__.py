@@ -186,7 +186,7 @@ class HitachiRegisterMap(ABC):
         """Return the raw value for auto mode, or None if not supported."""
 
     @abstractmethod
-    def serialize_otc_method(self, value: str) -> int:
+    def serialize_otc_method_heating(self, value: str) -> int:
         """Convert a heating OTC method constant to a raw register value."""
 
     @abstractmethod
