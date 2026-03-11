@@ -659,7 +659,7 @@ class ModbusApiClient(HitachiApiClient):
         """Set OTC calculation method for heating."""
         key = f"circuit{circuit_id}_otc_calculation_method_heating"
         return await self.write_value(
-            key, self._register_map.serialize_otc_method(method)
+            key, self._register_map.serialize_otc_method_heating(method)
         )
 
     async def set_circuit_otc_method_cooling(

@@ -2,6 +2,8 @@
 
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
+    deserialize_otc_method_cooling as atw_deserialize_otc_method_cooling,
+    serialize_otc_method_cooling as atw_serialize_otc_method_cooling,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
     HcAMbRegisterMap,
@@ -145,6 +147,20 @@ class TestDeserializers:
         assert serialize_otc_method_cooling(OTCCalculationMethod.DISABLED) == 0
         assert serialize_otc_method_cooling(OTCCalculationMethod.POINTS) == 1
         assert serialize_otc_method_cooling(OTCCalculationMethod.FIX) == 2
+
+    def test_atw_otc_method_cooling(self):
+        """Test ATW-MBS-02 cooling OTC method (3 options, no gradient)."""
+        assert atw_deserialize_otc_method_cooling(0) == OTCCalculationMethod.DISABLED
+        assert atw_deserialize_otc_method_cooling(1) == OTCCalculationMethod.POINTS
+        assert atw_deserialize_otc_method_cooling(2) == OTCCalculationMethod.FIX
+        assert atw_deserialize_otc_method_cooling(3) is None  # Out of range
+        assert atw_deserialize_otc_method_cooling(None) is None
+
+    def test_atw_serialize_otc_method_cooling(self):
+        """Test ATW-MBS-02 cooling OTC serializer."""
+        assert atw_serialize_otc_method_cooling(OTCCalculationMethod.DISABLED) == 0
+        assert atw_serialize_otc_method_cooling(OTCCalculationMethod.POINTS) == 1
+        assert atw_serialize_otc_method_cooling(OTCCalculationMethod.FIX) == 2
 
     def test_convert_signed_16bit_positive(self):
         """Test positive value."""

@@ -194,7 +194,7 @@ def deserialize_unit_mode_status(value: int | None) -> int | None:
     return 1 if is_heat else 0  # Heat or Cool
 
 
-def deserialize_otc_method(value: int | None) -> str | None:
+def deserialize_otc_method_heating(value: int | None) -> str | None:
     """Convert a raw OTC method value to an OTC method constant (heating)."""
     if value is None:
         return None
@@ -207,7 +207,7 @@ def deserialize_otc_method(value: int | None) -> str | None:
     return method_map.get(value)
 
 
-def serialize_otc_method(value: str) -> int:
+def serialize_otc_method_heating(value: str) -> int:
     """Convert an OTC method constant to a raw value (heating)."""
     method_map = {
         OTCCalculationMethod.DISABLED: 0,
@@ -354,7 +354,7 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             ),
             "circuit1_otc_calculation_method_heating": RegisterDefinition(
                 self._addr(103),
-                deserializer=deserialize_otc_method,
+                deserializer=deserialize_otc_method_heating,
                 write_address=self._addr(53),
             ),
             "circuit1_otc_calculation_method_cooling": RegisterDefinition(
@@ -401,7 +401,7 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             ),
             "circuit2_otc_calculation_method_heating": RegisterDefinition(
                 self._addr(115),
-                deserializer=deserialize_otc_method,
+                deserializer=deserialize_otc_method_heating,
                 write_address=self._addr(64),
             ),
             "circuit2_otc_calculation_method_cooling": RegisterDefinition(
@@ -721,9 +721,9 @@ class HcAMbRegisterMap(HitachiRegisterMap):
         """Return the raw value for auto mode (None — HC-A(16/64)MB cannot write Auto)."""
         return HVAC_UNIT_MODE_AUTO
 
-    def serialize_otc_method(self, value: str) -> int:
+    def serialize_otc_method_heating(self, value: str) -> int:
         """Convert a heating OTC method constant to a raw register value."""
-        return serialize_otc_method(value)
+        return serialize_otc_method_heating(value)
 
     def serialize_otc_method_cooling(self, value: str) -> int:
         """Convert a cooling OTC method constant to a raw register value.
