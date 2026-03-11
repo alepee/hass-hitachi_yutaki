@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Fix cooling OTC compensation method showing "Unknown" and not settable on ATW-MBS-02 (#239)
 
+### Changed
+- Reorganize gateway tests to mirror source structure (`tests/api/modbus/`)
+
 ## [2.0.2] - 2026-03-09
 
 ### Fixed
