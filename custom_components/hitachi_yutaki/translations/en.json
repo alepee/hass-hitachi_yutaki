@@ -455,6 +455,14 @@
           "desynchronized": "Desynchronized",
           "initializing": "Initializing"
         }
+      },
+      "telemetry_status": {
+        "name": "Telemetry Status",
+        "state": {
+          "off": "Off",
+          "basic": "Basic",
+          "full": "Full"
+        }
       }
     },
     "binary_sensor": {
