@@ -26,6 +26,7 @@ from .entities.hydraulic import build_hydraulic_sensors
 from .entities.performance import build_performance_sensors
 from .entities.pool import build_pool_sensors
 from .entities.power import build_power_sensors
+from .entities.telemetry import build_telemetry_sensors
 from .entities.thermal import build_thermal_sensors
 
 
@@ -105,5 +106,8 @@ async def async_setup_entry(
 
     # Power sensors (electrical consumption)
     entities.extend(build_power_sensors(coordinator, entry.entry_id))
+
+    # Telemetry diagnostic sensors
+    entities.extend(build_telemetry_sensors(coordinator, entry.entry_id))
 
     async_add_entities(entities)

@@ -33,11 +33,11 @@ class TestCollectorLevel:
         collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
         assert collector.buffer_size == 0
 
-    def test_basic_does_not_collect(self):
-        """Basic level uses aggregator for daily stats, not fine metrics."""
+    def test_basic_collects(self):
+        """Basic level collects data for daily aggregation."""
         collector = TelemetryCollector(TelemetryLevel.BASIC)
         collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
-        assert collector.buffer_size == 0
+        assert collector.buffer_size == 1
 
     def test_full_collects(self):
         """Verify FULL level stores data points in the buffer."""

@@ -52,8 +52,9 @@ class TelemetryCollector:
     ) -> None:
         """Extract metrics from coordinator data and add to the buffer.
 
-        Only collects when level is FULL (fine metrics).
-        Basic level uses aggregator for daily stats only.
+        Collects when level is BASIC or FULL (skips OFF).
+        Basic level accumulates points for daily aggregation.
+        Full level accumulates points for 5-minute metric batches.
 
         Args:
             data: The coordinator data dict (raw Modbus values).
@@ -61,7 +62,7 @@ class TelemetryCollector:
             is_defrosting: From api_client.is_defrosting.
 
         """
-        if self._level != TelemetryLevel.FULL:
+        if self._level == TelemetryLevel.OFF:
             return
 
         if not data or not data.get("is_available"):
