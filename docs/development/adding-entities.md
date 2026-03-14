@@ -243,6 +243,17 @@ wrong. See [API Layer & Data Keys](api-data-keys.md) for the CONTROL vs STATUS
 distinction -- this is handled in the API layer but affects which keys are
 available in `coordinator.data`.
 
+## Special Case: Telemetry Entities
+
+The `entities/telemetry/` domain is different from other entity domains. Telemetry
+entities don't read from `coordinator.data` (Modbus registers) — they read from
+coordinator telemetry attributes (`telemetry_collector`, `telemetry_last_send`, etc.).
+
+Because of this, the telemetry sensor uses a custom subclass
+(`HitachiYutakiTelemetrySensor`) that overrides `native_value` and `available`
+instead of relying on the standard `value_fn` pattern. See
+`entities/telemetry/sensors.py` for the implementation.
+
 ## Checklist
 
 Use this checklist before opening a PR:

@@ -140,6 +140,18 @@ The configuration flow guides you through several steps:
 
 You can reconfigure the integration at any time via **Settings** > **Devices & Services** > **Hitachi Heat Pump** > **Configure**.
 
+## Telemetry
+
+This integration can optionally collect anonymous performance data to improve support for all heat pump models. **Telemetry is disabled by default** and requires explicit opt-in.
+
+- **Off** — No data collected (default)
+- **Basic** — Installation info + daily aggregated stats (once per day)
+- **Full** — Fine-grained metrics every 5 minutes + one-time register snapshot
+
+All data is identified by a non-reversible hash. No personal information, IP addresses, or location data is ever collected. You can change your level or disable telemetry at any time in the integration options.
+
+See [Telemetry Reference](docs/reference/telemetry.md) for details on what is collected, and [Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200) for community context.
+
 ## Known Limitations
 
 - **Modbus TCP only**: Direct serial Modbus is not supported.
