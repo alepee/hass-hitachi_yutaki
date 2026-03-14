@@ -1,0 +1,16 @@
+name = "hitachi-telemetry"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "hitachi-telemetry-archive"
+
+[[hyperdrive]]
+binding = "DB"
+id = "" # Set after: npx wrangler hyperdrive create hitachi-telemetry --connection-string="..."
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "" # Set after: npx wrangler kv namespace create RATE_LIMIT
