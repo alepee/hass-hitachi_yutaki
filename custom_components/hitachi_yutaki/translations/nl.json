@@ -54,6 +54,13 @@
         "single": "Enkelfasig",
         "three": "Driefasig"
       }
+    },
+    "telemetry_level": {
+      "options": {
+        "off": "😢 Uit — Geen gegevens verzonden",
+        "basic": "🙂 Basis — Installatie-info + dagelijkse statistieken (1x/dag)",
+        "full": "🤩 Volledig — Fijne metingen elke 5 min + 24u registermomentopnames"
+      }
     }
   },
   "options": {
@@ -116,6 +123,13 @@
         "data": {
           "gateway_type": "Gatewaytype",
           "profile": "Warmtepompmodel"
+        }
+      },
+      "telemetry": {
+        "title": "Anonieme telemetrie",
+        "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld.\n\n[Meer informatie over telemetrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+        "data": {
+          "telemetry_level": "Telemetrieniveau"
         }
       }
     }
@@ -674,6 +688,21 @@
     "missing_config": {
       "title": "Hitachi Yutaki configuratie onvolledig",
       "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters (gatewaytype en/of warmtepompmodel). De integratie kan niet worden ingesteld totdat deze parameters zijn geconfigureerd.\n\n**Om dit op te lossen:**\n1. Ga naar Instellingen > Apparaten en services > Hitachi Yutaki\n2. Klik op de integratie en selecteer Configureren\n3. Selecteer de ontbrekende parameters (gatewaytype en warmtepompmodel)\n4. Sla de configuratie op"
+    },
+    "enable_telemetry": {
+      "title": "Help Hitachi Yutaki verbeteren",
+      "description": "Ik ontwikkel en test op één enkel warmtepompmodel — voor alle andere modellen werk ik blind. Uw anonieme gegevens helpen mij problemen sneller op te sporen en betere ondersteuning te bieden voor elk model.\n\nKlik op **Oplossen** om uw telemetrieniveau te kiezen, of sluit dit bericht om het uitgeschakeld te houden.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Kies telemetrieniveau",
+            "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld. U kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over telemetrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+            "data": {
+              "telemetry_level": "Telemetrieniveau"
+            }
+          }
+        }
+      }
     }
   }
 }

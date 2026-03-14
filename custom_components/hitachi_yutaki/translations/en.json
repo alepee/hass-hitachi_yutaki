@@ -54,6 +54,13 @@
         "single": "Single phase",
         "three": "Three phase"
       }
+    },
+    "telemetry_level": {
+      "options": {
+        "off": "😢 Off — No data sent",
+        "basic": "🙂 Basic — Installation info + daily stats (1x/day)",
+        "full": "🤩 Full — Fine metrics every 5 min + 24h register snapshots"
+      }
     }
   },
   "options": {
@@ -116,6 +123,13 @@
         "data": {
           "gateway_type": "Gateway Type",
           "profile": "Heat Pump Profile"
+        }
+      },
+      "telemetry": {
+        "title": "Anonymous Telemetry",
+        "description": "I develop and test on a single heat pump model. For all others, I'm working blind — your anonymous data helps me build realistic tests, catch regressions, and develop new features. No personal information is ever collected.\n\n[Learn more about telemetry](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+        "data": {
+          "telemetry_level": "Telemetry Level"
         }
       }
     }
@@ -674,6 +688,21 @@
     "missing_config": {
       "title": "Hitachi Yutaki Configuration Incomplete",
       "description": "Your Hitachi Yutaki integration is missing required configuration parameters (gateway type and/or heat pump profile). The integration cannot be set up until these parameters are configured.\n\n**To resolve this:**\n1. Go to Settings > Devices & Services > Hitachi Yutaki\n2. Click on the integration and select Configure\n3. Select the missing parameters (gateway type and heat pump profile)\n4. Save the configuration"
+    },
+    "enable_telemetry": {
+      "title": "Help Improve Hitachi Yutaki",
+      "description": "I develop and test on a single heat pump model — for all others, I'm working blind. Your anonymous data would help me catch issues faster and build better support for every model.\n\nClick **Fix** to choose your telemetry level, or dismiss to keep it disabled.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Choose Telemetry Level",
+            "description": "I develop and test on a single heat pump model. For all others, I'm working blind — your anonymous data helps me build realistic tests, catch regressions, and develop new features. No personal information is ever collected. You can change this at any time in the integration options.\n\n[Learn more about telemetry](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+            "data": {
+              "telemetry_level": "Telemetry Level"
+            }
+          }
+        }
+      }
     }
   }
 }
