@@ -20,6 +20,7 @@ from .const import (
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
+    CONF_TELEMETRY_LEVEL,
     CONF_UNIT_ID,
     DEFAULT_DEVICE_ID,
     DEFAULT_UNIT_ID,
@@ -280,6 +281,20 @@ async def async_setup_entry(
             name=DEVICE_POOL.replace("_", " ").title(),  # Fallback name
             translation_key="pool",
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+        )
+
+    # Telemetry onboarding: create repair issue for existing users who haven't chosen yet
+    if CONF_TELEMETRY_LEVEL not in entry.options:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            f"enable_telemetry_{entry.entry_id}",
+            is_fixable=True,
+            is_persistent=True,
+            severity=IssueSeverity.WARNING,
+            issue_domain=DOMAIN,
+            translation_key="enable_telemetry",
+            learn_more_url="https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md",
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

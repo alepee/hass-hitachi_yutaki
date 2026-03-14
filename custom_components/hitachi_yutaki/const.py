@@ -108,6 +108,10 @@ CONF_WATER_OUTLET_TEMP_ENTITY = "water_outlet_temp_entity"
 CONF_UNIT_ID = "unit_id"
 DEFAULT_UNIT_ID = 0
 
+# Telemetry
+CONF_TELEMETRY_LEVEL = "telemetry_level"
+DEFAULT_TELEMETRY_LEVEL = "off"
+
 # COP calculation parameters
 COP_MEASUREMENTS_INTERVAL = 60  # seconds
 COP_MEASUREMENTS_PERIOD = 30  # minutes
