@@ -3,7 +3,7 @@
  * Uses Hyperdrive for connection pooling.
  */
 
-import type { Client } from "pg";
+import { Client } from "pg";
 import type {
   DailyStatsPayload,
   InstallationPayload,
@@ -13,9 +13,7 @@ import type {
 
 /** Create a pg Client using Hyperdrive connection string. */
 export async function getClient(connectionString: string): Promise<Client> {
-  // Dynamic import — pg is a Node.js module loaded via nodejs_compat
-  const { default: pg } = await import("pg");
-  const client = new pg.Client({ connectionString });
+  const client = new Client({ connectionString });
   await client.connect();
   return client;
 }
