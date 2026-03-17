@@ -80,6 +80,19 @@ class MetricPoint:
     dhw_active: bool | None = None
     circuit1_water_temp: float | None = None
     circuit2_water_temp: float | None = None
+    # Setpoints and control state (for world model training)
+    circuit1_target_temp: float | None = None
+    circuit2_target_temp: float | None = None
+    dhw_target_temp: float | None = None
+    water_target_temp: float | None = None
+    water_flow: float | None = None
+    circuit1_otc_method_heating: str | None = None
+    circuit1_otc_method_cooling: str | None = None
+    circuit1_eco_mode: bool | None = None
+    circuit2_eco_mode: bool | None = None
+    circuit1_power: bool | None = None
+    circuit2_power: bool | None = None
+    dhw_power: bool | None = None
 
     def to_dict(self) -> dict:
         """Serialize to dict for JSON payload, omitting None values."""
@@ -101,6 +114,18 @@ class MetricPoint:
             "dhw_active",
             "circuit1_water_temp",
             "circuit2_water_temp",
+            "circuit1_target_temp",
+            "circuit2_target_temp",
+            "dhw_target_temp",
+            "water_target_temp",
+            "water_flow",
+            "circuit1_otc_method_heating",
+            "circuit1_otc_method_cooling",
+            "circuit1_eco_mode",
+            "circuit2_eco_mode",
+            "circuit1_power",
+            "circuit2_power",
+            "dhw_power",
         ):
             val = getattr(self, fld)
             if val is not None:

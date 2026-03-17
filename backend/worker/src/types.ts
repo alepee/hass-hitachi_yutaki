@@ -47,6 +47,18 @@ export interface MetricPoint {
   dhw_active?: boolean | null;
   circuit1_water_temp?: number | null;
   circuit2_water_temp?: number | null;
+  circuit1_target_temp?: number | null;
+  circuit2_target_temp?: number | null;
+  dhw_target_temp?: number | null;
+  water_target_temp?: number | null;
+  water_flow?: number | null;
+  circuit1_otc_method_heating?: string | null;
+  circuit1_otc_method_cooling?: string | null;
+  circuit1_eco_mode?: boolean | null;
+  circuit2_eco_mode?: boolean | null;
+  circuit1_power?: boolean | null;
+  circuit2_power?: boolean | null;
+  dhw_power?: boolean | null;
 }
 
 /** Metrics batch payload. */

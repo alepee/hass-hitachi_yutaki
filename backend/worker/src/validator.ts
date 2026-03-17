@@ -49,6 +49,18 @@ const METRIC_FIELDS = new Set([
   "dhw_active",
   "circuit1_water_temp",
   "circuit2_water_temp",
+  "circuit1_target_temp",
+  "circuit2_target_temp",
+  "dhw_target_temp",
+  "water_target_temp",
+  "water_flow",
+  "circuit1_otc_method_heating",
+  "circuit1_otc_method_cooling",
+  "circuit1_eco_mode",
+  "circuit2_eco_mode",
+  "circuit1_power",
+  "circuit2_power",
+  "dhw_power",
 ]);
 
 /** Allowed daily stats data fields (whitelist). */

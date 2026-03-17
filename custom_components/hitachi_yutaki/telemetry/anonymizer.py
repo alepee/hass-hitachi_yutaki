@@ -36,6 +36,13 @@ def anonymize_metric_point(point: MetricPoint) -> MetricPoint:
         circuit2_water_temp=round_temperature(point.circuit2_water_temp),
         # Round COP to 1 decimal place
         cop_instant=round(point.cop_instant, 1) if point.cop_instant is not None else None,
+        # Round setpoint temperatures
+        circuit1_target_temp=round_temperature(point.circuit1_target_temp),
+        circuit2_target_temp=round_temperature(point.circuit2_target_temp),
+        dhw_target_temp=round_temperature(point.dhw_target_temp),
+        water_target_temp=round_temperature(point.water_target_temp),
+        # Round water flow to 1 decimal
+        water_flow=round(point.water_flow, 1) if point.water_flow is not None else None,
     )
 
 
