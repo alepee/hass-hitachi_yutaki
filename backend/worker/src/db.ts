@@ -83,6 +83,18 @@ export async function writeMetrics(
     "dhw_active",
     "circuit1_water_temp",
     "circuit2_water_temp",
+    "circuit1_target_temp",
+    "circuit2_target_temp",
+    "dhw_target_temp",
+    "water_target_temp",
+    "water_flow",
+    "circuit1_otc_method_heating",
+    "circuit1_otc_method_cooling",
+    "circuit1_eco_mode",
+    "circuit2_eco_mode",
+    "circuit1_power",
+    "circuit2_power",
+    "dhw_power",
   ];
 
   const values: unknown[] = [];
@@ -112,6 +124,18 @@ export async function writeMetrics(
       p.dhw_active ?? null,
       p.circuit1_water_temp ?? null,
       p.circuit2_water_temp ?? null,
+      p.circuit1_target_temp ?? null,
+      p.circuit2_target_temp ?? null,
+      p.dhw_target_temp ?? null,
+      p.water_target_temp ?? null,
+      p.water_flow ?? null,
+      p.circuit1_otc_method_heating ?? null,
+      p.circuit1_otc_method_cooling ?? null,
+      p.circuit1_eco_mode ?? null,
+      p.circuit2_eco_mode ?? null,
+      p.circuit1_power ?? null,
+      p.circuit2_power ?? null,
+      p.dhw_power ?? null,
     );
   }
 

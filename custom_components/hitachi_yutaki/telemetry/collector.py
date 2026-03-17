@@ -96,6 +96,19 @@ class TelemetryCollector:
             dhw_active=dhw_active,
             circuit1_water_temp=_to_float(data.get("circuit1_current_temp")),
             circuit2_water_temp=_to_float(data.get("circuit2_current_temp")),
+            # Setpoints and control state
+            circuit1_target_temp=_to_float(data.get("circuit1_target_temp")),
+            circuit2_target_temp=_to_float(data.get("circuit2_target_temp")),
+            dhw_target_temp=_to_float(data.get("dhw_target_temp")),
+            water_target_temp=_to_float(data.get("water_target_temp")),
+            water_flow=_to_float(data.get("water_flow")),
+            circuit1_otc_method_heating=data.get("circuit1_otc_calculation_method_heating"),
+            circuit1_otc_method_cooling=data.get("circuit1_otc_calculation_method_cooling"),
+            circuit1_eco_mode=_to_bool(data.get("circuit1_eco_mode")),
+            circuit2_eco_mode=_to_bool(data.get("circuit2_eco_mode")),
+            circuit1_power=_to_bool(data.get("circuit1_power")),
+            circuit2_power=_to_bool(data.get("circuit2_power")),
+            dhw_power=_to_bool(data.get("dhw_power")),
         )
 
         self._buffer.append(point)
@@ -115,3 +128,10 @@ def _to_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _to_bool(value: Any) -> bool | None:
+    """Safely convert a value to bool, returning None if not set."""
+    if value is None:
+        return None
+    return bool(value)
