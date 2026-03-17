@@ -25,6 +25,9 @@ export interface InstallationPayload extends BasePayload {
     has_cooling?: boolean;
     max_circuits?: number;
     has_secondary_compressor?: boolean;
+    latitude?: number | null;
+    longitude?: number | null;
+    climate_zone?: string | null;
   };
 }
 

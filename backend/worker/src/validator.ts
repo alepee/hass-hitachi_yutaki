@@ -28,6 +28,9 @@ const INSTALLATION_FIELDS = new Set([
   "has_cooling",
   "max_circuits",
   "has_secondary_compressor",
+  "latitude",
+  "longitude",
+  "climate_zone",
 ]);
 
 /** Allowed metric point fields (whitelist). */

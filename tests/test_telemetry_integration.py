@@ -47,6 +47,8 @@ def _make_coordinator(
 ) -> HitachiYutakiDataCoordinator:
     """Create a minimal coordinator with telemetry wired up."""
     hass = MagicMock()
+    hass.config.latitude = 48.8
+    hass.config.longitude = 2.3
     entry = MagicMock()
     entry.data = {"scan_interval": 5}
 

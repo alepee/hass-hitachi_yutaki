@@ -28,8 +28,9 @@ export async function writeInstallation(
     `INSERT INTO installations (
       instance_hash, profile, gateway_type, ha_version, integration_version,
       power_supply, has_dhw, has_pool, has_cooling, max_circuits,
-      has_secondary_compressor, first_seen, last_seen
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW(),NOW())
+      has_secondary_compressor, latitude, longitude, climate_zone,
+      first_seen, last_seen
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,NOW(),NOW())
     ON CONFLICT (instance_hash) DO UPDATE SET
       profile = EXCLUDED.profile,
       gateway_type = EXCLUDED.gateway_type,
@@ -41,6 +42,9 @@ export async function writeInstallation(
       has_cooling = EXCLUDED.has_cooling,
       max_circuits = EXCLUDED.max_circuits,
       has_secondary_compressor = EXCLUDED.has_secondary_compressor,
+      latitude = EXCLUDED.latitude,
+      longitude = EXCLUDED.longitude,
+      climate_zone = EXCLUDED.climate_zone,
       last_seen = NOW()`,
     [
       payload.instance_hash,
@@ -54,6 +58,9 @@ export async function writeInstallation(
       d.has_cooling ?? null,
       d.max_circuits ?? null,
       d.has_secondary_compressor ?? null,
+      d.latitude ?? null,
+      d.longitude ?? null,
+      d.climate_zone ?? null,
     ],
   );
 }

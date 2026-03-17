@@ -38,6 +38,7 @@ from .telemetry import (
 from .telemetry.aggregator import aggregate_metrics
 from .telemetry.anonymizer import (
     anonymize_daily_stats,
+    anonymize_installation_info,
     anonymize_metric_point,
 )
 
@@ -205,7 +206,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             has_cooling=has_cooling,
             max_circuits=2 if has_circuit2 else 1,
             has_secondary_compressor=self.profile.supports_secondary_compressor,
+            latitude=self.hass.config.latitude,
+            longitude=self.hass.config.longitude,
         )
+        info = anonymize_installation_info(info)
 
         try:
             await self.telemetry_client.send_installation(info)
