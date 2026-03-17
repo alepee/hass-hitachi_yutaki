@@ -6,7 +6,7 @@ from datetime import timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
@@ -195,7 +195,7 @@ async def async_setup_entry(
             "instance_hash": instance_hash,
             "profile": profile_key,
             "gateway_type": gateway_type,
-            "ha_version": hass.config.version,
+            "ha_version": HA_VERSION,
             "integration_version": integration.version,
             "power_supply": entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
         }
