@@ -10,6 +10,7 @@
  */
 
 import { archiveToR2 } from "./archive";
+import { classifyClimateZone } from "./climate";
 import { getClient, writeDailyStats, writeInstallation, writeMetrics, writeSnapshot } from "./db";
 import { RateLimitError, checkRateLimit } from "./rate-limiter";
 import type { Env, TelemetryPayload } from "./types";
@@ -43,6 +44,14 @@ export default {
 
       // Rate limit
       await checkRateLimit(env.RATE_LIMIT, payload.instance_hash);
+
+      // Enrich installation payload with precise Köppen climate zone
+      if (payload.type === "installation") {
+        const zone = classifyClimateZone(payload.data.latitude, payload.data.longitude);
+        if (zone) {
+          payload.data.climate_zone = zone;
+        }
+      }
 
       // Dual write: hot (TigerData) + cold (R2)
       await writeToDatabase(env, payload);

@@ -35,40 +35,12 @@ def round_coordinate(value: float | None, precision: float = 1.0) -> float | Non
     return round(value / precision) * precision
 
 
-def classify_climate_zone(latitude: float | None) -> str | None:
-    """Classify into simplified climate zone based on latitude.
-
-    Simplified Köppen-inspired zones relevant to heat pump operation:
-    - tropical: |lat| < 23.5 (rare for heat pumps)
-    - subtropical: 23.5 <= |lat| < 35
-    - temperate: 35 <= |lat| < 45 (Mediterranean, oceanic)
-    - continental: 45 <= |lat| < 55 (most European installations)
-    - northern: 55 <= |lat| < 65 (Scandinavia, Scotland)
-    - subarctic: |lat| >= 65
-    """
-    if latitude is None:
-        return None
-    abs_lat = abs(latitude)
-    if abs_lat < 23.5:
-        return "tropical"
-    if abs_lat < 35:
-        return "subtropical"
-    if abs_lat < 45:
-        return "temperate"
-    if abs_lat < 55:
-        return "continental"
-    if abs_lat < 65:
-        return "northern"
-    return "subarctic"
-
-
 def anonymize_installation_info(info: InstallationInfo) -> InstallationInfo:
-    """Anonymize InstallationInfo by rounding coordinates and adding climate zone."""
+    """Anonymize InstallationInfo by rounding geographic coordinates."""
     return replace(
         info,
         latitude=round_coordinate(info.latitude),
         longitude=round_coordinate(info.longitude),
-        climate_zone=classify_climate_zone(info.latitude),
     )
 
 
