@@ -34,24 +34,34 @@ class InstallationInfo:
     has_cooling: bool
     max_circuits: int
     has_secondary_compressor: bool
+    latitude: float | None = None
+    longitude: float | None = None
+    climate_zone: str | None = None
 
     def to_dict(self) -> dict:
         """Serialize to dict for JSON payload."""
+        data: dict = {
+            "profile": self.profile,
+            "gateway_type": self.gateway_type,
+            "ha_version": self.ha_version,
+            "integration_version": self.integration_version,
+            "power_supply": self.power_supply,
+            "has_dhw": self.has_dhw,
+            "has_pool": self.has_pool,
+            "has_cooling": self.has_cooling,
+            "max_circuits": self.max_circuits,
+            "has_secondary_compressor": self.has_secondary_compressor,
+        }
+        if self.latitude is not None:
+            data["latitude"] = self.latitude
+        if self.longitude is not None:
+            data["longitude"] = self.longitude
+        if self.climate_zone is not None:
+            data["climate_zone"] = self.climate_zone
         return {
             "type": "installation",
             "instance_hash": self.instance_hash,
-            "data": {
-                "profile": self.profile,
-                "gateway_type": self.gateway_type,
-                "ha_version": self.ha_version,
-                "integration_version": self.integration_version,
-                "power_supply": self.power_supply,
-                "has_dhw": self.has_dhw,
-                "has_pool": self.has_pool,
-                "has_cooling": self.has_cooling,
-                "max_circuits": self.max_circuits,
-                "has_secondary_compressor": self.has_secondary_compressor,
-            },
+            "data": data,
         }
 
 
