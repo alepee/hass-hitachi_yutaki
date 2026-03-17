@@ -15,7 +15,7 @@ from .models import DailyStats, InstallationInfo, MetricsBatch, RegisterSnapshot
 _LOGGER = logging.getLogger(__name__)
 
 # Default endpoint (Cloudflare Worker)
-DEFAULT_ENDPOINT = "https://telemetry.hitachi-yutaki.workers.dev/v1/ingest"
+DEFAULT_ENDPOINT = "https://hitachi-telemetry.antoine-04c.workers.dev/v1/ingest"
 
 # Retry configuration
 MAX_RETRIES = 3
