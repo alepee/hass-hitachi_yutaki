@@ -88,11 +88,50 @@ class MetricPoint:
     water_flow: float | None = None
     circuit1_otc_method_heating: str | None = None
     circuit1_otc_method_cooling: str | None = None
+    circuit2_otc_method_heating: str | None = None
+    circuit2_otc_method_cooling: str | None = None
     circuit1_eco_mode: bool | None = None
     circuit2_eco_mode: bool | None = None
     circuit1_power: bool | None = None
     circuit2_power: bool | None = None
     dhw_power: bool | None = None
+    # OTC parameters
+    circuit1_max_flow_temp_heating: float | None = None
+    circuit1_max_flow_temp_cooling: float | None = None
+    circuit1_heat_eco_offset: float | None = None
+    circuit1_cool_eco_offset: float | None = None
+    circuit2_max_flow_temp_heating: float | None = None
+    circuit2_max_flow_temp_cooling: float | None = None
+    circuit2_heat_eco_offset: float | None = None
+    circuit2_cool_eco_offset: float | None = None
+    # Primary compressor thermodynamics
+    compressor_tg_gas_temp: float | None = None
+    compressor_ti_liquid_temp: float | None = None
+    compressor_td_discharge_temp: float | None = None
+    compressor_te_evaporator_temp: float | None = None
+    compressor_evi_valve_opening: float | None = None
+    compressor_evo_valve_opening: float | None = None
+    # Secondary compressor (S80 cascade)
+    secondary_compressor_frequency: float | None = None
+    secondary_compressor_discharge_temp: float | None = None
+    secondary_compressor_suction_temp: float | None = None
+    secondary_compressor_discharge_pressure: float | None = None
+    secondary_compressor_suction_pressure: float | None = None
+    secondary_compressor_valve_opening: float | None = None
+    # System state
+    unit_power: bool | None = None
+    pump_speed: float | None = None
+    operation_state_code: int | None = None
+    alarm_code: int | None = None
+    system_status: int | None = None
+    # DHW modes
+    dhw_boost: bool | None = None
+    dhw_high_demand: bool | None = None
+    # Additional temperatures
+    water_outlet_2_temp: float | None = None
+    water_outlet_3_temp: float | None = None
+    pool_current_temp: float | None = None
+    pool_target_temp: float | None = None
 
     def to_dict(self) -> dict:
         """Serialize to dict for JSON payload, omitting None values."""
@@ -121,11 +160,44 @@ class MetricPoint:
             "water_flow",
             "circuit1_otc_method_heating",
             "circuit1_otc_method_cooling",
+            "circuit2_otc_method_heating",
+            "circuit2_otc_method_cooling",
             "circuit1_eco_mode",
             "circuit2_eco_mode",
             "circuit1_power",
             "circuit2_power",
             "dhw_power",
+            "circuit1_max_flow_temp_heating",
+            "circuit1_max_flow_temp_cooling",
+            "circuit1_heat_eco_offset",
+            "circuit1_cool_eco_offset",
+            "circuit2_max_flow_temp_heating",
+            "circuit2_max_flow_temp_cooling",
+            "circuit2_heat_eco_offset",
+            "circuit2_cool_eco_offset",
+            "compressor_tg_gas_temp",
+            "compressor_ti_liquid_temp",
+            "compressor_td_discharge_temp",
+            "compressor_te_evaporator_temp",
+            "compressor_evi_valve_opening",
+            "compressor_evo_valve_opening",
+            "secondary_compressor_frequency",
+            "secondary_compressor_discharge_temp",
+            "secondary_compressor_suction_temp",
+            "secondary_compressor_discharge_pressure",
+            "secondary_compressor_suction_pressure",
+            "secondary_compressor_valve_opening",
+            "unit_power",
+            "pump_speed",
+            "operation_state_code",
+            "alarm_code",
+            "system_status",
+            "dhw_boost",
+            "dhw_high_demand",
+            "water_outlet_2_temp",
+            "water_outlet_3_temp",
+            "pool_current_temp",
+            "pool_target_temp",
         ):
             val = getattr(self, fld)
             if val is not None:

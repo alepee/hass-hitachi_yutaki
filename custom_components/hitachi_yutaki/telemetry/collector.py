@@ -104,11 +104,50 @@ class TelemetryCollector:
             water_flow=_to_float(data.get("water_flow")),
             circuit1_otc_method_heating=data.get("circuit1_otc_calculation_method_heating"),
             circuit1_otc_method_cooling=data.get("circuit1_otc_calculation_method_cooling"),
+            circuit2_otc_method_heating=data.get("circuit2_otc_calculation_method_heating"),
+            circuit2_otc_method_cooling=data.get("circuit2_otc_calculation_method_cooling"),
             circuit1_eco_mode=_to_bool(data.get("circuit1_eco_mode")),
             circuit2_eco_mode=_to_bool(data.get("circuit2_eco_mode")),
             circuit1_power=_to_bool(data.get("circuit1_power")),
             circuit2_power=_to_bool(data.get("circuit2_power")),
             dhw_power=_to_bool(data.get("dhw_power")),
+            # OTC parameters
+            circuit1_max_flow_temp_heating=_to_float(data.get("circuit1_max_flow_temp_heating_otc")),
+            circuit1_max_flow_temp_cooling=_to_float(data.get("circuit1_max_flow_temp_cooling_otc")),
+            circuit1_heat_eco_offset=_to_float(data.get("circuit1_heat_eco_offset")),
+            circuit1_cool_eco_offset=_to_float(data.get("circuit1_cool_eco_offset")),
+            circuit2_max_flow_temp_heating=_to_float(data.get("circuit2_max_flow_temp_heating_otc")),
+            circuit2_max_flow_temp_cooling=_to_float(data.get("circuit2_max_flow_temp_cooling_otc")),
+            circuit2_heat_eco_offset=_to_float(data.get("circuit2_heat_eco_offset")),
+            circuit2_cool_eco_offset=_to_float(data.get("circuit2_cool_eco_offset")),
+            # Primary compressor thermodynamics
+            compressor_tg_gas_temp=_to_float(data.get("compressor_tg_gas_temp")),
+            compressor_ti_liquid_temp=_to_float(data.get("compressor_ti_liquid_temp")),
+            compressor_td_discharge_temp=_to_float(data.get("compressor_td_discharge_temp")),
+            compressor_te_evaporator_temp=_to_float(data.get("compressor_te_evaporator_temp")),
+            compressor_evi_valve_opening=_to_float(data.get("compressor_evi_indoor_expansion_valve_opening")),
+            compressor_evo_valve_opening=_to_float(data.get("compressor_evo_outdoor_expansion_valve_opening")),
+            # Secondary compressor (S80)
+            secondary_compressor_frequency=_to_float(data.get("secondary_compressor_frequency")),
+            secondary_compressor_discharge_temp=_to_float(data.get("secondary_compressor_discharge_temp")),
+            secondary_compressor_suction_temp=_to_float(data.get("secondary_compressor_suction_temp")),
+            secondary_compressor_discharge_pressure=_to_float(data.get("secondary_compressor_discharge_pressure")),
+            secondary_compressor_suction_pressure=_to_float(data.get("secondary_compressor_suction_pressure")),
+            secondary_compressor_valve_opening=_to_float(data.get("secondary_compressor_valve_opening")),
+            # System state
+            unit_power=_to_bool(data.get("unit_power")),
+            pump_speed=_to_float(data.get("pump_speed")),
+            operation_state_code=_to_int(data.get("operation_state_code")),
+            alarm_code=_to_int(data.get("alarm_code")),
+            system_status=_to_int(data.get("system_status")),
+            # DHW modes
+            dhw_boost=_to_bool(data.get("dhw_boost")),
+            dhw_high_demand=_to_bool(data.get("dhw_high_demand")),
+            # Additional temperatures
+            water_outlet_2_temp=_to_float(data.get("water_outlet_2_temp")),
+            water_outlet_3_temp=_to_float(data.get("water_outlet_3_temp")),
+            pool_current_temp=_to_float(data.get("pool_current_temp")),
+            pool_target_temp=_to_float(data.get("pool_target_temp")),
         )
 
         self._buffer.append(point)
@@ -135,3 +174,13 @@ def _to_bool(value: Any) -> bool | None:
     if value is None:
         return None
     return bool(value)
+
+
+def _to_int(value: Any) -> int | None:
+    """Safely convert a value to int, returning None on failure."""
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None

@@ -43,6 +43,24 @@ def anonymize_metric_point(point: MetricPoint) -> MetricPoint:
         water_target_temp=round_temperature(point.water_target_temp),
         # Round water flow to 1 decimal
         water_flow=round(point.water_flow, 1) if point.water_flow is not None else None,
+        # OTC max flow temps
+        circuit1_max_flow_temp_heating=round_temperature(point.circuit1_max_flow_temp_heating),
+        circuit1_max_flow_temp_cooling=round_temperature(point.circuit1_max_flow_temp_cooling),
+        circuit2_max_flow_temp_heating=round_temperature(point.circuit2_max_flow_temp_heating),
+        circuit2_max_flow_temp_cooling=round_temperature(point.circuit2_max_flow_temp_cooling),
+        # Primary compressor temperatures
+        compressor_tg_gas_temp=round_temperature(point.compressor_tg_gas_temp),
+        compressor_ti_liquid_temp=round_temperature(point.compressor_ti_liquid_temp),
+        compressor_td_discharge_temp=round_temperature(point.compressor_td_discharge_temp),
+        compressor_te_evaporator_temp=round_temperature(point.compressor_te_evaporator_temp),
+        # Secondary compressor temperatures
+        secondary_compressor_discharge_temp=round_temperature(point.secondary_compressor_discharge_temp),
+        secondary_compressor_suction_temp=round_temperature(point.secondary_compressor_suction_temp),
+        # Additional temperatures
+        water_outlet_2_temp=round_temperature(point.water_outlet_2_temp),
+        water_outlet_3_temp=round_temperature(point.water_outlet_3_temp),
+        pool_current_temp=round_temperature(point.pool_current_temp),
+        pool_target_temp=round_temperature(point.pool_target_temp),
     )
 
 
