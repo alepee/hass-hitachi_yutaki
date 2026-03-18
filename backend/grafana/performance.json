@@ -18,7 +18,7 @@
         "type": "query",
         "datasource": {
           "type": "grafana-postgresql-datasource",
-          "uid": "TigerData"
+          "uid": "ffgbrchr6etq8c"
         },
         "query": "SELECT LEFT(instance_hash, 12) || ' (' || profile || ')' AS __text, instance_hash AS __value FROM installations ORDER BY last_seen DESC;",
         "includeAll": true,
@@ -43,7 +43,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -75,7 +75,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -101,7 +101,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -126,7 +126,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -156,7 +156,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -182,7 +182,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -203,7 +203,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
