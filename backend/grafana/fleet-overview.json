@@ -24,7 +24,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -65,7 +65,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -86,7 +86,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -107,7 +107,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -128,7 +128,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -149,7 +149,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -170,7 +170,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -191,7 +191,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
@@ -212,7 +212,7 @@
       },
       "datasource": {
         "type": "grafana-postgresql-datasource",
-        "uid": "TigerData"
+        "uid": "ffgbrchr6etq8c"
       },
       "targets": [
         {
