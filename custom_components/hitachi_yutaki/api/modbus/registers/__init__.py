@@ -192,3 +192,15 @@ class HitachiRegisterMap(ABC):
     @abstractmethod
     def serialize_otc_method_cooling(self, value: str) -> int:
         """Convert a cooling OTC method constant to a raw register value."""
+
+
+# Import concrete register map classes for variant lookup
+from .atw_mbs_02 import AtwMbs02RegisterMap  # noqa: E402
+from .atw_mbs_02_pre2016 import AtwMbs02Pre2016RegisterMap  # noqa: E402
+
+GATEWAY_VARIANTS: dict[str, dict[str, type[HitachiRegisterMap]]] = {
+    "modbus_atw_mbs_02": {
+        "gen1": AtwMbs02Pre2016RegisterMap,
+        "gen2": AtwMbs02RegisterMap,
+    },
+}

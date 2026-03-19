@@ -7,8 +7,7 @@ from dataclasses import dataclass
 from ..const import DEFAULT_UNIT_ID
 from .base import HitachiApiClient
 from .modbus import ModbusApiClient
-from .modbus.registers import HitachiRegisterMap
-from .modbus.registers.atw_mbs_02_pre2016 import AtwMbs02Pre2016RegisterMap
+from .modbus.registers import GATEWAY_VARIANTS, HitachiRegisterMap
 from .modbus.registers.hc_a_mb import HcAMbRegisterMap
 
 
@@ -27,11 +26,6 @@ GATEWAY_INFO = {
         model="ATW-MBS-02",
         client_class=ModbusApiClient,
     ),
-    "modbus_atw_mbs_02_pre2016": GatewayInfo(
-        manufacturer="Hitachi",
-        model="ATW-MBS-02 (Before Line-up 2016)",
-        client_class=ModbusApiClient,
-    ),
     "modbus_hc_a_mb": GatewayInfo(
         manufacturer="Hitachi",
         model="HC-A(16/64)MB",
@@ -41,16 +35,22 @@ GATEWAY_INFO = {
 
 
 def create_register_map(
-    gateway_type: str, unit_id: int = DEFAULT_UNIT_ID
+    gateway_type: str,
+    unit_id: int = DEFAULT_UNIT_ID,
+    gateway_variant: str | None = None,
 ) -> HitachiRegisterMap | None:
-    """Create the appropriate register map for the gateway type.
+    """Create the appropriate register map for the gateway type and variant.
 
-    Returns None for ATW-MBS-02 (uses built-in default).
+    Returns None for ATW-MBS-02 gen2 (uses built-in default).
     """
     if gateway_type == "modbus_hc_a_mb":
         return HcAMbRegisterMap(unit_id=unit_id)
-    if gateway_type == "modbus_atw_mbs_02_pre2016":
-        return AtwMbs02Pre2016RegisterMap()
+
+    # Check for variant-specific register map
+    variants = GATEWAY_VARIANTS.get(gateway_type)
+    if variants and gateway_variant and gateway_variant in variants:
+        return variants[gateway_variant]()
+
     return None
 
 
