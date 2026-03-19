@@ -21,6 +21,10 @@ This directory contains the register maps and technical documentation for the Mo
 | Outdoor unit data | No | Yes |
 | YCC support | No | Yes |
 
+## Heat Pump Generations
+
+The register map used by the ATW-MBS-02 depends on the heat pump generation, not the gateway itself. See [Model Nomenclature](../reference/model-nomenclature.md) for how to decode Hitachi reference numbers and identify which register map applies.
+
 ## PDF Source Documents
 
 The original Hitachi PDF documentation is stored in the `datasheets/` subfolder:

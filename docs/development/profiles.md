@@ -12,7 +12,7 @@ that differ from the defaults. The rest of the integration reads profile propert
 decide which entities to create, which temperature ranges to enforce, and which registers
 to poll.
 
-See also: [Architecture](../architecture.md) | [API Layer & Data Keys](api-data-keys.md)
+See also: [Architecture](../architecture.md) | [API Layer & Data Keys](api-data-keys.md) | [Model Nomenclature](../reference/model-nomenclature.md)
 
 ## How Detection Works
 
