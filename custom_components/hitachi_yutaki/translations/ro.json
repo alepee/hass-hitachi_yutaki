@@ -48,6 +48,13 @@
         "single": "Monofazat",
         "three": "Trifazat"
       }
+    },
+    "telemetry_level": {
+      "options": {
+        "off": "😢 Dezactivat — Nu se trimit date",
+        "basic": "🙂 De bază — Informații instalare + statistici zilnice (1x/zi)",
+        "full": "🤩 Complet — Măsurători fine la fiecare 5 min + instantanee registre 24h"
+      }
     }
   },
   "options": {
@@ -93,6 +100,13 @@
         "data": {
           "gateway_type": "Tip gateway",
           "profile": "Profil pompă de căldură"
+        }
+      },
+      "telemetry": {
+        "title": "Telemetrie anonimă",
+        "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale.\n\n[Aflați mai multe despre telemetrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+        "data": {
+          "telemetry_level": "Nivel telemetrie"
         }
       }
     }
@@ -632,6 +646,21 @@
     "missing_config": {
       "title": "Configurație Hitachi Yutaki incompletă",
       "description": "Integrarea Hitachi Yutaki nu are parametrii de configurare necesari (tip gateway și/sau profil pompă de căldură). Integrarea nu poate fi configurată până când acești parametri nu sunt definiți.\n\n**Pentru a rezolva:**\n1. Mergeți la Setări > Dispozitive și servicii > Hitachi Yutaki\n2. Faceți clic pe integrare și selectați Configurare\n3. Selectați parametrii lipsă (tip gateway și profil pompă de căldură)\n4. Salvați configurația"
+    },
+    "enable_telemetry": {
+      "title": "Ajutați la îmbunătățirea Hitachi Yutaki",
+      "description": "Dezvolt și testez pe un singur model de pompă de căldură — pentru toate celelalte, lucrez pe nevăzute. Datele dumneavoastră anonime m-ar ajuta să detectez problemele mai rapid și să construiesc un suport mai bun pentru fiecare model.\n\nFaceți clic pe **Rezolvare** pentru a alege nivelul de telemetrie sau închideți pentru a-l menține dezactivat.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Alegeți nivelul de telemetrie",
+            "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale. Puteți modifica aceasta oricând din opțiunile integrării.\n\n[Aflați mai multe despre telemetrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+            "data": {
+              "telemetry_level": "Nivel telemetrie"
+            }
+          }
+        }
+      }
     }
   }
 }

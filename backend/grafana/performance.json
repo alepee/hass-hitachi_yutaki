@@ -1,0 +1,217 @@
+{
+  "title": "Hitachi Yutaki — Performance",
+  "uid": "hitachi-performance",
+  "tags": [
+    "hitachi-yutaki",
+    "telemetry"
+  ],
+  "timezone": "browser",
+  "refresh": "5m",
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "ffgbrchr6etq8c"
+        },
+        "query": "SELECT LEFT(instance_hash, 12) || ' (' || profile || ')' AS __text, instance_hash AS __value FROM installations ORDER BY last_seen DESC;",
+        "includeAll": true,
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "COP Over Time",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT time, cop_instant AS \"COP\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE cop_instant IS NOT NULL AND cop_instant > 0 AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 10,
+          "unit": "none",
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "Outdoor Temperature",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT time, outdoor_temp AS \"Outdoor °C\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE outdoor_temp IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius"
+        }
+      }
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Compressor Frequency & Current",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT time, compressor_frequency AS \"Frequency (Hz)\" FROM metrics WHERE compressor_frequency IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "format": "time_series"
+        },
+        {
+          "rawSql": "SELECT time, compressor_current AS \"Current (A)\" FROM metrics WHERE compressor_current IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "format": "time_series"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "Thermal vs Electrical Power",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 8
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT time, thermal_power AS \"Thermal (kW)\" FROM metrics WHERE thermal_power IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "format": "time_series"
+        },
+        {
+          "rawSql": "SELECT time, electrical_power AS \"Electrical (kW)\" FROM metrics WHERE electrical_power IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kwatt"
+        }
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Water Temperatures",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 16
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT time, water_inlet_temp AS \"Inlet\", water_outlet_temp AS \"Outlet\", dhw_temp AS \"DHW\" FROM metrics WHERE ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "celsius"
+        }
+      }
+    },
+    {
+      "id": 6,
+      "type": "barchart",
+      "title": "Daily COP by Model (Avg)",
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 16
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT i.profile AS \"Model\", ROUND(AVG(d.cop_avg)::numeric, 2) AS \"Avg COP\" FROM daily_stats d JOIN installations i ON d.instance_hash = i.instance_hash WHERE d.date > CURRENT_DATE - 30 AND d.cop_avg IS NOT NULL AND d.cop_avg > 0 GROUP BY i.profile ORDER BY \"Avg COP\" DESC;",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Daily Stats (Last 7 Days)",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 24
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT d.date, LEFT(d.instance_hash, 12) AS \"Hash\", i.profile AS \"Model\", d.outdoor_temp_avg AS \"Outdoor Avg °C\", ROUND(d.cop_avg::numeric, 2) AS \"COP Avg\", d.compressor_starts AS \"Starts\", ROUND(d.compressor_hours::numeric, 1) AS \"Comp. Hours\", d.defrost_count AS \"Defrosts\", ROUND(d.thermal_energy_kwh::numeric, 1) AS \"Thermal kWh\", ROUND(d.electrical_energy_kwh::numeric, 1) AS \"Elec. kWh\" FROM daily_stats d LEFT JOIN installations i ON d.instance_hash = i.instance_hash WHERE d.date > CURRENT_DATE - 7 ORDER BY d.date DESC, d.instance_hash;",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}

@@ -1,0 +1,16 @@
+name = "hitachi-telemetry"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[r2_buckets]]
+binding = "ARCHIVE"
+bucket_name = "hitachi-telemetry-archive"
+
+[[hyperdrive]]
+binding = "DB"
+id = "6022ba5b4aa84149bced9823002142d7"
+
+[[kv_namespaces]]
+binding = "RATE_LIMIT"
+id = "11b8996ae0a14a38ae797a3834dba4a4"

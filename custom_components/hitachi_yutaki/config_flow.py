@@ -26,6 +26,7 @@ from .const import (
     CONF_MODBUS_PORT,
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
+    CONF_TELEMETRY_LEVEL,
     CONF_UNIT_ID,
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
@@ -36,6 +37,7 @@ from .const import (
     DEFAULT_PORT,
     DEFAULT_POWER_SUPPLY,
     DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TELEMETRY_LEVEL,
     DEFAULT_UNIT_ID,
     DOMAIN,
 )
@@ -475,16 +477,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         """Step 4: Power supply and external sensors."""
         if user_input is not None:
             self._collected.update(user_input)
-
-            # Merge collected values into entry.data and reload
-            new_data = {**self.config_entry.data, **self._collected}
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=new_data
-            )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_reload(self.config_entry.entry_id)
-            )
-            return self.async_create_entry(title="", data={})
+            return await self.async_step_telemetry()
 
         data = self.config_entry.data
 
@@ -563,6 +556,48 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                         selector.EntitySelectorConfig(
                             domain=["sensor", "number", "input_number"],
                             device_class=["temperature"],
+                        ),
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_telemetry(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 5: Anonymous telemetry consent."""
+        if user_input is not None:
+            # Store telemetry level in options (not data — changeable without reconfig)
+            telemetry_options = {
+                CONF_TELEMETRY_LEVEL: user_input.get(
+                    CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
+                ),
+            }
+
+            # Merge collected values into entry.data and reload
+            new_data = {**self.config_entry.data, **self._collected}
+            self.hass.config_entries.async_update_entry(
+                self.config_entry, data=new_data, options=telemetry_options
+            )
+            self.hass.async_create_task(
+                self.hass.config_entries.async_reload(self.config_entry.entry_id)
+            )
+            return self.async_create_entry(title="", data={})
+
+        current_level = self.config_entry.options.get(
+            CONF_TELEMETRY_LEVEL, "basic"
+        )
+
+        return self.async_show_form(
+            step_id="telemetry",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_TELEMETRY_LEVEL, default=current_level
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=["off", "basic", "full"],
+                            translation_key="telemetry_level",
                         ),
                     ),
                 }

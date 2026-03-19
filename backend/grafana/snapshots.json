@@ -1,0 +1,177 @@
+{
+  "title": "Hitachi Yutaki — Register Snapshots",
+  "uid": "hitachi-snapshots",
+  "tags": [
+    "hitachi-yutaki",
+    "telemetry"
+  ],
+  "timezone": "browser",
+  "refresh": "",
+  "time": {
+    "from": "now-90d",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "profile",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "ffgbrchr6etq8c"
+        },
+        "query": "SELECT DISTINCT profile FROM register_snapshots ORDER BY profile;",
+        "includeAll": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "instance",
+        "type": "query",
+        "datasource": {
+          "type": "grafana-postgresql-datasource",
+          "uid": "ffgbrchr6etq8c"
+        },
+        "query": "SELECT DISTINCT LEFT(instance_hash, 12) AS __text, instance_hash AS __value FROM register_snapshots WHERE ($__all = '${profile}' OR profile = '${profile}') ORDER BY 1;",
+        "includeAll": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total Snapshots",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 0,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(*) FROM register_snapshots;",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Unique Models Captured",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 8,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(DISTINCT profile) FROM register_snapshots;",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Unique Installations",
+      "gridPos": {
+        "h": 4,
+        "w": 8,
+        "x": 16,
+        "y": 0
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT COUNT(DISTINCT instance_hash) FROM register_snapshots;",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "Snapshots by Model",
+      "gridPos": {
+        "h": 6,
+        "w": 24,
+        "x": 0,
+        "y": 4
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT profile AS \"Model\", gateway_type AS \"Gateway\", COUNT(*) AS \"Snapshots\", COUNT(DISTINCT instance_hash) AS \"Installations\", MIN(time) AS \"First\", MAX(time) AS \"Last\" FROM register_snapshots GROUP BY profile, gateway_type ORDER BY \"Snapshots\" DESC;",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "Latest Snapshots",
+      "description": "Most recent register snapshot per installation. Click a row to inspect registers.",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 10
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "SELECT DISTINCT ON (instance_hash) time AS \"Timestamp\", LEFT(instance_hash, 12) AS \"Hash\", profile AS \"Model\", gateway_type AS \"Gateway\", jsonb_object_keys(registers) AS \"Register Count\" FROM register_snapshots WHERE ($__all = '${profile}' OR profile = '${profile}') AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) ORDER BY instance_hash, time DESC;",
+          "format": "table"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Register Values (Latest Snapshot)",
+      "description": "Expanded register key-value pairs from the most recent snapshot for the selected instance.",
+      "gridPos": {
+        "h": 12,
+        "w": 24,
+        "x": 0,
+        "y": 18
+      },
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "ffgbrchr6etq8c"
+      },
+      "targets": [
+        {
+          "rawSql": "WITH latest AS (SELECT registers, profile, instance_hash, time FROM register_snapshots WHERE ($__all = '${profile}' OR profile = '${profile}') AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) ORDER BY time DESC LIMIT 1) SELECT key AS \"Register\", value::text AS \"Value\", profile AS \"Model\", LEFT(instance_hash, 12) AS \"Hash\", time AS \"Snapshot Time\" FROM latest, jsonb_each(registers) ORDER BY key;",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39
+}
