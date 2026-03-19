@@ -72,11 +72,15 @@ class TelemetryCollector:
 
         # Map unit_mode integer to string
         unit_mode_raw = data.get("unit_mode")
-        unit_mode = _UNIT_MODE_MAP.get(unit_mode_raw) if unit_mode_raw is not None else None
+        unit_mode = (
+            _UNIT_MODE_MAP.get(unit_mode_raw) if unit_mode_raw is not None else None
+        )
 
         # Detect DHW active from operation_state
         operation_state = data.get("operation_state")
-        dhw_active = operation_state == "operation_state_dhw_on" if operation_state else None
+        dhw_active = (
+            operation_state == "operation_state_dhw_on" if operation_state else None
+        )
 
         point = MetricPoint(
             time=now,
@@ -102,38 +106,74 @@ class TelemetryCollector:
             dhw_target_temp=_to_float(data.get("dhw_target_temp")),
             water_target_temp=_to_float(data.get("water_target_temp")),
             water_flow=_to_float(data.get("water_flow")),
-            circuit1_otc_method_heating=data.get("circuit1_otc_calculation_method_heating"),
-            circuit1_otc_method_cooling=data.get("circuit1_otc_calculation_method_cooling"),
-            circuit2_otc_method_heating=data.get("circuit2_otc_calculation_method_heating"),
-            circuit2_otc_method_cooling=data.get("circuit2_otc_calculation_method_cooling"),
+            circuit1_otc_method_heating=data.get(
+                "circuit1_otc_calculation_method_heating"
+            ),
+            circuit1_otc_method_cooling=data.get(
+                "circuit1_otc_calculation_method_cooling"
+            ),
+            circuit2_otc_method_heating=data.get(
+                "circuit2_otc_calculation_method_heating"
+            ),
+            circuit2_otc_method_cooling=data.get(
+                "circuit2_otc_calculation_method_cooling"
+            ),
             circuit1_eco_mode=_to_bool(data.get("circuit1_eco_mode")),
             circuit2_eco_mode=_to_bool(data.get("circuit2_eco_mode")),
             circuit1_power=_to_bool(data.get("circuit1_power")),
             circuit2_power=_to_bool(data.get("circuit2_power")),
             dhw_power=_to_bool(data.get("dhw_power")),
             # OTC parameters
-            circuit1_max_flow_temp_heating=_to_float(data.get("circuit1_max_flow_temp_heating_otc")),
-            circuit1_max_flow_temp_cooling=_to_float(data.get("circuit1_max_flow_temp_cooling_otc")),
+            circuit1_max_flow_temp_heating=_to_float(
+                data.get("circuit1_max_flow_temp_heating_otc")
+            ),
+            circuit1_max_flow_temp_cooling=_to_float(
+                data.get("circuit1_max_flow_temp_cooling_otc")
+            ),
             circuit1_heat_eco_offset=_to_float(data.get("circuit1_heat_eco_offset")),
             circuit1_cool_eco_offset=_to_float(data.get("circuit1_cool_eco_offset")),
-            circuit2_max_flow_temp_heating=_to_float(data.get("circuit2_max_flow_temp_heating_otc")),
-            circuit2_max_flow_temp_cooling=_to_float(data.get("circuit2_max_flow_temp_cooling_otc")),
+            circuit2_max_flow_temp_heating=_to_float(
+                data.get("circuit2_max_flow_temp_heating_otc")
+            ),
+            circuit2_max_flow_temp_cooling=_to_float(
+                data.get("circuit2_max_flow_temp_cooling_otc")
+            ),
             circuit2_heat_eco_offset=_to_float(data.get("circuit2_heat_eco_offset")),
             circuit2_cool_eco_offset=_to_float(data.get("circuit2_cool_eco_offset")),
             # Primary compressor thermodynamics
             compressor_tg_gas_temp=_to_float(data.get("compressor_tg_gas_temp")),
             compressor_ti_liquid_temp=_to_float(data.get("compressor_ti_liquid_temp")),
-            compressor_td_discharge_temp=_to_float(data.get("compressor_td_discharge_temp")),
-            compressor_te_evaporator_temp=_to_float(data.get("compressor_te_evaporator_temp")),
-            compressor_evi_valve_opening=_to_float(data.get("compressor_evi_indoor_expansion_valve_opening")),
-            compressor_evo_valve_opening=_to_float(data.get("compressor_evo_outdoor_expansion_valve_opening")),
+            compressor_td_discharge_temp=_to_float(
+                data.get("compressor_td_discharge_temp")
+            ),
+            compressor_te_evaporator_temp=_to_float(
+                data.get("compressor_te_evaporator_temp")
+            ),
+            compressor_evi_valve_opening=_to_float(
+                data.get("compressor_evi_indoor_expansion_valve_opening")
+            ),
+            compressor_evo_valve_opening=_to_float(
+                data.get("compressor_evo_outdoor_expansion_valve_opening")
+            ),
             # Secondary compressor (S80)
-            secondary_compressor_frequency=_to_float(data.get("secondary_compressor_frequency")),
-            secondary_compressor_discharge_temp=_to_float(data.get("secondary_compressor_discharge_temp")),
-            secondary_compressor_suction_temp=_to_float(data.get("secondary_compressor_suction_temp")),
-            secondary_compressor_discharge_pressure=_to_float(data.get("secondary_compressor_discharge_pressure")),
-            secondary_compressor_suction_pressure=_to_float(data.get("secondary_compressor_suction_pressure")),
-            secondary_compressor_valve_opening=_to_float(data.get("secondary_compressor_valve_opening")),
+            secondary_compressor_frequency=_to_float(
+                data.get("secondary_compressor_frequency")
+            ),
+            secondary_compressor_discharge_temp=_to_float(
+                data.get("secondary_compressor_discharge_temp")
+            ),
+            secondary_compressor_suction_temp=_to_float(
+                data.get("secondary_compressor_suction_temp")
+            ),
+            secondary_compressor_discharge_pressure=_to_float(
+                data.get("secondary_compressor_discharge_pressure")
+            ),
+            secondary_compressor_suction_pressure=_to_float(
+                data.get("secondary_compressor_suction_pressure")
+            ),
+            secondary_compressor_valve_opening=_to_float(
+                data.get("secondary_compressor_valve_opening")
+            ),
             # System state
             unit_power=_to_bool(data.get("unit_power")),
             pump_speed=_to_float(data.get("pump_speed")),
@@ -159,12 +199,19 @@ class TelemetryCollector:
         return points
 
 
+# Modbus sentinel values indicating "no sensor" or "not configured"
+_SENTINEL_VALUES = frozenset({-127, -67})
+
+
 def _to_float(value: Any) -> float | None:
-    """Safely convert a value to float, returning None on failure."""
+    """Safely convert a value to float, returning None on failure or sentinel."""
     if value is None:
         return None
     try:
-        return float(value)
+        result = float(value)
+        if result in _SENTINEL_VALUES:
+            return None
+        return result
     except (TypeError, ValueError):
         return None
 

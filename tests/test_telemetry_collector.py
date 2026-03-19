@@ -30,19 +30,25 @@ class TestCollectorLevel:
     def test_off_does_not_collect(self):
         """Verify OFF level ignores all data."""
         collector = TelemetryCollector(TelemetryLevel.OFF)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=False
+        )
         assert collector.buffer_size == 0
 
     def test_basic_collects(self):
         """Basic level collects data for daily aggregation."""
         collector = TelemetryCollector(TelemetryLevel.BASIC)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=False
+        )
         assert collector.buffer_size == 1
 
     def test_full_collects(self):
         """Verify FULL level stores data points in the buffer."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=False
+        )
         assert collector.buffer_size == 1
 
 
@@ -52,7 +58,9 @@ class TestCollectorExtraction:
     def test_extracts_temperatures(self):
         """Verify all temperature fields are extracted from coordinator data."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=False
+        )
         point = collector.flush()[0]
         assert point.outdoor_temp == 5.5
         assert point.water_inlet_temp == 35.0
@@ -64,7 +72,9 @@ class TestCollectorExtraction:
     def test_extracts_compressor_state(self):
         """Verify compressor on/off, frequency, and current are extracted."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=False
+        )
         point = collector.flush()[0]
         assert point.compressor_on is True
         assert point.compressor_frequency == 65.0
@@ -73,7 +83,9 @@ class TestCollectorExtraction:
     def test_extracts_power(self):
         """Verify electrical power consumption is extracted."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=False
+        )
         point = collector.flush()[0]
         assert point.electrical_power == 3.2
 
@@ -81,19 +93,29 @@ class TestCollectorExtraction:
         """unit_mode integer is mapped to string."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
 
-        collector.collect(_sample_data(unit_mode=0), is_compressor_running=False, is_defrosting=False)
+        collector.collect(
+            _sample_data(unit_mode=0), is_compressor_running=False, is_defrosting=False
+        )
         assert collector.flush()[0].unit_mode == "cool"
 
-        collector.collect(_sample_data(unit_mode=1), is_compressor_running=False, is_defrosting=False)
+        collector.collect(
+            _sample_data(unit_mode=1), is_compressor_running=False, is_defrosting=False
+        )
         assert collector.flush()[0].unit_mode == "heat"
 
-        collector.collect(_sample_data(unit_mode=2), is_compressor_running=False, is_defrosting=False)
+        collector.collect(
+            _sample_data(unit_mode=2), is_compressor_running=False, is_defrosting=False
+        )
         assert collector.flush()[0].unit_mode == "auto"
 
     def test_maps_unit_mode_none(self):
         """Verify None unit_mode maps to None string."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
-        collector.collect(_sample_data(unit_mode=None), is_compressor_running=False, is_defrosting=False)
+        collector.collect(
+            _sample_data(unit_mode=None),
+            is_compressor_running=False,
+            is_defrosting=False,
+        )
         assert collector.flush()[0].unit_mode is None
 
     def test_detects_dhw_active(self):
@@ -117,13 +139,17 @@ class TestCollectorExtraction:
     def test_defrost_passthrough(self):
         """Verify the is_defrosting flag is passed through to the metric point."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=True)
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=True
+        )
         assert collector.flush()[0].is_defrosting is True
 
     def test_has_timestamp(self):
         """Verify collected points have a UTC-aware timestamp."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=False
+        )
         point = collector.flush()[0]
         assert point.time is not None
         assert point.time.tzinfo is not None  # UTC-aware
@@ -135,8 +161,12 @@ class TestCollectorBuffer:
     def test_flush_returns_and_clears(self):
         """Verify flush returns all buffered points and empties the buffer."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
-        collector.collect(_sample_data(), is_compressor_running=True, is_defrosting=False)
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=False
+        )
+        collector.collect(
+            _sample_data(), is_compressor_running=True, is_defrosting=False
+        )
         assert collector.buffer_size == 2
 
         points = collector.flush()
@@ -167,7 +197,9 @@ class TestCollectorBuffer:
     def test_skips_unavailable_data(self):
         """Verify data marked as unavailable is not collected."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
-        collector.collect({"is_available": False}, is_compressor_running=False, is_defrosting=False)
+        collector.collect(
+            {"is_available": False}, is_compressor_running=False, is_defrosting=False
+        )
         assert collector.buffer_size == 0
 
     def test_skips_empty_data(self):
@@ -187,3 +219,47 @@ class TestCollectorBuffer:
         point = collector.flush()[0]
         assert point.outdoor_temp is None
         assert point.compressor_frequency is None
+
+
+class TestSentinelFiltering:
+    """Tests for Modbus sentinel value filtering."""
+
+    def test_filters_sentinel_minus_127(self):
+        """Sentinel -127 (no sensor connected) should become None."""
+        collector = TelemetryCollector(TelemetryLevel.FULL)
+        collector.collect(
+            _sample_data(
+                water_outlet_2_temp=-127,
+                water_outlet_3_temp=-127,
+                pool_current_temp=-127,
+            ),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.water_outlet_2_temp is None
+        assert point.water_outlet_3_temp is None
+        assert point.pool_current_temp is None
+
+    def test_filters_sentinel_minus_67(self):
+        """Sentinel -67 (DHW not configured) should become None."""
+        collector = TelemetryCollector(TelemetryLevel.FULL)
+        collector.collect(
+            _sample_data(dhw_current_temp=-67),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.dhw_temp is None
+
+    def test_passes_valid_negative_temps(self):
+        """Legitimate negative temperatures (e.g. -10°C outdoor) must pass through."""
+        collector = TelemetryCollector(TelemetryLevel.FULL)
+        collector.collect(
+            _sample_data(outdoor_temp=-10, water_inlet_temp=5),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.outdoor_temp == -10
+        assert point.water_inlet_temp == 5
