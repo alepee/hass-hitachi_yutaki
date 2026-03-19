@@ -29,6 +29,7 @@
     "gateway_type": {
       "options": {
         "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
+        "modbus_atw_mbs_02_pre2016": "Modbus ATW-MBS-02 (Înainte de Line-up 2016)",
         "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
       }
     },
