@@ -34,7 +34,7 @@
           "type": "grafana-postgresql-datasource",
           "uid": "ffgbrchr6etq8c"
         },
-        "query": "SELECT DISTINCT LEFT(instance_hash, 12) AS __text, instance_hash AS __value FROM register_snapshots WHERE ($__all = '${profile}' OR profile = '${profile}') ORDER BY 1;",
+        "query": "SELECT DISTINCT LEFT(instance_hash, 12) AS __text, instance_hash AS __value FROM register_snapshots WHERE ('${profile:raw}' = '$__all' OR profile = '${profile}') ORDER BY 1;",
         "includeAll": true,
         "current": {
           "text": "All",
@@ -145,7 +145,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT DISTINCT ON (instance_hash) time AS \"Timestamp\", LEFT(instance_hash, 12) AS \"Hash\", profile AS \"Model\", gateway_type AS \"Gateway\", jsonb_object_keys(registers) AS \"Register Count\" FROM register_snapshots WHERE ($__all = '${profile}' OR profile = '${profile}') AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) ORDER BY instance_hash, time DESC;",
+          "rawSql": "SELECT DISTINCT ON (instance_hash) time AS \"Timestamp\", LEFT(instance_hash, 12) AS \"Hash\", profile AS \"Model\", gateway_type AS \"Gateway\", jsonb_object_keys(registers) AS \"Register Count\" FROM register_snapshots WHERE ('${profile:raw}' = '$__all' OR profile = '${profile}') AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) ORDER BY instance_hash, time DESC;",
           "format": "table"
         }
       ]
@@ -167,7 +167,7 @@
       },
       "targets": [
         {
-          "rawSql": "WITH latest AS (SELECT registers, profile, instance_hash, time FROM register_snapshots WHERE ($__all = '${profile}' OR profile = '${profile}') AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) ORDER BY time DESC LIMIT 1) SELECT key AS \"Register\", value::text AS \"Value\", profile AS \"Model\", LEFT(instance_hash, 12) AS \"Hash\", time AS \"Snapshot Time\" FROM latest, jsonb_each(registers) ORDER BY key;",
+          "rawSql": "WITH latest AS (SELECT registers, profile, instance_hash, time FROM register_snapshots WHERE ('${profile:raw}' = '$__all' OR profile = '${profile}') AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) ORDER BY time DESC LIMIT 1) SELECT key AS \"Register\", value::text AS \"Value\", profile AS \"Model\", LEFT(instance_hash, 12) AS \"Hash\", time AS \"Snapshot Time\" FROM latest, jsonb_each(registers) ORDER BY key;",
           "format": "table"
         }
       ]

@@ -55,7 +55,9 @@ def anonymize_metric_point(point: MetricPoint) -> MetricPoint:
         circuit1_water_temp=round_temperature(point.circuit1_water_temp),
         circuit2_water_temp=round_temperature(point.circuit2_water_temp),
         # Round COP to 1 decimal place
-        cop_instant=round(point.cop_instant, 1) if point.cop_instant is not None else None,
+        cop_instant=round(point.cop_instant, 1)
+        if point.cop_instant is not None
+        else None,
         # Round setpoint temperatures
         circuit1_target_temp=round_temperature(point.circuit1_target_temp),
         circuit2_target_temp=round_temperature(point.circuit2_target_temp),
@@ -64,18 +66,34 @@ def anonymize_metric_point(point: MetricPoint) -> MetricPoint:
         # Round water flow to 1 decimal
         water_flow=round(point.water_flow, 1) if point.water_flow is not None else None,
         # OTC max flow temps
-        circuit1_max_flow_temp_heating=round_temperature(point.circuit1_max_flow_temp_heating),
-        circuit1_max_flow_temp_cooling=round_temperature(point.circuit1_max_flow_temp_cooling),
-        circuit2_max_flow_temp_heating=round_temperature(point.circuit2_max_flow_temp_heating),
-        circuit2_max_flow_temp_cooling=round_temperature(point.circuit2_max_flow_temp_cooling),
+        circuit1_max_flow_temp_heating=round_temperature(
+            point.circuit1_max_flow_temp_heating
+        ),
+        circuit1_max_flow_temp_cooling=round_temperature(
+            point.circuit1_max_flow_temp_cooling
+        ),
+        circuit2_max_flow_temp_heating=round_temperature(
+            point.circuit2_max_flow_temp_heating
+        ),
+        circuit2_max_flow_temp_cooling=round_temperature(
+            point.circuit2_max_flow_temp_cooling
+        ),
         # Primary compressor temperatures
         compressor_tg_gas_temp=round_temperature(point.compressor_tg_gas_temp),
         compressor_ti_liquid_temp=round_temperature(point.compressor_ti_liquid_temp),
-        compressor_td_discharge_temp=round_temperature(point.compressor_td_discharge_temp),
-        compressor_te_evaporator_temp=round_temperature(point.compressor_te_evaporator_temp),
+        compressor_td_discharge_temp=round_temperature(
+            point.compressor_td_discharge_temp
+        ),
+        compressor_te_evaporator_temp=round_temperature(
+            point.compressor_te_evaporator_temp
+        ),
         # Secondary compressor temperatures
-        secondary_compressor_discharge_temp=round_temperature(point.secondary_compressor_discharge_temp),
-        secondary_compressor_suction_temp=round_temperature(point.secondary_compressor_suction_temp),
+        secondary_compressor_discharge_temp=round_temperature(
+            point.secondary_compressor_discharge_temp
+        ),
+        secondary_compressor_suction_temp=round_temperature(
+            point.secondary_compressor_suction_temp
+        ),
         # Additional temperatures
         water_outlet_2_temp=round_temperature(point.water_outlet_2_temp),
         water_outlet_3_temp=round_temperature(point.water_outlet_3_temp),

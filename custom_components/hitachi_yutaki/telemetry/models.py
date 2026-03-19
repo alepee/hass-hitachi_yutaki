@@ -294,7 +294,7 @@ class RegisterSnapshot:
     time: datetime
     profile: str
     gateway_type: str
-    registers: dict[str, int]
+    registers: dict[str, float]
 
     def to_dict(self) -> dict:
         """Serialize to dict for JSON payload."""

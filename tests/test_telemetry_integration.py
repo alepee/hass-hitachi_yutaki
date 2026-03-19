@@ -16,6 +16,7 @@ from custom_components.hitachi_yutaki.telemetry.models import (
     DailyStats,
     InstallationInfo,
     MetricsBatch,
+    RegisterSnapshot,
 )
 from custom_components.hitachi_yutaki.telemetry.noop_client import NoopTelemetryClient
 
@@ -514,3 +515,60 @@ class TestFullModeDailyStats:
 
         # Accumulator should have only today's point
         assert len(coordinator._daily_points_accumulator) == 1
+
+
+class TestRegisterSnapshot:
+    """Tests for one-time register snapshot on first FULL-level poll."""
+
+    @pytest.mark.asyncio
+    async def test_sends_snapshot_on_first_call(self):
+        """FULL level sends a register snapshot once."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+
+        data = _sample_data()
+        await coordinator._send_register_snapshot(data)
+
+        coordinator.telemetry_client.send_snapshot.assert_called_once()
+        snapshot = coordinator.telemetry_client.send_snapshot.call_args[0][0]
+        assert isinstance(snapshot, RegisterSnapshot)
+        assert snapshot.profile == "yutaki_s80"
+        assert snapshot.gateway_type == "modbus_atw_mbs_02"
+        assert snapshot.instance_hash == "a" * 64
+        assert "outdoor_temp" in snapshot.registers
+        assert snapshot.registers["outdoor_temp"] == 5.5
+
+    @pytest.mark.asyncio
+    async def test_snapshot_not_sent_twice(self):
+        """Snapshot is only sent once (flag prevents re-send)."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        coordinator._snapshot_sent = True
+
+        data = _sample_data()
+        await coordinator._send_register_snapshot(data)
+
+        coordinator.telemetry_client.send_snapshot.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_snapshot_excludes_non_numeric(self):
+        """Snapshot excludes non-numeric values and is_available."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+
+        data = _sample_data()
+        await coordinator._send_register_snapshot(data)
+
+        snapshot = coordinator.telemetry_client.send_snapshot.call_args[0][0]
+        assert "is_available" not in snapshot.registers
+        assert "operation_state" not in snapshot.registers
+
+    @pytest.mark.asyncio
+    async def test_snapshot_failure_is_silent(self):
+        """Failed snapshot send doesn't raise, doesn't set flag."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        coordinator.telemetry_client.send_snapshot = AsyncMock(
+            side_effect=Exception("network error")
+        )
+
+        data = _sample_data()
+        await coordinator._send_register_snapshot(data)
+
+        assert not coordinator._snapshot_sent

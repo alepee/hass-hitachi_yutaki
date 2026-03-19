@@ -32,6 +32,7 @@ from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
     InstallationInfo,
     MetricsBatch,
+    RegisterSnapshot,
     TelemetryCollector,
     TelemetryLevel,
 )
@@ -70,6 +71,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.telemetry_client: Any = None  # HttpTelemetryClient or NoopTelemetryClient
         self._telemetry_meta: dict[str, Any] | None = None
         self._installation_info_sent: bool = False
+        self._snapshot_sent: bool = False
         self.telemetry_last_send: datetime | None = None
         self.telemetry_send_failures: int = 0
 
@@ -160,6 +162,16 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 await self._send_installation_info()
                 self._installation_info_sent = True
 
+            # Send register snapshot once (FULL level only)
+            if (
+                not self._snapshot_sent
+                and self.telemetry_collector is not None
+                and self.telemetry_collector.level == TelemetryLevel.FULL
+                and self.telemetry_client is not None
+                and self._telemetry_meta is not None
+            ):
+                await self._send_register_snapshot(data)
+
             # Update timing sensors
             for entity in self.entities:
                 if hasattr(entity, "async_update_timing"):
@@ -219,6 +231,38 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             await self.telemetry_client.send_installation(info)
         except Exception:
             _LOGGER.debug("Failed to send telemetry installation info", exc_info=True)
+
+    async def _send_register_snapshot(self, data: dict[str, Any]) -> None:
+        """Send a one-time register snapshot (FULL level only)."""
+        if self._snapshot_sent:
+            return
+
+        meta = self._telemetry_meta
+        if meta is None or self.telemetry_client is None:
+            return
+
+        # Build register dict: only numeric values, skip meta keys
+        registers: dict[str, float] = {}
+        for key, value in data.items():
+            if key == "is_available":
+                continue
+            if isinstance(value, (int, float)):
+                registers[key] = value
+
+        snapshot = RegisterSnapshot(
+            instance_hash=meta["instance_hash"],
+            time=datetime.now(tz=UTC),
+            profile=meta["profile"],
+            gateway_type=meta["gateway_type"],
+            registers=registers,
+        )
+
+        try:
+            await self.telemetry_client.send_snapshot(snapshot)
+            self._snapshot_sent = True
+            _LOGGER.debug("Telemetry: register snapshot sent")
+        except Exception:
+            _LOGGER.debug("Failed to send register snapshot", exc_info=True)
 
     async def async_flush_telemetry(self) -> None:
         """Flush telemetry buffer and send data."""

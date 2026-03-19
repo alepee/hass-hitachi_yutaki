@@ -53,9 +53,7 @@ def build_telemetry_sensors(
     entry_id: str,
 ) -> list[HitachiYutakiSensor]:
     """Build telemetry diagnostic sensor entities."""
-    device_info = DeviceInfo(
-        identifiers={(DOMAIN, f"{entry_id}_{DEVICE_GATEWAY}")}
-    )
+    device_info = DeviceInfo(identifiers={(DOMAIN, f"{entry_id}_{DEVICE_GATEWAY}")})
 
     description = HitachiYutakiSensorEntityDescription(
         key="telemetry_status",

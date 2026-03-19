@@ -143,9 +143,7 @@ class TestEnableTelemetryRepairFlow:
         assert entry.options[CONF_TELEMETRY_LEVEL] == "off"
 
     @pytest.mark.asyncio
-    async def test_confirm_aborts_if_entry_not_found(
-        self, hass: HomeAssistant
-    ) -> None:
+    async def test_confirm_aborts_if_entry_not_found(self, hass: HomeAssistant) -> None:
         """Verify the flow aborts when the config entry no longer exists."""
         flow = await _init_repair_flow(hass, "enable_telemetry_nonexistent_entry")
         result = await flow.async_step_confirm()
@@ -270,17 +268,13 @@ class TestAsyncCreateFixFlowDispatch:
     @pytest.mark.asyncio
     async def test_dispatches_telemetry_flow(self, hass: HomeAssistant) -> None:
         """Verify enable_telemetry issues get EnableTelemetryRepairFlow."""
-        flow = await async_create_fix_flow(
-            hass, "enable_telemetry_some_entry_id", None
-        )
+        flow = await async_create_fix_flow(hass, "enable_telemetry_some_entry_id", None)
         assert isinstance(flow, EnableTelemetryRepairFlow)
 
     @pytest.mark.asyncio
     async def test_dispatches_missing_config_flow(self, hass: HomeAssistant) -> None:
         """Verify missing_config issues get MissingConfigRepairFlow."""
-        flow = await async_create_fix_flow(
-            hass, "missing_config_some_entry_id", None
-        )
+        flow = await async_create_fix_flow(hass, "missing_config_some_entry_id", None)
         assert isinstance(flow, MissingConfigRepairFlow)
 
     @pytest.mark.asyncio

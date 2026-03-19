@@ -179,6 +179,11 @@ async def async_setup_entry(
         CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
     )
     telemetry_level = TelemetryLevel(telemetry_level_str)
+    _LOGGER.info(
+        "Telemetry level: %s (from options: %s)",
+        telemetry_level.value,
+        CONF_TELEMETRY_LEVEL in entry.options,
+    )
 
     if telemetry_level != TelemetryLevel.OFF:
         instance_id = await async_get_instance_id(hass)

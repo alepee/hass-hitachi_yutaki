@@ -616,9 +616,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             )
             return self.async_create_entry(title="", data={})
 
-        current_level = self.config_entry.options.get(
-            CONF_TELEMETRY_LEVEL, "basic"
-        )
+        current_level = self.config_entry.options.get(CONF_TELEMETRY_LEVEL, "basic")
 
         return self.async_show_form(
             step_id="telemetry",

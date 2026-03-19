@@ -70,8 +70,12 @@ def aggregate_metrics(
 
     # Energy: sum thermal and electrical power samples
     # Each sample represents ~5 seconds of operation
-    thermal_power_values = [p.thermal_power for p in points if p.thermal_power is not None]
-    electrical_power_values = [p.electrical_power for p in points if p.electrical_power is not None]
+    thermal_power_values = [
+        p.thermal_power for p in points if p.thermal_power is not None
+    ]
+    electrical_power_values = [
+        p.electrical_power for p in points if p.electrical_power is not None
+    ]
 
     # COP quality: pick the best quality level seen
     cop_quality_best = _best_cop_quality(points)

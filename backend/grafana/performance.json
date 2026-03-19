@@ -47,7 +47,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, cop_instant AS \"COP\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE cop_instant IS NOT NULL AND cop_instant > 0 AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time, cop_instant AS \"COP\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE cop_instant IS NOT NULL AND cop_instant > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
           "format": "time_series"
         }
       ],
@@ -79,7 +79,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, outdoor_temp AS \"Outdoor °C\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE outdoor_temp IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time, outdoor_temp AS \"Outdoor °C\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE outdoor_temp IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
           "format": "time_series"
         }
       ],
@@ -105,11 +105,11 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, compressor_frequency AS \"Frequency (Hz)\" FROM metrics WHERE compressor_frequency IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time, compressor_frequency AS \"Frequency (Hz)\" FROM metrics WHERE compressor_frequency IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
           "format": "time_series"
         },
         {
-          "rawSql": "SELECT time, compressor_current AS \"Current (A)\" FROM metrics WHERE compressor_current IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time, compressor_current AS \"Current (A)\" FROM metrics WHERE compressor_current IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
           "format": "time_series"
         }
       ]
@@ -130,11 +130,11 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, thermal_power AS \"Thermal (kW)\" FROM metrics WHERE thermal_power IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time, thermal_power AS \"Thermal (kW)\" FROM metrics WHERE thermal_power IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
           "format": "time_series"
         },
         {
-          "rawSql": "SELECT time, electrical_power AS \"Electrical (kW)\" FROM metrics WHERE electrical_power IS NOT NULL AND ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time, electrical_power AS \"Electrical (kW)\" FROM metrics WHERE electrical_power IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
           "format": "time_series"
         }
       ],
@@ -160,7 +160,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, water_inlet_temp AS \"Inlet\", water_outlet_temp AS \"Outlet\", dhw_temp AS \"DHW\" FROM metrics WHERE ($__all = '${instance}' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time, water_inlet_temp AS \"Inlet\", water_outlet_temp AS \"Outlet\", dhw_temp AS \"DHW\" FROM metrics WHERE ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
           "format": "time_series"
         }
       ],

@@ -181,7 +181,9 @@ class TestHttpClientPayload:
         """Verify the request is sent to the configured endpoint URL."""
         resp = _mock_response(202)
         session = _mock_session(resp)
-        client = _make_client(session=session, endpoint="https://custom.endpoint/v1/ingest")
+        client = _make_client(
+            session=session, endpoint="https://custom.endpoint/v1/ingest"
+        )
 
         await client.send_installation(_make_installation())
 
@@ -207,7 +209,9 @@ class TestHttpClientErrors:
         assert session.post.call_count == 1
 
     @pytest.mark.asyncio
-    @patch("custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0))
+    @patch(
+        "custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0)
+    )
     async def test_5xx_retries_then_fails(self):
         """Verify 5xx server errors trigger retries up to MAX_RETRIES."""
         resp = _mock_response(500, "Internal Server Error")
@@ -220,7 +224,9 @@ class TestHttpClientErrors:
         assert session.post.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
-    @patch("custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0))
+    @patch(
+        "custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0)
+    )
     async def test_timeout_retries_then_fails(self):
         """Verify timeouts trigger retries up to MAX_RETRIES."""
         session = MagicMock(spec=aiohttp.ClientSession)
@@ -236,12 +242,16 @@ class TestHttpClientErrors:
         assert session.post.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
-    @patch("custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0))
+    @patch(
+        "custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0)
+    )
     async def test_connection_error_retries_then_fails(self):
         """Verify connection errors trigger retries up to MAX_RETRIES."""
         session = MagicMock(spec=aiohttp.ClientSession)
         ctx = AsyncMock()
-        ctx.__aenter__ = AsyncMock(side_effect=aiohttp.ClientError("Connection refused"))
+        ctx.__aenter__ = AsyncMock(
+            side_effect=aiohttp.ClientError("Connection refused")
+        )
         ctx.__aexit__ = AsyncMock(return_value=False)
         session.post = MagicMock(return_value=ctx)
         client = _make_client(session=session)
@@ -252,7 +262,9 @@ class TestHttpClientErrors:
         assert session.post.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
-    @patch("custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0))
+    @patch(
+        "custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0)
+    )
     async def test_5xx_then_success_on_retry(self):
         """Verify a successful retry after an initial 5xx error."""
         resp_fail = _mock_response(500)
