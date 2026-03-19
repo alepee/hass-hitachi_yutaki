@@ -8,6 +8,7 @@ from ..const import DEFAULT_UNIT_ID
 from .base import HitachiApiClient
 from .modbus import ModbusApiClient
 from .modbus.registers import HitachiRegisterMap
+from .modbus.registers.atw_mbs_02_pre2016 import AtwMbs02Pre2016RegisterMap
 from .modbus.registers.hc_a_mb import HcAMbRegisterMap
 
 
@@ -24,6 +25,11 @@ GATEWAY_INFO = {
     "modbus_atw_mbs_02": GatewayInfo(
         manufacturer="Hitachi",
         model="ATW-MBS-02",
+        client_class=ModbusApiClient,
+    ),
+    "modbus_atw_mbs_02_pre2016": GatewayInfo(
+        manufacturer="Hitachi",
+        model="ATW-MBS-02 (Before Line-up 2016)",
         client_class=ModbusApiClient,
     ),
     "modbus_hc_a_mb": GatewayInfo(
@@ -43,6 +49,8 @@ def create_register_map(
     """
     if gateway_type == "modbus_hc_a_mb":
         return HcAMbRegisterMap(unit_id=unit_id)
+    if gateway_type == "modbus_atw_mbs_02_pre2016":
+        return AtwMbs02Pre2016RegisterMap()
     return None
 
 
