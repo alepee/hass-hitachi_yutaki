@@ -90,6 +90,7 @@ async def async_setup_entry(
         register_map = create_register_map(
             entry.data["gateway_type"],
             entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+            gateway_variant=entry.data.get("gateway_variant"),
         )
         temp_client = gateway_info.client_class(
             hass,
@@ -146,7 +147,9 @@ async def async_setup_entry(
     # Instantiate gateway client and profile
     api_client_class = gateway_info.client_class
     register_map = create_register_map(
-        gateway_type, entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
+        gateway_type,
+        entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+        gateway_variant=entry.data.get("gateway_variant"),
     )
     api_client = api_client_class(
         hass,
@@ -330,6 +333,27 @@ async def async_migrate_entry(
 
         hass.config_entries.async_update_entry(
             config_entry, data=new_data, minor_version=2
+        )
+        _LOGGER.debug(
+            "Migration to version %s.%s successful",
+            config_entry.version,
+            config_entry.minor_version,
+        )
+
+    if config_entry.version == 2 and config_entry.minor_version < 4:
+        # Version 2.3 to 2.4: Add gateway_variant, migrate pre2016 gateway_type
+        new_data = {**config_entry.data}
+
+        if "gateway_variant" not in new_data:
+            # Handle old pre2016 gateway_type from earlier implementation
+            if new_data.get("gateway_type") == "modbus_atw_mbs_02_pre2016":
+                new_data["gateway_type"] = "modbus_atw_mbs_02"
+                new_data["gateway_variant"] = "gen1"
+            else:
+                new_data["gateway_variant"] = "gen2"
+
+        hass.config_entries.async_update_entry(
+            config_entry, data=new_data, minor_version=4
         )
         _LOGGER.debug(
             "Migration to version %s.%s successful",

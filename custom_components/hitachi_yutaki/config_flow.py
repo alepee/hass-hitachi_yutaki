@@ -19,6 +19,7 @@ from homeassistant.helpers import selector
 import homeassistant.helpers.config_validation as cv
 
 from .api import GATEWAY_INFO, create_register_map
+from .api.modbus.registers import GATEWAY_VARIANTS
 from .const import (
     CONF_ENERGY_ENTITY,
     CONF_MODBUS_DEVICE_ID,
@@ -119,11 +120,12 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Hitachi Yutaki."""
 
     VERSION = 2
-    MINOR_VERSION = 3
+    MINOR_VERSION = 4
 
     def __init__(self):
         """Initialize the config flow."""
         self.gateway_type: str | None = None
+        self.gateway_variant: str | None = None
         self.basic_config: dict[str, Any] = {}
         self.all_data: dict[str, Any] = {}
         self.detected_profiles: list[str] = []
@@ -147,10 +149,40 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step (gateway selection)."""
         if user_input is not None:
             self.gateway_type = user_input["gateway_type"]
+            # Check if gateway has variants
+            if self.gateway_type in GATEWAY_VARIANTS:
+                return await self.async_step_gateway_variant()
             return await self.async_step_gateway_config()
 
         return self.async_show_form(
             step_id="user", data_schema=GATEWAY_SELECTION_SCHEMA
+        )
+
+    async def async_step_gateway_variant(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle gateway variant (hardware generation) selection."""
+        if user_input is not None:
+            self.gateway_variant = user_input["gateway_variant"]
+            return await self.async_step_gateway_config()
+
+        variant_keys = list(GATEWAY_VARIANTS[self.gateway_type].keys())
+
+        return self.async_show_form(
+            step_id="gateway_variant",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "gateway_variant",
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=variant_keys,
+                            mode=selector.SelectSelectorMode.LIST,
+                            translation_key="gateway_variant",
+                        ),
+                    ),
+                }
+            ),
         )
 
     async def async_step_gateway_config(
@@ -181,6 +213,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             register_map = create_register_map(
                 self.gateway_type,
                 self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+                gateway_variant=self.gateway_variant,
             )
             api_client = api_client_class(
                 self.hass,
@@ -284,12 +317,13 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         if user_input is not None:
             self.basic_config.update(user_input)
-            return await self.async_validate_connection(
-                {
-                    "gateway_type": self.gateway_type,
-                    **self.basic_config,
-                }
-            )
+            config = {
+                "gateway_type": self.gateway_type,
+                **self.basic_config,
+            }
+            if self.gateway_variant is not None:
+                config["gateway_variant"] = self.gateway_variant
+            return await self.async_validate_connection(config)
 
         return self.async_show_form(
             step_id="power",
@@ -305,6 +339,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         register_map = create_register_map(
             config["gateway_type"],
             config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+            gateway_variant=config.get("gateway_variant"),
         )
         api_client = api_client_class(
             self.hass,
@@ -387,6 +422,11 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         """Step 1: Gateway type selection."""
         if user_input is not None:
             self._collected.update(user_input)
+            gateway_type = self._collected.get(
+                "gateway_type", self.config_entry.data.get("gateway_type")
+            )
+            if gateway_type in GATEWAY_VARIANTS:
+                return await self.async_step_gateway_variant()
             return await self.async_step_connection()
 
         current_gateway = self.config_entry.data.get(
@@ -404,6 +444,37 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                             options=list(GATEWAY_INFO.keys()),
                             mode=selector.SelectSelectorMode.DROPDOWN,
                             translation_key="gateway_type",
+                        ),
+                    ),
+                }
+            ),
+        )
+
+    async def async_step_gateway_variant(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 1b: Gateway variant (hardware generation) selection."""
+        if user_input is not None:
+            self._collected.update(user_input)
+            return await self.async_step_connection()
+
+        gateway_type = self._collected.get(
+            "gateway_type", self.config_entry.data.get("gateway_type")
+        )
+        variant_keys = list(GATEWAY_VARIANTS[gateway_type].keys())
+        current_variant = self.config_entry.data.get("gateway_variant", "gen2")
+
+        return self.async_show_form(
+            step_id="gateway_variant",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "gateway_variant", default=current_variant
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=variant_keys,
+                            mode=selector.SelectSelectorMode.LIST,
+                            translation_key="gateway_variant",
                         ),
                     ),
                 }
