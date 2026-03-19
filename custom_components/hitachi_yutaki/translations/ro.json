@@ -29,8 +29,13 @@
     "gateway_type": {
       "options": {
         "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
-        "modbus_atw_mbs_02_pre2016": "Modbus ATW-MBS-02 (Înainte de Line-up 2016)",
         "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
+      }
+    },
+    "gateway_variant": {
+      "options": {
+        "gen1": "Gen 1 — fabricat înainte de ~2016 (sufix NWE/NWSE)",
+        "gen2": "Gen 2+ — fabricat din ~2016"
       }
     },
     "profile": {
@@ -55,9 +60,16 @@
     "step": {
       "init": {
         "title": "Gateway Hitachi Yutaki",
-        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki. Opțiunea \"Înainte de Line-up 2016\" este pentru unitățile Gen 1 (sufix NWE/NWSE) — se referă la generația hardware, nu la data instalării.\n\n[Ajută-mă să identific modelul meu](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
         "data": {
           "gateway_type": "Tip gateway"
+        }
+      },
+      "gateway_variant": {
+        "title": "Generația hardware",
+        "description": "Selectați generația hardware a pompei de căldură. Aceasta se referă la data fabricației, nu la data instalării.\n\n[Ajută-mă să identific modelul meu](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "data": {
+          "gateway_variant": "Generație"
         }
       },
       "connection": {
@@ -102,9 +114,16 @@
     "step": {
       "user": {
         "title": "Gateway Hitachi Yutaki",
-        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki. Opțiunea \"Înainte de Line-up 2016\" este pentru unitățile Gen 1 (sufix NWE/NWSE) — se referă la generația hardware, nu la data instalării.\n\n[Ajută-mă să identific modelul meu](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
         "data": {
           "gateway_type": "Tip gateway"
+        }
+      },
+      "gateway_variant": {
+        "title": "Generația hardware",
+        "description": "Selectați generația hardware a pompei de căldură. Aceasta se referă la data fabricației, nu la data instalării.\n\n[Ajută-mă să identific modelul meu](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "data": {
+          "gateway_variant": "Generație"
         }
       },
       "gateway_config": {

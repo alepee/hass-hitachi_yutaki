@@ -29,8 +29,13 @@
     "gateway_type": {
       "options": {
         "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
-        "modbus_atw_mbs_02_pre2016": "Modbus ATW-MBS-02 (Avant gamme 2016)",
         "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
+      }
+    },
+    "gateway_variant": {
+      "options": {
+        "gen1": "Gen 1 — fabriquée avant ~2016 (suffixe NWE/NWSE)",
+        "gen2": "Gen 2+ — fabriquée à partir de ~2016"
       }
     },
     "profile": {
@@ -55,9 +60,16 @@
     "step": {
       "init": {
         "title": "Passerelle Hitachi Yutaki",
-        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki. L'option « Avant gamme 2016 » concerne les unités Gen 1 (suffixe NWE/NWSE) — il s'agit de la génération matérielle, pas de la date d'installation.\n\n[M'aider à identifier mon modèle](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
         "data": {
           "gateway_type": "Type de passerelle"
+        }
+      },
+      "gateway_variant": {
+        "title": "Génération matérielle",
+        "description": "Sélectionnez la génération matérielle de votre pompe à chaleur. Cela fait référence à la date de fabrication, pas à la date d'installation.\n\n[M'aider à identifier mon modèle](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "data": {
+          "gateway_variant": "Génération"
         }
       },
       "connection": {
@@ -102,9 +114,16 @@
     "step": {
       "user": {
         "title": "Passerelle Hitachi Yutaki",
-        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki. L'option « Avant gamme 2016 » concerne les unités Gen 1 (suffixe NWE/NWSE) — il s'agit de la génération matérielle, pas de la date d'installation.\n\n[M'aider à identifier mon modèle](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
         "data": {
           "gateway_type": "Type de passerelle"
+        }
+      },
+      "gateway_variant": {
+        "title": "Génération matérielle",
+        "description": "Sélectionnez la génération matérielle de votre pompe à chaleur. Cela fait référence à la date de fabrication, pas à la date d'installation.\n\n[M'aider à identifier mon modèle](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "data": {
+          "gateway_variant": "Génération"
         }
       },
       "gateway_config": {

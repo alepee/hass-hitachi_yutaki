@@ -29,8 +29,13 @@
     "gateway_type": {
       "options": {
         "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
-        "modbus_atw_mbs_02_pre2016": "Modbus ATW-MBS-02 (Vóór Line-up 2016)",
         "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
+      }
+    },
+    "gateway_variant": {
+      "options": {
+        "gen1": "Gen 1 — gefabriceerd vóór ~2016 (NWE/NWSE suffix)",
+        "gen2": "Gen 2+ — gefabriceerd vanaf ~2016"
       }
     },
     "profile": {
@@ -55,9 +60,16 @@
     "step": {
       "init": {
         "title": "Hitachi Yutaki Gateway",
-        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp. De optie \"Vóór Line-up 2016\" is voor Gen 1 units (NWE/NWSE suffix) — dit verwijst naar de hardwaregeneratie, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp.",
         "data": {
           "gateway_type": "Gatewaytype"
+        }
+      },
+      "gateway_variant": {
+        "title": "Hardwaregeneratie",
+        "description": "Selecteer de hardwaregeneratie van uw warmtepomp. Dit verwijst naar de fabricagedatum, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "data": {
+          "gateway_variant": "Generatie"
         }
       },
       "connection": {
@@ -102,9 +114,16 @@
     "step": {
       "user": {
         "title": "Hitachi Yutaki Gateway",
-        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp. De optie \"Vóór Line-up 2016\" is voor Gen 1 units (NWE/NWSE suffix) — dit verwijst naar de hardwaregeneratie, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp.",
         "data": {
           "gateway_type": "Gatewaytype"
+        }
+      },
+      "gateway_variant": {
+        "title": "Hardwaregeneratie",
+        "description": "Selecteer de hardwaregeneratie van uw warmtepomp. Dit verwijst naar de fabricagedatum, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "data": {
+          "gateway_variant": "Generatie"
         }
       },
       "gateway_config": {

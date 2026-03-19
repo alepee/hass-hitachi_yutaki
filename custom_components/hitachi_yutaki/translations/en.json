@@ -29,8 +29,13 @@
     "gateway_type": {
       "options": {
         "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
-        "modbus_atw_mbs_02_pre2016": "Modbus ATW-MBS-02 (Before Line-up 2016)",
         "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
+      }
+    },
+    "gateway_variant": {
+      "options": {
+        "gen1": "Gen 1 — manufactured before ~2016 (NWE/NWSE suffix)",
+        "gen2": "Gen 2+ — manufactured ~2016 and later"
       }
     },
     "profile": {
@@ -55,9 +60,16 @@
     "step": {
       "init": {
         "title": "Hitachi Yutaki Gateway",
-        "description": "Select the gateway type for your Hitachi Yutaki heat pump. The \"Before Line-up 2016\" option is for Gen 1 units (NWE/NWSE suffix) — this refers to the hardware generation, not the installation date.\n\n[Help me identify my model](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Select the gateway type for your Hitachi Yutaki heat pump.",
         "data": {
           "gateway_type": "Gateway Type"
+        }
+      },
+      "gateway_variant": {
+        "title": "Hardware Generation",
+        "description": "Select the hardware generation of your heat pump. This refers to the manufacturing date, not the installation date.\n\n[Help me identify my model](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "data": {
+          "gateway_variant": "Generation"
         }
       },
       "connection": {
@@ -102,9 +114,16 @@
     "step": {
       "user": {
         "title": "Hitachi Yutaki Gateway",
-        "description": "Select the gateway type for your Hitachi Yutaki heat pump. The \"Before Line-up 2016\" option is for Gen 1 units (NWE/NWSE suffix) — this refers to the hardware generation, not the installation date.\n\n[Help me identify my model](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Select the gateway type for your Hitachi Yutaki heat pump.",
         "data": {
           "gateway_type": "Gateway Type"
+        }
+      },
+      "gateway_variant": {
+        "title": "Hardware Generation",
+        "description": "Select the hardware generation of your heat pump. This refers to the manufacturing date, not the installation date.\n\n[Help me identify my model](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "data": {
+          "gateway_variant": "Generation"
         }
       },
       "gateway_config": {
