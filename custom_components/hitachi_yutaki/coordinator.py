@@ -73,6 +73,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.telemetry_last_send: datetime | None = None
         self.telemetry_send_failures: int = 0
 
+        # Daily points accumulator for FULL-level daily stats
+        self._daily_points_accumulator: list = []
+        self._daily_stats_date: date | None = None
+
         super().__init__(
             hass,
             _LOGGER,
@@ -223,20 +227,50 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             or self.telemetry_client is None
             or self._telemetry_meta is None
         ):
+            _LOGGER.debug("Telemetry flush skipped: not configured")
             return
 
         points = self.telemetry_collector.flush()
         if not points:
+            _LOGGER.debug("Telemetry flush: buffer empty, nothing to send")
             return
 
         instance_hash = self._telemetry_meta["instance_hash"]
+        _LOGGER.debug(
+            "Telemetry flush: %d points to send (level=%s)",
+            len(points),
+            self.telemetry_collector.level.value,
+        )
 
         try:
             success = False
             if self.telemetry_collector.level == TelemetryLevel.FULL:
+                # Send fine-grained metrics
                 anonymized = [anonymize_metric_point(p) for p in points]
                 batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
                 success = await self.telemetry_client.send_metrics(batch)
+
+                # Check for day boundary BEFORE adding today's points
+                today = date.today()
+                if (
+                    self._daily_stats_date is not None
+                    and self._daily_stats_date != today
+                    and self._daily_points_accumulator
+                ):
+                    # Date changed — send yesterday's accumulated stats
+                    stats = aggregate_metrics(
+                        instance_hash,
+                        self._daily_stats_date,
+                        self._daily_points_accumulator,
+                    )
+                    anonymized_stats = anonymize_daily_stats(stats)
+                    await self.telemetry_client.send_daily_stats(anonymized_stats)
+                    # Reset accumulator
+                    self._daily_points_accumulator = []
+
+                # Accumulate today's points
+                self._daily_points_accumulator.extend(points)
+                self._daily_stats_date = today
             elif self.telemetry_collector.level == TelemetryLevel.BASIC:
                 stats = aggregate_metrics(instance_hash, date.today(), points)
                 anonymized_stats = anonymize_daily_stats(stats)
@@ -246,11 +280,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             if success:
                 self.telemetry_last_send = datetime.now(tz=UTC)
+                _LOGGER.debug("Telemetry flush: sent successfully")
             else:
                 self.telemetry_send_failures += 1
+                _LOGGER.warning("Telemetry flush: send returned failure")
         except Exception:
             self.telemetry_send_failures += 1
-            _LOGGER.debug("Failed to flush telemetry data", exc_info=True)
+            _LOGGER.warning("Telemetry flush failed", exc_info=True)
 
     def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
         """Return True if circuit is configured in system_config."""

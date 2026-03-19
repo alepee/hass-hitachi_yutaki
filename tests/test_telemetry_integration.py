@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC, date as date_cls, datetime
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -438,3 +438,79 @@ class TestLevelSwap:
         await coordinator.async_flush_telemetry()
         # Now sends metrics, not daily_stats
         coordinator.telemetry_client.send_metrics.assert_called_once()
+
+
+class TestFullModeDailyStats:
+    """Tests for FULL mode daily stats accumulation."""
+
+    @pytest.mark.asyncio
+    async def test_full_flush_accumulates_points(self):
+        """FULL mode: points accumulate across flushes."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        data = _sample_data()
+
+        for _ in range(5):
+            coordinator.telemetry_collector.collect(
+                data, is_compressor_running=True, is_defrosting=False
+            )
+
+        await coordinator.async_flush_telemetry()
+        coordinator.telemetry_client.send_metrics.assert_called_once()
+
+        assert len(coordinator._daily_points_accumulator) == 5
+
+    @pytest.mark.asyncio
+    async def test_full_accumulates_across_multiple_flushes(self):
+        """FULL mode: daily accumulator grows across multiple flushes."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        data = _sample_data()
+
+        # First flush: 3 points
+        for _ in range(3):
+            coordinator.telemetry_collector.collect(
+                data, is_compressor_running=True, is_defrosting=False
+            )
+        await coordinator.async_flush_telemetry()
+
+        # Second flush: 2 more points
+        for _ in range(2):
+            coordinator.telemetry_collector.collect(
+                data, is_compressor_running=True, is_defrosting=False
+            )
+        await coordinator.async_flush_telemetry()
+
+        assert len(coordinator._daily_points_accumulator) == 5
+
+    @pytest.mark.asyncio
+    async def test_full_sends_daily_stats_on_date_change(self):
+        """FULL mode: daily stats sent and accumulator reset when date changes."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        data = _sample_data()
+
+        # Collect and flush on "day 1"
+        with patch("custom_components.hitachi_yutaki.coordinator.date") as mock_date:
+            mock_date.today.return_value = date_cls(2026, 3, 18)
+            mock_date.side_effect = date_cls
+
+            for _ in range(5):
+                coordinator.telemetry_collector.collect(
+                    data, is_compressor_running=True, is_defrosting=False
+                )
+            await coordinator.async_flush_telemetry()
+
+        # Now flush on "day 2" — should send daily stats for day 1
+        with patch("custom_components.hitachi_yutaki.coordinator.date") as mock_date:
+            mock_date.today.return_value = date_cls(2026, 3, 19)
+            mock_date.side_effect = date_cls
+
+            coordinator.telemetry_collector.collect(
+                data, is_compressor_running=True, is_defrosting=False
+            )
+            await coordinator.async_flush_telemetry()
+
+        coordinator.telemetry_client.send_daily_stats.assert_called_once()
+        stats = coordinator.telemetry_client.send_daily_stats.call_args[0][0]
+        assert isinstance(stats, DailyStats)
+
+        # Accumulator should have only today's point
+        assert len(coordinator._daily_points_accumulator) == 1
