@@ -80,14 +80,19 @@ class TestCollectorExtraction:
         assert point.compressor_frequency == 65.0
         assert point.compressor_current == 8.5
 
-    def test_extracts_power(self):
-        """Verify electrical power consumption is extracted."""
+    def test_power_fields_are_none_without_computed_values(self):
+        """Power and COP fields are None — they require domain service computation."""
         collector = TelemetryCollector(TelemetryLevel.FULL)
         collector.collect(
             _sample_data(), is_compressor_running=True, is_defrosting=False
         )
         point = collector.flush()[0]
-        assert point.electrical_power == 3.2
+        # power_consumption register is cumulative kWh, not instantaneous power
+        # thermal_power and cop are computed by per-entity domain services
+        # All three are None in telemetry — can be recomputed server-side
+        assert point.electrical_power is None
+        assert point.thermal_power is None
+        assert point.cop_instant is None
 
     def test_maps_unit_mode(self):
         """unit_mode integer is mapped to string."""
