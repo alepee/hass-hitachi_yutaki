@@ -72,7 +72,9 @@ class TestKeyNamingCompatibility:
             ]
             for key in shared_keys:
                 assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"
-                assert key in pre.all_registers, f"{key} missing from ATW-MBS-02 Pre-2016"
+                assert key in pre.all_registers, (
+                    f"{key} missing from ATW-MBS-02 Pre-2016"
+                )
                 assert key in hca.all_registers, f"{key} missing from HC-A(16/64)MB"
 
     def test_shared_dhw_keys(self):
@@ -154,7 +156,11 @@ class TestBitMasks:
         assert atw.mask_compressor == hca.mask_compressor == pre.mask_compressor
         assert atw.mask_boiler == hca.mask_boiler == pre.mask_boiler
         assert atw.mask_dhw_heater == hca.mask_dhw_heater == pre.mask_dhw_heater
-        assert atw.mask_smart_function == hca.mask_smart_function == pre.mask_smart_function
+        assert (
+            atw.mask_smart_function
+            == hca.mask_smart_function
+            == pre.mask_smart_function
+        )
 
     def test_hvac_mode_auto_not_supported_for_write(self):
         """HC-A(16/64)MB and Pre-2016 should return None for auto mode."""
