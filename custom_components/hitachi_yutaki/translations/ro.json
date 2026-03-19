@@ -55,7 +55,7 @@
     "step": {
       "init": {
         "title": "Gateway Hitachi Yutaki",
-        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
+        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki. Opțiunea \"Înainte de Line-up 2016\" este pentru unitățile Gen 1 (sufix NWE/NWSE) — se referă la generația hardware, nu la data instalării.\n\n[Ajută-mă să identific modelul meu](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_type": "Tip gateway"
         }
@@ -102,7 +102,7 @@
     "step": {
       "user": {
         "title": "Gateway Hitachi Yutaki",
-        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
+        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki. Opțiunea \"Înainte de Line-up 2016\" este pentru unitățile Gen 1 (sufix NWE/NWSE) — se referă la generația hardware, nu la data instalării.\n\n[Ajută-mă să identific modelul meu](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_type": "Tip gateway"
         }

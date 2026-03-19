@@ -55,7 +55,7 @@
     "step": {
       "init": {
         "title": "Hitachi Yutaki Gateway",
-        "description": "Select the gateway type for your Hitachi Yutaki heat pump.",
+        "description": "Select the gateway type for your Hitachi Yutaki heat pump. The \"Before Line-up 2016\" option is for Gen 1 units (NWE/NWSE suffix) — this refers to the hardware generation, not the installation date.\n\n[Help me identify my model](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_type": "Gateway Type"
         }
@@ -102,7 +102,7 @@
     "step": {
       "user": {
         "title": "Hitachi Yutaki Gateway",
-        "description": "Select the gateway type for your Hitachi Yutaki heat pump.",
+        "description": "Select the gateway type for your Hitachi Yutaki heat pump. The \"Before Line-up 2016\" option is for Gen 1 units (NWE/NWSE suffix) — this refers to the hardware generation, not the installation date.\n\n[Help me identify my model](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_type": "Gateway Type"
         }

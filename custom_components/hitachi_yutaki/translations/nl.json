@@ -55,7 +55,7 @@
     "step": {
       "init": {
         "title": "Hitachi Yutaki Gateway",
-        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp.",
+        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp. De optie \"Vóór Line-up 2016\" is voor Gen 1 units (NWE/NWSE suffix) — dit verwijst naar de hardwaregeneratie, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_type": "Gatewaytype"
         }
@@ -102,7 +102,7 @@
     "step": {
       "user": {
         "title": "Hitachi Yutaki Gateway",
-        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp.",
+        "description": "Selecteer het gatewaytype voor uw Hitachi Yutaki warmtepomp. De optie \"Vóór Line-up 2016\" is voor Gen 1 units (NWE/NWSE suffix) — dit verwijst naar de hardwaregeneratie, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_type": "Gatewaytype"
         }

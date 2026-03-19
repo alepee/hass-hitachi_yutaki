@@ -55,7 +55,7 @@
     "step": {
       "init": {
         "title": "Passerelle Hitachi Yutaki",
-        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
+        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki. L'option « Avant gamme 2016 » concerne les unités Gen 1 (suffixe NWE/NWSE) — il s'agit de la génération matérielle, pas de la date d'installation.\n\n[M'aider à identifier mon modèle](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_type": "Type de passerelle"
         }
@@ -102,7 +102,7 @@
     "step": {
       "user": {
         "title": "Passerelle Hitachi Yutaki",
-        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
+        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki. L'option « Avant gamme 2016 » concerne les unités Gen 1 (suffixe NWE/NWSE) — il s'agit de la génération matérielle, pas de la date d'installation.\n\n[M'aider à identifier mon modèle](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_type": "Type de passerelle"
         }
