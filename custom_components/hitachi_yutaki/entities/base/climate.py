@@ -96,11 +96,19 @@ class HitachiYutakiClimate(
                 else coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
             ):
                 self._attr_hvac_modes.append(HVACMode.COOL)
-            if len(self._attr_hvac_modes) > 2:
+            if (
+                len(self._attr_hvac_modes) > 2
+                and coordinator.api_client.register_map.hvac_unit_mode_auto is not None
+            ):
                 self._attr_hvac_modes.append(HVACMode.AUTO)
 
-        # Set available presets
-        self._attr_preset_modes = [PRESET_COMFORT, PRESET_ECO]
+        # Set available presets — ECO requires eco_mode register
+        self._attr_preset_modes = [PRESET_COMFORT]
+        if (
+            f"circuit{circuit_id}_eco_mode"
+            in coordinator.api_client.register_map.all_registers
+        ):
+            self._attr_preset_modes.append(PRESET_ECO)
 
     @property
     def available(self) -> bool:

@@ -218,8 +218,34 @@ ALL_REGISTERS = {
     **REGISTER_POOL,
 }
 
-# Phase 1: read-only — no writable keys
-WRITABLE_KEYS: set[str] = set()
+# Writable keys for Before Line-up 2016
+# Note: no eco_mode, eco_offset, dhw_boost, dhw_high_demand registers in before-2016
+WRITABLE_KEYS = {
+    "unit_power",
+    "unit_mode",
+    "circuit1_power",
+    "circuit1_otc_calculation_method_heating",
+    "circuit1_otc_calculation_method_cooling",
+    "circuit1_max_flow_temp_heating_otc",
+    "circuit1_max_flow_temp_cooling_otc",
+    "circuit1_thermostat",
+    "circuit1_target_temp",
+    "circuit1_current_temp",
+    "circuit2_power",
+    "circuit2_otc_calculation_method_heating",
+    "circuit2_otc_calculation_method_cooling",
+    "circuit2_max_flow_temp_heating_otc",
+    "circuit2_max_flow_temp_cooling_otc",
+    "circuit2_thermostat",
+    "circuit2_target_temp",
+    "circuit2_current_temp",
+    "dhw_power",
+    "dhw_target_temp",
+    "pool_power",
+    "pool_target_temp",
+    "dhw_antilegionella",
+    "dhw_antilegionella_temp",
+}
 
 SYSTEM_STATE_ISSUES = {
     1: "desync_warning",

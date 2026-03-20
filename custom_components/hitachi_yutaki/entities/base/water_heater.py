@@ -61,8 +61,10 @@ class HitachiYutakiWaterHeater(
         self._attr_operation_list = [
             PRESET_DHW_OFF,
             PRESET_DHW_HEAT_PUMP,
-            PRESET_DHW_HIGH_DEMAND,
         ]
+        # High demand mode requires the dhw_high_demand register
+        if "dhw_high_demand" in coordinator.api_client.register_map.all_registers:
+            self._attr_operation_list.append(PRESET_DHW_HIGH_DEMAND)
 
     def _apply_profile_overrides(self) -> None:
         """Apply overrides from the heat pump profile."""

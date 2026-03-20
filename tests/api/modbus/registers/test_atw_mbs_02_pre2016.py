@@ -34,10 +34,22 @@ class TestPre2016RegisterMap:
         assert reg_map.hvac_unit_mode_cool == 0
         assert reg_map.hvac_unit_mode_heat == 1
 
-    def test_writable_keys_empty_phase1(self):
-        """Phase 1: no writable keys."""
+    def test_writable_keys_populated(self):
+        """Writable keys include control registers but exclude eco/boost."""
         reg_map = AtwMbs02Pre2016RegisterMap()
-        assert reg_map.writable_keys == set()
+        writable = reg_map.writable_keys
+        # Control registers present
+        assert "unit_power" in writable
+        assert "unit_mode" in writable
+        assert "circuit1_power" in writable
+        assert "dhw_power" in writable
+        assert "dhw_target_temp" in writable
+        assert "pool_power" in writable
+        # Eco/boost registers absent (don't exist in before-2016)
+        assert "circuit1_eco_mode" not in writable
+        assert "circuit1_heat_eco_offset" not in writable
+        assert "dhw_boost" not in writable
+        assert "dhw_high_demand" not in writable
 
     def test_key_addresses_differ_from_2016(self):
         """Verify key registers are at before-2016 addresses (not 2016 addresses)."""
