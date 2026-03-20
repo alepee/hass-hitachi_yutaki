@@ -231,6 +231,12 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         variant_keys = list(GATEWAY_VARIANTS[self.gateway_type].keys())
         default_variant = detected_variant if detected_variant else vol.UNDEFINED
 
+        # Build auto-detection status message for description
+        if detected_variant:
+            auto_detect_status = detected_variant.upper().replace("GEN", "Gen ")
+        else:
+            auto_detect_status = "?"
+
         return self.async_show_form(
             step_id="gateway_variant",
             data_schema=vol.Schema(
@@ -248,7 +254,8 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 }
             ),
             description_placeholders={
-                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html"
+                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html",
+                "detected_variant": auto_detect_status,
             },
             errors=errors,
         )
