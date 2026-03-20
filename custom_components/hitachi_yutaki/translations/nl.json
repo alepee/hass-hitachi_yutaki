@@ -34,8 +34,8 @@
     },
     "gateway_variant": {
       "options": {
-        "gen1": "Gen 1 — gefabriceerd vóór ~2016 (NWE/NWSE suffix)",
-        "gen2": "Gen 2+ — gefabriceerd vanaf ~2016"
+        "gen1": "Gen 1 (NWE/NWSE)",
+        "gen2": "Gen 2+ (NW1E, RW1E, RW2E, RW3E)"
       }
     },
     "profile": {
@@ -67,7 +67,7 @@
       },
       "gateway_variant": {
         "title": "Hardwaregeneratie",
-        "description": "Selecteer de hardwaregeneratie van uw warmtepomp. Dit verwijst naar de fabricagedatum, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Selecteer de hardwaregeneratie van uw warmtepomp op basis van het modelsuffix (op het typeplaatje).\n\n**Gen 1** — R410A units gefabriceerd vóór ~2016.\n**Gen 2+** — R410A/R32 units gefabriceerd vanaf ~2016.\n\nDit verwijst naar de fabricagedatum, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_variant": "Generatie"
         }
@@ -121,7 +121,7 @@
       },
       "gateway_variant": {
         "title": "Hardwaregeneratie",
-        "description": "Selecteer de hardwaregeneratie van uw warmtepomp. Dit verwijst naar de fabricagedatum, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Selecteer de hardwaregeneratie van uw warmtepomp op basis van het modelsuffix (op het typeplaatje).\n\n**Gen 1** — R410A units gefabriceerd vóór ~2016.\n**Gen 2+** — R410A/R32 units gefabriceerd vanaf ~2016.\n\nDit verwijst naar de fabricagedatum, niet de installatiedatum.\n\n[Help mij mijn model te identificeren](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
         "data": {
           "gateway_variant": "Generatie"
         }
