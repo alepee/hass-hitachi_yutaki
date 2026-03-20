@@ -7,14 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-03-20
+
 ### Added
-- Support for Before Line-up 2016 ATW-MBS-02 gateway — Gen 1 Yutaki S and S Combi units, read-only sensors (#248)
+- Support for Before Line-up 2016 ATW-MBS-02 gateway — Gen 1 Yutaki S and S Combi units with full read/write support (#248)
+- Gateway variant system — config flow asks for hardware generation with auto-detection after connection
 - Interactive model decoder tool to identify hardware generation (`docs/tools/model-decoder.html`)
 - Scanner auto-detection and annotation for before-2016 units
 - Model nomenclature reference documentation (`docs/reference/model-nomenclature.md`)
+- Config entry migration v2.4 — adds `gateway_variant` field to existing entries
 
 ### Fixed
 - Fix cooling OTC compensation method showing "Unknown" and not settable on ATW-MBS-02 (#239)
+- Entities depending on missing registers (eco mode, DHW boost/high demand) are now hidden automatically on gateways that lack them
 
 ### Changed
 - Reorganize gateway tests to mirror source structure (`tests/api/modbus/`)
