@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.1.0] - 2026-03-20
+## [2.1.0-beta.1] - 2026-03-20
 
 ### Added
 - Support for Before Line-up 2016 ATW-MBS-02 gateway — Gen 1 Yutaki S and S Combi units with full read/write support (#248)

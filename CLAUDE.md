@@ -19,7 +19,9 @@ make test           # Run all tests
 make test-domain    # Run domain layer tests only (pure Python, no HA)
 make test-coverage  # Run tests with coverage report
 make ha-run         # Start a local HA dev instance with debug config
-make bump           # Bump version (last numeric segment)
+make bump           # Bump version (patch by default)
+make bump PART=minor # Bump minor version (e.g., 2.0.2 → 2.1.0)
+make bump PART=major # Bump major version (e.g., 2.1.0 → 3.0.0)
 ```
 
 Pre-commit hooks are automatically installed by `make setup` and run ruff on every commit.
