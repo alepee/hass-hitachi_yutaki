@@ -67,7 +67,7 @@
       },
       "gateway_variant": {
         "title": "Hardwaregeneratie",
-        "description": "Automatische detectie: **{detected_variant}**. Verifieer aan de hand van het modelsuffix (op het typeplaatje).\n\n**Gen 1** — R410A units gefabriceerd vóór ~2016.\n**Gen 2+** — R410A/R32 units gefabriceerd vanaf ~2016.\n\n[Help mij mijn model te identificeren]({model_decoder_url})",
+        "description": "Selecteer de hardwaregeneratie op basis van het modelsuffix (op het typeplaatje).\n\n**Gen 1** — R410A units gefabriceerd vóór ~2016.\n**Gen 2+** — R410A/R32 units gefabriceerd vanaf ~2016.\n\n[Help mij mijn model te identificeren]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generatie"
         }

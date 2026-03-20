@@ -67,7 +67,7 @@
       },
       "gateway_variant": {
         "title": "Generația hardware",
-        "description": "Detectare automată: **{detected_variant}**. Verificați folosind sufixul de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\n[Ajută-mă să identific modelul meu]({model_decoder_url})",
+        "description": "Selectați generația hardware pe baza sufixului de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\n[Ajută-mă să identific modelul meu]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generație"
         }
