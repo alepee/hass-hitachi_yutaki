@@ -129,7 +129,16 @@ RANGE_TARGETED = "targeted"
 RANGE_FULL = "full"
 RANGE_EXHAUSTIVE = "exhaustive"
 
-# Sentinel value: 0xFFFF means "not connected" / "sensor error" / "unused"
+# Sentinel values indicating "not connected" / "sensor error" / "unused register"
+# These are filtered from scan results as they don't carry meaningful data.
+# Note: 0 is a valid value (e.g., unit_power=0 means OFF) and is NOT filtered.
+SENTINEL_VALUES = {
+    0xFFFF,  # 65535 — generic "not connected" / "unused"
+    0xFF81,  # 65409 — signed -127, sensor not connected (temperatures)
+    0xFFBD,  # 65469 — signed -67, sensor not connected (DHW temp)
+}
+
+# Legacy alias used in output formatting
 EMPTY_REGISTER = 0xFFFF
 
 # Detection registers
@@ -379,8 +388,7 @@ def _scan_loop(
             resp = read_func(address=addr, count=count, device_id=device_id)
             if not resp.isError():
                 for i, val in extract_values(resp, count):
-                    if val != 0:
-                        results.append((addr + i, val))
+                    results.append((addr + i, val))
             else:
                 error_count += 1
         except Exception:
@@ -446,16 +454,28 @@ def scan_range(
 # ---------------------------------------------------------------------------
 
 
+# Sentinel value annotations
+SENTINEL_ANNOTATIONS = {
+    0xFFFF: "NOT CONNECTED / unused",
+    0xFF81: "SENSOR NOT CONNECTED (-127)",
+    0xFFBD: "SENSOR NOT CONNECTED (-67)",
+}
+
+
 def format_annotation(
     address: int, raw: int, lookup: dict[int, list[tuple[str, object]]]
 ) -> tuple[str, str]:
     """Return (register_name, deserialized_value) for an address.
 
     If multiple names map to the same address, join them with " / ".
+    Sentinel values (0xFFFF, 0xFF81, 0xFFBD) are annotated as such.
     """
+    # Check for sentinel values first
+    sentinel = SENTINEL_ANNOTATIONS.get(raw)
+
     entries = lookup.get(address)
     if not entries:
-        return ("", "")
+        return ("", sentinel or "")
 
     names = []
     deserialized_parts = []
@@ -468,7 +488,10 @@ def format_annotation(
                 deserialized_parts.append("?")
 
     reg_name = " / ".join(names)
-    deser_str = " / ".join(deserialized_parts) if deserialized_parts else ""
+    if sentinel:
+        deser_str = sentinel
+    else:
+        deser_str = " / ".join(deserialized_parts) if deserialized_parts else ""
     return (reg_name, deser_str)
 
 
@@ -476,27 +499,39 @@ def print_results(
     results: list[tuple[int, int]],
     lookup: dict[int, list[tuple[str, object]]],
     label: str,
+    *,
+    show_unused: bool = False,
 ) -> tuple[int, int]:
-    """Print a block of scan results to stdout, skipping 0xFFFF registers.
+    """Print a block of scan results to stdout.
 
-    Returns (printed_count, skipped_empty_count).
+    Zeros are always shown (they are valid values). Sentinel values
+    (0xFFFF, 0xFF81, 0xFFBD) are hidden unless show_unused is True,
+    in which case they are displayed with an annotation.
+    Returns (printed_count, sentinel_count).
     """
-    visible = [(addr, raw) for addr, raw in results if raw != EMPTY_REGISTER]
-    skipped = len(results) - len(visible)
+    if not results:
+        return (0, 0)
+    sentinel_count = sum(1 for _, raw in results if raw in SENTINEL_VALUES)
+    if show_unused:
+        visible = results
+    else:
+        visible = [(addr, raw) for addr, raw in results if raw not in SENTINEL_VALUES]
+    data_count = len(visible)
+    count_label = f"{data_count} registers"
+    if sentinel_count and not show_unused:
+        count_label += f", {sentinel_count} unused hidden"
+    elif sentinel_count:
+        count_label += f", {sentinel_count} unused"
     if not visible:
-        if skipped:
-            print(f"\n### {label} ({skipped} empty registers skipped) ###")
-        return (0, skipped)
-    count_label = f"{len(visible)} registers"
-    if skipped:
-        count_label += f", {skipped} empty skipped"
+        print(f"\n### {label} ({count_label}) ###")
+        return (0, sentinel_count)
     print(f"\n### {label} ({count_label}) ###")
     print(f"{'Address':<8} {'Dec':>7} {'Hex':>8}   {'Register':<55} {'Deserialized'}")
     print("-" * 100)
     for addr, raw in sorted(visible, key=lambda x: x[0]):
         reg_name, deser_str = format_annotation(addr, raw, lookup)
         print(f"{addr:<8} {raw:>7} {raw:#06x}   {reg_name:<55} {deser_str}")
-    return (len(visible), skipped)
+    return (data_count, sentinel_count)
 
 
 def _decode_bitmask(value: int, bits: list[tuple[int, str]]) -> list[str]:
@@ -670,6 +705,12 @@ examples:
     parser.add_argument("--timeout", type=int, default=10, help="Connection timeout in seconds (default: 10)")
     parser.add_argument("--chunk-size", type=int, default=50, help="Registers per read (default: 50)")
     parser.add_argument("--delay", type=float, default=0.1, help="Delay between reads in seconds (default: 0.1)")
+    parser.add_argument(
+        "--show-unused",
+        action="store_true",
+        default=False,
+        help="Show unused/disconnected registers (sentinels: 0xFFFF, 0xFF81, 0xFFBD)",
+    )
     return parser.parse_args(argv)
 
 
@@ -776,7 +817,7 @@ def main(argv: list[str] | None = None) -> int:
     total_printed = 0
     total_empty = 0
     for label, results in all_results:
-        printed, skipped = print_results(results, lookup, label)
+        printed, skipped = print_results(results, lookup, label, show_unused=args.show_unused)
         total_printed += printed
         total_empty += skipped
 
@@ -789,21 +830,21 @@ def main(argv: list[str] | None = None) -> int:
     print("=" * 100)
     print(f"Duration:        {format_duration(total_time)}")
     print(f"Gateway:         {gateway_type}")
-    print(f"Total non-zero:  {total_found} ({total_printed} with data, {total_empty} empty/0xFFFF)")
+    print(f"Total found:     {total_found} ({total_printed} with data, {total_empty} sentinels)")
     for label, results in all_results:
-        visible = sum(1 for _, v in results if v != EMPTY_REGISTER)
-        empty = len(results) - visible
-        line = f"  {label}: {visible}"
-        if empty:
-            line += f" (+{empty} empty)"
+        data = sum(1 for _, v in results if v not in SENTINEL_VALUES)
+        sentinels = len(results) - data
+        line = f"  {label}: {data}"
+        if sentinels:
+            line += f" (+{sentinels} sentinels)"
         print(line)
 
-    # Count annotated vs unknown (excluding empty)
+    # Count annotated vs unknown (excluding sentinels)
     annotated = 0
     unknown = 0
     for _, results in all_results:
         for addr, raw in results:
-            if raw == EMPTY_REGISTER:
+            if raw in SENTINEL_VALUES:
                 continue
             if addr in lookup:
                 annotated += 1
