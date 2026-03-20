@@ -149,49 +149,16 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step (gateway selection)."""
         if user_input is not None:
             self.gateway_type = user_input["gateway_type"]
-            # Check if gateway has variants
-            if self.gateway_type in GATEWAY_VARIANTS:
-                return await self.async_step_gateway_variant()
             return await self.async_step_gateway_config()
 
         return self.async_show_form(
             step_id="user", data_schema=GATEWAY_SELECTION_SCHEMA
         )
 
-    async def async_step_gateway_variant(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle gateway variant (hardware generation) selection."""
-        if user_input is not None:
-            self.gateway_variant = user_input["gateway_variant"]
-            return await self.async_step_gateway_config()
-
-        variant_keys = list(GATEWAY_VARIANTS[self.gateway_type].keys())
-
-        return self.async_show_form(
-            step_id="gateway_variant",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        "gateway_variant",
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=variant_keys,
-                            mode=selector.SelectSelectorMode.LIST,
-                            translation_key="gateway_variant",
-                        ),
-                    ),
-                }
-            ),
-            description_placeholders={
-                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html"
-            },
-        )
-
     async def async_step_gateway_config(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle gateway configuration."""
+        """Handle gateway configuration (connection test only)."""
         errors: dict[str, str] = {}
 
         if user_input is not None:
@@ -211,57 +178,20 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     CONF_UNIT_ID, DEFAULT_UNIT_ID
                 )
 
-            # Validate connection and read all data for detection
-            api_client_class = GATEWAY_INFO[self.gateway_type].client_class
-            register_map = create_register_map(
-                self.gateway_type,
-                self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-                gateway_variant=self.gateway_variant,
-            )
-            api_client = api_client_class(
-                self.hass,
-                name=user_input[CONF_NAME],
-                host=user_input[CONF_MODBUS_HOST],
-                port=user_input[CONF_MODBUS_PORT],
-                slave=user_input[CONF_MODBUS_DEVICE_ID],
-                register_map=register_map,
-            )
-            try:
-                if not await api_client.connect():
-                    errors["base"] = "cannot_connect"
-                else:
-                    _LOGGER.debug(
-                        "Fetching all values to allow profiles to detect device"
-                    )
-                    keys_to_read = api_client.register_map.base_keys
-                    await api_client.read_values(keys_to_read)
-                    all_data = {
-                        key: await api_client.read_value(key) for key in keys_to_read
-                    }
-
-                    # Decode the raw config to get boolean flags
-                    decoded_data = api_client.decode_config(all_data)
-
-                    _LOGGER.debug("Detecting profile with data: %s", decoded_data)
-                    detected_profiles = [
-                        key
-                        for key, profile in PROFILES.items()
-                        if profile.detect(decoded_data)
-                    ]
-
-                    _LOGGER.debug("Detected profiles: %s", detected_profiles)
-                    self.detected_profiles = detected_profiles
-
-                    if not detected_profiles:
-                        _LOGGER.warning(
-                            "No profile detected, showing all available profiles"
-                        )
-                    return await self.async_step_profile()
-            except (ModbusException, ConnectionException, OSError):
+            # Perform a basic connectivity test
+            connection_ok = await self._test_connection()
+            if not connection_ok:
                 errors["base"] = "cannot_connect"
-            finally:
-                if api_client.connected:
-                    await api_client.close()
+            else:
+                # Connection successful — decide next step
+                if self.gateway_type in GATEWAY_VARIANTS:
+                    return await self.async_step_gateway_variant()
+                # No variants — do profile detection directly
+                profile_error = await self._detect_and_store_profiles()
+                if profile_error:
+                    errors["base"] = profile_error
+                else:
+                    return await self.async_step_profile()
 
         # Build schema dynamically based on gateway type
         schema = GATEWAY_SCHEMA
@@ -279,6 +209,189 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             data_schema=schema,
             errors=errors,
         )
+
+    async def async_step_gateway_variant(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle gateway variant (hardware generation) selection with auto-detection."""
+        errors: dict[str, str] = {}
+
+        if user_input is not None:
+            self.gateway_variant = user_input["gateway_variant"]
+            # Now do profile detection with the chosen variant
+            profile_error = await self._detect_and_store_profiles()
+            if profile_error:
+                errors["base"] = profile_error
+            else:
+                return await self.async_step_profile()
+
+        # Try auto-detection of variant
+        detected_variant = await self._detect_variant()
+
+        variant_keys = list(GATEWAY_VARIANTS[self.gateway_type].keys())
+        default_variant = detected_variant if detected_variant else vol.UNDEFINED
+
+        return self.async_show_form(
+            step_id="gateway_variant",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        "gateway_variant",
+                        default=default_variant,
+                    ): selector.SelectSelector(
+                        selector.SelectSelectorConfig(
+                            options=variant_keys,
+                            mode=selector.SelectSelectorMode.LIST,
+                            translation_key="gateway_variant",
+                        ),
+                    ),
+                }
+            ),
+            description_placeholders={
+                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html"
+            },
+            errors=errors,
+        )
+
+    async def _test_connection(self) -> bool:
+        """Test basic Modbus connectivity without reading registers.
+
+        Creates a temporary API client and attempts to connect. For gateways
+        without variants, this uses the correct register map. For gateways
+        with variants, we use the default (gen2) register map just for the
+        connectivity test — only connect + read system_state to verify
+        the gateway is reachable.
+        """
+        api_client_class = GATEWAY_INFO[self.gateway_type].client_class
+        # Use a default register map for connectivity test
+        # For ATW-MBS-02 without variant selected yet, gen2 is fine for basic connectivity
+        register_map = create_register_map(
+            self.gateway_type,
+            self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+            gateway_variant=self.gateway_variant,
+        )
+        api_client = api_client_class(
+            self.hass,
+            name=self.basic_config[CONF_NAME],
+            host=self.basic_config[CONF_MODBUS_HOST],
+            port=self.basic_config[CONF_MODBUS_PORT],
+            slave=self.basic_config[CONF_MODBUS_DEVICE_ID],
+            register_map=register_map,
+        )
+        try:
+            if not await api_client.connect():
+                return False
+            # Read system_state as a basic preflight check
+            # This register is at the same address in all ATW-MBS-02 variants
+            await api_client.read_values(api_client.register_map.gateway_keys)
+            return True
+        except (ModbusException, ConnectionException, OSError):
+            return False
+        finally:
+            if api_client.connected:
+                await api_client.close()
+
+    async def _detect_variant(self) -> str | None:
+        """Try to auto-detect the gateway variant by probing with each register map.
+
+        Strategy: create a client with the gen2 register map, connect, read unit_model.
+        If the deserialized value is a known model, it's gen2. Otherwise try gen1.
+        """
+        variants = GATEWAY_VARIANTS.get(self.gateway_type, {})
+        if not variants:
+            return None
+
+        api_client_class = GATEWAY_INFO[self.gateway_type].client_class
+
+        # Try gen2 first (more common, newer hardware)
+        for variant_key in ["gen2", "gen1"]:
+            if variant_key not in variants:
+                continue
+            register_map = create_register_map(
+                self.gateway_type,
+                self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+                gateway_variant=variant_key,
+            )
+            api_client = api_client_class(
+                self.hass,
+                name="variant_probe",
+                host=self.basic_config[CONF_MODBUS_HOST],
+                port=self.basic_config[CONF_MODBUS_PORT],
+                slave=self.basic_config[CONF_MODBUS_DEVICE_ID],
+                register_map=register_map,
+            )
+            try:
+                if not await api_client.connect():
+                    return None
+                # Read gateway keys which include unit_model
+                await api_client.read_values(api_client.register_map.gateway_keys)
+                unit_model = await api_client.read_value("unit_model")
+                if unit_model is not None and unit_model != "unknown":
+                    _LOGGER.debug(
+                        "Auto-detected variant %s (unit_model=%s)",
+                        variant_key,
+                        unit_model,
+                    )
+                    return variant_key
+            except (ModbusException, ConnectionException, OSError):
+                _LOGGER.debug(
+                    "Variant probe failed for %s",
+                    variant_key,
+                )
+            finally:
+                if api_client.connected:
+                    await api_client.close()
+
+        return None
+
+    async def _detect_and_store_profiles(self) -> str | None:
+        """Connect to gateway, read data, detect profiles.
+
+        Returns None on success, or an error key string on failure.
+        Sets self.detected_profiles on success.
+        """
+        api_client_class = GATEWAY_INFO[self.gateway_type].client_class
+        register_map = create_register_map(
+            self.gateway_type,
+            self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+            gateway_variant=self.gateway_variant,
+        )
+        api_client = api_client_class(
+            self.hass,
+            name=self.basic_config[CONF_NAME],
+            host=self.basic_config[CONF_MODBUS_HOST],
+            port=self.basic_config[CONF_MODBUS_PORT],
+            slave=self.basic_config[CONF_MODBUS_DEVICE_ID],
+            register_map=register_map,
+        )
+        try:
+            if not await api_client.connect():
+                return "cannot_connect"
+
+            _LOGGER.debug("Fetching all values to allow profiles to detect device")
+            keys_to_read = api_client.register_map.base_keys
+            await api_client.read_values(keys_to_read)
+            all_data = {key: await api_client.read_value(key) for key in keys_to_read}
+
+            # Decode the raw config to get boolean flags
+            decoded_data = api_client.decode_config(all_data)
+
+            _LOGGER.debug("Detecting profile with data: %s", decoded_data)
+            detected_profiles = [
+                key for key, profile in PROFILES.items() if profile.detect(decoded_data)
+            ]
+
+            _LOGGER.debug("Detected profiles: %s", detected_profiles)
+            self.detected_profiles = detected_profiles
+
+            if not detected_profiles:
+                _LOGGER.warning("No profile detected, showing all available profiles")
+            return None
+        except (ModbusException, ConnectionException, OSError):
+            return "cannot_connect"
+        finally:
+            if api_client.connected:
+                await api_client.close()
 
     async def async_step_profile(
         self, user_input: dict[str, Any] | None = None
@@ -425,11 +538,6 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         """Step 1: Gateway type selection."""
         if user_input is not None:
             self._collected.update(user_input)
-            gateway_type = self._collected.get(
-                "gateway_type", self.config_entry.data.get("gateway_type")
-            )
-            if gateway_type in GATEWAY_VARIANTS:
-                return await self.async_step_gateway_variant()
             return await self.async_step_connection()
 
         current_gateway = self.config_entry.data.get(
@@ -453,13 +561,50 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             ),
         )
 
+    async def async_step_connection(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 2: Connection settings."""
+        if user_input is not None:
+            self._collected.update(user_input)
+            gateway_type = self._collected.get(
+                "gateway_type", self.config_entry.data.get("gateway_type")
+            )
+            if gateway_type in GATEWAY_VARIANTS:
+                return await self.async_step_gateway_variant()
+            return await self.async_step_profile()
+
+        data = self.config_entry.data
+
+        return self.async_show_form(
+            step_id="connection",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_MODBUS_HOST, default=data.get(CONF_MODBUS_HOST)
+                    ): str,
+                    vol.Required(
+                        CONF_MODBUS_PORT, default=data.get(CONF_MODBUS_PORT)
+                    ): cv.port,
+                    vol.Required(
+                        CONF_MODBUS_DEVICE_ID,
+                        default=data.get(CONF_MODBUS_DEVICE_ID, DEFAULT_DEVICE_ID),
+                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
+                    vol.Optional(
+                        CONF_SCAN_INTERVAL,
+                        default=data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                    ): cv.positive_int,
+                }
+            ),
+        )
+
     async def async_step_gateway_variant(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Step 1b: Gateway variant (hardware generation) selection."""
+        """Step 2b: Gateway variant (hardware generation) selection."""
         if user_input is not None:
             self._collected.update(user_input)
-            return await self.async_step_connection()
+            return await self.async_step_profile()
 
         gateway_type = self._collected.get(
             "gateway_type", self.config_entry.data.get("gateway_type")
@@ -485,38 +630,6 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             description_placeholders={
                 "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html"
             },
-        )
-
-    async def async_step_connection(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Step 2: Connection settings."""
-        if user_input is not None:
-            self._collected.update(user_input)
-            return await self.async_step_profile()
-
-        data = self.config_entry.data
-
-        return self.async_show_form(
-            step_id="connection",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_MODBUS_HOST, default=data.get(CONF_MODBUS_HOST)
-                    ): str,
-                    vol.Required(
-                        CONF_MODBUS_PORT, default=data.get(CONF_MODBUS_PORT)
-                    ): cv.port,
-                    vol.Required(
-                        CONF_MODBUS_DEVICE_ID,
-                        default=data.get(CONF_MODBUS_DEVICE_ID, DEFAULT_DEVICE_ID),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
-                    vol.Optional(
-                        CONF_SCAN_INTERVAL,
-                        default=data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-                    ): cv.positive_int,
-                }
-            ),
         )
 
     async def async_step_profile(

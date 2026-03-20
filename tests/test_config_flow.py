@@ -79,8 +79,8 @@ def _mock_profiles() -> MagicMock:
     return profiles
 
 
-async def _advance_to_gateway_variant(hass: HomeAssistant) -> dict:
-    """Advance the flow through user step to gateway_variant."""
+async def _advance_to_gateway_config(hass: HomeAssistant) -> dict:
+    """Advance the flow through user step to gateway_config."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
@@ -90,12 +90,23 @@ async def _advance_to_gateway_variant(hass: HomeAssistant) -> dict:
     return result
 
 
-async def _advance_to_gateway_config(hass: HomeAssistant) -> dict:
-    """Advance the flow through user and variant steps to gateway_config."""
-    result = await _advance_to_gateway_variant(hass)
-    result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], GATEWAY_VARIANT_INPUT
-    )
+async def _advance_to_gateway_variant(
+    hass: HomeAssistant,
+    mock_client: MagicMock,
+    mock_gw_info: MagicMock,
+) -> dict:
+    """Advance the flow through gateway_config to gateway_variant step."""
+    result = await _advance_to_gateway_config(hass)
+
+    with (
+        patch(
+            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
+        ),
+        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], GATEWAY_CONFIG_INPUT
+        )
     return result
 
 
@@ -105,8 +116,8 @@ async def _advance_to_profile(
     mock_gw_info: MagicMock,
     mock_profiles: MagicMock,
 ) -> dict:
-    """Advance the flow through gateway_config to profile step."""
-    result = await _advance_to_gateway_config(hass)
+    """Advance the flow through gateway_variant to profile step."""
+    result = await _advance_to_gateway_variant(hass, mock_client, mock_gw_info)
 
     with (
         patch(
@@ -116,7 +127,7 @@ async def _advance_to_profile(
         patch("custom_components.hitachi_yutaki.config_flow.PROFILES", mock_profiles),
     ):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], GATEWAY_CONFIG_INPUT
+            result["flow_id"], GATEWAY_VARIANT_INPUT
         )
     return result
 
@@ -147,20 +158,8 @@ async def test_user_step_shows_form(hass: HomeAssistant) -> None:
     assert result["step_id"] == "user"
 
 
-async def test_user_step_advances_to_gateway_variant(hass: HomeAssistant) -> None:
-    """Test gateway selection advances to gateway_variant step for ATW-MBS-02."""
-    result = await _advance_to_gateway_variant(hass)
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "gateway_variant"
-
-
-# ── Gateway variant step tests ──
-
-
-async def test_gateway_variant_advances_to_gateway_config(
-    hass: HomeAssistant,
-) -> None:
-    """Test gateway variant selection advances to gateway_config step."""
+async def test_user_step_advances_to_gateway_config(hass: HomeAssistant) -> None:
+    """Test gateway selection always advances to gateway_config step."""
     result = await _advance_to_gateway_config(hass)
     assert result["type"] is FlowResultType.FORM
     assert result["step_id"] == "gateway_config"
@@ -191,15 +190,42 @@ async def test_gateway_config_connection_failure(hass: HomeAssistant) -> None:
     assert result["errors"] == {"base": "cannot_connect"}
 
 
-async def test_gateway_config_success_advances_to_profile(
+async def test_gateway_config_success_advances_to_variant(
     hass: HomeAssistant,
 ) -> None:
-    """Test successful connection advances to profile selection."""
+    """Test successful connection advances to gateway_variant for ATW-MBS-02."""
     result = await _advance_to_gateway_config(hass)
 
     mock_client = _mock_api_client()
     mock_gw_info = _mock_gateway_info(mock_client)
+
+    with (
+        patch(
+            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
+        ),
+        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], GATEWAY_CONFIG_INPUT
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "gateway_variant"
+
+
+# ── Gateway variant step tests ──
+
+
+async def test_gateway_variant_advances_to_profile(
+    hass: HomeAssistant,
+) -> None:
+    """Test gateway variant selection advances to profile step."""
+    mock_client = _mock_api_client()
+    mock_gw_info = _mock_gateway_info(mock_client)
     mock_profs = _mock_profiles()
+
+    result = await _advance_to_gateway_variant(hass, mock_client, mock_gw_info)
+    assert result["step_id"] == "gateway_variant"
 
     with (
         patch(
@@ -209,7 +235,7 @@ async def test_gateway_config_success_advances_to_profile(
         patch("custom_components.hitachi_yutaki.config_flow.PROFILES", mock_profs),
     ):
         result = await hass.config_entries.flow.async_configure(
-            result["flow_id"], GATEWAY_CONFIG_INPUT
+            result["flow_id"], GATEWAY_VARIANT_INPUT
         )
 
     assert result["type"] is FlowResultType.FORM
@@ -424,13 +450,6 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
         result["flow_id"],
         {"gateway_type": "modbus_atw_mbs_02"},
     )
-    assert result["step_id"] == "gateway_variant"
-
-    # Step 1b: gateway variant
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {"gateway_variant": "gen1"},
-    )
     assert result["step_id"] == "connection"
 
     # Step 2: connection
@@ -441,6 +460,13 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
             CONF_MODBUS_PORT: DEFAULT_PORT,
             CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
         },
+    )
+    assert result["step_id"] == "gateway_variant"
+
+    # Step 2b: gateway variant
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"gateway_variant": "gen1"},
     )
     assert result["step_id"] == "profile"
 
