@@ -32,6 +32,12 @@
         "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
       }
     },
+    "gateway_variant": {
+      "options": {
+        "gen1": "Gen 1 (NWE/NWSE)",
+        "gen2": "Gen 2+ (NW1E, RW1E, RW2E, RW3E)"
+      }
+    },
     "profile": {
       "options": {
         "yutaki_s": "Yutaki S",
@@ -57,6 +63,13 @@
         "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
         "data": {
           "gateway_type": "Tip gateway"
+        }
+      },
+      "gateway_variant": {
+        "title": "Generația hardware",
+        "description": "Selectați generația hardware pe baza sufixului de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\n[Ajută-mă să identific modelul meu]({model_decoder_url})",
+        "data": {
+          "gateway_variant": "Generație"
         }
       },
       "connection": {
@@ -104,6 +117,13 @@
         "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
         "data": {
           "gateway_type": "Tip gateway"
+        }
+      },
+      "gateway_variant": {
+        "title": "Generația hardware",
+        "description": "Detectare automată: **{detected_variant}**. Verificați folosind sufixul de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\n[Ajută-mă să identific modelul meu]({model_decoder_url})",
+        "data": {
+          "gateway_variant": "Generație"
         }
       },
       "gateway_config": {

@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hitachi Yutaki Model Decoder</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f5f6f8;
+    color: #1a1a2e;
+    line-height: 1.6;
+    padding: 1.5rem;
+    max-width: 640px;
+    margin: 0 auto;
+  }
+
+  header { text-align: center; margin-bottom: 2rem; }
+  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  .subtitle { color: #555; font-size: 0.95rem; }
+
+  .selector-group {
+    margin-bottom: 1rem;
+  }
+
+  label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.3rem;
+    font-size: 0.9rem;
+  }
+
+  .label-hint {
+    font-weight: 400;
+    color: #666;
+    font-size: 0.85rem;
+  }
+
+  select {
+    width: 100%;
+    padding: 0.55rem 0.75rem;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    background: #fff;
+    appearance: auto;
+  }
+
+  select:focus {
+    outline: none;
+    border-color: #4a7cff;
+    box-shadow: 0 0 0 2px rgba(74, 124, 255, 0.25);
+  }
+
+  .hidden { display: none; }
+
+  #result {
+    margin-top: 1.5rem;
+    border-radius: 8px;
+    padding: 1.25rem;
+    background: #fff;
+    border-left: 5px solid #ccc;
+  }
+
+  #result.map-2016 { border-left-color: #27ae60; }
+  #result.map-before-2016 { border-left-color: #2980b9; }
+
+  #result h2 {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .result-row {
+    display: flex;
+    padding: 0.3rem 0;
+    font-size: 0.93rem;
+  }
+
+  .result-label {
+    flex: 0 0 140px;
+    font-weight: 600;
+    color: #444;
+  }
+
+  .result-value {
+    flex: 1;
+  }
+
+  .recommendation {
+    margin-top: 1rem;
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    font-size: 0.93rem;
+    line-height: 1.5;
+  }
+
+  .map-2016 .recommendation {
+    background: #eafaf1;
+    border: 1px solid #a9dfbf;
+  }
+
+  .map-before-2016 .recommendation {
+    background: #ebf5fb;
+    border: 1px solid #aed6f1;
+  }
+
+  .tag {
+    display: inline-block;
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.82rem;
+    font-weight: 600;
+  }
+
+  .tag-2016 { background: #d5f5e3; color: #1e8449; }
+  .tag-before { background: #d6eaf8; color: #2471a3; }
+
+  footer {
+    margin-top: 2.5rem;
+    text-align: center;
+    font-size: 0.85rem;
+    color: #777;
+  }
+
+  footer a {
+    color: #4a7cff;
+    text-decoration: none;
+  }
+
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 480px) {
+    body { padding: 1rem; }
+    .result-row { flex-direction: column; }
+    .result-label { flex: none; margin-bottom: 0.1rem; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Hitachi Yutaki Model Decoder</h1>
+  <p class="subtitle">Identify your heat pump generation and which gateway to select</p>
+</header>
+
+<main>
+  <div class="selector-group">
+    <label for="prefix">Prefix <span class="label-hint">(product family)</span></label>
+    <select id="prefix">
+      <option value="">-- Select prefix --</option>
+      <option value="RWD">RWD -- Yutaki S Combi (integrated DHW tank)</option>
+      <option value="RWM">RWM -- Yutaki S (split, no tank) / Yutaki S80 Gen 1</option>
+      <option value="RWH">RWH -- Yutaki S80 (Gen 2+)</option>
+      <option value="RASM">RASM -- Yutaki M (monobloc)</option>
+    </select>
+  </div>
+
+  <div class="selector-group hidden" id="suffix-group">
+    <label for="suffix">Suffix <span class="label-hint">(generation identifier)</span></label>
+    <select id="suffix">
+      <option value="">-- Select suffix --</option>
+    </select>
+  </div>
+
+  <div class="selector-group hidden" id="capacity-group">
+    <label for="capacity">Capacity <span class="label-hint">(kW, optional)</span></label>
+    <select id="capacity">
+      <option value="">-- Select capacity --</option>
+    </select>
+  </div>
+
+  <div class="selector-group hidden" id="tank-group">
+    <label for="tank">Tank <span class="label-hint">(DHW tank size)</span></label>
+    <select id="tank">
+      <option value="">-- Select tank --</option>
+    </select>
+  </div>
+
+  <div id="result" class="hidden"></div>
+</main>
+
+<footer>
+  <p>
+    <a href="../reference/model-nomenclature.md">Full nomenclature documentation</a>
+    &middot;
+    <a href="https://github.com/alepee/hass-hitachi_yutaki">Back to integration</a>
+  </p>
+</footer>
+
+<script>
+(function () {
+  'use strict';
+
+  // ── Data ──────────────────────────────────────────────────────────────
+
+  var PREFIXES = {
+    RWD:  'Yutaki S Combi',
+    RWM:  'Yutaki S / Yutaki S80 Gen 1',
+    RWH:  'Yutaki S80',
+    RASM: 'Yutaki M'
+  };
+
+  var SUFFIXES_BY_PREFIX = {
+    RWD:  ['NWE', 'NWSE', 'NW1E', 'RW1E', 'RW2E', 'RW3E'],
+    RWM:  ['NE', 'N1E', 'R1E', 'FSN3E', 'HFSN3E'],
+    RWH:  ['VNFE', 'NFE', 'VNFWE', 'NFWE'],
+    RASM: ['VNE', 'NE', 'VRE', 'VR1E', 'RW1E', 'VR2E']
+  };
+
+  // Key = "PREFIX:SUFFIX" to handle shared suffixes (NE, RW1E) correctly
+  var SUFFIX_DATA = {
+    // RWD (S Combi)
+    'RWD:NWE':    { gen: 'Gen 1',              family: 'Yutaki S Combi', refrigerant: 'R410A',         map: 'before-2016' },
+    'RWD:NWSE':   { gen: 'Gen 1 (solar)',       family: 'Yutaki S Combi', refrigerant: 'R410A',         map: 'before-2016' },
+    'RWD:NW1E':   { gen: 'Gen 2 ("2.0")',       family: 'Yutaki S Combi', refrigerant: 'R410A',         map: '2016' },
+    'RWD:RW1E':   { gen: 'Gen 2',               family: 'Yutaki S Combi', refrigerant: 'R32',           map: '2016' },
+    'RWD:RW2E':   { gen: 'Gen 3',               family: 'Yutaki S Combi', refrigerant: 'R32',           map: '2016' },
+    'RWD:RW3E':   { gen: 'Gen 4',               family: 'Yutaki S Combi', refrigerant: 'R32',           map: '2016' },
+    // RWM (S / S80 Gen 1)
+    'RWM:NE':     { gen: 'Gen 1',               family: 'Yutaki S',       refrigerant: 'R410A',         map: 'before-2016' },
+    'RWM:N1E':    { gen: 'Gen 2',               family: 'Yutaki S',       refrigerant: 'R410A',         map: '2016' },
+    'RWM:R1E':    { gen: 'Gen 2',               family: 'Yutaki S',       refrigerant: 'R32',           map: '2016' },
+    'RWM:FSN3E':  { gen: 'Gen 1 (S80)',         family: 'Yutaki S80',     refrigerant: 'R410A + R134a', map: '2016' },
+    'RWM:HFSN3E': { gen: 'Gen 1 (S80 high cap.)', family: 'Yutaki S80',  refrigerant: 'R410A + R134a', map: '2016' },
+    // RWH (S80 Gen 2+)
+    'RWH:VNFE':   { gen: 'Gen 2 (S80, 1-ph)',       family: 'Yutaki S80', refrigerant: 'R410A', map: '2016' },
+    'RWH:NFE':    { gen: 'Gen 2 (S80, 3-ph)',       family: 'Yutaki S80', refrigerant: 'R410A', map: '2016' },
+    'RWH:VNFWE':  { gen: 'Gen 2 (S80, 1-ph, tank)', family: 'Yutaki S80', refrigerant: 'R410A', map: '2016' },
+    'RWH:NFWE':   { gen: 'Gen 2 (S80, 3-ph, tank)', family: 'Yutaki S80', refrigerant: 'R410A', map: '2016' },
+    // RASM (M)
+    'RASM:VNE':   { gen: 'Gen 1 (1-phase)',     family: 'Yutaki M',       refrigerant: 'R410A', map: 'before-2016' },
+    'RASM:NE':    { gen: 'Gen 1 (3-phase)',     family: 'Yutaki M',       refrigerant: 'R410A', map: 'before-2016' },
+    'RASM:VRE':   { gen: 'Gen 2 (1-phase)',     family: 'Yutaki M',       refrigerant: 'R32',   map: '2016' },
+    'RASM:VR1E':  { gen: 'Gen 3 (1-phase)',     family: 'Yutaki M',       refrigerant: 'R32',   map: '2016' },
+    'RASM:RW1E':  { gen: 'Gen 3 (3-phase)',     family: 'Yutaki M',       refrigerant: 'R32',   map: '2016' },
+    'RASM:VR2E':  { gen: 'Gen 4 (1-phase)',     family: 'Yutaki M',       refrigerant: 'R32',   map: '2016' }
+  };
+
+  var CAPACITIES_BY_PREFIX = {
+    RWD:  [1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0],
+    RWM:  [2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0],
+    RWH:  [4.0, 5.0, 6.0],
+    RASM: [2.0, 3.0, 4.0, 5.0, 6.0, 7.0]
+  };
+
+  var TANKS = ['-200', '-220S', '-260S'];
+
+  // ── DOM refs ──────────────────────────────────────────────────────────
+
+  var prefixSel   = document.getElementById('prefix');
+  var suffixSel   = document.getElementById('suffix');
+  var capacitySel = document.getElementById('capacity');
+  var tankSel     = document.getElementById('tank');
+
+  var suffixGroup   = document.getElementById('suffix-group');
+  var capacityGroup = document.getElementById('capacity-group');
+  var tankGroup     = document.getElementById('tank-group');
+  var resultDiv     = document.getElementById('result');
+
+  // ── Helpers ───────────────────────────────────────────────────────────
+
+  function show(el) { el.classList.remove('hidden'); }
+  function hide(el) { el.classList.add('hidden'); }
+
+  function populateSelect(sel, items, formatter) {
+    // Keep first placeholder option
+    while (sel.options.length > 1) sel.remove(1);
+    items.forEach(function (item) {
+      var opt = document.createElement('option');
+      opt.value = item;
+      opt.textContent = formatter ? formatter(item) : item;
+      sel.appendChild(opt);
+    });
+    sel.value = '';
+  }
+
+  function buildReference() {
+    var prefix = prefixSel.value;
+    var suffix = suffixSel.value;
+    var capacity = capacitySel.value;
+    var tank = tankSel.value;
+
+    if (!prefix || !suffix) return '';
+
+    var ref = prefix;
+    if (prefix === 'RASM') {
+      ref += '-' + (capacity || '?') + suffix;
+    } else {
+      ref += '-' + (capacity || '?') + suffix;
+      if (prefix === 'RWD') {
+        ref += (tank || '');
+      }
+    }
+    return ref;
+  }
+
+  function renderResult() {
+    var prefix = prefixSel.value;
+    var suffix = suffixSel.value;
+    if (!prefix || !suffix) { hide(resultDiv); return; }
+
+    var key = prefix + ':' + suffix;
+    var data = SUFFIX_DATA[key];
+    if (!data) { hide(resultDiv); return; }
+
+    var is2016 = data.map === '2016';
+    var mapLabel = is2016 ? 'Line-up 2016' : 'Before Line-up 2016';
+    var tagClass = is2016 ? 'tag-2016' : 'tag-before';
+    var cardClass = is2016 ? 'map-2016' : 'map-before-2016';
+
+    var configLabel = is2016
+      ? 'Modbus ATW-MBS-02'
+      : 'Modbus ATW-MBS-02 (Before Line-up 2016)';
+
+    var fullRef = buildReference();
+
+    resultDiv.className = cardClass;
+    resultDiv.innerHTML =
+      '<h2>Decoded Model</h2>' +
+      '<div class="result-row"><span class="result-label">Full reference</span><span class="result-value"><code>' + fullRef + '</code></span></div>' +
+      '<div class="result-row"><span class="result-label">Family</span><span class="result-value">' + data.family + '</span></div>' +
+      '<div class="result-row"><span class="result-label">Generation</span><span class="result-value">' + data.gen + '</span></div>' +
+      '<div class="result-row"><span class="result-label">Refrigerant</span><span class="result-value">' + data.refrigerant + '</span></div>' +
+      '<div class="result-row"><span class="result-label">Register map</span><span class="result-value"><span class="tag ' + tagClass + '">' + mapLabel + '</span></span></div>' +
+      '<div class="recommendation">In the integration, select: <strong>' + configLabel + '</strong></div>';
+
+    show(resultDiv);
+  }
+
+  // ── Event handlers ────────────────────────────────────────────────────
+
+  prefixSel.addEventListener('change', function () {
+    var prefix = prefixSel.value;
+
+    // Reset downstream
+    hide(suffixGroup); hide(capacityGroup); hide(tankGroup); hide(resultDiv);
+    suffixSel.value = ''; capacitySel.value = ''; tankSel.value = '';
+
+    if (!prefix) return;
+
+    populateSelect(suffixSel, SUFFIXES_BY_PREFIX[prefix]);
+    show(suffixGroup);
+  });
+
+  suffixSel.addEventListener('change', function () {
+    var prefix = prefixSel.value;
+    var suffix = suffixSel.value;
+
+    // Reset downstream
+    hide(capacityGroup); hide(tankGroup);
+    capacitySel.value = ''; tankSel.value = '';
+
+    if (!suffix) { hide(resultDiv); return; }
+
+    // Show capacity
+    populateSelect(capacitySel, CAPACITIES_BY_PREFIX[prefix], function (v) { return v + ' kW'; });
+    show(capacityGroup);
+
+    // Show tank only for RWD
+    if (prefix === 'RWD') {
+      populateSelect(tankSel, TANKS);
+      show(tankGroup);
+    }
+
+    renderResult();
+  });
+
+  capacitySel.addEventListener('change', renderResult);
+  tankSel.addEventListener('change', renderResult);
+
+})();
+</script>
+</body>
+</html>

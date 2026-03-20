@@ -95,7 +95,7 @@ def _bootstrap_register_maps():
     sys.modules[reg_pkg_name] = reg_mod
     spec.loader.exec_module(reg_mod)  # type: ignore[union-attr]
 
-    # 3. Load the two gateway register files
+    # 3. Load the three gateway register files
     atw_mod = _load_module_from_file(
         f"{reg_pkg_name}.atw_mbs_02",
         _REGISTERS_DIR / "atw_mbs_02.py",
@@ -106,17 +106,23 @@ def _bootstrap_register_maps():
         _REGISTERS_DIR / "hc_a_mb.py",
         package=reg_pkg_name,
     )
+    pre2016_mod = _load_module_from_file(
+        f"{reg_pkg_name}.atw_mbs_02_pre2016",
+        _REGISTERS_DIR / "atw_mbs_02_pre2016.py",
+        package=reg_pkg_name,
+    )
 
-    return atw_mod.AtwMbs02RegisterMap, hc_mod.HcAMbRegisterMap
+    return atw_mod.AtwMbs02RegisterMap, hc_mod.HcAMbRegisterMap, pre2016_mod.AtwMbs02Pre2016RegisterMap
 
 
-AtwMbs02RegisterMap, HcAMbRegisterMap = _bootstrap_register_maps()
+AtwMbs02RegisterMap, HcAMbRegisterMap, AtwMbs02Pre2016RegisterMap = _bootstrap_register_maps()
 
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
 
 GATEWAY_ATW_MBS_02 = "atw-mbs-02"
+GATEWAY_ATW_MBS_02_PRE2016 = "atw-mbs-02-pre2016"
 GATEWAY_HC_A_MB = "hc-a-mb"
 
 RANGE_TARGETED = "targeted"
@@ -197,6 +203,11 @@ UNIT_MODES = {0: "Cool", 1: "Heat", 2: "Auto"}
 
 # targeted: known register zones with discovery margin (~1s)
 RANGES_ATW_MBS_02_TARGETED = [
+    (4, 0, 100, "Input Registers (FC4) 0-99"),
+    (3, 1000, 1300, "Holding Registers (FC3) 1000-1299"),
+]
+
+RANGES_ATW_MBS_02_PRE2016_TARGETED = [
     (4, 0, 100, "Input Registers (FC4) 0-99"),
     (3, 1000, 1300, "Holding Registers (FC3) 1000-1299"),
 ]
@@ -306,7 +317,7 @@ def test_connection(client: ModbusTcpClient, device_id: int) -> bool:
 def detect_gateway(client: ModbusTcpClient, device_id: int, unit_id: int) -> str | None:
     """Auto-detect gateway type by probing known registers.
 
-    Returns GATEWAY_ATW_MBS_02, GATEWAY_HC_A_MB, or None.
+    Returns GATEWAY_ATW_MBS_02, GATEWAY_ATW_MBS_02_PRE2016, GATEWAY_HC_A_MB, or None.
     """
     # Try ATW-MBS-02: unit_model at holding register 1218
     try:
@@ -315,6 +326,16 @@ def detect_gateway(client: ModbusTcpClient, device_id: int, unit_id: int) -> str
         )
         if not result.isError() and 0 <= result.registers[0] <= 3:
             return GATEWAY_ATW_MBS_02
+    except Exception:
+        pass
+
+    # Try ATW-MBS-02 before-2016: unit_model at address 1217 (values 0-1 only)
+    try:
+        result = client.read_holding_registers(
+            address=1217, count=1, device_id=device_id
+        )
+        if not result.isError() and 0 <= result.registers[0] <= 1:
+            return GATEWAY_ATW_MBS_02_PRE2016
     except Exception:
         pass
 
@@ -507,6 +528,19 @@ def print_system_recap(all_results: list[tuple[str, list[tuple[int, int]]]], gat
         addr_target = 1219
         addr_flow = 1220
         addr_power = 1098
+    elif gateway_type == GATEWAY_ATW_MBS_02_PRE2016:
+        addr_model = 1217
+        addr_config = 1074
+        addr_status = 1222
+        addr_state = 1083
+        addr_op_state = 1077
+        addr_mode = 1001
+        addr_outdoor = 1078
+        addr_inlet = 1079
+        addr_outlet = 1080
+        addr_target = 1218
+        addr_flow = 1220
+        addr_power = 1098
     else:
         # HC-A-MB addresses would need unit_id, skip recap for now
         print("\n" + "=" * 100)
@@ -617,7 +651,7 @@ examples:
     parser.add_argument("--slave", type=int, default=1, help="Modbus slave/device ID (default: 1)")
     parser.add_argument(
         "--gateway",
-        choices=[GATEWAY_ATW_MBS_02, GATEWAY_HC_A_MB],
+        choices=[GATEWAY_ATW_MBS_02, GATEWAY_ATW_MBS_02_PRE2016, GATEWAY_HC_A_MB],
         default=None,
         help="Gateway type (default: auto-detect)",
     )
@@ -697,6 +731,8 @@ def main(argv: list[str] | None = None) -> int:
     # -- Build register map & lookup --
     if gateway_type == GATEWAY_ATW_MBS_02:
         register_map = AtwMbs02RegisterMap()
+    elif gateway_type == GATEWAY_ATW_MBS_02_PRE2016:
+        register_map = AtwMbs02Pre2016RegisterMap()
     else:
         register_map = HcAMbRegisterMap(unit_id=args.unit_id)
 
@@ -707,6 +743,8 @@ def main(argv: list[str] | None = None) -> int:
         scan_ranges = RANGES_EXHAUSTIVE
     elif gateway_type == GATEWAY_ATW_MBS_02:
         scan_ranges = RANGES_ATW_MBS_02_TARGETED
+    elif gateway_type == GATEWAY_ATW_MBS_02_PRE2016:
+        scan_ranges = RANGES_ATW_MBS_02_PRE2016_TARGETED
     else:
         base = 5000 + (args.unit_id * 200)
         scan_ranges = [

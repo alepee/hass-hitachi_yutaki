@@ -32,6 +32,12 @@
         "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (Beta)"
       }
     },
+    "gateway_variant": {
+      "options": {
+        "gen1": "Gen 1 (NWE/NWSE)",
+        "gen2": "Gen 2+ (NW1E, RW1E, RW2E, RW3E)"
+      }
+    },
     "profile": {
       "options": {
         "yutaki_s": "Yutaki S",
@@ -57,6 +63,13 @@
         "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
         "data": {
           "gateway_type": "Type de passerelle"
+        }
+      },
+      "gateway_variant": {
+        "title": "Génération matérielle",
+        "description": "Sélectionnez la génération matérielle en vous basant sur le suffixe de la référence modèle (sur la plaque signalétique).\n\n**Gen 1** — Unités R410A fabriquées avant ~2016.\n**Gen 2+** — Unités R410A/R32 fabriquées à partir de ~2016.\n\n[M'aider à identifier mon modèle]({model_decoder_url})",
+        "data": {
+          "gateway_variant": "Génération"
         }
       },
       "connection": {
@@ -104,6 +117,13 @@
         "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
         "data": {
           "gateway_type": "Type de passerelle"
+        }
+      },
+      "gateway_variant": {
+        "title": "Génération matérielle",
+        "description": "Détection automatique : **{detected_variant}**. Vérifiez à l'aide du suffixe de la référence modèle (sur la plaque signalétique).\n\n**Gen 1** — Unités R410A fabriquées avant ~2016.\n**Gen 2+** — Unités R410A/R32 fabriquées à partir de ~2016.\n\n[M'aider à identifier mon modèle]({model_decoder_url})",
+        "data": {
+          "gateway_variant": "Génération"
         }
       },
       "gateway_config": {

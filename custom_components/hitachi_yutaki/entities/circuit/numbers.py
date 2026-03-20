@@ -93,8 +93,10 @@ def _build_circuit_number_descriptions(
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             mode=NumberMode.BOX,
             entity_category=EntityCategory.CONFIG,
-            condition=lambda coordinator: coordinator.has_circuit(
-                circuit_id, CIRCUIT_MODE_HEATING
+            condition=lambda c: (
+                c.has_circuit(circuit_id, CIRCUIT_MODE_HEATING)
+                and f"circuit{circuit_id}_heat_eco_offset"
+                in c.api_client.register_map.all_registers
             ),
             get_fn=lambda api, circuit_id: (
                 float(value)
@@ -115,8 +117,10 @@ def _build_circuit_number_descriptions(
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             mode=NumberMode.BOX,
             entity_category=EntityCategory.CONFIG,
-            condition=lambda coordinator: coordinator.has_circuit(
-                circuit_id, CIRCUIT_MODE_COOLING
+            condition=lambda c: (
+                c.has_circuit(circuit_id, CIRCUIT_MODE_COOLING)
+                and f"circuit{circuit_id}_cool_eco_offset"
+                in c.api_client.register_map.all_registers
             ),
             get_fn=lambda api, circuit_id: (
                 float(value)

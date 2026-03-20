@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Support for Before Line-up 2016 ATW-MBS-02 gateway — Gen 1 Yutaki S and S Combi units, read-only sensors (#248)
+- Interactive model decoder tool to identify hardware generation (`docs/tools/model-decoder.html`)
+- Scanner auto-detection and annotation for before-2016 units
+- Model nomenclature reference documentation (`docs/reference/model-nomenclature.md`)
+
 ### Fixed
 - Fix cooling OTC compensation method showing "Unknown" and not settable on ATW-MBS-02 (#239)
 

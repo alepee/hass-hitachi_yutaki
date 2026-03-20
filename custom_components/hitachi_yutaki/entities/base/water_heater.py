@@ -61,8 +61,10 @@ class HitachiYutakiWaterHeater(
         self._attr_operation_list = [
             PRESET_DHW_OFF,
             PRESET_DHW_HEAT_PUMP,
-            PRESET_DHW_HIGH_DEMAND,
         ]
+        # High demand mode requires the dhw_high_demand register
+        if "dhw_high_demand" in coordinator.api_client.register_map.all_registers:
+            self._attr_operation_list.append(PRESET_DHW_HIGH_DEMAND)
 
     def _apply_profile_overrides(self) -> None:
         """Apply overrides from the heat pump profile."""
@@ -134,11 +136,19 @@ class HitachiYutakiWaterHeater(
         await self.coordinator.api_client.set_dhw_target_temperature(temperature)
         await self.coordinator.async_request_refresh()
 
+    @property
+    def _has_high_demand(self) -> bool:
+        """Return True if the register map supports high demand mode."""
+        return (
+            "dhw_high_demand" in self.coordinator.api_client.register_map.all_registers
+        )
+
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new operation mode."""
         if operation_mode == PRESET_DHW_OFF:
             # First disable high demand mode if it was active
-            await self.coordinator.api_client.set_dhw_high_demand(False)
+            if self._has_high_demand:
+                await self.coordinator.api_client.set_dhw_high_demand(False)
             # Then turn off DHW
             await self.coordinator.api_client.set_dhw_power(False)
             await self.coordinator.async_request_refresh()
@@ -150,9 +160,9 @@ class HitachiYutakiWaterHeater(
             await self.coordinator.api_client.set_dhw_power(True)
 
         # Then set the mode
-        if operation_mode == PRESET_DHW_HIGH_DEMAND:
+        if operation_mode == PRESET_DHW_HIGH_DEMAND and self._has_high_demand:
             await self.coordinator.api_client.set_dhw_high_demand(True)
-        elif operation_mode == PRESET_DHW_HEAT_PUMP:
+        elif operation_mode == PRESET_DHW_HEAT_PUMP and self._has_high_demand:
             await self.coordinator.api_client.set_dhw_high_demand(False)
 
         await self.coordinator.async_request_refresh()
@@ -165,7 +175,8 @@ class HitachiYutakiWaterHeater(
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the water heater off."""
         # First disable high demand mode if it was active
-        await self.coordinator.api_client.set_dhw_high_demand(False)
+        if self._has_high_demand:
+            await self.coordinator.api_client.set_dhw_high_demand(False)
         # Then turn off DHW
         await self.coordinator.api_client.set_dhw_power(False)
         await self.coordinator.async_request_refresh()
