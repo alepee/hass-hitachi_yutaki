@@ -247,8 +247,13 @@ WRITABLE_KEYS = {
     "dhw_antilegionella_temp",
 }
 
+# In before-2016, system_state (addr 1083) is the H-LINK communication alarm:
+#   0: No alarm
+#   1: No communication >180s (not the same as 2016 "desync" — non-blocking)
+#   2: Data initialization (blocking — gateway not ready)
+# Only value 2 is a blocking issue. Value 1 is informational, not a reason
+# to skip reads — the gateway may still respond to register queries.
 SYSTEM_STATE_ISSUES = {
-    1: "desync_warning",
     2: "initializing_warning",
 }
 
