@@ -67,7 +67,7 @@
       },
       "gateway_variant": {
         "title": "Generația hardware",
-        "description": "Selectați generația hardware a pompei de căldură pe baza sufixului de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\nAceasta se referă la data fabricației, nu la data instalării.\n\n[Ajută-mă să identific modelul meu](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Selectați generația hardware a pompei de căldură pe baza sufixului de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\nAceasta se referă la data fabricației, nu la data instalării.\n\n[Ajută-mă să identific modelul meu]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generație"
         }
@@ -121,7 +121,7 @@
       },
       "gateway_variant": {
         "title": "Generația hardware",
-        "description": "Selectați generația hardware a pompei de căldură pe baza sufixului de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\nAceasta se referă la data fabricației, nu la data instalării.\n\n[Ajută-mă să identific modelul meu](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Selectați generația hardware a pompei de căldură pe baza sufixului de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\nAceasta se referă la data fabricației, nu la data instalării.\n\n[Ajută-mă să identific modelul meu]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generație"
         }

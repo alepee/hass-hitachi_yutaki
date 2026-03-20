@@ -183,6 +183,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     ),
                 }
             ),
+            description_placeholders={
+                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html"
+            },
         )
 
     async def async_step_gateway_config(
@@ -479,6 +482,9 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     ),
                 }
             ),
+            description_placeholders={
+                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html"
+            },
         )
 
     async def async_step_connection(

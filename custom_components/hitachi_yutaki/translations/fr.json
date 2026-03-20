@@ -67,7 +67,7 @@
       },
       "gateway_variant": {
         "title": "Génération matérielle",
-        "description": "Sélectionnez la génération matérielle de votre pompe à chaleur en vous basant sur le suffixe de la référence modèle (sur la plaque signalétique).\n\n**Gen 1** — Unités R410A fabriquées avant ~2016.\n**Gen 2+** — Unités R410A/R32 fabriquées à partir de ~2016.\n\nCela fait référence à la date de fabrication, pas à la date d'installation.\n\n[M'aider à identifier mon modèle](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Sélectionnez la génération matérielle de votre pompe à chaleur en vous basant sur le suffixe de la référence modèle (sur la plaque signalétique).\n\n**Gen 1** — Unités R410A fabriquées avant ~2016.\n**Gen 2+** — Unités R410A/R32 fabriquées à partir de ~2016.\n\nCela fait référence à la date de fabrication, pas à la date d'installation.\n\n[M'aider à identifier mon modèle]({model_decoder_url})",
         "data": {
           "gateway_variant": "Génération"
         }
@@ -121,7 +121,7 @@
       },
       "gateway_variant": {
         "title": "Génération matérielle",
-        "description": "Sélectionnez la génération matérielle de votre pompe à chaleur en vous basant sur le suffixe de la référence modèle (sur la plaque signalétique).\n\n**Gen 1** — Unités R410A fabriquées avant ~2016.\n**Gen 2+** — Unités R410A/R32 fabriquées à partir de ~2016.\n\nCela fait référence à la date de fabrication, pas à la date d'installation.\n\n[M'aider à identifier mon modèle](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Sélectionnez la génération matérielle de votre pompe à chaleur en vous basant sur le suffixe de la référence modèle (sur la plaque signalétique).\n\n**Gen 1** — Unités R410A fabriquées avant ~2016.\n**Gen 2+** — Unités R410A/R32 fabriquées à partir de ~2016.\n\nCela fait référence à la date de fabrication, pas à la date d'installation.\n\n[M'aider à identifier mon modèle]({model_decoder_url})",
         "data": {
           "gateway_variant": "Génération"
         }

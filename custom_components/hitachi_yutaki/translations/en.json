@@ -67,7 +67,7 @@
       },
       "gateway_variant": {
         "title": "Hardware Generation",
-        "description": "Select the hardware generation of your heat pump based on the model reference suffix (on the unit nameplate).\n\n**Gen 1** — R410A units manufactured before ~2016.\n**Gen 2+** — R410A/R32 units manufactured ~2016 and later.\n\nThis refers to the manufacturing date, not the installation date.\n\n[Help me identify my model](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Select the hardware generation of your heat pump based on the model reference suffix (on the unit nameplate).\n\n**Gen 1** — R410A units manufactured before ~2016.\n**Gen 2+** — R410A/R32 units manufactured ~2016 and later.\n\nThis refers to the manufacturing date, not the installation date.\n\n[Help me identify my model]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generation"
         }
@@ -121,7 +121,7 @@
       },
       "gateway_variant": {
         "title": "Hardware Generation",
-        "description": "Select the hardware generation of your heat pump based on the model reference suffix (on the unit nameplate).\n\n**Gen 1** — R410A units manufactured before ~2016.\n**Gen 2+** — R410A/R32 units manufactured ~2016 and later.\n\nThis refers to the manufacturing date, not the installation date.\n\n[Help me identify my model](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html)",
+        "description": "Select the hardware generation of your heat pump based on the model reference suffix (on the unit nameplate).\n\n**Gen 1** — R410A units manufactured before ~2016.\n**Gen 2+** — R410A/R32 units manufactured ~2016 and later.\n\nThis refers to the manufacturing date, not the installation date.\n\n[Help me identify my model]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generation"
         }
