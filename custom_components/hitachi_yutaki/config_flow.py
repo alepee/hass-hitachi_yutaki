@@ -619,6 +619,9 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         variant_keys = list(GATEWAY_VARIANTS[gateway_type].keys())
         current_variant = self.config_entry.data.get("gateway_variant", "gen2")
 
+        # Use current variant as detected value (no Modbus probe in options flow)
+        auto_detect_status = current_variant.upper().replace("GEN", "Gen ")
+
         return self.async_show_form(
             step_id="gateway_variant",
             data_schema=vol.Schema(
@@ -635,7 +638,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                 }
             ),
             description_placeholders={
-                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html"
+                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html",
+                "detected_variant": auto_detect_status,
             },
         )
 
