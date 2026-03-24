@@ -9,11 +9,11 @@ This custom integration allows you to control and monitor your Hitachi **Yutaki*
 
 ## Compatibility
 
-- **Compatible Models**: 2016 and newer Hitachi air-to-water heat pumps
+- **Compatible Models**: Hitachi air-to-water heat pumps (2016 and newer fully supported, pre-2016 in beta)
 - **Tested With**: Yutaki S80, Yutaki S, Yutaki S Combi, Yutampo R32
 - **Required Hardware**: ATW-MBS-02 or HC-A(16/64)MB Modbus gateway
 
-> **Important**: Models manufactured before 2016 use different Modbus registers and are not compatible. If you do have an older Heat Pump already equiped with a Modbus gateway, you can [open an issue](https://github.com/alepee/hass-hitachi_yutaki/issues/new?title=Pre-2016%20Heat%20Pump%20support%20request) if your have time to help me add support for your model.
+> **Pre-2016 support (Beta)**: Gen 1 Yutaki S and S Combi units (NWE/NWSE suffix) are supported in beta. This implementation is based on the Hitachi documentation but has not been validated on real hardware yet. If you have a pre-2016 unit, select "Gen 1" during setup and [let us know how it goes](https://github.com/alepee/hass-hitachi_yutaki/discussions). Not sure which generation you have? Use the [model decoder tool](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html).
 
 ## Features
 
@@ -134,9 +134,10 @@ action:
 The configuration flow guides you through several steps:
 
 1. **Gateway selection**: Choose your gateway type (ATW-MBS-02 or HC-A(16/64)MB)
-2. **Gateway configuration**: Connection details (name, IP, port, slave ID, scan interval). HC-A(16/64)MB also asks for the unit ID.
-3. **Profile selection**: The integration auto-detects your heat pump model. You can override the detection if needed.
-4. **Power & sensors**: Power supply type (single/three phase) and optional external entities for voltage, power, energy, and water temperatures (inlet/outlet) for more accurate COP and thermal calculations.
+2. **Hardware generation** (ATW-MBS-02 only): Select your hardware generation (Gen 1 or Gen 2+). The integration auto-detects this after connecting.
+3. **Gateway configuration**: Connection details (name, IP, port, slave ID, scan interval). HC-A(16/64)MB also asks for the unit ID.
+4. **Profile selection**: The integration auto-detects your heat pump model. You can override the detection if needed.
+5. **Power & sensors**: Power supply type (single/three phase) and optional external entities for voltage, power, energy, and water temperatures (inlet/outlet) for more accurate COP and thermal calculations.
 
 You can reconfigure the integration at any time via **Settings** > **Devices & Services** > **Hitachi Heat Pump** > **Configure**.
 
