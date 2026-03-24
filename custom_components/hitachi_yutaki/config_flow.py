@@ -11,15 +11,13 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import (
     CONF_NAME,
-    CONF_SCAN_INTERVAL,
 )
 from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
-import homeassistant.helpers.config_validation as cv
 
 from .api import GATEWAY_INFO, create_register_map
-from .api.modbus.registers import GATEWAY_VARIANTS
+from .api.config_providers import GATEWAY_CONFIG_PROVIDERS
 from .const import (
     CONF_ENERGY_ENTITY,
     CONF_MODBUS_DEVICE_ID,
@@ -31,12 +29,7 @@ from .const import (
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
-    DEFAULT_DEVICE_ID,
-    DEFAULT_HOST,
-    DEFAULT_NAME,
-    DEFAULT_PORT,
     DEFAULT_POWER_SUPPLY,
-    DEFAULT_SCAN_INTERVAL,
     DEFAULT_UNIT_ID,
     DOMAIN,
 )
@@ -54,21 +47,6 @@ GATEWAY_SELECTION_SCHEMA = vol.Schema(
                 translation_key="gateway_type",
             ),
         )
-    }
-)
-
-# Basic schema for gateway configuration
-GATEWAY_SCHEMA = vol.Schema(
-    {
-        vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
-        vol.Required(CONF_MODBUS_HOST, default=DEFAULT_HOST): str,
-        vol.Required(CONF_MODBUS_PORT, default=DEFAULT_PORT): cv.port,
-        vol.Required(CONF_MODBUS_DEVICE_ID, default=DEFAULT_DEVICE_ID): vol.All(
-            vol.Coerce(int), vol.Range(min=1, max=247)
-        ),
-        vol.Optional(
-            CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
-        ): cv.positive_int,
     }
 )
 
@@ -125,9 +103,10 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         """Initialize the config flow."""
         self.gateway_type: str | None = None
-        self.gateway_variant: str | None = None
-        self.basic_config: dict[str, Any] = {}
-        self.all_data: dict[str, Any] = {}
+        self._provider: Any = None
+        self._provider_steps: list[str] = []
+        self._current_step_index: int = 0
+        self._step_context: dict[str, Any] = {}
         self.detected_profiles: list[str] = []
 
     @staticmethod
@@ -149,263 +128,81 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step (gateway selection)."""
         if user_input is not None:
             self.gateway_type = user_input["gateway_type"]
-            return await self.async_step_gateway_config()
+            self._provider = GATEWAY_CONFIG_PROVIDERS[self.gateway_type]()
+            self._provider_steps = self._provider.config_steps()
+            self._current_step_index = 0
+
+            # Register dynamic step methods for HA routing.
+            # HA dispatches form submissions by calling async_step_<step_id>()
+            # via introspection. Since provider step IDs are dynamic (declared
+            # at runtime by each gateway), we register them here so HA can
+            # find them. All provider steps route to _handle_provider_step.
+            for step_id in self._provider_steps:
+                setattr(self, f"async_step_{step_id}", self._handle_provider_step)
+
+            return await self._handle_provider_step()
 
         return self.async_show_form(
             step_id="user", data_schema=GATEWAY_SELECTION_SCHEMA
         )
 
-    async def async_step_gateway_config(
+    async def _handle_provider_step(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle gateway configuration (connection test only)."""
-        errors: dict[str, str] = {}
+        """Handle a gateway provider configuration step.
+
+        Process every step declared by the gateway's GatewayConfigProvider.
+        HA routes to this method via dynamically registered
+        async_step_<step_id> methods (see async_step_user).
+
+        Flow:
+        1. First call (user_input=None): get schema from provider, show form
+        2. Submission (user_input=dict): pass to provider's process_step()
+           - If errors: re-show form with errors
+           - If ok: merge config_data into context, advance to next step
+           - If last step and detected_profiles set: go to profile selection
+        """
+        step_id = self._provider_steps[self._current_step_index]
 
         if user_input is not None:
-            # Store basic configuration
-            self.basic_config = {
-                CONF_NAME: user_input[CONF_NAME],
-                CONF_MODBUS_HOST: user_input[CONF_MODBUS_HOST],
-                CONF_MODBUS_PORT: user_input[CONF_MODBUS_PORT],
-                CONF_MODBUS_DEVICE_ID: user_input[CONF_MODBUS_DEVICE_ID],
-                CONF_SCAN_INTERVAL: user_input.get(
-                    CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
-                ),
-            }
-            # Store unit_id for HC-A(16/64)MB
-            if self.gateway_type == "modbus_hc_a_mb":
-                self.basic_config[CONF_UNIT_ID] = user_input.get(
-                    CONF_UNIT_ID, DEFAULT_UNIT_ID
-                )
-
-            # Perform a basic connectivity test
-            connection_ok = await self._test_connection()
-            if not connection_ok:
-                errors["base"] = "cannot_connect"
-            else:
-                # Connection successful — decide next step
-                if self.gateway_type in GATEWAY_VARIANTS:
-                    return await self.async_step_gateway_variant()
-                # No variants — do profile detection directly
-                profile_error = await self._detect_and_store_profiles()
-                if profile_error:
-                    errors["base"] = profile_error
-                else:
-                    return await self.async_step_profile()
-
-        # Build schema dynamically based on gateway type
-        schema = GATEWAY_SCHEMA
-        if self.gateway_type == "modbus_hc_a_mb":
-            schema = schema.extend(
-                {
-                    vol.Required(CONF_UNIT_ID, default=DEFAULT_UNIT_ID): vol.All(
-                        vol.Coerce(int), vol.Range(min=0, max=15)
-                    ),
-                }
+            outcome = await self._provider.process_step(
+                self.hass, step_id, user_input, self._step_context
             )
 
-        return self.async_show_form(
-            step_id="gateway_config",
-            data_schema=schema,
-            errors=errors,
-        )
+            if outcome.errors:
+                step_schema = self._provider.step_schema(step_id, self._step_context)
+                return self.async_show_form(
+                    step_id=step_id,
+                    data_schema=step_schema.schema,
+                    description_placeholders=step_schema.description_placeholders,
+                    errors=outcome.errors,
+                )
 
-    async def async_step_gateway_variant(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle gateway variant (hardware generation) selection with auto-detection."""
-        errors: dict[str, str] = {}
+            if outcome.config_data:
+                self._step_context.update(outcome.config_data)
 
-        if user_input is not None:
-            self.gateway_variant = user_input["gateway_variant"]
-            # Now do profile detection with the chosen variant
-            profile_error = await self._detect_and_store_profiles()
-            if profile_error:
-                errors["base"] = profile_error
-            else:
+            if outcome.detected_profiles is not None:
+                self.detected_profiles = outcome.detected_profiles
+
+            self._current_step_index += 1
+            if self._current_step_index >= len(self._provider_steps):
                 return await self.async_step_profile()
 
-        # Try auto-detection of variant
-        detected_variant = await self._detect_variant()
+            step_id = self._provider_steps[self._current_step_index]
 
-        variant_keys = list(GATEWAY_VARIANTS[self.gateway_type].keys())
-        default_variant = detected_variant if detected_variant else vol.UNDEFINED
-
-        # Build auto-detection status message for description
-        if detected_variant:
-            auto_detect_status = detected_variant.upper().replace("GEN", "Gen ")
-        else:
-            auto_detect_status = "?"
-
+        step_schema = self._provider.step_schema(step_id, self._step_context)
         return self.async_show_form(
-            step_id="gateway_variant",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        "gateway_variant",
-                        default=default_variant,
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=variant_keys,
-                            mode=selector.SelectSelectorMode.LIST,
-                            translation_key="gateway_variant",
-                        ),
-                    ),
-                }
-            ),
-            description_placeholders={
-                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html",
-                "detected_variant": auto_detect_status,
-            },
-            errors=errors,
+            step_id=step_id,
+            data_schema=step_schema.schema,
+            description_placeholders=step_schema.description_placeholders,
         )
-
-    async def _test_connection(self) -> bool:
-        """Test basic Modbus connectivity without reading registers.
-
-        Creates a temporary API client and attempts to connect. For gateways
-        without variants, this uses the correct register map. For gateways
-        with variants, we use the default (gen2) register map just for the
-        connectivity test — only connect + read system_state to verify
-        the gateway is reachable.
-        """
-        api_client_class = GATEWAY_INFO[self.gateway_type].client_class
-        # Use a default register map for connectivity test
-        # For ATW-MBS-02 without variant selected yet, gen2 is fine for basic connectivity
-        register_map = create_register_map(
-            self.gateway_type,
-            self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-            gateway_variant=self.gateway_variant,
-        )
-        api_client = api_client_class(
-            self.hass,
-            name=self.basic_config[CONF_NAME],
-            host=self.basic_config[CONF_MODBUS_HOST],
-            port=self.basic_config[CONF_MODBUS_PORT],
-            slave=self.basic_config[CONF_MODBUS_DEVICE_ID],
-            register_map=register_map,
-        )
-        try:
-            if not await api_client.connect():
-                return False
-            # Read system_state as a basic preflight check
-            # This register is at the same address in all ATW-MBS-02 variants
-            await api_client.read_values(api_client.register_map.gateway_keys)
-            return True
-        except (ModbusException, ConnectionException, OSError):
-            return False
-        finally:
-            if api_client.connected:
-                await api_client.close()
-
-    async def _detect_variant(self) -> str | None:
-        """Try to auto-detect the gateway variant by probing with each register map.
-
-        Strategy: create a client with the gen2 register map, connect, read unit_model.
-        If the deserialized value is a known model, it's gen2. Otherwise try gen1.
-        """
-        variants = GATEWAY_VARIANTS.get(self.gateway_type, {})
-        if not variants:
-            return None
-
-        api_client_class = GATEWAY_INFO[self.gateway_type].client_class
-
-        # Try gen2 first (more common, newer hardware)
-        for variant_key in ["gen2", "gen1"]:
-            if variant_key not in variants:
-                continue
-            register_map = create_register_map(
-                self.gateway_type,
-                self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-                gateway_variant=variant_key,
-            )
-            api_client = api_client_class(
-                self.hass,
-                name="variant_probe",
-                host=self.basic_config[CONF_MODBUS_HOST],
-                port=self.basic_config[CONF_MODBUS_PORT],
-                slave=self.basic_config[CONF_MODBUS_DEVICE_ID],
-                register_map=register_map,
-            )
-            try:
-                if not await api_client.connect():
-                    return None
-                # Read gateway keys which include unit_model
-                await api_client.read_values(api_client.register_map.gateway_keys)
-                unit_model = await api_client.read_value("unit_model")
-                if unit_model is not None and unit_model != "unknown":
-                    _LOGGER.debug(
-                        "Auto-detected variant %s (unit_model=%s)",
-                        variant_key,
-                        unit_model,
-                    )
-                    return variant_key
-            except (ModbusException, ConnectionException, OSError):
-                _LOGGER.debug(
-                    "Variant probe failed for %s",
-                    variant_key,
-                )
-            finally:
-                if api_client.connected:
-                    await api_client.close()
-
-        return None
-
-    async def _detect_and_store_profiles(self) -> str | None:
-        """Connect to gateway, read data, detect profiles.
-
-        Returns None on success, or an error key string on failure.
-        Sets self.detected_profiles on success.
-        """
-        api_client_class = GATEWAY_INFO[self.gateway_type].client_class
-        register_map = create_register_map(
-            self.gateway_type,
-            self.basic_config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-            gateway_variant=self.gateway_variant,
-        )
-        api_client = api_client_class(
-            self.hass,
-            name=self.basic_config[CONF_NAME],
-            host=self.basic_config[CONF_MODBUS_HOST],
-            port=self.basic_config[CONF_MODBUS_PORT],
-            slave=self.basic_config[CONF_MODBUS_DEVICE_ID],
-            register_map=register_map,
-        )
-        try:
-            if not await api_client.connect():
-                return "cannot_connect"
-
-            _LOGGER.debug("Fetching all values to allow profiles to detect device")
-            keys_to_read = api_client.register_map.base_keys
-            await api_client.read_values(keys_to_read)
-            all_data = {key: await api_client.read_value(key) for key in keys_to_read}
-
-            # Decode the raw config to get boolean flags
-            decoded_data = api_client.decode_config(all_data)
-
-            _LOGGER.debug("Detecting profile with data: %s", decoded_data)
-            detected_profiles = [
-                key for key, profile in PROFILES.items() if profile.detect(decoded_data)
-            ]
-
-            _LOGGER.debug("Detected profiles: %s", detected_profiles)
-            self.detected_profiles = detected_profiles
-
-            if not detected_profiles:
-                _LOGGER.warning("No profile detected, showing all available profiles")
-            return None
-        except (ModbusException, ConnectionException, OSError):
-            return "cannot_connect"
-        finally:
-            if api_client.connected:
-                await api_client.close()
 
     async def async_step_profile(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
         """Handle profile selection."""
         if user_input is not None:
-            self.basic_config["profile"] = user_input["profile"]
+            self._step_context["profile"] = user_input["profile"]
             # Go to power supply step
             return await self.async_step_power()
 
@@ -439,13 +236,13 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         errors: dict[str, str] = {}
 
         if user_input is not None:
-            self.basic_config.update(user_input)
             config = {
                 "gateway_type": self.gateway_type,
-                **self.basic_config,
+                **self._step_context,
+                **user_input,
             }
-            if self.gateway_variant is not None:
-                config["gateway_variant"] = self.gateway_variant
+            # Clean up internal keys (prefixed with _)
+            config = {k: v for k, v in config.items() if not k.startswith("_")}
             return await self.async_validate_connection(config)
 
         return self.async_show_form(
@@ -527,7 +324,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
         return self.async_show_form(
             step_id="user",
-            data_schema=GATEWAY_SCHEMA,
+            data_schema=GATEWAY_SELECTION_SCHEMA,
             errors=errors,
         )
 
@@ -538,6 +335,10 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
         self._collected: dict[str, Any] = {}
+        self._provider: Any = None
+        self._provider_steps: list[str] = []
+        self._current_step_index: int = 0
+        self._step_context: dict[str, Any] = {}
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -545,7 +346,20 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         """Step 1: Gateway type selection."""
         if user_input is not None:
             self._collected.update(user_input)
-            return await self.async_step_connection()
+            gateway_type = self._collected.get(
+                "gateway_type", self.config_entry.data.get("gateway_type")
+            )
+
+            self._provider = GATEWAY_CONFIG_PROVIDERS[gateway_type]()
+            self._provider_steps = self._provider.config_steps()
+            self._current_step_index = 0
+            # Pre-populate context with existing config data for defaults
+            self._step_context = dict(self.config_entry.data)
+
+            for step_id in self._provider_steps:
+                setattr(self, f"async_step_{step_id}", self._handle_provider_step)
+
+            return await self._handle_provider_step()
 
         current_gateway = self.config_entry.data.get(
             "gateway_type", "modbus_atw_mbs_02"
@@ -568,75 +382,48 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             ),
         )
 
-    async def async_step_connection(
+    async def _handle_provider_step(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Step 2: Connection settings."""
+        """Handle a gateway provider configuration step.
+
+        Same logic as the config flow handler: show form, process input,
+        advance through provider steps, then go to profile selection.
+        """
+        step_id = self._provider_steps[self._current_step_index]
+
         if user_input is not None:
-            self._collected.update(user_input)
-            gateway_type = self._collected.get(
-                "gateway_type", self.config_entry.data.get("gateway_type")
+            outcome = await self._provider.process_step(
+                self.hass, step_id, user_input, self._step_context
             )
-            if gateway_type in GATEWAY_VARIANTS:
-                return await self.async_step_gateway_variant()
-            return await self.async_step_profile()
 
-        data = self.config_entry.data
+            if outcome.errors:
+                step_schema = self._provider.step_schema(step_id, self._step_context)
+                return self.async_show_form(
+                    step_id=step_id,
+                    data_schema=step_schema.schema,
+                    description_placeholders=step_schema.description_placeholders,
+                    errors=outcome.errors,
+                )
 
+            if outcome.config_data:
+                self._step_context.update(outcome.config_data)
+
+            if outcome.detected_profiles is not None:
+                # Options flow doesn't use detected_profiles for auto-selection
+                pass
+
+            self._current_step_index += 1
+            if self._current_step_index >= len(self._provider_steps):
+                return await self.async_step_profile()
+
+            step_id = self._provider_steps[self._current_step_index]
+
+        step_schema = self._provider.step_schema(step_id, self._step_context)
         return self.async_show_form(
-            step_id="connection",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_MODBUS_HOST, default=data.get(CONF_MODBUS_HOST)
-                    ): str,
-                    vol.Required(
-                        CONF_MODBUS_PORT, default=data.get(CONF_MODBUS_PORT)
-                    ): cv.port,
-                    vol.Required(
-                        CONF_MODBUS_DEVICE_ID,
-                        default=data.get(CONF_MODBUS_DEVICE_ID, DEFAULT_DEVICE_ID),
-                    ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
-                    vol.Optional(
-                        CONF_SCAN_INTERVAL,
-                        default=data.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
-                    ): cv.positive_int,
-                }
-            ),
-        )
-
-    async def async_step_gateway_variant(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Step 2b: Gateway variant (hardware generation) selection."""
-        if user_input is not None:
-            self._collected.update(user_input)
-            return await self.async_step_profile()
-
-        gateway_type = self._collected.get(
-            "gateway_type", self.config_entry.data.get("gateway_type")
-        )
-        variant_keys = list(GATEWAY_VARIANTS[gateway_type].keys())
-        current_variant = self.config_entry.data.get("gateway_variant", "gen2")
-
-        return self.async_show_form(
-            step_id="gateway_variant",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        "gateway_variant", default=current_variant
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=variant_keys,
-                            mode=selector.SelectSelectorMode.LIST,
-                            translation_key="gateway_variant",
-                        ),
-                    ),
-                }
-            ),
-            description_placeholders={
-                "model_decoder_url": "https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html",
-            },
+            step_id=step_id,
+            data_schema=step_schema.schema,
+            description_placeholders=step_schema.description_placeholders,
         )
 
     async def async_step_profile(
@@ -673,8 +460,12 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._collected.update(user_input)
 
-            # Merge collected values into entry.data and reload
-            new_data = {**self.config_entry.data, **self._collected}
+            # Merge: entry defaults < provider context < user-collected
+            # Clean up internal keys (prefixed with _) from provider context
+            provider_data = {
+                k: v for k, v in self._step_context.items() if not k.startswith("_")
+            }
+            new_data = {**self.config_entry.data, **provider_data, **self._collected}
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data=new_data
             )
