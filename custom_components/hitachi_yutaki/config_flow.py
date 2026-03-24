@@ -409,10 +409,6 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             if outcome.config_data:
                 self._step_context.update(outcome.config_data)
 
-            if outcome.detected_profiles is not None:
-                # Options flow doesn't use detected_profiles for auto-selection
-                pass
-
             self._current_step_index += 1
             if self._current_step_index >= len(self._provider_steps):
                 return await self.async_step_profile()

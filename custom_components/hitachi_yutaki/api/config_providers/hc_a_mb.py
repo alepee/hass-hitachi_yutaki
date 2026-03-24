@@ -51,21 +51,34 @@ class HcAMbConfigProvider:
 
     def step_schema(self, step_id: str, context: dict[str, Any]) -> StepSchema:
         """Return the form schema for the connection step."""
+        if step_id != _STEP_CONNECTION:
+            msg = f"Unknown step_id: {step_id}"
+            raise ValueError(msg)
         return StepSchema(
             schema=vol.Schema(
                 {
-                    vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
-                    vol.Required(CONF_MODBUS_HOST, default=DEFAULT_HOST): str,
-                    vol.Required(CONF_MODBUS_PORT, default=DEFAULT_PORT): cv.port,
+                    vol.Optional(
+                        CONF_NAME, default=context.get(CONF_NAME, DEFAULT_NAME)
+                    ): str,
                     vol.Required(
-                        CONF_MODBUS_DEVICE_ID, default=DEFAULT_DEVICE_ID
+                        CONF_MODBUS_HOST,
+                        default=context.get(CONF_MODBUS_HOST, DEFAULT_HOST),
+                    ): str,
+                    vol.Required(
+                        CONF_MODBUS_PORT,
+                        default=context.get(CONF_MODBUS_PORT, DEFAULT_PORT),
+                    ): cv.port,
+                    vol.Required(
+                        CONF_MODBUS_DEVICE_ID,
+                        default=context.get(CONF_MODBUS_DEVICE_ID, DEFAULT_DEVICE_ID),
                     ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
                     vol.Optional(
-                        CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+                        CONF_SCAN_INTERVAL,
+                        default=context.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                     ): cv.positive_int,
-                    vol.Required(CONF_UNIT_ID, default=DEFAULT_UNIT_ID): vol.All(
-                        vol.Coerce(int), vol.Range(min=0, max=15)
-                    ),
+                    vol.Required(
+                        CONF_UNIT_ID, default=context.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
+                    ): vol.All(vol.Coerce(int), vol.Range(min=0, max=15)),
                 }
             ),
         )
@@ -78,6 +91,9 @@ class HcAMbConfigProvider:
         context: dict[str, Any],
     ) -> StepOutcome:
         """Process the connection step: test connectivity and detect profiles."""
+        if step_id != _STEP_CONNECTION:
+            msg = f"Unknown step_id: {step_id}"
+            raise ValueError(msg)
         name = user_input[CONF_NAME]
         host = user_input[CONF_MODBUS_HOST]
         port = user_input[CONF_MODBUS_PORT]

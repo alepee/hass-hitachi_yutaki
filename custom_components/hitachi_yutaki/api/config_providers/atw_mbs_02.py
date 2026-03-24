@@ -51,7 +51,7 @@ class AtwMbs02ConfigProvider:
     def step_schema(self, step_id: str, context: dict[str, Any]) -> StepSchema:
         """Return the form schema and description placeholders for a step."""
         if step_id == "atw_mbs_02_connection":
-            return self._connection_schema()
+            return self._connection_schema(context)
         if step_id == "atw_mbs_02_variant":
             return self._variant_schema(context)
         msg = f"Unknown step_id: {step_id}"
@@ -77,18 +77,28 @@ class AtwMbs02ConfigProvider:
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _connection_schema() -> StepSchema:
+    def _connection_schema(context: dict[str, Any]) -> StepSchema:
         """Build schema for the connection step."""
         schema = vol.Schema(
             {
-                vol.Optional(CONF_NAME, default=DEFAULT_NAME): str,
-                vol.Required(CONF_MODBUS_HOST, default=DEFAULT_HOST): str,
-                vol.Required(CONF_MODBUS_PORT, default=DEFAULT_PORT): cv.port,
-                vol.Required(CONF_MODBUS_DEVICE_ID, default=DEFAULT_DEVICE_ID): vol.All(
-                    vol.Coerce(int), vol.Range(min=1, max=247)
-                ),
                 vol.Optional(
-                    CONF_SCAN_INTERVAL, default=DEFAULT_SCAN_INTERVAL
+                    CONF_NAME, default=context.get(CONF_NAME, DEFAULT_NAME)
+                ): str,
+                vol.Required(
+                    CONF_MODBUS_HOST,
+                    default=context.get(CONF_MODBUS_HOST, DEFAULT_HOST),
+                ): str,
+                vol.Required(
+                    CONF_MODBUS_PORT,
+                    default=context.get(CONF_MODBUS_PORT, DEFAULT_PORT),
+                ): cv.port,
+                vol.Required(
+                    CONF_MODBUS_DEVICE_ID,
+                    default=context.get(CONF_MODBUS_DEVICE_ID, DEFAULT_DEVICE_ID),
+                ): vol.All(vol.Coerce(int), vol.Range(min=1, max=247)),
+                vol.Optional(
+                    CONF_SCAN_INTERVAL,
+                    default=context.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
                 ): cv.positive_int,
             }
         )
