@@ -65,20 +65,30 @@
           "gateway_type": "Type de passerelle"
         }
       },
-      "gateway_variant": {
+      "atw_mbs_02_variant": {
         "title": "Génération matérielle",
         "description": "Sélectionnez la génération matérielle en vous basant sur le suffixe de la référence modèle (sur la plaque signalétique).\n\n**Gen 1** — Unités R410A fabriquées avant ~2016.\n**Gen 2+** — Unités R410A/R32 fabriquées à partir de ~2016.\n\n[M'aider à identifier mon modèle]({model_decoder_url})",
         "data": {
           "gateway_variant": "Génération"
         }
       },
-      "connection": {
+      "atw_mbs_02_connection": {
         "title": "Paramètres de connexion",
         "description": "Entrez les détails de connexion pour votre passerelle.",
         "data": {
           "modbus_host": "Hôte/Adresse IP",
           "modbus_port": "Port",
           "modbus_device_id": "ID Périphérique Modbus"
+        }
+      },
+      "hc_a_mb_connection": {
+        "title": "Paramètres de connexion",
+        "description": "Entrez les détails de connexion pour votre passerelle.",
+        "data": {
+          "modbus_host": "Hôte/Adresse IP",
+          "modbus_port": "Port",
+          "modbus_device_id": "ID Périphérique Modbus",
+          "unit_id": "Identifiant d'unité"
         }
       },
       "profile": {
@@ -119,14 +129,14 @@
           "gateway_type": "Type de passerelle"
         }
       },
-      "gateway_variant": {
+      "atw_mbs_02_variant": {
         "title": "Génération matérielle",
         "description": "Détection automatique : **{detected_variant}**. Vérifiez à l'aide du suffixe de la référence modèle (sur la plaque signalétique).\n\n**Gen 1** — Unités R410A fabriquées avant ~2016.\n**Gen 2+** — Unités R410A/R32 fabriquées à partir de ~2016.\n\n[M'aider à identifier mon modèle]({model_decoder_url})",
         "data": {
           "gateway_variant": "Génération"
         }
       },
-      "gateway_config": {
+      "atw_mbs_02_connection": {
         "title": "Paramètres de connexion",
         "description": "Entrez les détails de connexion pour votre passerelle de pompe à chaleur Hitachi Yutaki.",
         "data": {
@@ -134,7 +144,18 @@
           "modbus_host": "Hôte/Adresse IP",
           "modbus_port": "Port",
           "modbus_device_id": "ID Périphérique Modbus",
-          "unit_id": "ID de l'unité (HC-A(16/64)MB uniquement, 0-15)",
+          "scan_interval": "Intervalle d'interrogation (secondes)"
+        }
+      },
+      "hc_a_mb_connection": {
+        "title": "Paramètres de connexion",
+        "description": "Entrez les détails de connexion pour votre passerelle de pompe à chaleur Hitachi Yutaki.",
+        "data": {
+          "name": "Nom",
+          "modbus_host": "Hôte/Adresse IP",
+          "modbus_port": "Port",
+          "modbus_device_id": "ID Périphérique Modbus",
+          "unit_id": "Identifiant d'unité",
           "scan_interval": "Intervalle d'interrogation (secondes)"
         }
       },

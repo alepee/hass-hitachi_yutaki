@@ -65,20 +65,30 @@
           "gateway_type": "Gatewaytype"
         }
       },
-      "gateway_variant": {
+      "atw_mbs_02_variant": {
         "title": "Hardwaregeneratie",
         "description": "Selecteer de hardwaregeneratie op basis van het modelsuffix (op het typeplaatje).\n\n**Gen 1** — R410A units gefabriceerd vóór ~2016.\n**Gen 2+** — R410A/R32 units gefabriceerd vanaf ~2016.\n\n[Help mij mijn model te identificeren]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generatie"
         }
       },
-      "connection": {
+      "atw_mbs_02_connection": {
         "title": "Verbindingsinstellingen",
         "description": "Voer de verbindingsgegevens in voor uw gateway.",
         "data": {
           "modbus_host": "Host/IP-adres",
           "modbus_port": "Poort",
           "modbus_device_id": "Modbus Apparaat-ID"
+        }
+      },
+      "hc_a_mb_connection": {
+        "title": "Verbindingsinstellingen",
+        "description": "Voer de verbindingsgegevens in voor uw gateway.",
+        "data": {
+          "modbus_host": "Host/IP-adres",
+          "modbus_port": "Poort",
+          "modbus_device_id": "Modbus Apparaat-ID",
+          "unit_id": "Unit ID"
         }
       },
       "profile": {
@@ -119,14 +129,14 @@
           "gateway_type": "Gatewaytype"
         }
       },
-      "gateway_variant": {
+      "atw_mbs_02_variant": {
         "title": "Hardwaregeneratie",
         "description": "Automatische detectie: **{detected_variant}**. Verifieer aan de hand van het modelsuffix (op het typeplaatje).\n\n**Gen 1** — R410A units gefabriceerd vóór ~2016.\n**Gen 2+** — R410A/R32 units gefabriceerd vanaf ~2016.\n\n[Help mij mijn model te identificeren]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generatie"
         }
       },
-      "gateway_config": {
+      "atw_mbs_02_connection": {
         "title": "Verbindingsinstellingen",
         "description": "Voer de verbindingsgegevens in voor uw Hitachi Yutaki warmtepompgateway.",
         "data": {
@@ -134,7 +144,18 @@
           "modbus_host": "Host/IP-adres",
           "modbus_port": "Poort",
           "modbus_device_id": "Modbus Apparaat-ID",
-          "unit_id": "Unit-ID (alleen HC-A(16/64)MB, 0-15)",
+          "scan_interval": "Polling-interval (seconden)"
+        }
+      },
+      "hc_a_mb_connection": {
+        "title": "Verbindingsinstellingen",
+        "description": "Voer de verbindingsgegevens in voor uw Hitachi Yutaki warmtepompgateway.",
+        "data": {
+          "name": "Naam",
+          "modbus_host": "Host/IP-adres",
+          "modbus_port": "Poort",
+          "modbus_device_id": "Modbus Apparaat-ID",
+          "unit_id": "Unit ID",
           "scan_interval": "Polling-interval (seconden)"
         }
       },

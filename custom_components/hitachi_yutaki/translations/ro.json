@@ -65,20 +65,30 @@
           "gateway_type": "Tip gateway"
         }
       },
-      "gateway_variant": {
+      "atw_mbs_02_variant": {
         "title": "Generația hardware",
         "description": "Selectați generația hardware pe baza sufixului de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\n[Ajută-mă să identific modelul meu]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generație"
         }
       },
-      "connection": {
+      "atw_mbs_02_connection": {
         "title": "Setări de conexiune",
         "description": "Introduceți detaliile de conexiune pentru gateway-ul dumneavoastră.",
         "data": {
           "modbus_host": "Gazdă/Adresă IP",
           "modbus_port": "Port",
           "modbus_device_id": "ID Dispozitiv Modbus"
+        }
+      },
+      "hc_a_mb_connection": {
+        "title": "Setări de conexiune",
+        "description": "Introduceți detaliile de conexiune pentru gateway-ul dumneavoastră.",
+        "data": {
+          "modbus_host": "Gazdă/Adresă IP",
+          "modbus_port": "Port",
+          "modbus_device_id": "ID Dispozitiv Modbus",
+          "unit_id": "ID unitate"
         }
       },
       "profile": {
@@ -119,14 +129,14 @@
           "gateway_type": "Tip gateway"
         }
       },
-      "gateway_variant": {
+      "atw_mbs_02_variant": {
         "title": "Generația hardware",
         "description": "Detectare automată: **{detected_variant}**. Verificați folosind sufixul de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\n[Ajută-mă să identific modelul meu]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generație"
         }
       },
-      "gateway_config": {
+      "atw_mbs_02_connection": {
         "title": "Setări de conexiune",
         "description": "Introduceți detaliile de conexiune pentru gateway-ul pompei de căldură Hitachi Yutaki.",
         "data": {
@@ -134,7 +144,18 @@
           "modbus_host": "Gazdă/Adresă IP",
           "modbus_port": "Port",
           "modbus_device_id": "ID Dispozitiv Modbus",
-          "unit_id": "ID unitate (doar HC-A(16/64)MB, 0-15)",
+          "scan_interval": "Interval de interogare (secunde)"
+        }
+      },
+      "hc_a_mb_connection": {
+        "title": "Setări de conexiune",
+        "description": "Introduceți detaliile de conexiune pentru gateway-ul pompei de căldură Hitachi Yutaki.",
+        "data": {
+          "name": "Nume",
+          "modbus_host": "Gazdă/Adresă IP",
+          "modbus_port": "Port",
+          "modbus_device_id": "ID Dispozitiv Modbus",
+          "unit_id": "ID unitate",
           "scan_interval": "Interval de interogare (secunde)"
         }
       },
