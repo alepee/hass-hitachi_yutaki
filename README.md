@@ -1,5 +1,6 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![Translation status](https://hosted.weblate.org/widget/hass-hitachi_yutaki/source/svg-badge.svg)](https://hosted.weblate.org/engage/hass-hitachi_yutaki/)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/alepee/hass-hitachi_yutaki)
 
 # Hitachi air-to-water heat pumps Integration for Home Assistant
 
