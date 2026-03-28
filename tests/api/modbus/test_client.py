@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pymodbus.exceptions import ModbusException
 import pytest
 
+from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
 from custom_components.hitachi_yutaki.api.modbus.registers import RegisterDefinition
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
+    AtwMbs02RegisterMap,
     convert_signed_16bit,
 )
 
@@ -301,3 +304,162 @@ async def test_fallback_also_fails_returns_none(api_client, mock_client):
 
     assert value is None
     assert mock_client.read_holding_registers.call_count == 2
+
+
+# --- Preflight / system_state deserialization tests ---
+
+
+def _make_preflight_api_client(mock_hass, mock_client):
+    """Create a ModbusApiClient with register map for preflight tests."""
+    with patch.object(ModbusApiClient, "__init__", lambda x, *args, **kwargs: None):
+        api = ModbusApiClient.__new__(ModbusApiClient)
+        api._hass = mock_hass
+        api._client = mock_client
+        api._slave = 1
+        api._data = {}
+        api._register_map = AtwMbs02RegisterMap()
+        api._gateway_not_ready_since = None
+        api._gateway_not_ready_last_log = 0.0
+        return api
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_deserializes_system_state_on_state_0(
+    mock_ir, mock_hass, mock_client
+):
+    """Test system_state is deserialized to 'synchronized' when state is 0."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0)
+
+    result = await api.read_values(["system_state"])
+
+    assert result == ReadResult.SUCCESS
+    assert api._data["system_state"] == "synchronized"
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_deserializes_system_state_on_state_2(
+    mock_ir, mock_hass, mock_client
+):
+    """Test system_state is deserialized to 'initializing' when state is 2."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
+
+    result = await api.read_values(["system_state"])
+
+    assert result == ReadResult.GATEWAY_NOT_READY
+    assert api._data["system_state"] == "initializing"
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_deserializes_system_state_on_state_1(
+    mock_ir, mock_hass, mock_client
+):
+    """Test system_state is deserialized to 'desynchronized' when state is 1."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(1)
+
+    result = await api.read_values(["system_state"])
+
+    assert result == ReadResult.GATEWAY_NOT_READY
+    assert api._data["system_state"] == "desynchronized"
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_returns_success_on_normal_read(
+    mock_ir, mock_hass, mock_client
+):
+    """Test read_values returns SUCCESS when gateway is synchronized."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0)
+
+    result = await api.read_values(["system_state"])
+
+    assert result == ReadResult.SUCCESS
+
+
+@pytest.mark.asyncio
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+async def test_read_values_throttles_gateway_not_ready_logs(
+    _mock_ir, mock_hass, mock_client, caplog
+):
+    """Test that repeated gateway-not-ready warnings are throttled."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
+
+    # First call should log
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        await api.read_values(["system_state"])
+        first_warnings = [r for r in caplog.records if "not ready" in r.message]
+        assert len(first_warnings) == 1
+
+    # Second call immediately after should NOT log
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        await api.read_values(["system_state"])
+        second_warnings = [r for r in caplog.records if "not ready" in r.message]
+        assert len(second_warnings) == 0
+
+
+@pytest.mark.asyncio
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+async def test_read_values_resets_throttle_state_on_recovery(
+    _mock_ir, mock_hass, mock_client
+):
+    """Test that throttle state is reset after recovery."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+
+    # Not ready
+    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
+    await api.read_values(["system_state"])
+    assert api._gateway_not_ready_since is not None
+
+    # Recovered
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0)
+    await api.read_values(["system_state"])
+    assert api._gateway_not_ready_since is None
+    assert api._gateway_not_ready_last_log == 0.0
+
+
+@pytest.mark.asyncio
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@patch("custom_components.hitachi_yutaki.api.modbus.time")
+async def test_read_values_logs_periodic_reminder_after_5_minutes(
+    mock_time, _mock_ir, mock_hass, mock_client, caplog
+):
+    """Test that a periodic reminder is logged after 5 minutes of gateway-not-ready."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
+
+    # First call at t=0
+    mock_time.monotonic.return_value = 1000.0
+    await api.read_values(["system_state"])
+
+    # Second call at t=100s - should NOT log
+    mock_time.monotonic.return_value = 1100.0
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        await api.read_values(["system_state"])
+        warnings = [
+            r
+            for r in caplog.records
+            if "not ready" in r.message.lower()
+            or "still not ready" in r.message.lower()
+        ]
+        assert len(warnings) == 0
+
+    # Third call at t=301s - SHOULD log periodic reminder
+    mock_time.monotonic.return_value = 1301.0
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        await api.read_values(["system_state"])
+        reminders = [
+            r for r in caplog.records if "still not ready" in r.message.lower()
+        ]
+        assert len(reminders) == 1
+        assert "5 minutes" in reminders[0].message

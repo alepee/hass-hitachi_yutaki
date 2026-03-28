@@ -1,9 +1,17 @@
 """Base classes for Hitachi API."""
 
 from abc import ABC, abstractmethod
+from enum import Enum
 from typing import Any
 
 from custom_components.hitachi_yutaki.const import CIRCUIT_IDS, CIRCUIT_MODES
+
+
+class ReadResult(Enum):
+    """Result of a read_values operation."""
+
+    SUCCESS = "success"
+    GATEWAY_NOT_READY = "gateway_not_ready"
 
 
 class HitachiApiClient(ABC):
@@ -60,7 +68,7 @@ class HitachiApiClient(ABC):
         """Write a value to the API."""
 
     @abstractmethod
-    async def read_values(self, keys_to_read: list[str]) -> None:
+    async def read_values(self, keys_to_read: list[str]) -> ReadResult:
         """Fetch data from the heat pump for the given keys."""
 
     @property

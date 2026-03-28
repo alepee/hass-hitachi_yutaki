@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import (
 )
 
 from .api import HitachiApiClient
+from .api.base import ReadResult
 from .const import (
     CIRCUIT_IDS,
     CIRCUIT_MODES,
@@ -27,6 +28,8 @@ from .domain.services.defrost_guard import DefrostGuard
 from .profiles import HitachiHeatPumpProfile
 
 _LOGGER = logging.getLogger(__name__)
+
+_MAX_BACKOFF = timedelta(seconds=300)
 
 
 class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
@@ -44,12 +47,14 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.profile = profile
         self.entities: list[Any] = []
         self.defrost_guard = DefrostGuard()
+        self._normal_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
+        self._gateway_not_ready_count: int = 0
 
         super().__init__(
             hass,
             _LOGGER,
             name=DOMAIN,
-            update_interval=timedelta(seconds=entry.data[CONF_SCAN_INTERVAL]),
+            update_interval=self._normal_interval,
         )
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -65,7 +70,27 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             )
 
             _LOGGER.debug("Reading %d keys from gateway", len(keys_to_read))
-            await self.api_client.read_values(keys_to_read)
+            result = await self.api_client.read_values(keys_to_read)
+
+            if result == ReadResult.GATEWAY_NOT_READY:
+                self._gateway_not_ready_count += 1
+                backoff = min(
+                    self._normal_interval * (2**self._gateway_not_ready_count),
+                    _MAX_BACKOFF,
+                )
+                self.update_interval = backoff
+                raise UpdateFailed(
+                    "Gateway is not ready (initializing or desynchronized)"
+                )
+
+            # Gateway is ready - restore normal interval if needed
+            if self._gateway_not_ready_count > 0:
+                _LOGGER.info(
+                    "Gateway recovered, restoring normal polling interval (%ss).",
+                    self._normal_interval.total_seconds(),
+                )
+                self._gateway_not_ready_count = 0
+                self.update_interval = self._normal_interval
 
             data: dict[str, Any] = {"is_available": True}
 
@@ -97,6 +122,11 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     await entity.async_update_timing()
 
             return data
+
+        except UpdateFailed:
+            # Re-raise so the generic Exception handler below doesn't
+            # turn our intentional UpdateFailed into an HA issue.
+            raise
 
         except Exception as exc:
             ir.async_create_issue(

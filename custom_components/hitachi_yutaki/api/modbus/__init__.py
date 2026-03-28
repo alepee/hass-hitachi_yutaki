@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import logging
+import time
 from typing import Any
 
 from pymodbus.client import ModbusTcpClient
@@ -22,7 +23,7 @@ from ...const import (
     DOMAIN,
     get_pymodbus_device_param,
 )
-from ..base import HitachiApiClient
+from ..base import HitachiApiClient, ReadResult
 from .registers import HitachiRegisterMap, RegisterDefinition
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
@@ -54,6 +55,8 @@ class ModbusApiClient(HitachiApiClient):
         self._register_map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
         self._max_retries = 3
         self._connection_retries = 0
+        self._gateway_not_ready_since: float | None = None
+        self._gateway_not_ready_last_log: float = 0.0
 
     async def _ensure_connection(self) -> bool:
         """Ensure we have a working Modbus connection with retry logic."""
@@ -312,7 +315,7 @@ class ModbusApiClient(HitachiApiClient):
             return definition.deserializer(value)
         return value
 
-    async def read_values(self, keys: list[str]) -> None:
+    async def read_values(self, keys: list[str]) -> ReadResult:
         """Fetch data from the heat pump for the given keys."""
         retry_count = 0
         max_read_retries = 1  # Only retry once after reconnection
@@ -341,15 +344,23 @@ class ModbusApiClient(HitachiApiClient):
                 if preflight_result.isError():
                     raise ModbusException("Preflight check failed")
 
-                system_state = preflight_result.registers[0]
-                self._data["system_state"] = system_state
+                raw_state = preflight_result.registers[0]
+
+                # Always store deserialized value for entity consumption
+                system_state_def = all_regs["system_state"]
+                if system_state_def.deserializer:
+                    self._data["system_state"] = system_state_def.deserializer(
+                        raw_state
+                    )
+                else:
+                    self._data["system_state"] = raw_state
 
                 # Report system state issues and skip further reads
                 for (
                     issue_state,
                     issue_key,
                 ) in self._register_map.system_state_issues.items():
-                    if system_state == issue_state:
+                    if raw_state == issue_state:
                         ir.async_create_issue(
                             self._hass,
                             DOMAIN,
@@ -359,13 +370,32 @@ class ModbusApiClient(HitachiApiClient):
                             translation_key=issue_key,
                         )
 
-                        _LOGGER.warning(
-                            "Gateway is not ready (state: %s), skipping further reads for this cycle.",
-                            system_state,
-                        )
-                        return
+                        now = time.monotonic()
+                        if self._gateway_not_ready_since is None:
+                            # First detection
+                            self._gateway_not_ready_since = now
+                            self._gateway_not_ready_last_log = now
+                            _LOGGER.warning(
+                                "Gateway is not ready (state: %s), skipping further reads for this cycle.",
+                                raw_state,
+                            )
+                        elif now - self._gateway_not_ready_last_log >= 300:
+                            # Periodic reminder every 5 minutes
+                            elapsed = int(now - self._gateway_not_ready_since)
+                            self._gateway_not_ready_last_log = now
+                            _LOGGER.warning(
+                                "Gateway still not ready (state: %s), ongoing for %d minutes.",
+                                raw_state,
+                                elapsed // 60,
+                            )
+                        return ReadResult.GATEWAY_NOT_READY
                     else:
                         ir.async_delete_issue(self._hass, DOMAIN, issue_key)
+
+                # Gateway is ready - reset throttle state if recovering
+                if self._gateway_not_ready_since is not None:
+                    self._gateway_not_ready_since = None
+                    self._gateway_not_ready_last_log = 0.0
 
                 for name, definition in registers_to_read.items():
                     value = await self._read_register(definition, device_param)
@@ -381,7 +411,7 @@ class ModbusApiClient(HitachiApiClient):
                         )
 
                 # If we got here, read was successful
-                return
+                return ReadResult.SUCCESS
 
             except (ModbusException, ConnectionError, OSError) as exc:
                 if retry_count < max_read_retries:
