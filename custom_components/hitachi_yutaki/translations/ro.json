@@ -189,7 +189,8 @@
       "desync_error": "Gateway-ul este desincronizat de pompa de căldură. Asigurați-vă că pompa de căldură este pornită și că legătura dintre cele două dispozitive este corectă."
     },
     "abort": {
-      "already_configured": "Acest gateway Hitachi Yutaki este deja configurat."
+      "already_configured": "Acest gateway Hitachi Yutaki este deja configurat.",
+      "unknown_gateway": "Tip de gateway necunoscut. Vă rugăm să reconfigurați integrarea."
     }
   },
   "entity": {

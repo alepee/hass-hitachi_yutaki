@@ -189,7 +189,8 @@
       "desync_error": "La passerelle est désynchronisée de la pompe à chaleur. Assurez-vous que la pompe à chaleur est sous tension et que la connexion entre les deux appareils est correcte."
     },
     "abort": {
-      "already_configured": "Cette passerelle Hitachi Yutaki est déjà configurée."
+      "already_configured": "Cette passerelle Hitachi Yutaki est déjà configurée.",
+      "unknown_gateway": "Type de passerelle inconnu. Veuillez reconfigurer l'intégration."
     }
   },
   "entity": {

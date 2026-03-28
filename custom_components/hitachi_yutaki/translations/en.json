@@ -189,7 +189,8 @@
       "desync_error": "The gateway is out of sync with the heat pump. Ensure the heat pump is powered on and the connection between the two devices is correct."
     },
     "abort": {
-      "already_configured": "This Hitachi Yutaki gateway is already configured."
+      "already_configured": "This Hitachi Yutaki gateway is already configured.",
+      "unknown_gateway": "Unknown gateway type. Please reconfigure the integration."
     }
   },
   "entity": {

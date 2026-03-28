@@ -17,7 +17,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import selector
 
 from .api import GATEWAY_INFO, create_register_map
-from .api.config_providers import GATEWAY_CONFIG_PROVIDERS
+from .api.config_providers import GATEWAY_CONFIG_PROVIDERS, GatewayConfigProvider
 from .const import (
     CONF_ENERGY_ENTITY,
     CONF_MODBUS_DEVICE_ID,
@@ -103,7 +103,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     def __init__(self):
         """Initialize the config flow."""
         self.gateway_type: str | None = None
-        self._provider: Any = None
+        self._provider: GatewayConfigProvider | None = None
         self._provider_steps: list[str] = []
         self._current_step_index: int = 0
         self._step_context: dict[str, Any] = {}
@@ -128,6 +128,8 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         """Handle the initial step (gateway selection)."""
         if user_input is not None:
             self.gateway_type = user_input["gateway_type"]
+            if self.gateway_type not in GATEWAY_CONFIG_PROVIDERS:
+                return self.async_abort(reason="unknown_gateway")
             self._provider = GATEWAY_CONFIG_PROVIDERS[self.gateway_type]()
             self._provider_steps = self._provider.config_steps()
             self._current_step_index = 0
@@ -136,15 +138,36 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             # HA dispatches form submissions by calling async_step_<step_id>()
             # via introspection. Since provider step IDs are dynamic (declared
             # at runtime by each gateway), we register them here so HA can
-            # find them. All provider steps route to _handle_provider_step.
-            for step_id in self._provider_steps:
-                setattr(self, f"async_step_{step_id}", self._handle_provider_step)
+            # find them. Each handler captures its step index via
+            # _make_step_handler to ensure correct routing even if steps
+            # are called out of order.
+            for idx, step_id in enumerate(self._provider_steps):
+                setattr(
+                    self,
+                    f"async_step_{step_id}",
+                    self._make_step_handler(idx),
+                )
 
             return await self._handle_provider_step()
 
         return self.async_show_form(
             step_id="user", data_schema=GATEWAY_SELECTION_SCHEMA
         )
+
+    def _make_step_handler(self, step_idx: int):
+        """Create a step handler bound to a specific provider step index.
+
+        HA dispatches form submissions by calling async_step_<step_id>()
+        via introspection. Each handler captures its step index to ensure
+        the correct provider step is processed, even if steps are called
+        out of order.
+        """
+
+        async def handler(user_input=None):
+            self._current_step_index = step_idx
+            return await self._handle_provider_step(user_input)
+
+        return handler
 
     async def _handle_provider_step(
         self, user_input: dict[str, Any] | None = None
@@ -323,8 +346,8 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                 await api_client.close()
 
         return self.async_show_form(
-            step_id="user",
-            data_schema=GATEWAY_SELECTION_SCHEMA,
+            step_id="power",
+            data_schema=POWER_SCHEMA,
             errors=errors,
         )
 
@@ -335,7 +358,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
         self._collected: dict[str, Any] = {}
-        self._provider: Any = None
+        self._provider: GatewayConfigProvider | None = None
         self._provider_steps: list[str] = []
         self._current_step_index: int = 0
         self._step_context: dict[str, Any] = {}
@@ -350,14 +373,20 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                 "gateway_type", self.config_entry.data.get("gateway_type")
             )
 
+            if gateway_type not in GATEWAY_CONFIG_PROVIDERS:
+                return self.async_abort(reason="unknown_gateway")
             self._provider = GATEWAY_CONFIG_PROVIDERS[gateway_type]()
             self._provider_steps = self._provider.config_steps()
             self._current_step_index = 0
             # Pre-populate context with existing config data for defaults
             self._step_context = dict(self.config_entry.data)
 
-            for step_id in self._provider_steps:
-                setattr(self, f"async_step_{step_id}", self._handle_provider_step)
+            for idx, step_id in enumerate(self._provider_steps):
+                setattr(
+                    self,
+                    f"async_step_{step_id}",
+                    self._make_step_handler(idx),
+                )
 
             return await self._handle_provider_step()
 
@@ -381,6 +410,21 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                 }
             ),
         )
+
+    def _make_step_handler(self, step_idx: int):
+        """Create a step handler bound to a specific provider step index.
+
+        HA dispatches form submissions by calling async_step_<step_id>()
+        via introspection. Each handler captures its step index to ensure
+        the correct provider step is processed, even if steps are called
+        out of order.
+        """
+
+        async def handler(user_input=None):
+            self._current_step_index = step_idx
+            return await self._handle_provider_step(user_input)
+
+        return handler
 
     async def _handle_provider_step(
         self, user_input: dict[str, Any] | None = None
@@ -408,6 +452,9 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
 
             if outcome.config_data:
                 self._step_context.update(outcome.config_data)
+            # Note: outcome.detected_profiles is intentionally not used in the
+            # options flow. Profile re-selection uses the existing config entry
+            # value as default, not auto-detection results.
 
             self._current_step_index += 1
             if self._current_step_index >= len(self._provider_steps):

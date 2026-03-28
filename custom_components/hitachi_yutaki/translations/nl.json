@@ -189,7 +189,8 @@
       "desync_error": "De gateway is niet gesynchroniseerd met de warmtepomp. Controleer of de warmtepomp is ingeschakeld en of de verbinding tussen beide apparaten correct is."
     },
     "abort": {
-      "already_configured": "Deze Hitachi Yutaki gateway is al geconfigureerd."
+      "already_configured": "Deze Hitachi Yutaki gateway is al geconfigureerd.",
+      "unknown_gateway": "Onbekend gatewaytype. Configureer de integratie opnieuw."
     }
   },
   "entity": {
