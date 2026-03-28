@@ -392,13 +392,8 @@ class ModbusApiClient(HitachiApiClient):
                     else:
                         ir.async_delete_issue(self._hass, DOMAIN, issue_key)
 
-                # Gateway is ready - check if we're recovering from a not-ready state
+                # Gateway is ready - reset throttle state if recovering
                 if self._gateway_not_ready_since is not None:
-                    elapsed = int(time.monotonic() - self._gateway_not_ready_since)
-                    _LOGGER.info(
-                        "Gateway recovered after %d minutes.",
-                        elapsed // 60,
-                    )
                     self._gateway_not_ready_since = None
                     self._gateway_not_ready_last_log = 0.0
 

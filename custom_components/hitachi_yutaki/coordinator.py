@@ -124,6 +124,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             return data
 
         except UpdateFailed:
+            # Re-raise so the generic Exception handler below doesn't
+            # turn our intentional UpdateFailed into an HA issue.
             raise
 
         except Exception as exc:

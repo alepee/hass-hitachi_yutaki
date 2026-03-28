@@ -408,27 +408,6 @@ async def test_read_values_throttles_gateway_not_ready_logs(
 
 @pytest.mark.asyncio
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
-async def test_read_values_logs_recovery_after_gateway_not_ready(
-    _mock_ir, mock_hass, mock_client, caplog
-):
-    """Test that recovery is logged when gateway returns to normal."""
-    api = _make_preflight_api_client(mock_hass, mock_client)
-
-    # First: gateway not ready
-    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
-    await api.read_values(["system_state"])
-
-    # Then: gateway recovers
-    mock_client.read_holding_registers.return_value = _make_modbus_result(0)
-    with caplog.at_level(logging.INFO):
-        caplog.clear()
-        await api.read_values(["system_state"])
-        recovery_logs = [r for r in caplog.records if "recovered" in r.message.lower()]
-        assert len(recovery_logs) == 1
-
-
-@pytest.mark.asyncio
-@patch("custom_components.hitachi_yutaki.api.modbus.ir")
 async def test_read_values_resets_throttle_state_on_recovery(
     _mock_ir, mock_hass, mock_client
 ):
