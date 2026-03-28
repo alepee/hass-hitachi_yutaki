@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0-beta.2] - 2026-03-29
+
 ### Fixed
 - Fix gateway sync state sensor showing raw integer instead of translated string during initializing/desynchronized states (#254)
 - Fix entities remaining "available" with stale data when gateway is stuck in initializing state (#254)
