@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pymodbus.exceptions import ModbusException
@@ -379,3 +380,107 @@ async def test_read_values_returns_success_on_normal_read(
     result = await api.read_values(["system_state"])
 
     assert result == ReadResult.SUCCESS
+
+
+@pytest.mark.asyncio
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+async def test_read_values_throttles_gateway_not_ready_logs(
+    _mock_ir, mock_hass, mock_client, caplog
+):
+    """Test that repeated gateway-not-ready warnings are throttled."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
+
+    # First call should log
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        await api.read_values(["system_state"])
+        first_warnings = [r for r in caplog.records if "not ready" in r.message]
+        assert len(first_warnings) == 1
+
+    # Second call immediately after should NOT log
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        await api.read_values(["system_state"])
+        second_warnings = [r for r in caplog.records if "not ready" in r.message]
+        assert len(second_warnings) == 0
+
+
+@pytest.mark.asyncio
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+async def test_read_values_logs_recovery_after_gateway_not_ready(
+    _mock_ir, mock_hass, mock_client, caplog
+):
+    """Test that recovery is logged when gateway returns to normal."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+
+    # First: gateway not ready
+    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
+    await api.read_values(["system_state"])
+
+    # Then: gateway recovers
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0)
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        await api.read_values(["system_state"])
+        recovery_logs = [r for r in caplog.records if "recovered" in r.message.lower()]
+        assert len(recovery_logs) == 1
+
+
+@pytest.mark.asyncio
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+async def test_read_values_resets_throttle_state_on_recovery(
+    _mock_ir, mock_hass, mock_client
+):
+    """Test that throttle state is reset after recovery."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+
+    # Not ready
+    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
+    await api.read_values(["system_state"])
+    assert api._gateway_not_ready_since is not None
+
+    # Recovered
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0)
+    await api.read_values(["system_state"])
+    assert api._gateway_not_ready_since is None
+    assert api._gateway_not_ready_last_log == 0.0
+
+
+@pytest.mark.asyncio
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@patch("custom_components.hitachi_yutaki.api.modbus.time")
+async def test_read_values_logs_periodic_reminder_after_5_minutes(
+    mock_time, _mock_ir, mock_hass, mock_client, caplog
+):
+    """Test that a periodic reminder is logged after 5 minutes of gateway-not-ready."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
+
+    # First call at t=0
+    mock_time.monotonic.return_value = 1000.0
+    await api.read_values(["system_state"])
+
+    # Second call at t=100s - should NOT log
+    mock_time.monotonic.return_value = 1100.0
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        await api.read_values(["system_state"])
+        warnings = [
+            r
+            for r in caplog.records
+            if "not ready" in r.message.lower()
+            or "still not ready" in r.message.lower()
+        ]
+        assert len(warnings) == 0
+
+    # Third call at t=301s - SHOULD log periodic reminder
+    mock_time.monotonic.return_value = 1301.0
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        await api.read_values(["system_state"])
+        reminders = [
+            r for r in caplog.records if "still not ready" in r.message.lower()
+        ]
+        assert len(reminders) == 1
+        assert "5 minutes" in reminders[0].message

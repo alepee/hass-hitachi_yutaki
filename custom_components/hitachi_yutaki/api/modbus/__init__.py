@@ -3,6 +3,7 @@
 import asyncio
 import contextlib
 import logging
+import time
 from typing import Any
 
 from pymodbus.client import ModbusTcpClient
@@ -54,6 +55,8 @@ class ModbusApiClient(HitachiApiClient):
         self._register_map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
         self._max_retries = 3
         self._connection_retries = 0
+        self._gateway_not_ready_since: float | None = None
+        self._gateway_not_ready_last_log: float = 0.0
 
     async def _ensure_connection(self) -> bool:
         """Ensure we have a working Modbus connection with retry logic."""
@@ -367,13 +370,37 @@ class ModbusApiClient(HitachiApiClient):
                             translation_key=issue_key,
                         )
 
-                        _LOGGER.warning(
-                            "Gateway is not ready (state: %s), skipping further reads for this cycle.",
-                            raw_state,
-                        )
+                        now = time.monotonic()
+                        if self._gateway_not_ready_since is None:
+                            # First detection
+                            self._gateway_not_ready_since = now
+                            self._gateway_not_ready_last_log = now
+                            _LOGGER.warning(
+                                "Gateway is not ready (state: %s), skipping further reads for this cycle.",
+                                raw_state,
+                            )
+                        elif now - self._gateway_not_ready_last_log >= 300:
+                            # Periodic reminder every 5 minutes
+                            elapsed = int(now - self._gateway_not_ready_since)
+                            self._gateway_not_ready_last_log = now
+                            _LOGGER.warning(
+                                "Gateway still not ready (state: %s), ongoing for %d minutes.",
+                                raw_state,
+                                elapsed // 60,
+                            )
                         return ReadResult.GATEWAY_NOT_READY
                     else:
                         ir.async_delete_issue(self._hass, DOMAIN, issue_key)
+
+                # Gateway is ready - check if we're recovering from a not-ready state
+                if self._gateway_not_ready_since is not None:
+                    elapsed = int(time.monotonic() - self._gateway_not_ready_since)
+                    _LOGGER.info(
+                        "Gateway recovered after %d minutes.",
+                        elapsed // 60,
+                    )
+                    self._gateway_not_ready_since = None
+                    self._gateway_not_ready_last_log = 0.0
 
                 for name, definition in registers_to_read.items():
                     value = await self._read_register(definition, device_param)
