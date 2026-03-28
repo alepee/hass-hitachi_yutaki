@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Fix gateway sync state sensor showing raw integer instead of translated string during initializing/desynchronized states (#254)
+- Fix entities remaining "available" with stale data when gateway is stuck in initializing state (#254)
+- Reduce log spam from ~685 identical warnings to periodic reminders every 5 minutes during extended gateway sync issues (#254)
+- Add adaptive polling backoff (5s → 10s → ... → 300s max) when gateway is not ready, reducing unnecessary Modbus traffic (#254)
+
 ### Changed
 - Refactor config flow to provider-based orchestrator — each gateway declares its own configuration steps via `GatewayConfigProvider` protocol, eliminating all gateway-specific conditionals from config_flow.py
 
