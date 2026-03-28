@@ -79,8 +79,20 @@ def _mock_profiles() -> MagicMock:
     return profiles
 
 
-async def _advance_to_gateway_config(hass: HomeAssistant) -> dict:
-    """Advance the flow through user step to gateway_config."""
+# Patch targets for provider modules (where the symbols are used)
+_PATCH_ATW_GW_INFO = (
+    "custom_components.hitachi_yutaki.api.config_providers.atw_mbs_02.GATEWAY_INFO"
+)
+_PATCH_ATW_CREATE_RM = "custom_components.hitachi_yutaki.api.config_providers.atw_mbs_02.create_register_map"
+_PATCH_ATW_PROFILES = (
+    "custom_components.hitachi_yutaki.api.config_providers.atw_mbs_02.PROFILES"
+)
+_PATCH_CF_GW_INFO = "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO"
+_PATCH_CF_CREATE_RM = "custom_components.hitachi_yutaki.config_flow.create_register_map"
+
+
+async def _advance_to_connection(hass: HomeAssistant) -> dict:
+    """Advance the flow through user step to atw_mbs_02_connection."""
     result = await hass.config_entries.flow.async_init(
         DOMAIN, context={"source": config_entries.SOURCE_USER}
     )
@@ -90,19 +102,17 @@ async def _advance_to_gateway_config(hass: HomeAssistant) -> dict:
     return result
 
 
-async def _advance_to_gateway_variant(
+async def _advance_to_variant(
     hass: HomeAssistant,
     mock_client: MagicMock,
     mock_gw_info: MagicMock,
 ) -> dict:
-    """Advance the flow through gateway_config to gateway_variant step."""
-    result = await _advance_to_gateway_config(hass)
+    """Advance the flow through connection to variant step."""
+    result = await _advance_to_connection(hass)
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], GATEWAY_CONFIG_INPUT
@@ -116,15 +126,13 @@ async def _advance_to_profile(
     mock_gw_info: MagicMock,
     mock_profiles: MagicMock,
 ) -> dict:
-    """Advance the flow through gateway_variant to profile step."""
-    result = await _advance_to_gateway_variant(hass, mock_client, mock_gw_info)
+    """Advance the flow through variant to profile step."""
+    result = await _advance_to_variant(hass, mock_client, mock_gw_info)
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
-        patch("custom_components.hitachi_yutaki.config_flow.PROFILES", mock_profiles),
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
+        patch(_PATCH_ATW_PROFILES, mock_profiles),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], GATEWAY_VARIANT_INPUT
@@ -158,29 +166,27 @@ async def test_user_step_shows_form(hass: HomeAssistant) -> None:
     assert result["step_id"] == "user"
 
 
-async def test_user_step_advances_to_gateway_config(hass: HomeAssistant) -> None:
-    """Test gateway selection always advances to gateway_config step."""
-    result = await _advance_to_gateway_config(hass)
+async def test_user_step_advances_to_connection(hass: HomeAssistant) -> None:
+    """Test gateway selection advances to provider's first step."""
+    result = await _advance_to_connection(hass)
     assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "gateway_config"
+    assert result["step_id"] == "atw_mbs_02_connection"
 
 
-# ── Gateway config tests ──
+# ── Connection step tests ──
 
 
-async def test_gateway_config_connection_failure(hass: HomeAssistant) -> None:
-    """Test that connection failure shows error on gateway_config step."""
-    result = await _advance_to_gateway_config(hass)
+async def test_connection_failure(hass: HomeAssistant) -> None:
+    """Test that connection failure shows error on connection step."""
+    result = await _advance_to_connection(hass)
 
     mock_client = _mock_api_client()
     mock_client.connect = AsyncMock(return_value=False)
     mock_gw_info = _mock_gateway_info(mock_client)
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], GATEWAY_CONFIG_INPUT
@@ -190,49 +196,45 @@ async def test_gateway_config_connection_failure(hass: HomeAssistant) -> None:
     assert result["errors"] == {"base": "cannot_connect"}
 
 
-async def test_gateway_config_success_advances_to_variant(
+async def test_connection_success_advances_to_variant(
     hass: HomeAssistant,
 ) -> None:
-    """Test successful connection advances to gateway_variant for ATW-MBS-02."""
-    result = await _advance_to_gateway_config(hass)
+    """Test successful connection advances to variant step for ATW-MBS-02."""
+    result = await _advance_to_connection(hass)
 
     mock_client = _mock_api_client()
     mock_gw_info = _mock_gateway_info(mock_client)
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], GATEWAY_CONFIG_INPUT
         )
 
     assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "gateway_variant"
+    assert result["step_id"] == "atw_mbs_02_variant"
 
 
-# ── Gateway variant step tests ──
+# ── Variant step tests ──
 
 
-async def test_gateway_variant_advances_to_profile(
+async def test_variant_advances_to_profile(
     hass: HomeAssistant,
 ) -> None:
-    """Test gateway variant selection advances to profile step."""
+    """Test variant selection advances to profile step."""
     mock_client = _mock_api_client()
     mock_gw_info = _mock_gateway_info(mock_client)
     mock_profs = _mock_profiles()
 
-    result = await _advance_to_gateway_variant(hass, mock_client, mock_gw_info)
-    assert result["step_id"] == "gateway_variant"
+    result = await _advance_to_variant(hass, mock_client, mock_gw_info)
+    assert result["step_id"] == "atw_mbs_02_variant"
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
-        patch("custom_components.hitachi_yutaki.config_flow.PROFILES", mock_profs),
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
+        patch(_PATCH_ATW_PROFILES, mock_profs),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], GATEWAY_VARIANT_INPUT
@@ -274,10 +276,8 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     assert result["step_id"] == "power"
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+        patch(_PATCH_CF_GW_INFO, mock_gw_info),
+        patch(_PATCH_CF_CREATE_RM),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -303,10 +303,8 @@ async def test_validate_connection_system_initializing(
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+        patch(_PATCH_CF_GW_INFO, mock_gw_info),
+        patch(_PATCH_CF_CREATE_RM),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -326,10 +324,8 @@ async def test_validate_connection_desync(hass: HomeAssistant) -> None:
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+        patch(_PATCH_CF_GW_INFO, mock_gw_info),
+        patch(_PATCH_CF_CREATE_RM),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -349,10 +345,8 @@ async def test_validate_connection_invalid_slave(hass: HomeAssistant) -> None:
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+        patch(_PATCH_CF_GW_INFO, mock_gw_info),
+        patch(_PATCH_CF_CREATE_RM),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -384,10 +378,8 @@ async def test_validate_connection_duplicate_entry_abort(
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
 
     with (
-        patch(
-            "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO", mock_gw_info
-        ),
-        patch("custom_components.hitachi_yutaki.config_flow.create_register_map"),
+        patch(_PATCH_CF_GW_INFO, mock_gw_info),
+        patch(_PATCH_CF_CREATE_RM),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -438,6 +430,7 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
             CONF_MODBUS_HOST: DEFAULT_HOST,
             CONF_MODBUS_PORT: DEFAULT_PORT,
             CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
             "profile": "yutaki_s",
             "power_supply": DEFAULT_POWER_SUPPLY,
         },
@@ -450,24 +443,40 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
         result["flow_id"],
         {"gateway_type": "modbus_atw_mbs_02"},
     )
-    assert result["step_id"] == "connection"
+    assert result["step_id"] == "atw_mbs_02_connection"
 
-    # Step 2: connection
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {
-            CONF_MODBUS_HOST: "192.168.1.100",
-            CONF_MODBUS_PORT: DEFAULT_PORT,
-            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
-        },
-    )
-    assert result["step_id"] == "gateway_variant"
+    # Step 2: connection (provider step)
+    mock_client = _mock_api_client()
+    mock_gw_info = _mock_gateway_info(mock_client)
 
-    # Step 2b: gateway variant
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {"gateway_variant": "gen1"},
-    )
+    with (
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {
+                "name": DEFAULT_NAME,
+                CONF_MODBUS_HOST: "192.168.1.100",
+                CONF_MODBUS_PORT: DEFAULT_PORT,
+                CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+                "scan_interval": DEFAULT_SCAN_INTERVAL,
+            },
+        )
+    assert result["step_id"] == "atw_mbs_02_variant"
+
+    # Step 2b: variant (provider step)
+    mock_profs = _mock_profiles()
+
+    with (
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
+        patch(_PATCH_ATW_PROFILES, mock_profs),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {"gateway_variant": "gen1"},
+        )
     assert result["step_id"] == "profile"
 
     # Step 3: profile

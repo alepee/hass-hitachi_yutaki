@@ -65,20 +65,30 @@
           "gateway_type": "Gateway Type"
         }
       },
-      "gateway_variant": {
+      "atw_mbs_02_variant": {
         "title": "Hardware Generation",
         "description": "Select the hardware generation based on your unit's model reference suffix (on the nameplate).\n\n**Gen 1** — R410A units manufactured before ~2016.\n**Gen 2+** — R410A/R32 units manufactured ~2016 and later.\n\n[Help me identify my model]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generation"
         }
       },
-      "connection": {
+      "atw_mbs_02_connection": {
         "title": "Connection Settings",
         "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
         "data": {
           "modbus_host": "Host/IP Address",
           "modbus_port": "Port",
           "modbus_device_id": "Modbus Device ID"
+        }
+      },
+      "hc_a_mb_connection": {
+        "title": "Connection Settings",
+        "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
+        "data": {
+          "modbus_host": "Host/IP Address",
+          "modbus_port": "Port",
+          "modbus_device_id": "Modbus Device ID",
+          "unit_id": "Unit ID"
         }
       },
       "profile": {
@@ -119,14 +129,14 @@
           "gateway_type": "Gateway Type"
         }
       },
-      "gateway_variant": {
+      "atw_mbs_02_variant": {
         "title": "Hardware Generation",
         "description": "Auto-detection suggests: **{detected_variant}**. Verify using your unit's model reference suffix (on the nameplate).\n\n**Gen 1** — R410A units manufactured before ~2016.\n**Gen 2+** — R410A/R32 units manufactured ~2016 and later.\n\n[Help me identify my model]({model_decoder_url})",
         "data": {
           "gateway_variant": "Generation"
         }
       },
-      "gateway_config": {
+      "atw_mbs_02_connection": {
         "title": "Connection Settings",
         "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
         "data": {
@@ -134,7 +144,18 @@
           "modbus_host": "Host/IP Address",
           "modbus_port": "Port",
           "modbus_device_id": "Modbus Device ID",
-          "unit_id": "Unit ID (HC-A(16/64)MB only, 0-15)",
+          "scan_interval": "Polling Interval (seconds)"
+        }
+      },
+      "hc_a_mb_connection": {
+        "title": "Connection Settings",
+        "description": "Enter the connection details for your Hitachi Yutaki heat pump gateway.",
+        "data": {
+          "name": "Name",
+          "modbus_host": "Host/IP Address",
+          "modbus_port": "Port",
+          "modbus_device_id": "Modbus Device ID",
+          "unit_id": "Unit ID",
           "scan_interval": "Polling Interval (seconds)"
         }
       },
@@ -168,7 +189,8 @@
       "desync_error": "The gateway is out of sync with the heat pump. Ensure the heat pump is powered on and the connection between the two devices is correct."
     },
     "abort": {
-      "already_configured": "This Hitachi Yutaki gateway is already configured."
+      "already_configured": "This Hitachi Yutaki gateway is already configured.",
+      "unknown_gateway": "Unknown gateway type. Please reconfigure the integration."
     }
   },
   "entity": {
