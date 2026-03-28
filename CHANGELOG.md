@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Refactor config flow to provider-based orchestrator — each gateway declares its own configuration steps via `GatewayConfigProvider` protocol, eliminating all gateway-specific conditionals from config_flow.py
+
 ## [2.1.0-beta.1] - 2026-03-20
 
 ### Added
