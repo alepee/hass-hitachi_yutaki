@@ -7,9 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from pymodbus.exceptions import ModbusException
 import pytest
 
+from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
 from custom_components.hitachi_yutaki.api.modbus.registers import RegisterDefinition
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
+    AtwMbs02RegisterMap,
     convert_signed_16bit,
 )
 
@@ -301,3 +303,79 @@ async def test_fallback_also_fails_returns_none(api_client, mock_client):
 
     assert value is None
     assert mock_client.read_holding_registers.call_count == 2
+
+
+# --- Preflight / system_state deserialization tests ---
+
+
+def _make_preflight_api_client(mock_hass, mock_client):
+    """Create a ModbusApiClient with register map for preflight tests."""
+    with patch.object(ModbusApiClient, "__init__", lambda x, *args, **kwargs: None):
+        api = ModbusApiClient.__new__(ModbusApiClient)
+        api._hass = mock_hass
+        api._client = mock_client
+        api._slave = 1
+        api._data = {}
+        api._register_map = AtwMbs02RegisterMap()
+        api._gateway_not_ready_since = None
+        api._gateway_not_ready_last_log = 0.0
+        return api
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_deserializes_system_state_on_state_0(
+    mock_ir, mock_hass, mock_client
+):
+    """Test system_state is deserialized to 'synchronized' when state is 0."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0)
+
+    result = await api.read_values(["system_state"])
+
+    assert result == ReadResult.SUCCESS
+    assert api._data["system_state"] == "synchronized"
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_deserializes_system_state_on_state_2(
+    mock_ir, mock_hass, mock_client
+):
+    """Test system_state is deserialized to 'initializing' when state is 2."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(2)
+
+    result = await api.read_values(["system_state"])
+
+    assert result == ReadResult.GATEWAY_NOT_READY
+    assert api._data["system_state"] == "initializing"
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_deserializes_system_state_on_state_1(
+    mock_ir, mock_hass, mock_client
+):
+    """Test system_state is deserialized to 'desynchronized' when state is 1."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(1)
+
+    result = await api.read_values(["system_state"])
+
+    assert result == ReadResult.GATEWAY_NOT_READY
+    assert api._data["system_state"] == "desynchronized"
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_returns_success_on_normal_read(
+    mock_ir, mock_hass, mock_client
+):
+    """Test read_values returns SUCCESS when gateway is synchronized."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0)
+
+    result = await api.read_values(["system_state"])
+
+    assert result == ReadResult.SUCCESS

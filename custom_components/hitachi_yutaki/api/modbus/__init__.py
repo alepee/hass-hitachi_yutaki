@@ -22,7 +22,7 @@ from ...const import (
     DOMAIN,
     get_pymodbus_device_param,
 )
-from ..base import HitachiApiClient
+from ..base import HitachiApiClient, ReadResult
 from .registers import HitachiRegisterMap, RegisterDefinition
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
@@ -312,7 +312,7 @@ class ModbusApiClient(HitachiApiClient):
             return definition.deserializer(value)
         return value
 
-    async def read_values(self, keys: list[str]) -> None:
+    async def read_values(self, keys: list[str]) -> ReadResult:
         """Fetch data from the heat pump for the given keys."""
         retry_count = 0
         max_read_retries = 1  # Only retry once after reconnection
@@ -341,15 +341,23 @@ class ModbusApiClient(HitachiApiClient):
                 if preflight_result.isError():
                     raise ModbusException("Preflight check failed")
 
-                system_state = preflight_result.registers[0]
-                self._data["system_state"] = system_state
+                raw_state = preflight_result.registers[0]
+
+                # Always store deserialized value for entity consumption
+                system_state_def = all_regs["system_state"]
+                if system_state_def.deserializer:
+                    self._data["system_state"] = system_state_def.deserializer(
+                        raw_state
+                    )
+                else:
+                    self._data["system_state"] = raw_state
 
                 # Report system state issues and skip further reads
                 for (
                     issue_state,
                     issue_key,
                 ) in self._register_map.system_state_issues.items():
-                    if system_state == issue_state:
+                    if raw_state == issue_state:
                         ir.async_create_issue(
                             self._hass,
                             DOMAIN,
@@ -361,9 +369,9 @@ class ModbusApiClient(HitachiApiClient):
 
                         _LOGGER.warning(
                             "Gateway is not ready (state: %s), skipping further reads for this cycle.",
-                            system_state,
+                            raw_state,
                         )
-                        return
+                        return ReadResult.GATEWAY_NOT_READY
                     else:
                         ir.async_delete_issue(self._hass, DOMAIN, issue_key)
 
@@ -381,7 +389,7 @@ class ModbusApiClient(HitachiApiClient):
                         )
 
                 # If we got here, read was successful
-                return
+                return ReadResult.SUCCESS
 
             except (ModbusException, ConnectionError, OSError) as exc:
                 if retry_count < max_read_retries:
