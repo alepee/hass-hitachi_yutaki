@@ -42,8 +42,8 @@ export default {
       const instanceHashHeader = request.headers.get("x-instance-hash");
       const payload = validate(body, instanceHashHeader);
 
-      // Rate limit
-      await checkRateLimit(env.RATE_LIMIT, payload.instance_hash);
+      // Rate limit (per instance_hash + payload type)
+      await checkRateLimit(env.RATE_LIMIT, payload.instance_hash, payload.type);
 
       // Enrich installation payload with precise Köppen climate zone
       if (payload.type === "installation") {

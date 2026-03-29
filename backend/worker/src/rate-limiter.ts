@@ -1,6 +1,9 @@
 /**
- * Per-instance-hash rate limiting using Cloudflare KV.
- * Limit: 1 request per minute per instance_hash.
+ * Per-instance-hash + payload-type rate limiting using Cloudflare KV.
+ * Limit: 1 request per minute per (instance_hash, payload_type).
+ *
+ * Keying by type allows different payload types (installation, metrics,
+ * snapshot, daily_stats) to be sent concurrently without blocking each other.
  */
 
 const WINDOW_SECONDS = 60;
@@ -12,14 +15,15 @@ export class RateLimitError extends Error {
 }
 
 /**
- * Check and enforce rate limit for an instance hash.
+ * Check and enforce rate limit for an instance hash + payload type.
  * Throws RateLimitError if the limit is exceeded.
  */
 export async function checkRateLimit(
   kv: KVNamespace,
   instanceHash: string,
+  payloadType: string,
 ): Promise<void> {
-  const key = `rl:${instanceHash}`;
+  const key = `rl:${instanceHash}:${payloadType}`;
   const existing = await kv.get(key);
 
   if (existing !== null) {
