@@ -126,7 +126,7 @@
       },
       "telemetry": {
         "title": "Telemetrie anonimă",
-        "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale.\n\n[Aflați mai multe despre telemetrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+        "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale.\n\n[Aflați mai multe despre telemetrie]({learn_more_url})",
         "data": {
           "telemetry_level": "Nivel telemetrie"
         }
@@ -496,6 +496,13 @@
           "desynchronized": "Desincronizat",
           "initializing": "Inițializare"
         }
+      },
+      "telemetry_status": {
+        "name": "Stare Telemetrie",
+        "state": {
+          "off": "Dezactivat",
+          "on": "Activat"
+        }
       }
     },
     "binary_sensor": {
@@ -695,7 +702,7 @@
         "step": {
           "confirm": {
             "title": "Alegeți nivelul de telemetrie",
-            "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale. Puteți modifica aceasta oricând din opțiunile integrării.\n\n[Aflați mai multe despre telemetrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+            "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale. Puteți modifica aceasta oricând din opțiunile integrării.\n\n[Aflați mai multe despre telemetrie]({learn_more_url})",
             "data": {
               "telemetry_level": "Nivel telemetrie"
             }

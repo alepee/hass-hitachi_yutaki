@@ -339,7 +339,6 @@ async def async_setup_entry(
             severity=IssueSeverity.WARNING,
             issue_domain=DOMAIN,
             translation_key="enable_telemetry",
-            learn_more_url="https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md",
         )
 
     # Set up telemetry flush timer (every 5 min)

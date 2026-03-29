@@ -126,7 +126,7 @@
       },
       "telemetry": {
         "title": "Anonieme telemetrie",
-        "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld.\n\n[Meer informatie over telemetrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+        "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld.\n\n[Meer informatie over telemetrie]({learn_more_url})",
         "data": {
           "telemetry_level": "Telemetrieniveau"
         }
@@ -496,6 +496,13 @@
           "desynchronized": "Gedesynchroniseerd",
           "initializing": "Initialiseren"
         }
+      },
+      "telemetry_status": {
+        "name": "Telemetrie Status",
+        "state": {
+          "off": "Uit",
+          "on": "Aan"
+        }
       }
     },
     "binary_sensor": {
@@ -695,7 +702,7 @@
         "step": {
           "confirm": {
             "title": "Kies telemetrieniveau",
-            "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld. U kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over telemetrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+            "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld. U kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over telemetrie]({learn_more_url})",
             "data": {
               "telemetry_level": "Telemetrieniveau"
             }

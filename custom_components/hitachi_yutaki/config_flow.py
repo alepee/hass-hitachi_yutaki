@@ -633,4 +633,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     ),
                 }
             ),
+            description_placeholders={
+                "learn_more_url": "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md",
+            },
         )

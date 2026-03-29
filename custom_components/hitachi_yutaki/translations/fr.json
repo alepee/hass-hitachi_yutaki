@@ -126,7 +126,7 @@
       },
       "telemetry": {
         "title": "Télémétrie anonyme",
-        "description": "Je développe et teste sur un seul modèle de PAC. Pour tous les autres, je travaille à l'aveugle — vos données anonymes m'aident à construire des tests réalistes, détecter les régressions et développer de nouvelles fonctionnalités. Aucune information personnelle n'est collectée.\n\n[En savoir plus sur la télémétrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+        "description": "Je développe et teste sur un seul modèle de PAC. Pour tous les autres, je travaille à l'aveugle — vos données anonymes m'aident à construire des tests réalistes, détecter les régressions et développer de nouvelles fonctionnalités. Aucune information personnelle n'est collectée.\n\n[En savoir plus sur la télémétrie]({learn_more_url})",
         "data": {
           "telemetry_level": "Niveau de télémétrie"
         }
@@ -702,7 +702,7 @@
         "step": {
           "confirm": {
             "title": "Choisir le niveau de télémétrie",
-            "description": "Je développe et teste sur un seul modèle de PAC. Pour tous les autres, je travaille à l'aveugle — vos données anonymes m'aident à construire des tests réalistes, détecter les régressions et développer de nouvelles fonctionnalités. Aucune information personnelle n'est collectée. Vous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la télémétrie](https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md)",
+            "description": "Je développe et teste sur un seul modèle de PAC. Pour tous les autres, je travaille à l'aveugle — vos données anonymes m'aident à construire des tests réalistes, détecter les régressions et développer de nouvelles fonctionnalités. Aucune information personnelle n'est collectée. Vous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la télémétrie]({learn_more_url})",
             "data": {
               "telemetry_level": "Niveau de télémétrie"
             }
