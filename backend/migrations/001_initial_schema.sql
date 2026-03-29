@@ -19,7 +19,7 @@ CREATE TABLE installations (
     last_seen                TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Fine metrics (Full level, batch every 5min)
+-- Fine metrics (ON level, batch every 5min)
 CREATE TABLE metrics (
     time                     TIMESTAMPTZ NOT NULL,
     instance_hash            TEXT NOT NULL,
@@ -69,7 +69,7 @@ CREATE TABLE daily_stats (
     PRIMARY KEY (date, instance_hash)
 );
 
--- Modbus register snapshots (Full level, 24h after opt-in)
+-- Modbus register snapshots (ON level, 24h after opt-in)
 CREATE TABLE register_snapshots (
     time                     TIMESTAMPTZ NOT NULL,
     instance_hash            TEXT NOT NULL,

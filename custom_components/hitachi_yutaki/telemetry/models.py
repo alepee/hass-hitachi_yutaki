@@ -66,7 +66,7 @@ class InstallationInfo:
 
 @dataclass(frozen=True)
 class MetricPoint:
-    """A single telemetry metric sample (Full level, every poll cycle).
+    """A single telemetry metric sample (ON level, every poll cycle).
 
     All temperature fields are in °C (rounded to 0.5 by anonymizer).
     Power fields are in kW. Current in amps. Frequency in Hz.
@@ -216,7 +216,7 @@ class MetricPoint:
 
 @dataclass(frozen=True)
 class MetricsBatch:
-    """A batch of metric points for a single instance (Full level, sent every 5min)."""
+    """A batch of metric points for a single instance (ON level, sent every 5min)."""
 
     instance_hash: str
     points: list[MetricPoint] = field(default_factory=list)
@@ -287,7 +287,7 @@ class DailyStats:
 
 @dataclass(frozen=True)
 class RegisterSnapshot:
-    """Raw Modbus register snapshot for test fixture generation (Full level)."""
+    """Raw Modbus register snapshot for test fixture generation (ON level)."""
 
     instance_hash: str
     time: datetime

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import datetime, timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
@@ -353,7 +353,7 @@ async def async_setup_entry(
     if telemetry_level != TelemetryLevel.OFF:
         flush_interval = timedelta(minutes=5)
 
-        async def _telemetry_flush(_now) -> None:
+        async def _telemetry_flush(_now: datetime) -> None:
             await coordinator.async_flush_telemetry()
 
         entry.async_on_unload(

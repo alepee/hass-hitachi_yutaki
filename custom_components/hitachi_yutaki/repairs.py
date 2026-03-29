@@ -128,6 +128,10 @@ class EnableTelemetryRepairFlow(RepairsFlow):
 
             return self.async_create_entry(data={})
 
+        # Default to "on" in the repair flow to encourage opt-in.
+        # This differs from DEFAULT_TELEMETRY_LEVEL ("off") which is used
+        # at runtime when no option is set — the repair flow is a one-time
+        # prompt where pre-selecting "on" nudges users to contribute.
         current_level = entry.options.get(CONF_TELEMETRY_LEVEL, "on")
 
         return self.async_show_form(

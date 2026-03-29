@@ -21,10 +21,7 @@ class HitachiYutakiTelemetrySensor(HitachiYutakiSensor):
     @property
     def native_value(self) -> StateType:
         """Return the telemetry level."""
-        collector = self.coordinator.telemetry_collector
-        if collector is not None:
-            return collector.level.value
-        return "off"
+        return self.coordinator.telemetry_collector.level.value
 
     @property
     def options(self) -> list[str]:
