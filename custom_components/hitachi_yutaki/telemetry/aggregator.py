@@ -10,8 +10,8 @@ from .models import DailyStats, MetricPoint
 _MODE_HEAT = "heat"
 _MODE_COOL = "cool"
 
-# Approximate poll interval in hours (5 seconds)
-_POLL_INTERVAL_HOURS = 5.0 / 3600.0
+# Fallback poll interval if only 1 point (5 seconds)
+_DEFAULT_POLL_INTERVAL_HOURS = 5.0 / 3600.0
 
 
 def aggregate_metrics(
@@ -27,6 +27,13 @@ def aggregate_metrics(
     """
     if not points:
         return DailyStats(instance_hash=instance_hash, date=stats_date)
+
+    # Compute actual poll interval from timestamps
+    if len(points) >= 2:
+        total_seconds = (points[-1].time - points[0].time).total_seconds()
+        poll_interval_hours = total_seconds / (len(points) - 1) / 3600.0
+    else:
+        poll_interval_hours = _DEFAULT_POLL_INTERVAL_HOURS
 
     # Collect non-None values for numeric aggregation
     outdoor_temps = [p.outdoor_temp for p in points if p.outdoor_temp is not None]
@@ -69,7 +76,7 @@ def aggregate_metrics(
             dhw_samples += 1
 
     # Energy: sum thermal and electrical power samples
-    # Each sample represents ~5 seconds of operation
+    # Each sample represents one poll interval of operation
     thermal_power_values = [
         p.thermal_power for p in points if p.thermal_power is not None
     ]
@@ -91,14 +98,14 @@ def aggregate_metrics(
         cop_max=max(cop_values) if cop_values else None,
         cop_quality_best=cop_quality_best,
         compressor_starts=compressor_starts,
-        compressor_hours=compressor_on_samples * _POLL_INTERVAL_HOURS,
+        compressor_hours=compressor_on_samples * poll_interval_hours,
         defrost_count=defrost_count,
-        defrost_total_minutes=defrost_on_samples * _POLL_INTERVAL_HOURS * 60.0,
-        thermal_energy_kwh=sum(thermal_power_values) * _POLL_INTERVAL_HOURS,
-        electrical_energy_kwh=sum(electrical_power_values) * _POLL_INTERVAL_HOURS,
-        heating_hours=heating_samples * _POLL_INTERVAL_HOURS,
-        cooling_hours=cooling_samples * _POLL_INTERVAL_HOURS,
-        dhw_hours=dhw_samples * _POLL_INTERVAL_HOURS,
+        defrost_total_minutes=defrost_on_samples * poll_interval_hours * 60.0,
+        thermal_energy_kwh=sum(thermal_power_values) * poll_interval_hours,
+        electrical_energy_kwh=sum(electrical_power_values) * poll_interval_hours,
+        heating_hours=heating_samples * poll_interval_hours,
+        cooling_hours=cooling_samples * poll_interval_hours,
+        dhw_hours=dhw_samples * poll_interval_hours,
     )
 
 
