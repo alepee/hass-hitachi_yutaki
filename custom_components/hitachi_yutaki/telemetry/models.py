@@ -11,13 +11,12 @@ class TelemetryLevel(Enum):
     """User consent level for telemetry data collection."""
 
     OFF = "off"
-    BASIC = "basic"
-    FULL = "full"
+    ON = "on"
 
 
 @dataclass(frozen=True)
 class InstallationInfo:
-    """Anonymous installation snapshot sent daily (Basic + Full).
+    """Anonymous installation snapshot sent daily.
 
     Identifies the heat pump model and capabilities without any
     personal data. Instance is identified only by a SHA-256 hash.
@@ -233,7 +232,7 @@ class MetricsBatch:
 
 @dataclass(frozen=True)
 class DailyStats:
-    """Daily aggregated statistics (Basic + Full, sent 1x/day)."""
+    """Daily aggregated statistics (sent 1x/day)."""
 
     instance_hash: str
     date: date

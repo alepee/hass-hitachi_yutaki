@@ -58,8 +58,7 @@
     "telemetry_level": {
       "options": {
         "off": "😢 Uit — Geen gegevens verzonden",
-        "basic": "🙂 Basis — Installatie-info + dagelijkse statistieken (1x/dag)",
-        "full": "🤩 Volledig — Fijne metingen elke 5 min + 24u registermomentopnames"
+        "on": "🤩 Aan — Geanonimiseerde metingen helpen de integratie te verbeteren"
       }
     }
   },

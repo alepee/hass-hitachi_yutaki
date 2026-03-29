@@ -31,7 +31,6 @@ from .const import (
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
     DEFAULT_POWER_SUPPLY,
-    DEFAULT_SCAN_INTERVAL,
     DEFAULT_TELEMETRY_LEVEL,
     DEFAULT_UNIT_ID,
     DOMAIN,
@@ -616,7 +615,9 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             )
             return self.async_create_entry(title="", data={})
 
-        current_level = self.config_entry.options.get(CONF_TELEMETRY_LEVEL, "basic")
+        current_level = self.config_entry.options.get(
+            CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
+        )
 
         return self.async_show_form(
             step_id="telemetry",
@@ -626,7 +627,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                         CONF_TELEMETRY_LEVEL, default=current_level
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=["off", "basic", "full"],
+                            options=["off", "on"],
                             translation_key="telemetry_level",
                         ),
                     ),

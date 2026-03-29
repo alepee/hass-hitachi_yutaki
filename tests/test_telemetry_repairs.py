@@ -87,32 +87,18 @@ class TestEnableTelemetryRepairFlow:
         assert result["step_id"] == "confirm"
 
     @pytest.mark.asyncio
-    async def test_confirm_saves_basic(self, hass: HomeAssistant) -> None:
-        """Verify selecting 'basic' saves to entry.options and completes the flow."""
+    async def test_confirm_saves_on(self, hass: HomeAssistant) -> None:
+        """Verify selecting 'on' saves to entry.options and completes the flow."""
         entry = _make_entry()
         entry.add_to_hass(hass)
 
         flow = await _init_repair_flow(hass, f"enable_telemetry_{entry.entry_id}")
 
         with patch.object(hass.config_entries, "async_reload"):
-            result = await flow.async_step_confirm({CONF_TELEMETRY_LEVEL: "basic"})
+            result = await flow.async_step_confirm({CONF_TELEMETRY_LEVEL: "on"})
 
         assert result["type"] is FlowResultType.CREATE_ENTRY
-        assert entry.options[CONF_TELEMETRY_LEVEL] == "basic"
-
-    @pytest.mark.asyncio
-    async def test_confirm_saves_full(self, hass: HomeAssistant) -> None:
-        """Verify selecting 'full' saves to entry.options and completes the flow."""
-        entry = _make_entry()
-        entry.add_to_hass(hass)
-
-        flow = await _init_repair_flow(hass, f"enable_telemetry_{entry.entry_id}")
-
-        with patch.object(hass.config_entries, "async_reload"):
-            result = await flow.async_step_confirm({CONF_TELEMETRY_LEVEL: "full"})
-
-        assert result["type"] is FlowResultType.CREATE_ENTRY
-        assert entry.options[CONF_TELEMETRY_LEVEL] == "full"
+        assert entry.options[CONF_TELEMETRY_LEVEL] == "on"
 
     @pytest.mark.asyncio
     async def test_confirm_saves_off(self, hass: HomeAssistant) -> None:
@@ -179,7 +165,7 @@ class TestEnableTelemetryRepairFlow:
         flow = await _init_repair_flow(hass, issue_id)
 
         with patch.object(hass.config_entries, "async_reload"):
-            result = await flow.async_step_confirm({CONF_TELEMETRY_LEVEL: "basic"})
+            result = await flow.async_step_confirm({CONF_TELEMETRY_LEVEL: "on"})
 
         assert result["type"] is FlowResultType.CREATE_ENTRY
 
@@ -198,10 +184,10 @@ class TestEnableTelemetryRepairFlow:
         flow = await _init_repair_flow(hass, f"enable_telemetry_{entry.entry_id}")
 
         with patch.object(hass.config_entries, "async_reload"):
-            result = await flow.async_step_confirm({CONF_TELEMETRY_LEVEL: "full"})
+            result = await flow.async_step_confirm({CONF_TELEMETRY_LEVEL: "on"})
 
         assert result["type"] is FlowResultType.CREATE_ENTRY
-        assert entry.options[CONF_TELEMETRY_LEVEL] == "full"
+        assert entry.options[CONF_TELEMETRY_LEVEL] == "on"
         assert entry.options["some_other_option"] == "value"
 
 

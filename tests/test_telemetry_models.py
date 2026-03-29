@@ -18,14 +18,12 @@ class TestTelemetryLevel:
     def test_values(self):
         """Verify enum members have expected string values."""
         assert TelemetryLevel.OFF.value == "off"
-        assert TelemetryLevel.BASIC.value == "basic"
-        assert TelemetryLevel.FULL.value == "full"
+        assert TelemetryLevel.ON.value == "on"
 
     def test_from_string(self):
         """Verify enum can be constructed from string values."""
         assert TelemetryLevel("off") == TelemetryLevel.OFF
-        assert TelemetryLevel("basic") == TelemetryLevel.BASIC
-        assert TelemetryLevel("full") == TelemetryLevel.FULL
+        assert TelemetryLevel("on") == TelemetryLevel.ON
 
 
 class TestInstallationInfo:

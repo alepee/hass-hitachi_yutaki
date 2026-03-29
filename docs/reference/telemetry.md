@@ -11,15 +11,14 @@ This integration can collect anonymous performance data to:
 
 No personal information is ever collected. All data is identified by a non-reversible hash — there is no way to trace it back to you or your Home Assistant instance.
 
-| Level | Data | Frequency |
-|-------|------|-----------|
+| Setting | Data | Frequency |
+|---------|------|-----------|
 | **Off** | Nothing | — |
-| **Basic** | Installation info (model, gateway type, configuration) + daily aggregated stats (temperatures, COP, compressor hours) | Once per day |
-| **Full** | Everything in Basic + fine-grained metrics (temperatures, compressor frequency, power consumption) + a one-time register snapshot | Metrics every 5 min, snapshot once after opt-in |
+| **On** | Installation info (model, gateway type, configuration) + fine-grained metrics (temperatures, compressor frequency, power consumption) + daily aggregated stats + a one-time register snapshot | Metrics every 5 min, daily stats once per day, snapshot once after opt-in |
 
-## How to change your telemetry level
+## How to enable or disable telemetry
 
-Go to **Settings → Devices & Services → Hitachi Yutaki → Configure** and select the telemetry step. You can change your level or disable telemetry entirely at any time.
+Go to **Settings → Devices & Services → Hitachi Yutaki → Configure** and select the telemetry step. You can enable or disable telemetry at any time.
 
 ## Community discussion
 

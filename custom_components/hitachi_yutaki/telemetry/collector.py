@@ -52,9 +52,7 @@ class TelemetryCollector:
     ) -> None:
         """Extract metrics from coordinator data and add to the buffer.
 
-        Collects when level is BASIC or FULL (skips OFF).
-        Basic level accumulates points for daily aggregation.
-        Full level accumulates points for 5-minute metric batches.
+        Collects when level is ON (skips OFF).
 
         Args:
             data: The coordinator data dict (raw Modbus values).

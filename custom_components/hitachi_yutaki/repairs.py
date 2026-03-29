@@ -128,7 +128,7 @@ class EnableTelemetryRepairFlow(RepairsFlow):
 
             return self.async_create_entry(data={})
 
-        current_level = entry.options.get(CONF_TELEMETRY_LEVEL, "basic")
+        current_level = entry.options.get(CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL)
 
         return self.async_show_form(
             step_id="confirm",
@@ -138,7 +138,7 @@ class EnableTelemetryRepairFlow(RepairsFlow):
                         CONF_TELEMETRY_LEVEL, default=current_level
                     ): selector.SelectSelector(
                         selector.SelectSelectorConfig(
-                            options=["off", "basic", "full"],
+                            options=["off", "on"],
                             translation_key="telemetry_level",
                         ),
                     ),

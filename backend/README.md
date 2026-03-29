@@ -38,7 +38,7 @@ HA Integration (HttpTelemetryClient)
 
 - **`installations`** — one row per instance (upserted daily)
 - **`metrics`** — hypertable, fine metrics every 5s (Full level), 30-day retention
-- **`daily_stats`** — daily aggregates (Basic + Full), kept indefinitely
+- **`daily_stats`** — daily aggregates, kept indefinitely
 - **`register_snapshots`** — hypertable, Modbus register dumps, 90-day retention
 - **`metrics_daily_agg`** — continuous aggregate (auto-downsampled from metrics)
 

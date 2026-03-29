@@ -191,11 +191,8 @@ async def async_setup_entry(
         session = async_get_clientsession(hass)
         coordinator.telemetry_client = HttpTelemetryClient(session, instance_hash)
 
-        # BASIC: 24h buffer (17 280 points at 5s poll), FULL: 30min buffer (360)
-        buffer_size = 17_280 if telemetry_level == TelemetryLevel.BASIC else 360
         coordinator.telemetry_collector = TelemetryCollector(
             level=telemetry_level,
-            buffer_max_size=buffer_size,
         )
 
         integration = await async_get_integration(hass, DOMAIN)
@@ -345,13 +342,9 @@ async def async_setup_entry(
             learn_more_url="https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md",
         )
 
-    # Set up telemetry flush timer (FULL: 5min, BASIC: 24h)
+    # Set up telemetry flush timer (every 5 min)
     if telemetry_level != TelemetryLevel.OFF:
-        flush_interval = (
-            timedelta(minutes=5)
-            if telemetry_level == TelemetryLevel.FULL
-            else timedelta(hours=24)
-        )
+        flush_interval = timedelta(minutes=5)
 
         async def _telemetry_flush(_now) -> None:
             await coordinator.async_flush_telemetry()

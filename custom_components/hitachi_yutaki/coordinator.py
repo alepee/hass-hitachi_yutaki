@@ -34,7 +34,6 @@ from .telemetry import (
     MetricsBatch,
     RegisterSnapshot,
     TelemetryCollector,
-    TelemetryLevel,
 )
 from .telemetry.aggregator import aggregate_metrics
 from .telemetry.anonymizer import (
@@ -75,7 +74,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.telemetry_last_send: datetime | None = None
         self.telemetry_send_failures: int = 0
 
-        # Daily points accumulator for FULL-level daily stats
+        # Daily points accumulator for daily stats
         self._daily_points_accumulator: list = []
         self._daily_stats_date: date | None = None
 
@@ -162,11 +161,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 await self._send_installation_info()
                 self._installation_info_sent = True
 
-            # Send register snapshot once (FULL level only)
+            # Send register snapshot once
             if (
                 not self._snapshot_sent
                 and self.telemetry_collector is not None
-                and self.telemetry_collector.level == TelemetryLevel.FULL
                 and self.telemetry_client is not None
                 and self._telemetry_meta is not None
             ):
@@ -233,7 +231,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             _LOGGER.debug("Failed to send telemetry installation info", exc_info=True)
 
     async def _send_register_snapshot(self, data: dict[str, Any]) -> None:
-        """Send a one-time register snapshot (FULL level only)."""
+        """Send a one-time register snapshot."""
         if self._snapshot_sent:
             return
 
@@ -287,40 +285,33 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         )
 
         try:
-            success = False
-            if self.telemetry_collector.level == TelemetryLevel.FULL:
-                # Send fine-grained metrics
-                anonymized = [anonymize_metric_point(p) for p in points]
-                batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
-                success = await self.telemetry_client.send_metrics(batch)
+            # Send fine-grained metrics
+            anonymized = [anonymize_metric_point(p) for p in points]
+            batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
+            success = await self.telemetry_client.send_metrics(batch)
 
-                # Check for day boundary BEFORE adding today's points
-                today = date.today()
-                if (
-                    self._daily_stats_date is not None
-                    and self._daily_stats_date != today
-                    and self._daily_points_accumulator
-                ):
-                    # Date changed — send yesterday's accumulated stats
-                    stats = aggregate_metrics(
-                        instance_hash,
-                        self._daily_stats_date,
-                        self._daily_points_accumulator,
-                    )
-                    anonymized_stats = anonymize_daily_stats(stats)
-                    await self.telemetry_client.send_daily_stats(anonymized_stats)
-                    # Reset accumulator
-                    self._daily_points_accumulator = []
-
-                # Accumulate today's points
-                self._daily_points_accumulator.extend(points)
-                self._daily_stats_date = today
-            elif self.telemetry_collector.level == TelemetryLevel.BASIC:
-                stats = aggregate_metrics(instance_hash, date.today(), points)
+            # Check for day boundary BEFORE adding today's points
+            today = date.today()
+            if (
+                self._daily_stats_date is not None
+                and self._daily_stats_date != today
+                and self._daily_points_accumulator
+            ):
+                # Date changed — send yesterday's accumulated stats
+                stats = aggregate_metrics(
+                    instance_hash,
+                    self._daily_stats_date,
+                    self._daily_points_accumulator,
+                )
                 anonymized_stats = anonymize_daily_stats(stats)
-                success = await self.telemetry_client.send_daily_stats(anonymized_stats)
-                # Also refresh installation info daily
+                await self.telemetry_client.send_daily_stats(anonymized_stats)
                 await self._send_installation_info()
+                # Reset accumulator
+                self._daily_points_accumulator = []
+
+            # Accumulate today's points
+            self._daily_points_accumulator.extend(points)
+            self._daily_stats_date = today
 
             if success:
                 self.telemetry_last_send = datetime.now(tz=UTC)

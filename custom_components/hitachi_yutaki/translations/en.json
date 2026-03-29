@@ -58,8 +58,7 @@
     "telemetry_level": {
       "options": {
         "off": "😢 Off — No data sent",
-        "basic": "🙂 Basic — Installation info + daily stats (1x/day)",
-        "full": "🤩 Full — Fine metrics every 5 min + 24h register snapshots"
+        "on": "🤩 On — Anonymized metrics help improve the integration"
       }
     }
   },
@@ -502,8 +501,7 @@
         "name": "Telemetry Status",
         "state": {
           "off": "Off",
-          "basic": "Basic",
-          "full": "Full"
+          "on": "On"
         }
       }
     },

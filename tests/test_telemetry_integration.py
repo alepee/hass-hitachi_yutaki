@@ -43,7 +43,7 @@ def _sample_data(**overrides) -> dict:
 
 def _make_coordinator(
     *,
-    telemetry_level: TelemetryLevel = TelemetryLevel.FULL,
+    telemetry_level: TelemetryLevel = TelemetryLevel.ON,
     buffer_max_size: int = 360,
 ) -> HitachiYutakiDataCoordinator:
     """Create a minimal coordinator with telemetry wired up."""
@@ -118,8 +118,8 @@ class TestFullCycleCollection:
 
     @pytest.mark.asyncio
     async def test_flush_full_sends_metrics_batch(self):
-        """FULL level: flush sends anonymized MetricsBatch."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        """ON level: flush sends anonymized MetricsBatch."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         data = _sample_data()
 
         # Collect 5 points
@@ -143,31 +143,6 @@ class TestFullCycleCollection:
         assert coordinator.telemetry_collector.buffer_size == 0
 
     @pytest.mark.asyncio
-    async def test_flush_basic_sends_daily_stats(self):
-        """BASIC level: flush aggregates and sends DailyStats."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.BASIC)
-        data = _sample_data()
-
-        # Collect some points
-        for _ in range(3):
-            coordinator.telemetry_collector.collect(
-                data,
-                is_compressor_running=True,
-                is_defrosting=False,
-            )
-
-        await coordinator.async_flush_telemetry()
-
-        # Verify send_daily_stats was called
-        coordinator.telemetry_client.send_daily_stats.assert_called_once()
-        call_args = coordinator.telemetry_client.send_daily_stats.call_args[0][0]
-        assert isinstance(call_args, DailyStats)
-        assert call_args.instance_hash == "a" * 64
-
-        # Also sends installation info daily
-        coordinator.telemetry_client.send_installation.assert_called_once()
-
-    @pytest.mark.asyncio
     async def test_flush_empty_buffer_is_noop(self):
         """Flush with no buffered points does nothing."""
         coordinator = _make_coordinator()
@@ -183,8 +158,8 @@ class TestAnonymizationInFlush:
 
     @pytest.mark.asyncio
     async def test_temperatures_rounded_in_metrics(self):
-        """FULL flush: temperature fields are rounded to 0.5°C."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        """ON flush: temperature fields are rounded to 0.5°C."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         data = _sample_data(outdoor_temp=5.3, water_inlet_temp=34.8)
 
         coordinator.telemetry_collector.collect(
@@ -199,25 +174,6 @@ class TestAnonymizationInFlush:
         point = batch.points[0]
         assert point.outdoor_temp == 5.5  # rounded to nearest 0.5
         assert point.water_inlet_temp == 35.0  # rounded to nearest 0.5
-
-    @pytest.mark.asyncio
-    async def test_temperatures_rounded_in_daily_stats(self):
-        """BASIC flush: temperature aggregates are rounded."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.BASIC)
-        data = _sample_data(outdoor_temp=5.3)
-
-        coordinator.telemetry_collector.collect(
-            data,
-            is_compressor_running=True,
-            is_defrosting=False,
-        )
-
-        await coordinator.async_flush_telemetry()
-
-        stats = coordinator.telemetry_client.send_daily_stats.call_args[0][0]
-        # Rounded to 0.5
-        assert stats.outdoor_temp_min == 5.5
-        assert stats.outdoor_temp_max == 5.5
 
 
 class TestInstallationInfo:
@@ -375,13 +331,13 @@ class TestLevelSwap:
 
     @pytest.mark.asyncio
     async def test_off_to_full(self):
-        """Switching from OFF to FULL enables collection."""
+        """Switching from OFF to ON enables collection."""
         coordinator = _make_coordinator(telemetry_level=TelemetryLevel.OFF)
 
         assert coordinator.telemetry_collector is None
 
-        # Simulate reload with FULL level
-        coordinator.telemetry_collector = TelemetryCollector(level=TelemetryLevel.FULL)
+        # Simulate reload with ON level
+        coordinator.telemetry_collector = TelemetryCollector(level=TelemetryLevel.ON)
         coordinator.telemetry_client = AsyncMock()
         coordinator.telemetry_client.send_metrics = AsyncMock(return_value=True)
         coordinator._telemetry_meta = {"instance_hash": "b" * 64}
@@ -395,8 +351,8 @@ class TestLevelSwap:
 
     @pytest.mark.asyncio
     async def test_full_to_off_flushes_and_disables(self):
-        """Switching FULL to OFF: flush remaining, then no more collection."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        """Switching ON to OFF: flush remaining, then no more collection."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         data = _sample_data()
 
         coordinator.telemetry_collector.collect(
@@ -415,39 +371,14 @@ class TestLevelSwap:
         # Flush should be noop
         await coordinator.async_flush_telemetry()
 
-    @pytest.mark.asyncio
-    async def test_basic_to_full(self):
-        """Switching BASIC to FULL changes collection behavior."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.BASIC)
-        data = _sample_data()
-
-        coordinator.telemetry_collector.collect(
-            data, is_compressor_running=True, is_defrosting=False
-        )
-
-        # Flush as BASIC → sends daily_stats
-        await coordinator.async_flush_telemetry()
-        coordinator.telemetry_client.send_daily_stats.assert_called_once()
-
-        # Simulate reload as FULL
-        coordinator.telemetry_collector = TelemetryCollector(level=TelemetryLevel.FULL)
-
-        coordinator.telemetry_collector.collect(
-            data, is_compressor_running=True, is_defrosting=False
-        )
-
-        await coordinator.async_flush_telemetry()
-        # Now sends metrics, not daily_stats
-        coordinator.telemetry_client.send_metrics.assert_called_once()
-
 
 class TestFullModeDailyStats:
-    """Tests for FULL mode daily stats accumulation."""
+    """Tests for ON mode daily stats accumulation."""
 
     @pytest.mark.asyncio
     async def test_full_flush_accumulates_points(self):
-        """FULL mode: points accumulate across flushes."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        """ON mode: points accumulate across flushes."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         data = _sample_data()
 
         for _ in range(5):
@@ -462,8 +393,8 @@ class TestFullModeDailyStats:
 
     @pytest.mark.asyncio
     async def test_full_accumulates_across_multiple_flushes(self):
-        """FULL mode: daily accumulator grows across multiple flushes."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        """ON mode: daily accumulator grows across multiple flushes."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         data = _sample_data()
 
         # First flush: 3 points
@@ -484,8 +415,8 @@ class TestFullModeDailyStats:
 
     @pytest.mark.asyncio
     async def test_full_sends_daily_stats_on_date_change(self):
-        """FULL mode: daily stats sent and accumulator reset when date changes."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        """ON mode: daily stats sent and accumulator reset when date changes."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         data = _sample_data()
 
         # Collect and flush on "day 1"
@@ -518,12 +449,12 @@ class TestFullModeDailyStats:
 
 
 class TestRegisterSnapshot:
-    """Tests for one-time register snapshot on first FULL-level poll."""
+    """Tests for one-time register snapshot on first ON-level poll."""
 
     @pytest.mark.asyncio
     async def test_sends_snapshot_on_first_call(self):
-        """FULL level sends a register snapshot once."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        """ON level sends a register snapshot once."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
 
         data = _sample_data()
         await coordinator._send_register_snapshot(data)
@@ -540,7 +471,7 @@ class TestRegisterSnapshot:
     @pytest.mark.asyncio
     async def test_snapshot_not_sent_twice(self):
         """Snapshot is only sent once (flag prevents re-send)."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         coordinator._snapshot_sent = True
 
         data = _sample_data()
@@ -551,7 +482,7 @@ class TestRegisterSnapshot:
     @pytest.mark.asyncio
     async def test_snapshot_excludes_non_numeric(self):
         """Snapshot excludes non-numeric values and is_available."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
 
         data = _sample_data()
         await coordinator._send_register_snapshot(data)
@@ -563,7 +494,7 @@ class TestRegisterSnapshot:
     @pytest.mark.asyncio
     async def test_snapshot_failure_is_silent(self):
         """Failed snapshot send doesn't raise, doesn't set flag."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.FULL)
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         coordinator.telemetry_client.send_snapshot = AsyncMock(
             side_effect=Exception("network error")
         )

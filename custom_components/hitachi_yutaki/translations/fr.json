@@ -58,8 +58,7 @@
     "telemetry_level": {
       "options": {
         "off": "😢 Désactivé — Aucune donnée envoyée",
-        "basic": "🙂 Basique — Infos installation + stats quotidiennes (1x/jour)",
-        "full": "🤩 Complet — Métriques fines toutes les 5 min + snapshot registres 24h"
+        "on": "🤩 Activé — Les métriques anonymisées aident à améliorer l'intégration"
       }
     }
   },
@@ -502,8 +501,7 @@
         "name": "État de la télémétrie",
         "state": {
           "off": "Désactivée",
-          "basic": "Basique",
-          "full": "Complète"
+          "on": "Activée"
         }
       }
     },

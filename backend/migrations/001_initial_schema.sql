@@ -46,7 +46,7 @@ SELECT create_hypertable('metrics', by_range('time'),
 );
 CREATE INDEX idx_metrics_instance ON metrics (instance_hash, time DESC);
 
--- Daily aggregates (Basic level + downsampled from Full)
+-- Daily aggregates (sent at day boundary)
 CREATE TABLE daily_stats (
     date                     DATE NOT NULL,
     instance_hash            TEXT NOT NULL,

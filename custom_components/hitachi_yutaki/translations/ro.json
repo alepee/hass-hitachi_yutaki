@@ -58,8 +58,7 @@
     "telemetry_level": {
       "options": {
         "off": "😢 Dezactivat — Nu se trimit date",
-        "basic": "🙂 De bază — Informații instalare + statistici zilnice (1x/zi)",
-        "full": "🤩 Complet — Măsurători fine la fiecare 5 min + instantanee registre 24h"
+        "on": "🤩 Activat — Măsurătorile anonimizate ajută la îmbunătățirea integrării"
       }
     }
   },
