@@ -13,6 +13,7 @@ For patterns and conventions used to build these entities, see
 |--------|------|-------------|----------|
 | connectivity | binary_sensor | Indicates if the gateway is connected and responding | diagnostic |
 | system_state | sensor | Gateway synchronization state with the heat pump | diagnostic |
+| telemetry_status | sensor | Current telemetry consent level (off/on) with send tracking attributes | diagnostic |
 
 ## Heat Pump Control Unit Device
 
