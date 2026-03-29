@@ -159,7 +159,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 and self._telemetry_meta is not None
             ):
                 await self._send_installation_info()
-                self._installation_info_sent = True
 
             # Send register snapshot once
             if (
@@ -226,7 +225,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         info = anonymize_installation_info(info)
 
         try:
-            await self.telemetry_client.send_installation(info)
+            success = await self.telemetry_client.send_installation(info)
+            if success:
+                self._installation_info_sent = True
         except Exception:
             _LOGGER.debug("Failed to send telemetry installation info", exc_info=True)
 
@@ -256,9 +257,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         )
 
         try:
-            await self.telemetry_client.send_snapshot(snapshot)
-            self._snapshot_sent = True
-            _LOGGER.debug("Telemetry: register snapshot sent")
+            success = await self.telemetry_client.send_snapshot(snapshot)
+            if success:
+                self._snapshot_sent = True
+                _LOGGER.debug("Telemetry: register snapshot sent")
         except Exception:
             _LOGGER.debug("Failed to send register snapshot", exc_info=True)
 

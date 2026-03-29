@@ -128,7 +128,7 @@ class EnableTelemetryRepairFlow(RepairsFlow):
 
             return self.async_create_entry(data={})
 
-        current_level = entry.options.get(CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL)
+        current_level = entry.options.get(CONF_TELEMETRY_LEVEL, "on")
 
         return self.async_show_form(
             step_id="confirm",

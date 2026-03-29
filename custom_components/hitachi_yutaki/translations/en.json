@@ -125,10 +125,10 @@
         }
       },
       "telemetry": {
-        "title": "Anonymous Telemetry",
+        "title": "Help Improve This Integration",
         "description": "I develop and test on a single heat pump model. For all others, I'm working blind — your anonymous data helps me build realistic tests, catch regressions, and develop new features. No personal information is ever collected.\n\n[Learn more about telemetry]({learn_more_url})",
         "data": {
-          "telemetry_level": "Telemetry Level"
+          "telemetry_level": "Anonymous telemetry"
         }
       }
     }
@@ -700,10 +700,10 @@
       "fix_flow": {
         "step": {
           "confirm": {
-            "title": "Choose Telemetry Level",
+            "title": "Help Improve This Integration",
             "description": "I develop and test on a single heat pump model. For all others, I'm working blind — your anonymous data helps me build realistic tests, catch regressions, and develop new features. No personal information is ever collected. You can change this at any time in the integration options.\n\n[Learn more about telemetry]({learn_more_url})",
             "data": {
-              "telemetry_level": "Telemetry Level"
+              "telemetry_level": "Anonymous telemetry"
             }
           }
         }

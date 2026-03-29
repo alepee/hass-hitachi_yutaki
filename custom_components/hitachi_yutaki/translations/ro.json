@@ -125,10 +125,10 @@
         }
       },
       "telemetry": {
-        "title": "Telemetrie anonimă",
+        "title": "Ajutați la îmbunătățirea acestei integrări",
         "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale.\n\n[Aflați mai multe despre telemetrie]({learn_more_url})",
         "data": {
-          "telemetry_level": "Nivel telemetrie"
+          "telemetry_level": "Telemetrie anonimă"
         }
       }
     }
@@ -700,10 +700,10 @@
       "fix_flow": {
         "step": {
           "confirm": {
-            "title": "Alegeți nivelul de telemetrie",
+            "title": "Ajutați la îmbunătățirea acestei integrări",
             "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale. Puteți modifica aceasta oricând din opțiunile integrării.\n\n[Aflați mai multe despre telemetrie]({learn_more_url})",
             "data": {
-              "telemetry_level": "Nivel telemetrie"
+              "telemetry_level": "Telemetrie anonimă"
             }
           }
         }

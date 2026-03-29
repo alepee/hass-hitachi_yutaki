@@ -125,10 +125,10 @@
         }
       },
       "telemetry": {
-        "title": "Anonieme telemetrie",
+        "title": "Help deze integratie te verbeteren",
         "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld.\n\n[Meer informatie over telemetrie]({learn_more_url})",
         "data": {
-          "telemetry_level": "Telemetrieniveau"
+          "telemetry_level": "Anonieme telemetrie"
         }
       }
     }
@@ -700,10 +700,10 @@
       "fix_flow": {
         "step": {
           "confirm": {
-            "title": "Kies telemetrieniveau",
+            "title": "Help deze integratie te verbeteren",
             "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld. U kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over telemetrie]({learn_more_url})",
             "data": {
-              "telemetry_level": "Telemetrieniveau"
+              "telemetry_level": "Anonieme telemetrie"
             }
           }
         }
