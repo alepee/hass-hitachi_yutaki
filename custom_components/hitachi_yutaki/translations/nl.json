@@ -697,7 +697,6 @@
     },
     "enable_telemetry": {
       "title": "Help Hitachi Yutaki verbeteren",
-      "description": "Ik ontwikkel en test op één enkel warmtepompmodel — voor alle andere modellen werk ik blind. Uw anonieme gegevens helpen mij problemen sneller op te sporen en betere ondersteuning te bieden voor elk model.\n\nKlik op **Oplossen** om uw telemetrieniveau te kiezen, of sluit dit bericht om het uitgeschakeld te houden.",
       "fix_flow": {
         "step": {
           "confirm": {

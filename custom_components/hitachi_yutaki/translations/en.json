@@ -697,7 +697,6 @@
     },
     "enable_telemetry": {
       "title": "Help Improve Hitachi Yutaki",
-      "description": "I develop and test on a single heat pump model — for all others, I'm working blind. Your anonymous data would help me catch issues faster and build better support for every model.\n\nClick **Fix** to choose your telemetry level, or dismiss to keep it disabled.",
       "fix_flow": {
         "step": {
           "confirm": {

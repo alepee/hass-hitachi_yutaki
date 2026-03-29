@@ -697,7 +697,6 @@
     },
     "enable_telemetry": {
       "title": "Aidez à améliorer Hitachi Yutaki",
-      "description": "Je développe et teste sur un seul modèle de PAC — pour tous les autres, je travaille à l'aveugle. Vos données anonymes m'aideraient à détecter les problèmes plus vite et mieux supporter chaque modèle.\n\nCliquez sur **Corriger** pour choisir votre niveau de télémétrie, ou ignorez pour la laisser désactivée.",
       "fix_flow": {
         "step": {
           "confirm": {
