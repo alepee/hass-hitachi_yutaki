@@ -13,7 +13,7 @@ import type {
 } from "./types";
 
 const INSTANCE_HASH_RE = /^[a-f0-9]{64}$/;
-const MAX_PAYLOAD_SIZE = 50 * 1024; // 50 KB uncompressed
+const MAX_PAYLOAD_SIZE = 256 * 1024; // 256 KB uncompressed
 const MAX_METRICS_POINTS = 500;
 
 /** Allowed installation data fields (whitelist). */
