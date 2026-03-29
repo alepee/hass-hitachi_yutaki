@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0-beta.3] - 2026-03-29
+
 ### Added
 - Anonymous telemetry system (Off / On) — helps build realistic test fixtures for all heat pump models ([Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200))
 - Telemetry consent step in config flow (options) and repair flow for existing users
