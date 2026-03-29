@@ -14,7 +14,7 @@ This custom integration allows you to control and monitor your Hitachi **Yutaki*
 - **Tested With**: Yutaki S80, Yutaki S, Yutaki S Combi, Yutampo R32
 - **Required Hardware**: ATW-MBS-02 or HC-A(16/64)MB Modbus gateway
 
-> **Pre-2016 support (Beta)**: Gen 1 Yutaki S and S Combi units (NWE/NWSE suffix) are supported in beta. This implementation is based on the Hitachi documentation but has not been validated on real hardware yet. If you have a pre-2016 unit, select "Gen 1" during setup and [let us know how it goes](https://github.com/alepee/hass-hitachi_yutaki/discussions). Not sure which generation you have? Use the [model decoder tool](https://alepee.github.io/hass-hitachi_yutaki/tools/model-decoder.html).
+> **Pre-2016 support (Beta)**: Gen 1 Yutaki S and S Combi units (NWE/NWSE suffix) are supported in beta. This implementation is based on the Hitachi documentation but has not been validated on real hardware yet. If you have a pre-2016 unit, select "Gen 1" during setup and [let us know how it goes](https://github.com/alepee/hass-hitachi_yutaki/discussions). Not sure which generation you have? Use the [model decoder tool](https://alepee.github.io/hass-hitachi_yutaki/model-decoder.html).
 
 ## Features
 
