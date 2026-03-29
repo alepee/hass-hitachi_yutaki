@@ -54,6 +54,12 @@
         "single": "Single phase",
         "three": "Three phase"
       }
+    },
+    "telemetry_level": {
+      "options": {
+        "off": "😢 Off — No data sent",
+        "on": "🤩 On — Anonymized metrics help improve the integration"
+      }
     }
   },
   "options": {
@@ -116,6 +122,13 @@
         "data": {
           "gateway_type": "Gateway Type",
           "profile": "Heat Pump Profile"
+        }
+      },
+      "telemetry": {
+        "title": "Help Improve This Integration",
+        "description": "I develop and test on a single heat pump model. For all others, I'm working blind — your anonymous data helps me build realistic tests, catch regressions, and develop new features. No personal information is ever collected.\n\n[Learn more about telemetry]({learn_more_url})",
+        "data": {
+          "telemetry_level": "Anonymous telemetry"
         }
       }
     }
@@ -483,6 +496,13 @@
           "desynchronized": "Desynchronized",
           "initializing": "Initializing"
         }
+      },
+      "telemetry_status": {
+        "name": "Telemetry Status",
+        "state": {
+          "off": "Off",
+          "on": "On"
+        }
       }
     },
     "binary_sensor": {
@@ -674,6 +694,20 @@
     "missing_config": {
       "title": "Hitachi Yutaki Configuration Incomplete",
       "description": "Your Hitachi Yutaki integration is missing required configuration parameters (gateway type and/or heat pump profile). The integration cannot be set up until these parameters are configured.\n\n**To resolve this:**\n1. Go to Settings > Devices & Services > Hitachi Yutaki\n2. Click on the integration and select Configure\n3. Select the missing parameters (gateway type and heat pump profile)\n4. Save the configuration"
+    },
+    "enable_telemetry": {
+      "title": "Help Improve Hitachi Yutaki",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Help Improve This Integration",
+            "description": "I develop and test on a single heat pump model. For all others, I'm working blind — your anonymous data helps me build realistic tests, catch regressions, and develop new features. No personal information is ever collected. You can change this at any time in the integration options.\n\n[Learn more about telemetry]({learn_more_url})",
+            "data": {
+              "telemetry_level": "Anonymous telemetry"
+            }
+          }
+        }
+      }
     }
   }
 }

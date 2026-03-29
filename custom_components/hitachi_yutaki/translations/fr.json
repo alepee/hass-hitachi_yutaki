@@ -54,6 +54,12 @@
         "single": "Monophasé",
         "three": "Triphasé"
       }
+    },
+    "telemetry_level": {
+      "options": {
+        "off": "😢 Désactivé — Aucune donnée envoyée",
+        "on": "🤩 Activé — Les métriques anonymisées aident à améliorer l'intégration"
+      }
     }
   },
   "options": {
@@ -116,6 +122,13 @@
         "data": {
           "gateway_type": "Type de Passerelle",
           "profile": "Profil de Pompe à Chaleur"
+        }
+      },
+      "telemetry": {
+        "title": "Aidez à améliorer cette intégration",
+        "description": "Je développe et teste sur un seul modèle de PAC. Pour tous les autres, je travaille à l'aveugle — vos données anonymes m'aident à construire des tests réalistes, détecter les régressions et développer de nouvelles fonctionnalités. Aucune information personnelle n'est collectée.\n\n[En savoir plus sur la télémétrie]({learn_more_url})",
+        "data": {
+          "telemetry_level": "Télémétrie anonyme"
         }
       }
     }
@@ -483,6 +496,13 @@
           "desynchronized": "Désynchronisé",
           "initializing": "Initialisation"
         }
+      },
+      "telemetry_status": {
+        "name": "État de la télémétrie",
+        "state": {
+          "off": "Désactivée",
+          "on": "Activée"
+        }
       }
     },
     "binary_sensor": {
@@ -674,6 +694,20 @@
     "missing_config": {
       "title": "Configuration Hitachi Yutaki Incomplète",
       "description": "Votre intégration Hitachi Yutaki manque des paramètres de configuration requis (type de passerelle et/ou profil de pompe à chaleur). L'intégration ne peut pas être configurée tant que ces paramètres ne sont pas définis.\n\n**Pour résoudre ce problème :**\n1. Allez dans Paramètres > Appareils et services > Hitachi Yutaki\n2. Cliquez sur l'intégration et sélectionnez Configurer\n3. Sélectionnez les paramètres manquants (type de passerelle et profil de pompe à chaleur)\n4. Enregistrez la configuration"
+    },
+    "enable_telemetry": {
+      "title": "Aidez à améliorer Hitachi Yutaki",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Aidez à améliorer cette intégration",
+            "description": "Je développe et teste sur un seul modèle de PAC. Pour tous les autres, je travaille à l'aveugle — vos données anonymes m'aident à construire des tests réalistes, détecter les régressions et développer de nouvelles fonctionnalités. Aucune information personnelle n'est collectée. Vous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la télémétrie]({learn_more_url})",
+            "data": {
+              "telemetry_level": "Télémétrie anonyme"
+            }
+          }
+        }
+      }
     }
   }
 }

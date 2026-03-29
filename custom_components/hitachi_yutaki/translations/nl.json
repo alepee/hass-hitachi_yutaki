@@ -54,6 +54,12 @@
         "single": "Enkelfasig",
         "three": "Driefasig"
       }
+    },
+    "telemetry_level": {
+      "options": {
+        "off": "😢 Uit — Geen gegevens verzonden",
+        "on": "🤩 Aan — Geanonimiseerde metingen helpen de integratie te verbeteren"
+      }
     }
   },
   "options": {
@@ -116,6 +122,13 @@
         "data": {
           "gateway_type": "Gatewaytype",
           "profile": "Warmtepompmodel"
+        }
+      },
+      "telemetry": {
+        "title": "Help deze integratie te verbeteren",
+        "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld.\n\n[Meer informatie over telemetrie]({learn_more_url})",
+        "data": {
+          "telemetry_level": "Anonieme telemetrie"
         }
       }
     }
@@ -483,6 +496,13 @@
           "desynchronized": "Gedesynchroniseerd",
           "initializing": "Initialiseren"
         }
+      },
+      "telemetry_status": {
+        "name": "Telemetrie Status",
+        "state": {
+          "off": "Uit",
+          "on": "Aan"
+        }
       }
     },
     "binary_sensor": {
@@ -674,6 +694,20 @@
     "missing_config": {
       "title": "Hitachi Yutaki configuratie onvolledig",
       "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters (gatewaytype en/of warmtepompmodel). De integratie kan niet worden ingesteld totdat deze parameters zijn geconfigureerd.\n\n**Om dit op te lossen:**\n1. Ga naar Instellingen > Apparaten en services > Hitachi Yutaki\n2. Klik op de integratie en selecteer Configureren\n3. Selecteer de ontbrekende parameters (gatewaytype en warmtepompmodel)\n4. Sla de configuratie op"
+    },
+    "enable_telemetry": {
+      "title": "Help Hitachi Yutaki verbeteren",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Help deze integratie te verbeteren",
+            "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld. U kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over telemetrie]({learn_more_url})",
+            "data": {
+              "telemetry_level": "Anonieme telemetrie"
+            }
+          }
+        }
+      }
     }
   }
 }

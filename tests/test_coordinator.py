@@ -9,6 +9,11 @@ import pytest
 
 from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
+from custom_components.hitachi_yutaki.telemetry import (
+    NoopTelemetryClient,
+    TelemetryCollector,
+    TelemetryLevel,
+)
 from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
@@ -50,6 +55,17 @@ def coordinator(mock_hass, mock_api_client, mock_profile):
         coord = HitachiYutakiDataCoordinator(
             mock_hass, entry, mock_api_client, mock_profile
         )
+    # Inject telemetry dependencies (noop for coordinator tests)
+    coord.telemetry_collector = TelemetryCollector(level=TelemetryLevel.OFF)
+    coord.telemetry_client = NoopTelemetryClient()
+    coord._telemetry_meta = {
+        "instance_hash": "test",
+        "profile": "test",
+        "gateway_type": "test",
+        "ha_version": "test",
+        "integration_version": "test",
+        "power_supply": "single",
+    }
     return coord
 
 

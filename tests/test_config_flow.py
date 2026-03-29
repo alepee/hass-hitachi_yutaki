@@ -487,10 +487,17 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
     assert result["step_id"] == "sensors"
 
     # Step 4: sensors
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"power_supply": "three"},
+    )
+    assert result["step_id"] == "telemetry"
+
+    # Step 5: telemetry
     with patch.object(hass.config_entries, "async_reload"):
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
-            {"power_supply": "three"},
+            {"telemetry_level": "off"},
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY

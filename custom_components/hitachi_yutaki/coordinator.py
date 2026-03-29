@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+import asyncio
+from datetime import UTC, date, datetime, timedelta
 import logging
 from typing import Any
 
@@ -21,11 +22,29 @@ from .api import HitachiApiClient
 from .api.base import ReadResult
 from .const import (
     CIRCUIT_IDS,
+    CIRCUIT_MODE_COOLING,
     CIRCUIT_MODES,
+    CIRCUIT_PRIMARY_ID,
+    CIRCUIT_SECONDARY_ID,
     DOMAIN,
 )
 from .domain.services.defrost_guard import DefrostGuard
 from .profiles import HitachiHeatPumpProfile
+from .telemetry import (
+    HttpTelemetryClient,
+    InstallationInfo,
+    MetricPoint,
+    MetricsBatch,
+    NoopTelemetryClient,
+    RegisterSnapshot,
+    TelemetryCollector,
+)
+from .telemetry.aggregator import aggregate_metrics
+from .telemetry.anonymizer import (
+    anonymize_daily_stats,
+    anonymize_installation_info,
+    anonymize_metric_point,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -49,6 +68,22 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.defrost_guard = DefrostGuard()
         self._normal_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
         self._gateway_not_ready_count: int = 0
+
+        # Telemetry (injected by async_setup_entry — always set, noop when OFF)
+        self.telemetry_collector: TelemetryCollector = None  # type: ignore[assignment]
+        self.telemetry_client: HttpTelemetryClient | NoopTelemetryClient = None  # type: ignore[assignment]
+        self._telemetry_meta: dict[str, Any] = {}
+        self._installation_info_sent: bool = False
+        self._snapshot_sent: bool = False
+        self._onetime_send_lock: asyncio.Lock = asyncio.Lock()
+        self._telemetry_next_retry: datetime | None = None
+        self._telemetry_retry_delay: int = 30  # seconds, doubles on each failure
+        self.telemetry_last_send: datetime | None = None
+        self.telemetry_send_failures: int = 0
+
+        # Daily points accumulator for daily stats
+        self._daily_points_accumulator: list[MetricPoint] = []
+        self._daily_stats_date: date | None = None
 
         super().__init__(
             hass,
@@ -116,6 +151,19 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             # If we reach here, connection is successful, so delete any connection error issue
             ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
 
+            # Telemetry: collect metrics from this poll cycle
+            # (collector handles level=OFF internally)
+            self.telemetry_collector.collect(
+                data,
+                is_compressor_running=self.api_client.is_compressor_running,
+                is_defrosting=self.api_client.is_defrosting,
+            )
+
+            # Send one-time telemetry data (with backoff on failure)
+            # Fire-and-forget to avoid blocking the Modbus poll path
+            if not self._installation_info_sent or not self._snapshot_sent:
+                self.hass.async_create_task(self._send_onetime_telemetry(data))
+
             # Update timing sensors
             for entity in self.entities:
                 if hasattr(entity, "async_update_timing"):
@@ -139,6 +187,167 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             )
             _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
             raise UpdateFailed("Failed to communicate with device") from exc
+
+    async def _send_onetime_telemetry(self, data: dict[str, Any]) -> None:
+        """Send one-time telemetry (installation info + snapshot) with backoff."""
+        if self._onetime_send_lock.locked():
+            return
+
+        async with self._onetime_send_lock:
+            now = datetime.now(tz=UTC)
+
+            # Respect backoff delay
+            if self._telemetry_next_retry and now < self._telemetry_next_retry:
+                return
+
+            success = True
+
+            if not self._installation_info_sent:
+                await self._send_installation_info()
+                if not self._installation_info_sent:
+                    success = False
+
+            if not self._snapshot_sent:
+                await self._send_register_snapshot(data)
+                if not self._snapshot_sent:
+                    success = False
+
+            if not success:
+                # Exponential backoff: 30s, 60s, 120s, 240s, capped at 5 min
+                self._telemetry_next_retry = now + timedelta(
+                    seconds=self._telemetry_retry_delay
+                )
+                self._telemetry_retry_delay = min(self._telemetry_retry_delay * 2, 300)
+            else:
+                self._telemetry_next_retry = None
+
+    async def _send_installation_info(self) -> None:
+        """Build and send installation info on first successful poll."""
+        meta = self._telemetry_meta
+
+        has_cooling = self.has_circuit(
+            CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
+        ) or self.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
+
+        has_circuit2 = self.has_circuit(
+            CIRCUIT_SECONDARY_ID, "heating"
+        ) or self.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
+
+        info = InstallationInfo(
+            instance_hash=meta["instance_hash"],
+            profile=meta["profile"],
+            gateway_type=meta["gateway_type"],
+            ha_version=meta["ha_version"],
+            integration_version=meta["integration_version"],
+            power_supply=meta["power_supply"],
+            has_dhw=self.has_dhw(),
+            has_pool=self.has_pool(),
+            has_cooling=has_cooling,
+            max_circuits=2 if has_circuit2 else 1,
+            has_secondary_compressor=self.profile.supports_secondary_compressor,
+            latitude=self.hass.config.latitude,
+            longitude=self.hass.config.longitude,
+        )
+        info = anonymize_installation_info(info)
+
+        try:
+            success = await self.telemetry_client.send_installation(info)
+            if success:
+                self._installation_info_sent = True
+        except Exception:
+            _LOGGER.debug("Failed to send telemetry installation info", exc_info=True)
+
+    async def _send_register_snapshot(self, data: dict[str, Any]) -> None:
+        """Send a one-time register snapshot."""
+        if self._snapshot_sent:
+            return
+
+        meta = self._telemetry_meta
+
+        # Build register dict: only numeric values, skip meta keys
+        registers: dict[str, float] = {}
+        for key, value in data.items():
+            if key == "is_available":
+                continue
+            if isinstance(value, (int, float)):
+                registers[key] = value
+
+        snapshot = RegisterSnapshot(
+            instance_hash=meta["instance_hash"],
+            time=datetime.now(tz=UTC),
+            profile=meta["profile"],
+            gateway_type=meta["gateway_type"],
+            registers=registers,
+        )
+
+        try:
+            success = await self.telemetry_client.send_snapshot(snapshot)
+            if success:
+                self._snapshot_sent = True
+                _LOGGER.debug("Telemetry: register snapshot sent")
+        except Exception:
+            _LOGGER.debug("Failed to send register snapshot", exc_info=True)
+
+    async def async_flush_telemetry(self) -> None:
+        """Flush telemetry buffer and send data."""
+        points = self.telemetry_collector.flush()
+        if not points:
+            _LOGGER.debug("Telemetry flush: buffer empty, nothing to send")
+            return
+
+        instance_hash = self._telemetry_meta["instance_hash"]
+        _LOGGER.debug(
+            "Telemetry flush: %d points to send (level=%s)",
+            len(points),
+            self.telemetry_collector.level.value,
+        )
+
+        try:
+            # Send fine-grained metrics
+            anonymized = [anonymize_metric_point(p) for p in points]
+            batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
+            success = await self.telemetry_client.send_metrics(batch)
+
+            # Check for day boundary BEFORE adding today's points
+            today = date.today()
+            if (
+                self._daily_stats_date is not None
+                and self._daily_stats_date != today
+                and self._daily_points_accumulator
+            ):
+                # Date changed — send yesterday's accumulated stats
+                stats = aggregate_metrics(
+                    instance_hash,
+                    self._daily_stats_date,
+                    self._daily_points_accumulator,
+                )
+                anonymized_stats = anonymize_daily_stats(stats)
+                daily_ok = await self.telemetry_client.send_daily_stats(
+                    anonymized_stats
+                )
+                if daily_ok:
+                    await self._send_installation_info()
+                    # Reset accumulator only on success
+                    self._daily_points_accumulator = []
+                else:
+                    _LOGGER.warning(
+                        "Daily stats send failed, keeping %d points for retry",
+                        len(self._daily_points_accumulator),
+                    )
+
+            # Accumulate today's points
+            self._daily_points_accumulator.extend(points)
+            self._daily_stats_date = today
+
+            if success:
+                self.telemetry_last_send = datetime.now(tz=UTC)
+                _LOGGER.debug("Telemetry flush: sent successfully")
+            else:
+                self.telemetry_send_failures += 1
+                _LOGGER.warning("Telemetry flush: send returned failure")
+        except Exception:
+            self.telemetry_send_failures += 1
+            _LOGGER.warning("Telemetry flush failed", exc_info=True)
 
     def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
         """Return True if circuit is configured in system_config."""

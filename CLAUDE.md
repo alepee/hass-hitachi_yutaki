@@ -67,6 +67,15 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Separate tracking for heating and cooling (real-time power, daily energy, total energy)
 - **Defrost filtering** and **post-cycle lock** prevent measurement noise
 
+### Anonymous Telemetry
+- Binary consent (Off / On) stored in `entry.options["telemetry_level"]`
+- **Package** (`telemetry/`): models, collector (circular buffer), aggregator (daily stats from points), anonymizer (SHA-256 hash, 0.5°C rounding, geolocation rounding), HTTP client (gzip + retry), noop client
+- **Coordinator wiring**: collector.collect() on each poll, 5-min flush timer, daily stats at day boundary, one-time installation info + register snapshot (fire-and-forget with `asyncio.Lock` + exponential backoff)
+- **Backend**: Cloudflare Worker (ingestion/validation/rate-limit per payload type) → TigerData (TimescaleDB) + R2 cold archive
+- **Consent flows**: options flow step (after sensors), repair flow for existing users (defaults to "on")
+- **Diagnostic entity**: `sensor.telemetry_status` (ENUM: off/on) with attributes (points_buffered, last_send, send_failures)
+- See [docs/reference/telemetry.md](docs/reference/telemetry.md)
+
 ### Devices Created
 - **Gateway**, **Control Unit**, **Primary Compressor** (always present)
 - **Secondary Compressor** (S80 only), **Circuit 1 & 2**, **DHW**, **Pool** (if configured)
@@ -91,6 +100,15 @@ Domain logic goes in `domain/services/`, adapter logic in `adapters/calculators/
 - **Single circuit active**: climate entity exposes `off`/`heat`/`cool`/`auto` and controls both power and global mode
 - **Two circuits active**: climate entities expose only `off`/`heat_cool` (power toggle only) -- global mode is controlled exclusively via the `control_unit_operation_mode` select entity to avoid unintended side-effects between circuits
 
+### When Modifying Telemetry
+
+- **Integration side**: models/collector/aggregator in `telemetry/`, wiring in `coordinator.py`, consent in `config_flow.py` + `repairs.py`
+- **Backend side**: Cloudflare Worker in `backend/worker/src/`, DB migrations in `backend/migrations/`
+- Fields must match across: Python models (`to_dict()`), Worker validator (field whitelists), DB schema (INSERT columns)
+- Telemetry entities read from coordinator attributes (not `coordinator.data`) — use `HitachiYutakiTelemetrySensor` subclass
+- Daily stats accumulator clears only on successful send; one-time sends use `asyncio.Lock` to prevent concurrent fire-and-forget
+- Deploy Worker changes with `cd backend/worker && npx wrangler deploy`
+
 ### Entity Migration (v2.0.0)
 - `entity_migration.py` handles unique_id migrations for beta users
 - Runs automatically during integration setup
@@ -114,6 +132,7 @@ Domain logic goes in `domain/services/`, adapter logic in `adapters/calculators/
 
 Tests are in `tests/` directory:
 - `tests/domain/`: Domain layer unit tests (pure Python, no HA)
+- `tests/test_telemetry_*.py`: Telemetry unit + integration tests (models, collector, aggregator, anonymizer, http client, repairs, full cycle)
 - Test files use `pytest` and `pytest-asyncio`
 
 Run tests: `make test`

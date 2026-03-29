@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME
+from homeassistant.const import CONF_NAME, __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
+from homeassistant.loader import async_get_integration
 
 from .api import GATEWAY_INFO, create_register_map
 from .const import (
@@ -20,8 +25,12 @@ from .const import (
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
+    CONF_POWER_SUPPLY,
+    CONF_TELEMETRY_LEVEL,
     CONF_UNIT_ID,
     DEFAULT_DEVICE_ID,
+    DEFAULT_POWER_SUPPLY,
+    DEFAULT_TELEMETRY_LEVEL,
     DEFAULT_UNIT_ID,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
@@ -38,6 +47,13 @@ from .const import (
 from .coordinator import HitachiYutakiDataCoordinator
 from .entity_migration import async_migrate_entities
 from .profiles import PROFILES
+from .telemetry import (
+    HttpTelemetryClient,
+    NoopTelemetryClient,
+    TelemetryCollector,
+    TelemetryLevel,
+)
+from .telemetry.anonymizer import hash_instance_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -162,6 +178,41 @@ async def async_setup_entry(
     profile = PROFILES[profile_key]()
 
     coordinator = HitachiYutakiDataCoordinator(hass, entry, api_client, profile)
+
+    # Set up telemetry before first refresh so collector is ready
+    telemetry_level_str = entry.options.get(
+        CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
+    )
+    telemetry_level = TelemetryLevel(telemetry_level_str)
+    _LOGGER.info(
+        "Telemetry level: %s (from options: %s)",
+        telemetry_level.value,
+        CONF_TELEMETRY_LEVEL in entry.options,
+    )
+
+    # Always inject telemetry dependencies (noop when OFF)
+    instance_id = await async_get_instance_id(hass)
+    instance_hash = hash_instance_id(instance_id)
+    integration = await async_get_integration(hass, DOMAIN)
+
+    if telemetry_level != TelemetryLevel.OFF:
+        session = async_get_clientsession(hass)
+        coordinator.telemetry_client = HttpTelemetryClient(session, instance_hash)
+    else:
+        coordinator.telemetry_client = NoopTelemetryClient()
+
+    coordinator.telemetry_collector = TelemetryCollector(
+        level=telemetry_level,
+    )
+    coordinator._telemetry_meta = {
+        "instance_hash": instance_hash,
+        "profile": profile_key,
+        "gateway_type": gateway_type,
+        "ha_version": HA_VERSION,
+        "integration_version": integration.version,
+        "power_supply": entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
+    }
+
     try:
         await coordinator.async_config_entry_first_refresh()
     except ConfigEntryNotReady:
@@ -285,6 +336,30 @@ async def async_setup_entry(
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
         )
 
+    # Telemetry onboarding: create repair issue for existing users who haven't chosen yet
+    if CONF_TELEMETRY_LEVEL not in entry.options:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            f"enable_telemetry_{entry.entry_id}",
+            is_fixable=True,
+            is_persistent=True,
+            severity=IssueSeverity.WARNING,
+            issue_domain=DOMAIN,
+            translation_key="enable_telemetry",
+        )
+
+    # Set up telemetry flush timer (every 5 min)
+    if telemetry_level != TelemetryLevel.OFF:
+        flush_interval = timedelta(minutes=5)
+
+        async def _telemetry_flush(_now: datetime) -> None:
+            await coordinator.async_flush_telemetry()
+
+        entry.async_on_unload(
+            async_track_time_interval(hass, _telemetry_flush, flush_interval)
+        )
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.info(
         "Hitachi Yutaki integration setup completed for %s", entry.data[CONF_NAME]
@@ -372,6 +447,9 @@ async def async_unload_entry(
 
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator = entry.runtime_data
+
+        # Flush remaining telemetry data before closing
+        await coordinator.async_flush_telemetry()
 
         # Close API connection
         if coordinator.api_client.connected:
