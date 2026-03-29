@@ -42,8 +42,7 @@ class HitachiYutakiTelemetrySensor(HitachiYutakiSensor):
         c = self.coordinator
         attrs: dict[str, Any] = {}
 
-        if c.telemetry_collector is not None:
-            attrs["points_buffered"] = c.telemetry_collector.buffer_size
+        attrs["points_buffered"] = c.telemetry_collector.buffer_size
 
         if c.telemetry_last_send is not None:
             attrs["last_send"] = c.telemetry_last_send.isoformat()

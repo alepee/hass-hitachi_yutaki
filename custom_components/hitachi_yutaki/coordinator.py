@@ -30,8 +30,11 @@ from .const import (
 from .domain.services.defrost_guard import DefrostGuard
 from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
+    HttpTelemetryClient,
     InstallationInfo,
+    MetricPoint,
     MetricsBatch,
+    NoopTelemetryClient,
     RegisterSnapshot,
     TelemetryCollector,
 )
@@ -65,10 +68,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self._normal_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
         self._gateway_not_ready_count: int = 0
 
-        # Telemetry (set by async_setup_entry after creation)
-        self.telemetry_collector: TelemetryCollector | None = None
-        self.telemetry_client: Any = None  # HttpTelemetryClient or NoopTelemetryClient
-        self._telemetry_meta: dict[str, Any] | None = None
+        # Telemetry (injected by async_setup_entry — always set, noop when OFF)
+        self.telemetry_collector: TelemetryCollector = None  # type: ignore[assignment]
+        self.telemetry_client: HttpTelemetryClient | NoopTelemetryClient = None  # type: ignore[assignment]
+        self._telemetry_meta: dict[str, Any] = {}
         self._installation_info_sent: bool = False
         self._snapshot_sent: bool = False
         self._telemetry_next_retry: datetime | None = None
@@ -77,7 +80,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.telemetry_send_failures: int = 0
 
         # Daily points accumulator for daily stats
-        self._daily_points_accumulator: list = []
+        self._daily_points_accumulator: list[MetricPoint] = []
         self._daily_stats_date: date | None = None
 
         super().__init__(
@@ -147,20 +150,16 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
 
             # Telemetry: collect metrics from this poll cycle
-            if self.telemetry_collector is not None:
-                self.telemetry_collector.collect(
-                    data,
-                    is_compressor_running=self.api_client.is_compressor_running,
-                    is_defrosting=self.api_client.is_defrosting,
-                )
+            # (collector handles level=OFF internally)
+            self.telemetry_collector.collect(
+                data,
+                is_compressor_running=self.api_client.is_compressor_running,
+                is_defrosting=self.api_client.is_defrosting,
+            )
 
             # Send one-time telemetry data (with backoff on failure)
             # Fire-and-forget to avoid blocking the Modbus poll path
-            if (
-                (not self._installation_info_sent or not self._snapshot_sent)
-                and self.telemetry_client is not None
-                and self._telemetry_meta is not None
-            ):
+            if not self._installation_info_sent or not self._snapshot_sent:
                 self.hass.async_create_task(self._send_onetime_telemetry(data))
 
             # Update timing sensors
@@ -202,7 +201,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             if not self._installation_info_sent:
                 success = False
 
-        if not self._snapshot_sent and self.telemetry_collector is not None:
+        if not self._snapshot_sent:
             await self._send_register_snapshot(data)
             if not self._snapshot_sent:
                 success = False
@@ -219,8 +218,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     async def _send_installation_info(self) -> None:
         """Build and send installation info on first successful poll."""
         meta = self._telemetry_meta
-        if meta is None:
-            return
 
         has_cooling = self.has_circuit(
             CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
@@ -260,8 +257,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             return
 
         meta = self._telemetry_meta
-        if meta is None or self.telemetry_client is None:
-            return
 
         # Build register dict: only numeric values, skip meta keys
         registers: dict[str, float] = {}
@@ -289,14 +284,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
     async def async_flush_telemetry(self) -> None:
         """Flush telemetry buffer and send data."""
-        if (
-            self.telemetry_collector is None
-            or self.telemetry_client is None
-            or self._telemetry_meta is None
-        ):
-            _LOGGER.debug("Telemetry flush skipped: not configured")
-            return
-
         points = self.telemetry_collector.flush()
         if not points:
             _LOGGER.debug("Telemetry flush: buffer empty, nothing to send")

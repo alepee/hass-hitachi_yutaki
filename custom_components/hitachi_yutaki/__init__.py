@@ -47,7 +47,12 @@ from .const import (
 from .coordinator import HitachiYutakiDataCoordinator
 from .entity_migration import async_migrate_entities
 from .profiles import PROFILES
-from .telemetry import HttpTelemetryClient, TelemetryCollector, TelemetryLevel
+from .telemetry import (
+    HttpTelemetryClient,
+    NoopTelemetryClient,
+    TelemetryCollector,
+    TelemetryLevel,
+)
 from .telemetry.anonymizer import hash_instance_id
 
 _LOGGER = logging.getLogger(__name__)
@@ -185,25 +190,28 @@ async def async_setup_entry(
         CONF_TELEMETRY_LEVEL in entry.options,
     )
 
+    # Always inject telemetry dependencies (noop when OFF)
+    instance_id = await async_get_instance_id(hass)
+    instance_hash = hash_instance_id(instance_id)
+    integration = await async_get_integration(hass, DOMAIN)
+
     if telemetry_level != TelemetryLevel.OFF:
-        instance_id = await async_get_instance_id(hass)
-        instance_hash = hash_instance_id(instance_id)
         session = async_get_clientsession(hass)
         coordinator.telemetry_client = HttpTelemetryClient(session, instance_hash)
+    else:
+        coordinator.telemetry_client = NoopTelemetryClient()
 
-        coordinator.telemetry_collector = TelemetryCollector(
-            level=telemetry_level,
-        )
-
-        integration = await async_get_integration(hass, DOMAIN)
-        coordinator._telemetry_meta = {
-            "instance_hash": instance_hash,
-            "profile": profile_key,
-            "gateway_type": gateway_type,
-            "ha_version": HA_VERSION,
-            "integration_version": integration.version,
-            "power_supply": entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
-        }
+    coordinator.telemetry_collector = TelemetryCollector(
+        level=telemetry_level,
+    )
+    coordinator._telemetry_meta = {
+        "instance_hash": instance_hash,
+        "profile": profile_key,
+        "gateway_type": gateway_type,
+        "ha_version": HA_VERSION,
+        "integration_version": integration.version,
+        "power_supply": entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
+    }
 
     try:
         await coordinator.async_config_entry_first_refresh()

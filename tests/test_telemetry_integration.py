@@ -65,23 +65,26 @@ def _make_coordinator(
 
     coordinator = HitachiYutakiDataCoordinator(hass, entry, api_client, profile)
 
+    coordinator.telemetry_collector = TelemetryCollector(
+        level=telemetry_level,
+        buffer_max_size=buffer_max_size,
+    )
+    coordinator._telemetry_meta = {
+        "instance_hash": "a" * 64,
+        "profile": "yutaki_s80",
+        "gateway_type": "modbus_atw_mbs_02",
+        "ha_version": "2025.3.1",
+        "integration_version": "2.0.3",
+        "power_supply": "single",
+    }
+
     if telemetry_level != TelemetryLevel.OFF:
-        coordinator.telemetry_collector = TelemetryCollector(
-            level=telemetry_level,
-            buffer_max_size=buffer_max_size,
-        )
         coordinator.telemetry_client = AsyncMock()
         coordinator.telemetry_client.send_installation = AsyncMock(return_value=True)
         coordinator.telemetry_client.send_metrics = AsyncMock(return_value=True)
         coordinator.telemetry_client.send_daily_stats = AsyncMock(return_value=True)
-        coordinator._telemetry_meta = {
-            "instance_hash": "a" * 64,
-            "profile": "yutaki_s80",
-            "gateway_type": "modbus_atw_mbs_02",
-            "ha_version": "2025.3.1",
-            "integration_version": "2.0.3",
-            "power_supply": "single",
-        }
+    else:
+        coordinator.telemetry_client = NoopTelemetryClient()
 
     return coordinator
 
@@ -210,12 +213,12 @@ class TestInstallationInfo:
 class TestOffLevel:
     """Tests for OFF level — zero overhead verification."""
 
-    def test_off_collector_is_none(self):
-        """OFF level: collector and client default to None."""
+    def test_off_uses_noop_dependencies(self):
+        """OFF level: collector with OFF level and noop client are injected."""
         coordinator = _make_coordinator(telemetry_level=TelemetryLevel.OFF)
 
-        assert coordinator.telemetry_collector is None
-        assert coordinator.telemetry_client is None
+        assert coordinator.telemetry_collector.level == TelemetryLevel.OFF
+        assert isinstance(coordinator.telemetry_client, NoopTelemetryClient)
 
     @pytest.mark.asyncio
     async def test_off_flush_is_noop(self):
@@ -334,7 +337,7 @@ class TestLevelSwap:
         """Switching from OFF to ON enables collection."""
         coordinator = _make_coordinator(telemetry_level=TelemetryLevel.OFF)
 
-        assert coordinator.telemetry_collector is None
+        assert coordinator.telemetry_collector.level == TelemetryLevel.OFF
 
         # Simulate reload with ON level
         coordinator.telemetry_collector = TelemetryCollector(level=TelemetryLevel.ON)
@@ -363,12 +366,13 @@ class TestLevelSwap:
         await coordinator.async_flush_telemetry()
         coordinator.telemetry_client.send_metrics.assert_called_once()
 
-        # Simulate reload to OFF
-        coordinator.telemetry_collector = None
-        coordinator.telemetry_client = None
-        coordinator._telemetry_meta = None
+        # Simulate reload to OFF (inject noop dependencies)
+        coordinator.telemetry_collector = TelemetryCollector(
+            level=TelemetryLevel.OFF,
+        )
+        coordinator.telemetry_client = NoopTelemetryClient()
 
-        # Flush should be noop
+        # Flush should be noop (collector is empty, level is OFF)
         await coordinator.async_flush_telemetry()
 
 
