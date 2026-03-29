@@ -155,12 +155,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 )
 
             # Send one-time telemetry data (with backoff on failure)
+            # Fire-and-forget to avoid blocking the Modbus poll path
             if (
                 (not self._installation_info_sent or not self._snapshot_sent)
                 and self.telemetry_client is not None
                 and self._telemetry_meta is not None
             ):
-                await self._send_onetime_telemetry(data)
+                self.hass.async_create_task(self._send_onetime_telemetry(data))
 
             # Update timing sensors
             for entity in self.entities:
@@ -328,10 +329,18 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     self._daily_points_accumulator,
                 )
                 anonymized_stats = anonymize_daily_stats(stats)
-                await self.telemetry_client.send_daily_stats(anonymized_stats)
-                await self._send_installation_info()
-                # Reset accumulator
-                self._daily_points_accumulator = []
+                daily_ok = await self.telemetry_client.send_daily_stats(
+                    anonymized_stats
+                )
+                if daily_ok:
+                    await self._send_installation_info()
+                    # Reset accumulator only on success
+                    self._daily_points_accumulator = []
+                else:
+                    _LOGGER.warning(
+                        "Daily stats send failed, keeping %d points for retry",
+                        len(self._daily_points_accumulator),
+                    )
 
             # Accumulate today's points
             self._daily_points_accumulator.extend(points)

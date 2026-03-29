@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Anonymous telemetry system with 3-tier consent (Off / Basic / Full) — helps build realistic test fixtures for all heat pump models ([Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200))
+- Anonymous telemetry system (Off / On) — helps build realistic test fixtures for all heat pump models ([Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200))
 - Telemetry consent step in config flow (options) and repair flow for existing users
 - Telemetry diagnostic sensor (`sensor.telemetry_status`) with send tracking attributes
 - Backend: Cloudflare Worker (ingestion proxy), TigerData migrations, R2 cold archive

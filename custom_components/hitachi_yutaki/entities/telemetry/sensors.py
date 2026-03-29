@@ -27,6 +27,11 @@ class HitachiYutakiTelemetrySensor(HitachiYutakiSensor):
         return "off"
 
     @property
+    def options(self) -> list[str]:
+        """Return valid states for the ENUM sensor."""
+        return ["off", "on"]
+
+    @property
     def available(self) -> bool:
         """Telemetry status is always available."""
         return True

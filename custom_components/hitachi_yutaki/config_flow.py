@@ -594,8 +594,9 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Step 5: Anonymous telemetry consent."""
         if user_input is not None:
-            # Store telemetry level in options (not data — changeable without reconfig)
-            telemetry_options = {
+            # Merge telemetry level into existing options (preserve other options)
+            new_options = {
+                **self.config_entry.options,
                 CONF_TELEMETRY_LEVEL: user_input.get(
                     CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
                 ),
@@ -608,7 +609,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             }
             new_data = {**self.config_entry.data, **provider_data, **self._collected}
             self.hass.config_entries.async_update_entry(
-                self.config_entry, data=new_data, options=telemetry_options
+                self.config_entry, data=new_data, options=new_options
             )
             self.hass.async_create_task(
                 self.hass.config_entries.async_reload(self.config_entry.entry_id)
