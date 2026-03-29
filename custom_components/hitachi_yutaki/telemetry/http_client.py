@@ -83,7 +83,8 @@ class HttpTelemetryClient:
 
                     # Client errors (4xx) are not retryable
                     if 400 <= resp.status < 500:
-                        _LOGGER.warning(
+                        log = _LOGGER.debug if resp.status == 429 else _LOGGER.warning
+                        log(
                             "Telemetry rejected (HTTP %s): %s",
                             resp.status,
                             await resp.text(),

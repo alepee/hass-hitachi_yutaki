@@ -71,6 +71,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self._telemetry_meta: dict[str, Any] | None = None
         self._installation_info_sent: bool = False
         self._snapshot_sent: bool = False
+        self._telemetry_next_retry: datetime | None = None
+        self._telemetry_retry_delay: int = 30  # seconds, doubles on each failure
         self.telemetry_last_send: datetime | None = None
         self.telemetry_send_failures: int = 0
 
@@ -152,22 +154,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     is_defrosting=self.api_client.is_defrosting,
                 )
 
-            # Send installation info on first successful poll
+            # Send one-time telemetry data (with backoff on failure)
             if (
-                not self._installation_info_sent
+                (not self._installation_info_sent or not self._snapshot_sent)
                 and self.telemetry_client is not None
                 and self._telemetry_meta is not None
             ):
-                await self._send_installation_info()
-
-            # Send register snapshot once
-            if (
-                not self._snapshot_sent
-                and self.telemetry_collector is not None
-                and self.telemetry_client is not None
-                and self._telemetry_meta is not None
-            ):
-                await self._send_register_snapshot(data)
+                await self._send_onetime_telemetry(data)
 
             # Update timing sensors
             for entity in self.entities:
@@ -192,6 +185,35 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             )
             _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
             raise UpdateFailed("Failed to communicate with device") from exc
+
+    async def _send_onetime_telemetry(self, data: dict[str, Any]) -> None:
+        """Send one-time telemetry (installation info + snapshot) with backoff."""
+        now = datetime.now(tz=UTC)
+
+        # Respect backoff delay
+        if self._telemetry_next_retry and now < self._telemetry_next_retry:
+            return
+
+        success = True
+
+        if not self._installation_info_sent:
+            await self._send_installation_info()
+            if not self._installation_info_sent:
+                success = False
+
+        if not self._snapshot_sent and self.telemetry_collector is not None:
+            await self._send_register_snapshot(data)
+            if not self._snapshot_sent:
+                success = False
+
+        if not success:
+            # Exponential backoff: 30s, 60s, 120s, 240s, capped at 5 min
+            self._telemetry_next_retry = now + timedelta(
+                seconds=self._telemetry_retry_delay
+            )
+            self._telemetry_retry_delay = min(self._telemetry_retry_delay * 2, 300)
+        else:
+            self._telemetry_next_retry = None
 
     async def _send_installation_info(self) -> None:
         """Build and send installation info on first successful poll."""
