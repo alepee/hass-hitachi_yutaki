@@ -10,7 +10,3 @@ bucket_name = "hitachi-telemetry-archive"
 [[hyperdrive]]
 binding = "DB"
 id = "6022ba5b4aa84149bced9823002142d7"
-
-[[kv_namespaces]]
-binding = "RATE_LIMIT"
-id = "11b8996ae0a14a38ae797a3834dba4a4"

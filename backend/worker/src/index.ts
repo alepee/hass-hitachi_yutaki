@@ -4,7 +4,7 @@
  * POST /v1/ingest
  *   - Accepts gzipped or plain JSON
  *   - Validates and sanitizes payload (field whitelist)
- *   - Rate limits per instance_hash (1 req/min via KV)
+ *   - Rate limits per instance_hash (1 req/min via Cache API)
  *   - Dual write: TigerData (hot, 30-day) + R2 (cold, permanent)
  *   - Returns 202 Accepted on success
  */
@@ -43,7 +43,7 @@ export default {
       const payload = validate(body, instanceHashHeader);
 
       // Rate limit (per instance_hash + payload type)
-      await checkRateLimit(env.RATE_LIMIT, payload.instance_hash, payload.type);
+      await checkRateLimit(payload.instance_hash, payload.type);
 
       // Enrich installation payload with precise Köppen climate zone
       if (payload.type === "installation") {
