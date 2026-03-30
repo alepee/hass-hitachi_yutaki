@@ -260,3 +260,22 @@ class TestSentinelFiltering:
         point = collector.flush()[0]
         assert point.outdoor_temp == -10
         assert point.water_inlet_temp == 5
+
+
+class TestCollectorPowerSupply:
+    """Tests for power_supply constructor parameter."""
+
+    def test_defaults_to_single_phase(self):
+        """Collector defaults to single-phase when no power_supply given."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        assert collector.is_three_phase is False
+
+    def test_three_phase(self):
+        """Collector stores three-phase flag when power_supply='three'."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="three")
+        assert collector.is_three_phase is True
+
+    def test_single_phase_explicit(self):
+        """Collector stores single-phase flag when power_supply='single'."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="single")
+        assert collector.is_three_phase is False

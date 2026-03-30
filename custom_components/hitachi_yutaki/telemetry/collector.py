@@ -29,10 +29,12 @@ class TelemetryCollector:
         self,
         level: TelemetryLevel,
         buffer_max_size: int = DEFAULT_BUFFER_MAX_SIZE,
+        power_supply: str = "single",
     ) -> None:
         """Initialize the collector."""
         self._level = level
         self._buffer: deque[MetricPoint] = deque(maxlen=buffer_max_size)
+        self._is_three_phase = power_supply == "three"
 
     @property
     def level(self) -> TelemetryLevel:
@@ -43,6 +45,11 @@ class TelemetryCollector:
     def buffer_size(self) -> int:
         """Return the current number of buffered points."""
         return len(self._buffer)
+
+    @property
+    def is_three_phase(self) -> bool:
+        """Return whether the installation uses three-phase power."""
+        return self._is_three_phase
 
     def collect(
         self,
