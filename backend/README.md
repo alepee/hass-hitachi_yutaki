@@ -20,7 +20,6 @@ HA Integration (HttpTelemetryClient)
 | **TigerData** | `ojqwsu3e4j` (us-east-1) | TimescaleDB — hot storage |
 | **Cloudflare Worker** | `hitachi-telemetry.antoine-04c.workers.dev` | Ingestion proxy |
 | **Hyperdrive** | `6022ba5b4aa84149bced9823002142d7` | Connection pooling Worker → TigerData |
-| **KV Namespace** | `11b8996ae0a14a38ae797a3834dba4a4` | Rate limiting (1 req/min/hash) |
 | **R2 Bucket** | `hitachi-telemetry-archive` | Cold JSON archive |
 | **Grafana Cloud** | `alepee.grafana.net` | Dashboards (datasource: `TigerData`) |
 
@@ -144,7 +143,7 @@ npx wrangler hyperdrive create hitachi-telemetry \
 # → update id in wrangler.toml
 ```
 
-Or use Cloudflare MCP tools (`accounts_list`, `kv_namespace_create`, `r2_bucket_create`, and `cloudflare-api execute` for Hyperdrive).
+Or use Cloudflare MCP tools (`accounts_list`, `r2_bucket_create`, and `cloudflare-api execute` for Hyperdrive).
 
 ### 3. Deploy Worker
 
