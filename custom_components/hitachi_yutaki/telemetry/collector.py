@@ -7,7 +7,9 @@ from datetime import UTC, datetime
 import logging
 from typing import Any
 
+from ..domain.models.electrical import ElectricalPowerInput
 from ..domain.models.thermal import ThermalPowerInput
+from ..domain.services.electrical import calculate_electrical_power
 from ..domain.services.thermal.calculators import calculate_thermal_power
 from .models import MetricPoint, TelemetryLevel
 
@@ -102,6 +104,16 @@ class TelemetryCollector:
         else:
             thermal_power = None
 
+        # Compute electrical power from compressor current
+        current = _to_float(data.get("compressor_current"))
+
+        if current is not None and current > 0:
+            electrical_power = calculate_electrical_power(
+                ElectricalPowerInput(current=current, is_three_phase=self._is_three_phase)
+            )
+        else:
+            electrical_power = None
+
         point = MetricPoint(
             time=now,
             outdoor_temp=_to_float(data.get("outdoor_temp")),
@@ -110,9 +122,9 @@ class TelemetryCollector:
             dhw_temp=_to_float(data.get("dhw_current_temp")),
             compressor_on=is_compressor_running,
             compressor_frequency=_to_float(data.get("compressor_frequency")),
-            compressor_current=_to_float(data.get("compressor_current")),
+            compressor_current=current,
             thermal_power=thermal_power,
-            electrical_power=None,
+            electrical_power=electrical_power,
             cop_instant=None,
             cop_quality=None,
             unit_mode=unit_mode,

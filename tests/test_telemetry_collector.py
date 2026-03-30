@@ -313,3 +313,55 @@ class TestCollectorPowerSupply:
         """Collector stores single-phase flag when power_supply='single'."""
         collector = TelemetryCollector(TelemetryLevel.ON, power_supply="single")
         assert collector.is_three_phase is False
+
+
+class TestCollectorElectricalPower:
+    """Tests for electrical power computation in collect()."""
+
+    def test_computes_electrical_power_single_phase(self):
+        """Electrical power is computed from current for single-phase."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="single")
+        collector.collect(
+            _sample_data(compressor_current=8.5),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        # Single phase: P = 230 * 8.5 * 0.9 / 1000 = 1.7595 kW
+        assert point.electrical_power is not None
+        assert abs(point.electrical_power - 1.7595) < 0.01
+
+    def test_computes_electrical_power_three_phase(self):
+        """Electrical power is computed from current for three-phase."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="three")
+        collector.collect(
+            _sample_data(compressor_current=8.5),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        # Three phase: P = 400 * 8.5 * 0.9 * 1.732 / 1000 = 5.2985 kW
+        assert point.electrical_power is not None
+        assert abs(point.electrical_power - 5.2985) < 0.01
+
+    def test_electrical_power_none_when_no_current(self):
+        """Electrical power is None when compressor_current is missing."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(compressor_current=None),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.electrical_power is None
+
+    def test_electrical_power_none_when_current_zero(self):
+        """Electrical power is None when compressor_current is zero (compressor off)."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(compressor_current=0),
+            is_compressor_running=False,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.electrical_power is None
