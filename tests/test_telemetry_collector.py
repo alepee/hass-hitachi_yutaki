@@ -19,6 +19,7 @@ def _sample_data(**overrides) -> dict:
         "operation_state": "operation_state_heat_thermo_on",
         "circuit1_current_temp": 38.0,
         "circuit2_current_temp": None,
+        "water_flow": 1.2,
     }
     data.update(overrides)
     return data
@@ -72,19 +73,55 @@ class TestCollectorExtraction:
         assert point.compressor_frequency == 65.0
         assert point.compressor_current == 8.5
 
-    def test_power_fields_are_none_without_computed_values(self):
-        """Power and COP fields are None — they require domain service computation."""
+    def test_computes_thermal_power(self):
+        """Thermal power is computed from inlet, outlet, and flow."""
         collector = TelemetryCollector(TelemetryLevel.ON)
         collector.collect(
-            _sample_data(), is_compressor_running=True, is_defrosting=False
+            _sample_data(water_inlet_temp=35.0, water_outlet_temp=40.0, water_flow=1.0),
+            is_compressor_running=True,
+            is_defrosting=False,
         )
         point = collector.flush()[0]
-        # power_consumption register is cumulative kWh, not instantaneous power
-        # thermal_power and cop are computed by per-entity domain services
-        # All three are None in telemetry — can be recomputed server-side
-        assert point.electrical_power is None
+        # delta_t = 5.0, flow_kgs = 0.277778, thermal = 0.277778 * 4.185 * 5.0 ≈ 5.8125
+        assert point.thermal_power is not None
+        assert abs(point.thermal_power - 5.8125) < 0.01
+
+    def test_thermal_power_none_when_missing_inlet(self):
+        """Thermal power is None when water_inlet_temp is missing."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(water_inlet_temp=None, water_outlet_temp=40.0, water_flow=1.0),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
         assert point.thermal_power is None
-        assert point.cop_instant is None
+
+    def test_thermal_power_none_when_missing_flow(self):
+        """Thermal power is None when water_flow is missing."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(
+                water_inlet_temp=35.0, water_outlet_temp=40.0, water_flow=None
+            ),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.thermal_power is None
+
+    def test_thermal_power_absolute_value(self):
+        """Thermal power is absolute (positive) regardless of heat/cool mode."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        # Cooling: outlet < inlet → negative delta_t
+        collector.collect(
+            _sample_data(water_inlet_temp=20.0, water_outlet_temp=15.0, water_flow=1.0),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.thermal_power is not None
+        assert point.thermal_power > 0
 
     def test_maps_unit_mode(self):
         """unit_mode integer is mapped to string."""
@@ -260,3 +297,129 @@ class TestSentinelFiltering:
         point = collector.flush()[0]
         assert point.outdoor_temp == -10
         assert point.water_inlet_temp == 5
+
+
+class TestCollectorElectricalPower:
+    """Tests for electrical power computation in collect()."""
+
+    def test_computes_electrical_power_single_phase(self):
+        """Electrical power is computed from current for single-phase."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="single")
+        collector.collect(
+            _sample_data(compressor_current=8.5),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        # Single phase: P = 230 * 8.5 * 0.9 / 1000 = 1.7595 kW
+        assert point.electrical_power is not None
+        assert abs(point.electrical_power - 1.7595) < 0.01
+
+    def test_computes_electrical_power_three_phase(self):
+        """Electrical power is computed from current for three-phase."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="three")
+        collector.collect(
+            _sample_data(compressor_current=8.5),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        # Three phase: P = 400 * 8.5 * 0.9 * 1.732 / 1000 = 5.2985 kW
+        assert point.electrical_power is not None
+        assert abs(point.electrical_power - 5.2985) < 0.01
+
+    def test_electrical_power_none_when_no_current(self):
+        """Electrical power is None when compressor_current is missing."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(compressor_current=None),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.electrical_power is None
+
+    def test_electrical_power_none_when_current_zero(self):
+        """Electrical power is None when compressor_current is zero (compressor off)."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(compressor_current=0),
+            is_compressor_running=False,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.electrical_power is None
+
+
+class TestCollectorCopInstant:
+    """Tests for instantaneous COP computation in collect()."""
+
+    def test_computes_cop_instant(self):
+        """COP is computed as thermal_power / electrical_power."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="single")
+        collector.collect(
+            _sample_data(
+                water_inlet_temp=35.0,
+                water_outlet_temp=40.0,
+                water_flow=1.0,
+                compressor_current=8.5,
+            ),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.cop_instant is not None
+        # COP = thermal_power / electrical_power ≈ 5.8125 / 1.7595 ≈ 3.30
+        expected_cop = point.thermal_power / point.electrical_power
+        assert abs(point.cop_instant - expected_cop) < 0.01
+
+    def test_cop_none_when_thermal_missing(self):
+        """COP is None when thermal_power cannot be computed."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(water_flow=None, compressor_current=8.5),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.thermal_power is None
+        assert point.cop_instant is None
+
+    def test_cop_none_when_electrical_missing(self):
+        """COP is None when electrical_power cannot be computed."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(
+                water_inlet_temp=35.0,
+                water_outlet_temp=40.0,
+                water_flow=1.0,
+                compressor_current=None,
+            ),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.electrical_power is None
+        assert point.cop_instant is None
+
+    def test_cop_discarded_when_aberrant(self):
+        """COP above threshold is discarded as transient noise."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="single")
+        # Very low current (0.5A) + large delta_t → unrealistic COP
+        # electrical ≈ 230 * 0.5 * 0.9 / 1000 = 0.1035 kW
+        # thermal ≈ 0.277778 * 4.185 * 10.0 = 11.625 kW
+        # COP ≈ 112 → way above threshold
+        collector.collect(
+            _sample_data(
+                water_inlet_temp=30.0,
+                water_outlet_temp=40.0,
+                water_flow=1.0,
+                compressor_current=0.5,
+            ),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.thermal_power is not None
+        assert point.electrical_power is not None
+        assert point.cop_instant is None
