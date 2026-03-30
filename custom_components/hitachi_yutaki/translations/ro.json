@@ -503,6 +503,13 @@
           "off": "Dezactivat",
           "on": "Activat"
         }
+      },
+      "dhw_demand_mode": {
+        "name": "Mod cerere ACM",
+        "state": {
+          "standard": "Standard",
+          "high_demand": "Cerere mare"
+        }
       }
     },
     "binary_sensor": {

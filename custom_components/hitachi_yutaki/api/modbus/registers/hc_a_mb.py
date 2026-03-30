@@ -454,6 +454,7 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             "dhw_high_demand": RegisterDefinition(
                 self._addr(130), write_address=self._addr(78)
             ),
+            "dhw_demand_mode": RegisterDefinition(self._addr(130)),
             "dhw_antilegionella": RegisterDefinition(
                 self._addr(135), write_address=self._addr(81)
             ),

@@ -503,6 +503,13 @@
           "off": "Désactivée",
           "on": "Activée"
         }
+      },
+      "dhw_demand_mode": {
+        "name": "Mode de demande ECS",
+        "state": {
+          "standard": "Standard",
+          "high_demand": "Haute demande"
+        }
       }
     },
     "binary_sensor": {

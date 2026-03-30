@@ -155,6 +155,7 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 | boost | switch | Temporarily boost DHW production | on/off |
 | antilegionella | button | Manually start a high temperature anti-legionella cycle | - |
 | antilegionella_temp | number | Target temperature for anti-legionella treatment (disabled by default) | °C (60–80) |
+| dhw_demand_mode | sensor | DHW demand mode configured in the heat pump (disabled by default) | standard/high_demand |
 | antilegionella_cycle | binary_sensor | Anti-legionella cycle is currently running | on/off |
 
 ## Swimming Pool Device (if configured)
