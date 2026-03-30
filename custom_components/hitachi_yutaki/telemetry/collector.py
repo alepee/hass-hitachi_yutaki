@@ -7,6 +7,8 @@ from datetime import UTC, datetime
 import logging
 from typing import Any
 
+from ..domain.models.thermal import ThermalPowerInput
+from ..domain.services.thermal.calculators import calculate_thermal_power
 from .models import MetricPoint, TelemetryLevel
 
 _LOGGER = logging.getLogger(__name__)
@@ -87,16 +89,29 @@ class TelemetryCollector:
             operation_state == "operation_state_dhw_on" if operation_state else None
         )
 
+        # Extract temperature and flow values for reuse
+        inlet = _to_float(data.get("water_inlet_temp"))
+        outlet = _to_float(data.get("water_outlet_temp"))
+        flow = _to_float(data.get("water_flow"))
+
+        # Compute thermal power from available data
+        if inlet is not None and outlet is not None and flow is not None and flow > 0:
+            thermal_power = abs(
+                calculate_thermal_power(ThermalPowerInput(inlet, outlet, flow))
+            )
+        else:
+            thermal_power = None
+
         point = MetricPoint(
             time=now,
             outdoor_temp=_to_float(data.get("outdoor_temp")),
-            water_inlet_temp=_to_float(data.get("water_inlet_temp")),
-            water_outlet_temp=_to_float(data.get("water_outlet_temp")),
+            water_inlet_temp=inlet,
+            water_outlet_temp=outlet,
             dhw_temp=_to_float(data.get("dhw_current_temp")),
             compressor_on=is_compressor_running,
             compressor_frequency=_to_float(data.get("compressor_frequency")),
             compressor_current=_to_float(data.get("compressor_current")),
-            thermal_power=None,
+            thermal_power=thermal_power,
             electrical_power=None,
             cop_instant=None,
             cop_quality=None,
@@ -110,7 +125,7 @@ class TelemetryCollector:
             circuit2_target_temp=_to_float(data.get("circuit2_target_temp")),
             dhw_target_temp=_to_float(data.get("dhw_target_temp")),
             water_target_temp=_to_float(data.get("water_target_temp")),
-            water_flow=_to_float(data.get("water_flow")),
+            water_flow=flow,
             circuit1_otc_method_heating=data.get(
                 "circuit1_otc_calculation_method_heating"
             ),

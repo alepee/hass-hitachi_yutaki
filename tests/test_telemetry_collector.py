@@ -72,19 +72,53 @@ class TestCollectorExtraction:
         assert point.compressor_frequency == 65.0
         assert point.compressor_current == 8.5
 
-    def test_power_fields_are_none_without_computed_values(self):
-        """Power and COP fields are None — they require domain service computation."""
+    def test_computes_thermal_power(self):
+        """Thermal power is computed from inlet, outlet, and flow."""
         collector = TelemetryCollector(TelemetryLevel.ON)
         collector.collect(
-            _sample_data(), is_compressor_running=True, is_defrosting=False
+            _sample_data(water_inlet_temp=35.0, water_outlet_temp=40.0, water_flow=1.0),
+            is_compressor_running=True,
+            is_defrosting=False,
         )
         point = collector.flush()[0]
-        # power_consumption register is cumulative kWh, not instantaneous power
-        # thermal_power and cop are computed by per-entity domain services
-        # All three are None in telemetry — can be recomputed server-side
-        assert point.electrical_power is None
+        # delta_t = 5.0, flow_kgs = 0.277778, thermal = 0.277778 * 4.185 * 5.0 ≈ 5.8125
+        assert point.thermal_power is not None
+        assert abs(point.thermal_power - 5.8125) < 0.01
+
+    def test_thermal_power_none_when_missing_inlet(self):
+        """Thermal power is None when water_inlet_temp is missing."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(water_inlet_temp=None, water_outlet_temp=40.0, water_flow=1.0),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
         assert point.thermal_power is None
-        assert point.cop_instant is None
+
+    def test_thermal_power_none_when_missing_flow(self):
+        """Thermal power is None when water_flow is missing."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(water_inlet_temp=35.0, water_outlet_temp=40.0, water_flow=None),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.thermal_power is None
+
+    def test_thermal_power_absolute_value(self):
+        """Thermal power is absolute (positive) regardless of heat/cool mode."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        # Cooling: outlet < inlet → negative delta_t
+        collector.collect(
+            _sample_data(water_inlet_temp=20.0, water_outlet_temp=15.0, water_flow=1.0),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.thermal_power is not None
+        assert point.thermal_power > 0
 
     def test_maps_unit_mode(self):
         """unit_mode integer is mapped to string."""
