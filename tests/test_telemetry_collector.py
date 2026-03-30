@@ -19,6 +19,7 @@ def _sample_data(**overrides) -> dict:
         "operation_state": "operation_state_heat_thermo_on",
         "circuit1_current_temp": 38.0,
         "circuit2_current_temp": None,
+        "water_flow": 1.2,
     }
     data.update(overrides)
     return data
@@ -100,7 +101,9 @@ class TestCollectorExtraction:
         """Thermal power is None when water_flow is missing."""
         collector = TelemetryCollector(TelemetryLevel.ON)
         collector.collect(
-            _sample_data(water_inlet_temp=35.0, water_outlet_temp=40.0, water_flow=None),
+            _sample_data(
+                water_inlet_temp=35.0, water_outlet_temp=40.0, water_flow=None
+            ),
             is_compressor_running=True,
             is_defrosting=False,
         )
