@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Compute thermal power, electrical power, and COP in telemetry collector instead of sending null values to backend
+
 ## [2.1.0-beta.3] - 2026-03-29
 
 ### Added

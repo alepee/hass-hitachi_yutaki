@@ -109,13 +109,19 @@ class TelemetryCollector:
 
         if current is not None and current > 0:
             electrical_power = calculate_electrical_power(
-                ElectricalPowerInput(current=current, is_three_phase=self._is_three_phase)
+                ElectricalPowerInput(
+                    current=current, is_three_phase=self._is_three_phase
+                )
             )
         else:
             electrical_power = None
 
         # Compute COP as ratio of thermal to electrical power
-        if thermal_power is not None and electrical_power is not None and electrical_power > 0:
+        if (
+            thermal_power is not None
+            and electrical_power is not None
+            and electrical_power > 0
+        ):
             cop_instant = thermal_power / electrical_power
         else:
             cop_instant = None
