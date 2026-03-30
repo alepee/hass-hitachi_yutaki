@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Add DHW demand mode diagnostic sensor (standard/high demand) read from STATUS register — disabled by default (#255)
+
 ### Fixed
 - Compute thermal power, electrical power, and COP in telemetry collector instead of sending null values to backend
 

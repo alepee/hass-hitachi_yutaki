@@ -503,6 +503,13 @@
           "off": "Off",
           "on": "On"
         }
+      },
+      "dhw_demand_mode": {
+        "name": "DHW Demand Mode",
+        "state": {
+          "standard": "Standard",
+          "high_demand": "High Demand"
+        }
       }
     },
     "binary_sensor": {

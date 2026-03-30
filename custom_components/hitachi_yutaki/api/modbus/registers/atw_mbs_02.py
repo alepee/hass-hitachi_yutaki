@@ -343,6 +343,7 @@ REGISTER_DHW = {
     "dhw_high_demand": RegisterDefinition(1027),
     "dhw_antilegionella": RegisterDefinition(1030),
     "dhw_antilegionella_temp": RegisterDefinition(1031),
+    "dhw_demand_mode": RegisterDefinition(1079),
     "dhw_current_temp": RegisterDefinition(1080, deserializer=convert_signed_16bit),
     "dhw_antilegionella_status": RegisterDefinition(1084),
     "dhw_antilegionella_temp_status": RegisterDefinition(1085),

@@ -503,6 +503,13 @@
           "off": "Uit",
           "on": "Aan"
         }
+      },
+      "dhw_demand_mode": {
+        "name": "SWW Vraagmodus",
+        "state": {
+          "standard": "Standaard",
+          "high_demand": "Hoge vraag"
+        }
       }
     },
     "binary_sensor": {
