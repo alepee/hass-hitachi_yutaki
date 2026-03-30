@@ -299,25 +299,6 @@ class TestSentinelFiltering:
         assert point.water_inlet_temp == 5
 
 
-class TestCollectorPowerSupply:
-    """Tests for power_supply constructor parameter."""
-
-    def test_defaults_to_single_phase(self):
-        """Collector defaults to single-phase when no power_supply given."""
-        collector = TelemetryCollector(TelemetryLevel.ON)
-        assert collector.is_three_phase is False
-
-    def test_three_phase(self):
-        """Collector stores three-phase flag when power_supply='three'."""
-        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="three")
-        assert collector.is_three_phase is True
-
-    def test_single_phase_explicit(self):
-        """Collector stores single-phase flag when power_supply='single'."""
-        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="single")
-        assert collector.is_three_phase is False
-
-
 class TestCollectorElectricalPower:
     """Tests for electrical power computation in collect()."""
 
@@ -419,4 +400,26 @@ class TestCollectorCopInstant:
         )
         point = collector.flush()[0]
         assert point.electrical_power is None
+        assert point.cop_instant is None
+
+    def test_cop_discarded_when_aberrant(self):
+        """COP above threshold is discarded as transient noise."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="single")
+        # Very low current (0.5A) + large delta_t → unrealistic COP
+        # electrical ≈ 230 * 0.5 * 0.9 / 1000 = 0.1035 kW
+        # thermal ≈ 0.277778 * 4.185 * 10.0 = 11.625 kW
+        # COP ≈ 112 → way above threshold
+        collector.collect(
+            _sample_data(
+                water_inlet_temp=30.0,
+                water_outlet_temp=40.0,
+                water_flow=1.0,
+                compressor_current=0.5,
+            ),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.thermal_power is not None
+        assert point.electrical_power is not None
         assert point.cop_instant is None

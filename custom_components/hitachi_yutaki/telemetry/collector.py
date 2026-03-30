@@ -18,6 +18,9 @@ _LOGGER = logging.getLogger(__name__)
 # Default buffer size: 360 points = 30 minutes at 5s poll interval
 DEFAULT_BUFFER_MAX_SIZE = 360
 
+# Discard instantaneous COP above this threshold (transient noise)
+_COP_MAX = 15.0
+
 # Coordinator data key → unit_mode string mapping
 _UNIT_MODE_MAP = {0: "cool", 1: "heat", 2: "auto"}
 
@@ -49,11 +52,6 @@ class TelemetryCollector:
     def buffer_size(self) -> int:
         """Return the current number of buffered points."""
         return len(self._buffer)
-
-    @property
-    def is_three_phase(self) -> bool:
-        """Return whether the installation uses three-phase power."""
-        return self._is_three_phase
 
     def collect(
         self,
@@ -117,12 +115,14 @@ class TelemetryCollector:
             electrical_power = None
 
         # Compute COP as ratio of thermal to electrical power
+        # Discard aberrant values (transient conditions can produce unrealistic COP)
         if (
             thermal_power is not None
             and electrical_power is not None
             and electrical_power > 0
         ):
-            cop_instant = thermal_power / electrical_power
+            cop = thermal_power / electrical_power
+            cop_instant = cop if cop <= _COP_MAX else None
         else:
             cop_instant = None
 
