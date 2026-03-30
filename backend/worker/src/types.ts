@@ -2,7 +2,6 @@
 export interface Env {
   DB: Hyperdrive;
   ARCHIVE: R2Bucket;
-  RATE_LIMIT: KVNamespace;
 }
 
 /** Base payload with type discriminator. */
