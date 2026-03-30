@@ -80,7 +80,7 @@ src/
 ├── index.ts          — Entry point, routing, gzip decompression
 ├── types.ts          — Payload type definitions
 ├── validator.ts      — JSON validation + field whitelist (final anonymization)
-├── rate-limiter.ts   — Per-hash rate limiting via KV (1 req/min)
+├── rate-limiter.ts   — Per-hash rate limiting via Cache API (1 req/min)
 ├── db.ts             — TigerData writes (parameterized INSERT via Hyperdrive)
 ├── archive.ts        — R2 cold writes (Hive-style partitioned JSON)
 ├── climate.ts        — Köppen-Geiger lookup from rounded coordinates
@@ -135,10 +135,6 @@ tiger db connect < backend/migrations/006_geolocation.sql
 ### 2. Cloudflare resources
 
 ```bash
-# KV namespace for rate limiting
-npx wrangler kv namespace create RATE_LIMIT
-# → update id in wrangler.toml
-
 # R2 bucket for cold archive
 npx wrangler r2 bucket create hitachi-telemetry-archive
 

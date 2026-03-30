@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Backend: replace KV-based rate limiting with Cache API to avoid hitting Cloudflare KV free tier daily write limit (1,000 ops/day)
+
 ## [2.1.0-beta.4] - 2026-03-30
 
 ### Added
