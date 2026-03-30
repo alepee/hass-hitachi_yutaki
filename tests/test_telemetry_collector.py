@@ -365,3 +365,55 @@ class TestCollectorElectricalPower:
         )
         point = collector.flush()[0]
         assert point.electrical_power is None
+
+
+class TestCollectorCopInstant:
+    """Tests for instantaneous COP computation in collect()."""
+
+    def test_computes_cop_instant(self):
+        """COP is computed as thermal_power / electrical_power."""
+        collector = TelemetryCollector(TelemetryLevel.ON, power_supply="single")
+        collector.collect(
+            _sample_data(
+                water_inlet_temp=35.0,
+                water_outlet_temp=40.0,
+                water_flow=1.0,
+                compressor_current=8.5,
+            ),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.cop_instant is not None
+        # COP = thermal_power / electrical_power ≈ 5.8125 / 1.7595 ≈ 3.30
+        expected_cop = point.thermal_power / point.electrical_power
+        assert abs(point.cop_instant - expected_cop) < 0.01
+
+    def test_cop_none_when_thermal_missing(self):
+        """COP is None when thermal_power cannot be computed."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(water_flow=None, compressor_current=8.5),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.thermal_power is None
+        assert point.cop_instant is None
+
+    def test_cop_none_when_electrical_missing(self):
+        """COP is None when electrical_power cannot be computed."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(
+            _sample_data(
+                water_inlet_temp=35.0,
+                water_outlet_temp=40.0,
+                water_flow=1.0,
+                compressor_current=None,
+            ),
+            is_compressor_running=True,
+            is_defrosting=False,
+        )
+        point = collector.flush()[0]
+        assert point.electrical_power is None
+        assert point.cop_instant is None

@@ -114,6 +114,12 @@ class TelemetryCollector:
         else:
             electrical_power = None
 
+        # Compute COP as ratio of thermal to electrical power
+        if thermal_power is not None and electrical_power is not None and electrical_power > 0:
+            cop_instant = thermal_power / electrical_power
+        else:
+            cop_instant = None
+
         point = MetricPoint(
             time=now,
             outdoor_temp=_to_float(data.get("outdoor_temp")),
@@ -125,7 +131,7 @@ class TelemetryCollector:
             compressor_current=current,
             thermal_power=thermal_power,
             electrical_power=electrical_power,
-            cop_instant=None,
+            cop_instant=cop_instant,
             cop_quality=None,
             unit_mode=unit_mode,
             is_defrosting=is_defrosting,
