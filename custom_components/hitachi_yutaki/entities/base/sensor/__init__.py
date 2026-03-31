@@ -5,11 +5,9 @@ from .base import (
     HitachiYutakiSensorEntityDescription,
     _create_sensors,
 )
-from .cop import HitachiYutakiCOPSensor
 from .timing import HitachiYutakiTimingSensor
 
 __all__ = [
-    "HitachiYutakiCOPSensor",
     "HitachiYutakiSensor",
     "HitachiYutakiSensorEntityDescription",
     "HitachiYutakiTimingSensor",

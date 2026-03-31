@@ -46,7 +46,10 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     fallback_translation_key: str | None = None
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
     value_fn: Callable[[HitachiYutakiDataCoordinator], StateType] | None = None
-    sensor_class: Literal["cop", "timing"] | None = None
+    attributes_fn: (
+        Callable[[HitachiYutakiDataCoordinator], dict[str, Any] | None] | None
+    ) = None
+    sensor_class: Literal["timing"] | None = None
 
 
 def _create_sensors(
@@ -70,11 +73,9 @@ def _create_sensors(
 
     """
     # Local imports to avoid circular dependencies (subclasses import HitachiYutakiSensor)
-    from .cop import HitachiYutakiCOPSensor  # noqa: PLC0415
     from .timing import HitachiYutakiTimingSensor  # noqa: PLC0415
 
     _CLASS_MAP: dict[str, type[HitachiYutakiSensor]] = {
-        "cop": HitachiYutakiCOPSensor,
         "timing": HitachiYutakiTimingSensor,
     }
 
@@ -189,6 +190,9 @@ class HitachiYutakiSensor(
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes of the sensor."""
+        if self.entity_description.attributes_fn is not None:
+            return self.entity_description.attributes_fn(self.coordinator)
+
         key = self.entity_description.key
 
         # Dispatch attributes based on sensor key

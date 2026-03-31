@@ -17,10 +17,18 @@ from ..adapters.calculators.electrical import ElectricalPowerCalculatorAdapter
 from ..adapters.calculators.thermal import (
     thermal_power_calculator_cooling_wrapper,
     thermal_power_calculator_heating_wrapper,
+    thermal_power_calculator_wrapper,
 )
-from ..adapters.providers.operation_mode import resolve_operation_mode
+from ..adapters.providers.operation_mode import (
+    get_accepted_operation_states,
+    resolve_operation_mode,
+)
 from ..adapters.storage.in_memory import InMemoryStorage
-from ..const import CONF_WATER_INLET_TEMP_ENTITY, CONF_WATER_OUTLET_TEMP_ENTITY
+from ..const import (
+    CONF_WATER_INLET_TEMP_ENTITY,
+    CONF_WATER_OUTLET_TEMP_ENTITY,
+    DOMAIN,
+)
 from ..domain.models.cop import COPInput
 from ..domain.models.operation import MODE_COOLING, MODE_DHW, MODE_HEATING, MODE_POOL
 from ..domain.services.cop import (
@@ -268,3 +276,94 @@ class DerivedMetricsAdapter:
         restore_fn = restore_map.get(key)
         if restore_fn:
             restore_fn(value)
+
+    async def async_rehydrate_cop(self) -> None:
+        """Replay Recorder data to rebuild COP measurement buffers."""
+        if self._hass is None:
+            return
+
+        from homeassistant.helpers import entity_registry as er  # noqa: PLC0415
+
+        from ..adapters.storage.recorder_rehydrate import (  # noqa: PLC0415
+            async_replay_cop_history,
+        )
+        from ..domain.services.cop import (  # noqa: PLC0415
+            COP_MEASUREMENTS_HISTORY_SIZE,
+            COP_MEASUREMENTS_INTERVAL,
+            COP_MEASUREMENTS_PERIOD,
+        )
+
+        registry = er.async_get(self._hass)
+        entry_id = self._config_entry.entry_id
+
+        # Build entity map (resolve entity_ids from unique_ids)
+        entity_map: dict[str, str] = {}
+
+        # Check for user-configured external entities first
+        inlet_entity = self._config_entry_data.get(CONF_WATER_INLET_TEMP_ENTITY)
+        if inlet_entity:
+            entity_map["water_inlet_temp"] = inlet_entity
+        else:
+            eid = registry.async_get_entity_id(
+                "sensor", DOMAIN, f"{entry_id}_water_inlet_temp"
+            )
+            if eid:
+                entity_map["water_inlet_temp"] = eid
+
+        outlet_entity = self._config_entry_data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
+        if outlet_entity:
+            entity_map["water_outlet_temp"] = outlet_entity
+        else:
+            eid = registry.async_get_entity_id(
+                "sensor", DOMAIN, f"{entry_id}_water_outlet_temp"
+            )
+            if eid:
+                entity_map["water_outlet_temp"] = eid
+
+        for key in (
+            "water_flow",
+            "compressor_current",
+            "compressor_frequency",
+            "operation_state",
+        ):
+            eid = registry.async_get_entity_id("sensor", DOMAIN, f"{entry_id}_{key}")
+            if eid:
+                entity_map[key] = eid
+
+        if self._supports_secondary_compressor:
+            for key in (
+                "secondary_compressor_current",
+                "secondary_compressor_frequency",
+            ):
+                eid = registry.async_get_entity_id(
+                    "sensor", DOMAIN, f"{entry_id}_{key}"
+                )
+                if eid:
+                    entity_map[key] = eid
+
+        # Rehydrate each COP service
+        for cop_key, service in self._cop_services.items():
+            accepted_states: set[str] | None = None
+            if service._expected_mode:
+                accepted_states = get_accepted_operation_states(service._expected_mode)
+
+            try:
+                measurements = await async_replay_cop_history(
+                    hass=self._hass,
+                    entity_ids=entity_map,
+                    thermal_calculator=thermal_power_calculator_wrapper,
+                    electrical_calculator=self._electrical_calculator,
+                    window=COP_MEASUREMENTS_PERIOD,
+                    measurement_interval=COP_MEASUREMENTS_INTERVAL,
+                    max_measurements=COP_MEASUREMENTS_HISTORY_SIZE,
+                    accepted_operation_states=accepted_states,
+                )
+                if measurements:
+                    service.preload_measurements(measurements)
+                    _LOGGER.debug(
+                        "Rehydrated %d COP measurements for %s",
+                        len(measurements),
+                        cop_key,
+                    )
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug("Failed to rehydrate COP for %s", cop_key, exc_info=True)

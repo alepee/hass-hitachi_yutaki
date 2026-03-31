@@ -5,7 +5,6 @@ from __future__ import annotations
 from unittest.mock import MagicMock, patch
 
 from custom_components.hitachi_yutaki.entities.base.sensor import (
-    HitachiYutakiCOPSensor,
     HitachiYutakiSensor,
     HitachiYutakiSensorEntityDescription,
     HitachiYutakiTimingSensor,
@@ -36,19 +35,6 @@ def _make_coordinator() -> MagicMock:
 
 class TestSensorDispatch:
     """Tests that _create_sensors routes to the correct sensor subclass."""
-
-    def test_cop_description_creates_cop_sensor(self):
-        """sensor_class='cop' creates HitachiYutakiCOPSensor."""
-        coordinator = _make_coordinator()
-        descriptions = (_make_description("cop_heating", sensor_class="cop"),)
-
-        with patch.object(HitachiYutakiCOPSensor, "__init__", return_value=None):
-            sensors = _create_sensors(
-                coordinator, "test_entry", descriptions, "control_unit"
-            )
-
-        assert len(sensors) == 1
-        assert isinstance(sensors[0], HitachiYutakiCOPSensor)
 
     def test_timing_description_creates_timing_sensor(self):
         """sensor_class='timing' creates HitachiYutakiTimingSensor."""
@@ -116,19 +102,14 @@ class TestSensorDispatch:
         coordinator = _make_coordinator()
         descriptions = (
             _make_description("compressor_frequency"),
-            _make_description("cop_heating", sensor_class="cop"),
             _make_description("compressor_cycle_time", sensor_class="timing"),
         )
 
-        with (
-            patch.object(HitachiYutakiCOPSensor, "__init__", return_value=None),
-            patch.object(HitachiYutakiTimingSensor, "__init__", return_value=None),
-        ):
+        with patch.object(HitachiYutakiTimingSensor, "__init__", return_value=None):
             sensors = _create_sensors(
                 coordinator, "test_entry", descriptions, "control_unit"
             )
 
-        assert len(sensors) == 3
+        assert len(sensors) == 2
         assert type(sensors[0]) is HitachiYutakiSensor
-        assert isinstance(sensors[1], HitachiYutakiCOPSensor)
-        assert isinstance(sensors[2], HitachiYutakiTimingSensor)
+        assert isinstance(sensors[1], HitachiYutakiTimingSensor)

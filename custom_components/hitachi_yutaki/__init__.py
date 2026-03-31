@@ -288,6 +288,9 @@ async def async_setup_entry(
     # Restore thermal energy from last known state
     await _async_restore_thermal_energy(hass, entry, coordinator)
 
+    # Rehydrate COP measurement buffers from Recorder history
+    await coordinator.derived_metrics.async_rehydrate_cop()
+
     _LOGGER.info("Using Hitachi profile: %s", profile.name)
 
     # Register devices
