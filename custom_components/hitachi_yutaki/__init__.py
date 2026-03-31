@@ -252,9 +252,11 @@ async def async_setup_entry(
     # Create derived metrics adapter (enriches data with thermal power, COP, etc.)
     coordinator.derived_metrics = DerivedMetricsAdapter(
         hass=hass,
-        config_entry_data=entry.data,
+        config_entry=entry,
         power_supply=entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
         has_cooling=False,  # updated after first refresh
+        has_dhw=False,  # updated after first refresh
+        has_pool=False,  # updated after first refresh
         supports_secondary_compressor=profile.supports_secondary_compressor,
     )
 
@@ -273,9 +275,14 @@ async def async_setup_entry(
     # Wait for the first refresh to succeed before setting up platforms
     await coordinator.async_config_entry_first_refresh()
 
-    # Update has_cooling now that system_config is available
+    # Update COP services now that system_config is available
     coordinator.derived_metrics._has_cooling = coordinator.has_circuit(
         CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
+    )
+    coordinator.derived_metrics._init_cop_services(
+        has_cooling=coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING),
+        has_dhw=coordinator.has_dhw(),
+        has_pool=coordinator.has_pool(),
     )
 
     # Restore thermal energy from last known state
