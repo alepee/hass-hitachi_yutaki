@@ -2,25 +2,19 @@
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 from custom_components.hitachi_yutaki.entities.base.sensor import (
-    HitachiYutakiCOPSensor,
     HitachiYutakiSensor,
     HitachiYutakiSensorEntityDescription,
-    HitachiYutakiThermalSensor,
-    HitachiYutakiTimingSensor,
     _create_sensors,
 )
 
 
-def _make_description(
-    key: str, sensor_class=None, condition=None
-) -> HitachiYutakiSensorEntityDescription:
+def _make_description(key: str, condition=None) -> HitachiYutakiSensorEntityDescription:
     """Build a minimal sensor description for testing dispatch."""
     return HitachiYutakiSensorEntityDescription(
         key=key,
-        sensor_class=sensor_class,
         condition=condition,
     )
 
@@ -36,53 +30,10 @@ def _make_coordinator() -> MagicMock:
 
 
 class TestSensorDispatch:
-    """Tests that _create_sensors routes to the correct sensor subclass."""
+    """Tests that _create_sensors creates the correct sensor instances."""
 
-    def test_cop_description_creates_cop_sensor(self):
-        """sensor_class='cop' creates HitachiYutakiCOPSensor."""
-        coordinator = _make_coordinator()
-        descriptions = (_make_description("cop_heating", sensor_class="cop"),)
-
-        with patch.object(HitachiYutakiCOPSensor, "__init__", return_value=None):
-            sensors = _create_sensors(
-                coordinator, "test_entry", descriptions, "control_unit"
-            )
-
-        assert len(sensors) == 1
-        assert isinstance(sensors[0], HitachiYutakiCOPSensor)
-
-    def test_thermal_description_creates_thermal_sensor(self):
-        """sensor_class='thermal' creates HitachiYutakiThermalSensor."""
-        coordinator = _make_coordinator()
-        descriptions = (
-            _make_description("thermal_power_heating", sensor_class="thermal"),
-        )
-
-        with patch.object(HitachiYutakiThermalSensor, "__init__", return_value=None):
-            sensors = _create_sensors(
-                coordinator, "test_entry", descriptions, "control_unit"
-            )
-
-        assert len(sensors) == 1
-        assert isinstance(sensors[0], HitachiYutakiThermalSensor)
-
-    def test_timing_description_creates_timing_sensor(self):
-        """sensor_class='timing' creates HitachiYutakiTimingSensor."""
-        coordinator = _make_coordinator()
-        descriptions = (
-            _make_description("compressor_cycle_time", sensor_class="timing"),
-        )
-
-        with patch.object(HitachiYutakiTimingSensor, "__init__", return_value=None):
-            sensors = _create_sensors(
-                coordinator, "test_entry", descriptions, "control_unit"
-            )
-
-        assert len(sensors) == 1
-        assert isinstance(sensors[0], HitachiYutakiTimingSensor)
-
-    def test_no_sensor_class_creates_base_sensor(self):
-        """No sensor_class (None) creates base HitachiYutakiSensor."""
+    def test_description_creates_base_sensor(self):
+        """A standard description creates HitachiYutakiSensor."""
         coordinator = _make_coordinator()
         descriptions = (_make_description("compressor_frequency"),)
 
@@ -115,39 +66,18 @@ class TestSensorDispatch:
 
         assert len(sensors) == 1
 
-    def test_unknown_sensor_class_falls_back_to_base(self):
-        """An unrecognized sensor_class falls back to base sensor."""
+    def test_multiple_descriptions_all_create_base_sensor(self):
+        """Multiple descriptions all create base HitachiYutakiSensor."""
         coordinator = _make_coordinator()
-        descriptions = (_make_description("mystery", sensor_class="unknown"),)
+        descriptions = (
+            _make_description("compressor_frequency"),
+            _make_description("compressor_cycle_time"),
+        )
 
         sensors = _create_sensors(
             coordinator, "test_entry", descriptions, "control_unit"
         )
 
-        assert len(sensors) == 1
+        assert len(sensors) == 2
         assert type(sensors[0]) is HitachiYutakiSensor
-
-    def test_mixed_descriptions_dispatch_correctly(self):
-        """Multiple descriptions with different sensor_class values dispatch correctly."""
-        coordinator = _make_coordinator()
-        descriptions = (
-            _make_description("compressor_frequency"),
-            _make_description("cop_heating", sensor_class="cop"),
-            _make_description("thermal_power_heating", sensor_class="thermal"),
-            _make_description("compressor_cycle_time", sensor_class="timing"),
-        )
-
-        with (
-            patch.object(HitachiYutakiCOPSensor, "__init__", return_value=None),
-            patch.object(HitachiYutakiThermalSensor, "__init__", return_value=None),
-            patch.object(HitachiYutakiTimingSensor, "__init__", return_value=None),
-        ):
-            sensors = _create_sensors(
-                coordinator, "test_entry", descriptions, "control_unit"
-            )
-
-        assert len(sensors) == 4
-        assert type(sensors[0]) is HitachiYutakiSensor
-        assert isinstance(sensors[1], HitachiYutakiCOPSensor)
-        assert isinstance(sensors[2], HitachiYutakiThermalSensor)
-        assert isinstance(sensors[3], HitachiYutakiTimingSensor)
+        assert type(sensors[1]) is HitachiYutakiSensor

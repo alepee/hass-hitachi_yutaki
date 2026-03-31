@@ -50,7 +50,12 @@ def _build_performance_sensor_descriptions() -> tuple[
                 c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
                 or c.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING)
             ),
-            sensor_class="cop",
+            value_fn=lambda c: c.data.get("cop_heating"),
+            attributes_fn=lambda c: {
+                "quality": c.data.get("cop_heating_quality"),
+                "measurements": c.data.get("cop_heating_measurements"),
+                "time_span_minutes": c.data.get("cop_heating_time_span_minutes"),
+            },
         ),
         HitachiYutakiSensorEntityDescription(
             key="cop_cooling",
@@ -64,7 +69,12 @@ def _build_performance_sensor_descriptions() -> tuple[
                 c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
                 or c.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
             ),
-            sensor_class="cop",
+            value_fn=lambda c: c.data.get("cop_cooling"),
+            attributes_fn=lambda c: {
+                "quality": c.data.get("cop_cooling_quality"),
+                "measurements": c.data.get("cop_cooling_measurements"),
+                "time_span_minutes": c.data.get("cop_cooling_time_span_minutes"),
+            },
         ),
         HitachiYutakiSensorEntityDescription(
             key="cop_dhw",
@@ -75,7 +85,12 @@ def _build_performance_sensor_descriptions() -> tuple[
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:water-boiler",
             condition=lambda c: c.has_dhw(),
-            sensor_class="cop",
+            value_fn=lambda c: c.data.get("cop_dhw"),
+            attributes_fn=lambda c: {
+                "quality": c.data.get("cop_dhw_quality"),
+                "measurements": c.data.get("cop_dhw_measurements"),
+                "time_span_minutes": c.data.get("cop_dhw_time_span_minutes"),
+            },
         ),
         HitachiYutakiSensorEntityDescription(
             key="cop_pool",
@@ -86,6 +101,11 @@ def _build_performance_sensor_descriptions() -> tuple[
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:pool",
             condition=lambda c: c.has_pool(),
-            sensor_class="cop",
+            value_fn=lambda c: c.data.get("cop_pool"),
+            attributes_fn=lambda c: {
+                "quality": c.data.get("cop_pool_quality"),
+                "measurements": c.data.get("cop_pool_measurements"),
+                "time_span_minutes": c.data.get("cop_pool_time_span_minutes"),
+            },
         ),
     )

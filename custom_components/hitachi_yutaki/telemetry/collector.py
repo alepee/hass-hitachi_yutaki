@@ -7,19 +7,12 @@ from datetime import UTC, datetime
 import logging
 from typing import Any
 
-from ..domain.models.electrical import ElectricalPowerInput
-from ..domain.models.thermal import ThermalPowerInput
-from ..domain.services.electrical import calculate_electrical_power
-from ..domain.services.thermal.calculators import calculate_thermal_power
 from .models import MetricPoint, TelemetryLevel
 
 _LOGGER = logging.getLogger(__name__)
 
 # Default buffer size: 360 points = 30 minutes at 5s poll interval
 DEFAULT_BUFFER_MAX_SIZE = 360
-
-# Discard instantaneous COP above this threshold (transient noise)
-_COP_MAX = 15.0
 
 # Coordinator data key → unit_mode string mapping
 _UNIT_MODE_MAP = {0: "cool", 1: "heat", 2: "auto"}
@@ -36,12 +29,10 @@ class TelemetryCollector:
         self,
         level: TelemetryLevel,
         buffer_max_size: int = DEFAULT_BUFFER_MAX_SIZE,
-        power_supply: str = "single",
     ) -> None:
         """Initialize the collector."""
         self._level = level
         self._buffer: deque[MetricPoint] = deque(maxlen=buffer_max_size)
-        self._is_three_phase = power_supply == "three"
 
     @property
     def level(self) -> TelemetryLevel:
@@ -89,56 +80,29 @@ class TelemetryCollector:
             operation_state == "operation_state_dhw_on" if operation_state else None
         )
 
-        # Extract temperature and flow values for reuse
-        inlet = _to_float(data.get("water_inlet_temp"))
-        outlet = _to_float(data.get("water_outlet_temp"))
-        flow = _to_float(data.get("water_flow"))
-
-        # Compute thermal power from available data
-        if inlet is not None and outlet is not None and flow is not None and flow > 0:
-            thermal_power = abs(
-                calculate_thermal_power(ThermalPowerInput(inlet, outlet, flow))
-            )
-        else:
-            thermal_power = None
-
-        # Compute electrical power from compressor current
-        current = _to_float(data.get("compressor_current"))
-
-        if current is not None and current > 0:
-            electrical_power = calculate_electrical_power(
-                ElectricalPowerInput(
-                    current=current, is_three_phase=self._is_three_phase
-                )
-            )
-        else:
-            electrical_power = None
-
-        # Compute COP as ratio of thermal to electrical power
-        # Discard aberrant values (transient conditions can produce unrealistic COP)
-        if (
-            thermal_power is not None
-            and electrical_power is not None
-            and electrical_power > 0
-        ):
-            cop = thermal_power / electrical_power
-            cop_instant = cop if cop <= _COP_MAX else None
-        else:
-            cop_instant = None
+        # Read derived metrics injected by DerivedMetricsAdapter
+        thermal_power = _to_float(data.get("thermal_power_heating")) or _to_float(
+            data.get("thermal_power_cooling")
+        )
+        electrical_power = _to_float(data.get("electrical_power"))
+        cop_instant = _to_float(data.get("cop_heating")) or _to_float(
+            data.get("cop_cooling")
+        )
+        cop_quality = data.get("cop_heating_quality") or data.get("cop_cooling_quality")
 
         point = MetricPoint(
             time=now,
             outdoor_temp=_to_float(data.get("outdoor_temp")),
-            water_inlet_temp=inlet,
-            water_outlet_temp=outlet,
+            water_inlet_temp=_to_float(data.get("water_inlet_temp")),
+            water_outlet_temp=_to_float(data.get("water_outlet_temp")),
             dhw_temp=_to_float(data.get("dhw_current_temp")),
             compressor_on=is_compressor_running,
             compressor_frequency=_to_float(data.get("compressor_frequency")),
-            compressor_current=current,
+            compressor_current=_to_float(data.get("compressor_current")),
             thermal_power=thermal_power,
             electrical_power=electrical_power,
             cop_instant=cop_instant,
-            cop_quality=None,
+            cop_quality=cop_quality,
             unit_mode=unit_mode,
             is_defrosting=is_defrosting,
             dhw_active=dhw_active,
@@ -149,7 +113,7 @@ class TelemetryCollector:
             circuit2_target_temp=_to_float(data.get("circuit2_target_temp")),
             dhw_target_temp=_to_float(data.get("dhw_target_temp")),
             water_target_temp=_to_float(data.get("water_target_temp")),
-            water_flow=flow,
+            water_flow=_to_float(data.get("water_flow")),
             circuit1_otc_method_heating=data.get(
                 "circuit1_otc_calculation_method_heating"
             ),

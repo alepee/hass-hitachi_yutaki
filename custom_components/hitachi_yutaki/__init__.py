@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import datetime, timedelta
 import logging
 
@@ -9,13 +10,15 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME, __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
+from homeassistant.helpers.restore_state import async_get as async_get_restore_data
 from homeassistant.loader import async_get_integration
 
+from .adapters.derived_metrics import DerivedMetricsAdapter
 from .api import GATEWAY_INFO, create_register_map
 from .const import (
     CIRCUIT_MODE_COOLING,
@@ -58,6 +61,38 @@ from .telemetry.anonymizer import hash_instance_id
 _LOGGER = logging.getLogger(__name__)
 
 type HitachiYutakiConfigEntry = ConfigEntry[HitachiYutakiDataCoordinator]
+
+_THERMAL_ENERGY_KEYS = (
+    "thermal_energy_heating_daily",
+    "thermal_energy_heating_total",
+    "thermal_energy_cooling_daily",
+    "thermal_energy_cooling_total",
+)
+
+
+async def _async_restore_thermal_energy(
+    hass: HomeAssistant,
+    entry: HitachiYutakiConfigEntry,
+    coordinator: HitachiYutakiDataCoordinator,
+) -> None:
+    """Restore thermal energy accumulators from HA's last state cache."""
+    restore_data = async_get_restore_data(hass)
+    entity_registry = er.async_get(hass)
+
+    for key in _THERMAL_ENERGY_KEYS:
+        unique_id = f"{entry.entry_id}_{key}"
+        entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+        if entity_id and entity_id in restore_data.last_states:
+            last = restore_data.last_states[entity_id]
+            if (
+                last
+                and last.state
+                and last.state.state not in (None, "unknown", "unavailable", "")
+            ):
+                with suppress(ValueError, TypeError):
+                    coordinator.derived_metrics.restore_thermal_energy(
+                        key, float(last.state.state)
+                    )
 
 
 async def async_setup_entry(
@@ -203,7 +238,6 @@ async def async_setup_entry(
 
     coordinator.telemetry_collector = TelemetryCollector(
         level=telemetry_level,
-        power_supply=entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
     )
     coordinator._telemetry_meta = {
         "instance_hash": instance_hash,
@@ -213,6 +247,17 @@ async def async_setup_entry(
         "integration_version": integration.version,
         "power_supply": entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
     }
+
+    # Create derived metrics adapter (enriches data with thermal power, COP, etc.)
+    coordinator.derived_metrics = DerivedMetricsAdapter(
+        hass=hass,
+        config_entry=entry,
+        power_supply=entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
+        has_cooling=False,  # updated after first refresh
+        has_dhw=False,  # updated after first refresh
+        has_pool=False,  # updated after first refresh
+        supports_secondary_compressor=profile.supports_secondary_compressor,
+    )
 
     try:
         await coordinator.async_config_entry_first_refresh()
@@ -228,6 +273,25 @@ async def async_setup_entry(
 
     # Wait for the first refresh to succeed before setting up platforms
     await coordinator.async_config_entry_first_refresh()
+
+    # Update COP services now that system_config is available
+    coordinator.derived_metrics._has_cooling = coordinator.has_circuit(
+        CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
+    )
+    coordinator.derived_metrics._init_cop_services(
+        has_cooling=coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING),
+        has_dhw=coordinator.has_dhw(),
+        has_pool=coordinator.has_pool(),
+    )
+
+    # Restore thermal energy from last known state
+    await _async_restore_thermal_energy(hass, entry, coordinator)
+
+    # Rehydrate COP measurement buffers from Recorder history
+    await coordinator.derived_metrics.async_rehydrate_cop()
+
+    # Rehydrate compressor timing from Recorder history
+    await coordinator.derived_metrics.async_rehydrate_timing()
 
     _LOGGER.info("Using Hitachi profile: %s", profile.name)
 

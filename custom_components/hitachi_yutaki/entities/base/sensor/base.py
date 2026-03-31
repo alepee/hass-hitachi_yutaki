@@ -6,7 +6,7 @@ from collections.abc import Callable
 from contextlib import suppress
 from dataclasses import dataclass
 import logging
-from typing import Any, Literal
+from typing import Any
 
 from homeassistant.components.sensor import (
     SensorDeviceClass,
@@ -46,7 +46,9 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     fallback_translation_key: str | None = None
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
     value_fn: Callable[[HitachiYutakiDataCoordinator], StateType] | None = None
-    sensor_class: Literal["cop", "thermal", "timing"] | None = None
+    attributes_fn: (
+        Callable[[HitachiYutakiDataCoordinator], dict[str, Any] | None] | None
+    ) = None
 
 
 def _create_sensors(
@@ -56,8 +58,6 @@ def _create_sensors(
     device_type: DEVICE_TYPES,
 ) -> list[HitachiYutakiSensor]:
     """Create sensors for a specific device type.
-
-    Dispatches to specialized subclasses based on ``sensor_class``.
 
     Args:
         coordinator: The data coordinator
@@ -69,26 +69,13 @@ def _create_sensors(
         List of created sensor entities
 
     """
-    # Local imports to avoid circular dependencies (subclasses import HitachiYutakiSensor)
-    from .cop import HitachiYutakiCOPSensor  # noqa: PLC0415
-    from .thermal import HitachiYutakiThermalSensor  # noqa: PLC0415
-    from .timing import HitachiYutakiTimingSensor  # noqa: PLC0415
-
-    _CLASS_MAP: dict[str, type[HitachiYutakiSensor]] = {
-        "cop": HitachiYutakiCOPSensor,
-        "thermal": HitachiYutakiThermalSensor,
-        "timing": HitachiYutakiTimingSensor,
-    }
-
     sensors: list[HitachiYutakiSensor] = []
     for description in descriptions:
         if description.condition is not None and not description.condition(coordinator):
             continue
 
-        cls = _CLASS_MAP.get(description.sensor_class, HitachiYutakiSensor)
-
         sensors.append(
-            cls(
+            HitachiYutakiSensor(
                 coordinator=coordinator,
                 description=description,
                 device_info=DeviceInfo(
@@ -191,6 +178,9 @@ class HitachiYutakiSensor(
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return the state attributes of the sensor."""
+        if self.entity_description.attributes_fn is not None:
+            return self.entity_description.attributes_fn(self.coordinator)
+
         key = self.entity_description.key
 
         # Dispatch attributes based on sensor key
