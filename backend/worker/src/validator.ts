@@ -33,72 +33,6 @@ const INSTALLATION_FIELDS = new Set([
   "climate_zone",
 ]);
 
-/** Allowed metric point fields (whitelist). */
-const METRIC_FIELDS = new Set([
-  "time",
-  "outdoor_temp",
-  "water_inlet_temp",
-  "water_outlet_temp",
-  "dhw_temp",
-  "compressor_on",
-  "compressor_frequency",
-  "compressor_current",
-  "thermal_power",
-  "electrical_power",
-  "cop_instant",
-  "cop_quality",
-  "unit_mode",
-  "is_defrosting",
-  "dhw_active",
-  "circuit1_water_temp",
-  "circuit2_water_temp",
-  "circuit1_target_temp",
-  "circuit2_target_temp",
-  "dhw_target_temp",
-  "water_target_temp",
-  "water_flow",
-  "circuit1_otc_method_heating",
-  "circuit1_otc_method_cooling",
-  "circuit2_otc_method_heating",
-  "circuit2_otc_method_cooling",
-  "circuit1_eco_mode",
-  "circuit2_eco_mode",
-  "circuit1_power",
-  "circuit2_power",
-  "dhw_power",
-  "circuit1_max_flow_temp_heating",
-  "circuit1_max_flow_temp_cooling",
-  "circuit1_heat_eco_offset",
-  "circuit1_cool_eco_offset",
-  "circuit2_max_flow_temp_heating",
-  "circuit2_max_flow_temp_cooling",
-  "circuit2_heat_eco_offset",
-  "circuit2_cool_eco_offset",
-  "compressor_tg_gas_temp",
-  "compressor_ti_liquid_temp",
-  "compressor_td_discharge_temp",
-  "compressor_te_evaporator_temp",
-  "compressor_evi_valve_opening",
-  "compressor_evo_valve_opening",
-  "secondary_compressor_frequency",
-  "secondary_compressor_discharge_temp",
-  "secondary_compressor_suction_temp",
-  "secondary_compressor_discharge_pressure",
-  "secondary_compressor_suction_pressure",
-  "secondary_compressor_valve_opening",
-  "unit_power",
-  "pump_speed",
-  "operation_state_code",
-  "alarm_code",
-  "system_status",
-  "dhw_boost",
-  "dhw_high_demand",
-  "water_outlet_2_temp",
-  "water_outlet_3_temp",
-  "pool_current_temp",
-  "pool_target_temp",
-]);
-
 /** Allowed daily stats data fields (whitelist). */
 const DAILY_STATS_FIELDS = new Set([
   "outdoor_temp_min",
@@ -222,6 +156,7 @@ function validateMetrics(
   if (points.length > MAX_METRICS_POINTS) {
     throw new ValidationError(`metrics: too many points (max ${MAX_METRICS_POINTS})`);
   }
+
   const sanitized: MetricPoint[] = points.map((p: unknown, i: number) => {
     if (typeof p !== "object" || p === null) {
       throw new ValidationError(`metrics: point[${i}] must be an object`);
@@ -230,8 +165,24 @@ function validateMetrics(
     if (typeof point.time !== "string") {
       throw new ValidationError(`metrics: point[${i}].time is required`);
     }
-    return whitelist(point, METRIC_FIELDS) as unknown as MetricPoint;
+
+    // Type validation: only allow primitive values (no nested objects/arrays)
+    const clean: MetricPoint = { time: point.time as string };
+    for (const [key, value] of Object.entries(point)) {
+      if (key === "time") continue;
+      if (
+        typeof value === "number" ||
+        typeof value === "boolean" ||
+        typeof value === "string" ||
+        value === null
+      ) {
+        clean[key] = value;
+      }
+      // Silently drop non-primitive values (arrays, objects)
+    }
+    return clean;
   });
+
   return {
     type: "metrics",
     instance_hash: instanceHash,
