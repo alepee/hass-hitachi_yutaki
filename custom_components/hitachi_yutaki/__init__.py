@@ -16,6 +16,7 @@ from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
 from homeassistant.loader import async_get_integration
 
+from .adapters.derived_metrics import DerivedMetricsAdapter
 from .api import GATEWAY_INFO, create_register_map
 from .const import (
     CIRCUIT_MODE_COOLING,
@@ -214,6 +215,15 @@ async def async_setup_entry(
         "power_supply": entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
     }
 
+    # Create derived metrics adapter (enriches data with thermal power, COP, etc.)
+    coordinator.derived_metrics = DerivedMetricsAdapter(
+        hass=hass,
+        config_entry_data=entry.data,
+        power_supply=entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
+        has_cooling=False,  # updated after first refresh
+        supports_secondary_compressor=profile.supports_secondary_compressor,
+    )
+
     try:
         await coordinator.async_config_entry_first_refresh()
     except ConfigEntryNotReady:
@@ -228,6 +238,11 @@ async def async_setup_entry(
 
     # Wait for the first refresh to succeed before setting up platforms
     await coordinator.async_config_entry_first_refresh()
+
+    # Update has_cooling now that system_config is available
+    coordinator.derived_metrics._has_cooling = coordinator.has_circuit(
+        CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
+    )
 
     _LOGGER.info("Using Hitachi profile: %s", profile.name)
 

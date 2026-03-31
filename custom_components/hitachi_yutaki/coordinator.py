@@ -18,6 +18,7 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
+from .adapters.derived_metrics import DerivedMetricsAdapter
 from .api import HitachiApiClient
 from .api.base import ReadResult
 from .const import (
@@ -65,7 +66,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.api_client = api_client
         self.profile = profile
         self.entities: list[Any] = []
-        self.defrost_guard = DefrostGuard()
+        self._defrost_guard = DefrostGuard()
+
+        # Derived metrics adapter (injected by async_setup_entry)
+        self.derived_metrics: DerivedMetricsAdapter | None = None
         self._normal_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
         self._gateway_not_ready_count: int = 0
 
@@ -91,6 +95,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             name=DOMAIN,
             update_interval=self._normal_interval,
         )
+
+    @property
+    def defrost_guard(self) -> DefrostGuard:
+        """Return the defrost guard (owned by derived_metrics adapter when available)."""
+        if self.derived_metrics is not None:
+            return self.derived_metrics.defrost_guard
+        return self._defrost_guard
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Hitachi Yutaki."""
@@ -135,18 +146,12 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             self.system_config = data.get("system_config", 0)
 
-            # Update defrost guard with fresh data
-            water_inlet = data.get("water_inlet_temp")
-            water_outlet = data.get("water_outlet_temp")
-            delta_t = (
-                (water_outlet - water_inlet)
-                if water_inlet is not None and water_outlet is not None
-                else None
-            )
-            self.defrost_guard.update(
-                is_defrosting=self.api_client.is_defrosting,
-                delta_t=delta_t,
-            )
+            # Inject api_client state into data for derived metrics
+            data["is_defrosting"] = self.api_client.is_defrosting
+
+            # Enrich data with derived metrics (thermal power, COP, timing)
+            if self.derived_metrics is not None:
+                self.derived_metrics.update(data)
 
             # If we reach here, connection is successful, so delete any connection error issue
             ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
