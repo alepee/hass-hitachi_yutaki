@@ -1,14 +1,10 @@
 """Tests for telemetry anonymizer."""
 
-from datetime import UTC, date, datetime
-
 from custom_components.hitachi_yutaki.telemetry.anonymizer import (
-    anonymize_daily_stats,
-    anonymize_metric_point,
+    anonymize_point,
     hash_instance_id,
     round_temperature,
 )
-from custom_components.hitachi_yutaki.telemetry.models import DailyStats, MetricPoint
 
 
 class TestHashInstanceId:
@@ -72,156 +68,76 @@ class TestRoundTemperature:
         assert round_temperature(5.7, precision=1.0) == 6.0
 
 
-class TestAnonymizeMetricPoint:
-    """Tests for MetricPoint anonymization."""
+class TestAnonymizePoint:
+    """Tests for dict-based point anonymization."""
 
-    def test_temperatures_rounded(self):
-        """Verify all temperature fields are rounded to 0.5 steps."""
-        point = MetricPoint(
-            time=datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC),
-            outdoor_temp=5.37,
-            water_inlet_temp=34.82,
-            water_outlet_temp=40.14,
-            dhw_temp=52.67,
-            circuit1_water_temp=38.33,
-            circuit2_water_temp=29.91,
-        )
-        anon = anonymize_metric_point(point)
-        assert anon.outdoor_temp == 5.5
-        assert anon.water_inlet_temp == 35.0
-        assert anon.water_outlet_temp == 40.0
-        assert anon.dhw_temp == 52.5
-        assert anon.circuit1_water_temp == 38.5
-        assert anon.circuit2_water_temp == 30.0
+    def test_temperature_keys_rounded(self):
+        """All keys containing '_temp' are rounded to 0.5 degrees C."""
+        point = {
+            "outdoor_temp": 5.3,
+            "water_inlet_temp": 34.8,
+            "dhw_current_temp": 51.7,
+            "compressor_frequency": 65.0,
+        }
+        result = anonymize_point(point)
+        assert result["outdoor_temp"] == 5.5
+        assert result["water_inlet_temp"] == 35.0
+        assert result["dhw_current_temp"] == 51.5
+        assert result["compressor_frequency"] == 65.0
 
-    def test_cop_rounded_to_one_decimal(self):
-        """Verify COP is rounded to one decimal place."""
-        point = MetricPoint(
-            time=datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC),
-            cop_instant=3.456,
-        )
-        anon = anonymize_metric_point(point)
-        assert anon.cop_instant == 3.5
+    def test_cop_keys_rounded_to_one_decimal(self):
+        """COP values are rounded to 1 decimal place."""
+        point = {"cop_heating": 1.3456, "cop_cooling": 2.789}
+        result = anonymize_point(point)
+        assert result["cop_heating"] == 1.3
+        assert result["cop_cooling"] == 2.8
 
-    def test_none_values_preserved(self):
-        """Verify None fields remain None after anonymization."""
-        point = MetricPoint(
-            time=datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC),
-        )
-        anon = anonymize_metric_point(point)
-        assert anon.outdoor_temp is None
-        assert anon.cop_instant is None
+    def test_cop_metadata_not_rounded(self):
+        """COP quality, measurements, time_span are not rounded."""
+        point = {
+            "cop_heating_quality": "optimal",
+            "cop_heating_measurements": 42,
+            "cop_heating_time_span_minutes": 15.3,
+        }
+        result = anonymize_point(point)
+        assert result["cop_heating_quality"] == "optimal"
+        assert result["cop_heating_measurements"] == 42
+        assert result["cop_heating_time_span_minutes"] == 15.3
 
-    def test_non_temperature_fields_unchanged(self):
-        """Verify non-temperature fields pass through without modification."""
-        point = MetricPoint(
-            time=datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC),
-            compressor_on=True,
-            compressor_frequency=65.3,
-            compressor_current=8.7,
-            thermal_power=12.345,
-            electrical_power=3.456,
-            unit_mode="heat",
-            is_defrosting=False,
-            dhw_active=True,
-        )
-        anon = anonymize_metric_point(point)
-        assert anon.compressor_on is True
-        assert anon.compressor_frequency == 65.3
-        assert anon.compressor_current == 8.7
-        assert anon.thermal_power == 12.345
-        assert anon.electrical_power == 3.456
-        assert anon.unit_mode == "heat"
-        assert anon.is_defrosting is False
-        assert anon.dhw_active is True
+    def test_water_flow_rounded(self):
+        """Water flow is rounded to 1 decimal."""
+        point = {"water_flow": 12.345}
+        result = anonymize_point(point)
+        assert result["water_flow"] == 12.3
 
-    def test_timestamp_preserved(self):
-        """Verify the original timestamp is preserved after anonymization."""
-        ts = datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC)
-        point = MetricPoint(time=ts, outdoor_temp=5.37)
-        anon = anonymize_metric_point(point)
-        assert anon.time == ts
-
-
-class TestAnonymizeDailyStats:
-    """Tests for DailyStats anonymization."""
-
-    def test_temperatures_rounded(self):
-        """Verify daily temperature stats are rounded to 0.5 steps."""
-        stats = DailyStats(
-            instance_hash="abc",
-            date=date(2025, 3, 6),
-            outdoor_temp_min=-2.37,
-            outdoor_temp_max=12.82,
-            outdoor_temp_avg=5.14,
-        )
-        anon = anonymize_daily_stats(stats)
-        assert anon.outdoor_temp_min == -2.5
-        assert anon.outdoor_temp_max == 13.0
-        assert anon.outdoor_temp_avg == 5.0
-
-    def test_cop_rounded(self):
-        """Verify daily COP stats are rounded to one decimal place."""
-        stats = DailyStats(
-            instance_hash="abc",
-            date=date(2025, 3, 6),
-            cop_avg=3.456,
-            cop_min=2.134,
-            cop_max=4.789,
-        )
-        anon = anonymize_daily_stats(stats)
-        assert anon.cop_avg == 3.5
-        assert anon.cop_min == 2.1
-        assert anon.cop_max == 4.8
-
-    def test_energy_rounded(self):
-        """Verify energy values are rounded to one decimal place."""
-        stats = DailyStats(
-            instance_hash="abc",
-            date=date(2025, 3, 6),
-            thermal_energy_kwh=42.3456,
-            electrical_energy_kwh=12.7891,
-        )
-        anon = anonymize_daily_stats(stats)
-        assert anon.thermal_energy_kwh == 42.3
-        assert anon.electrical_energy_kwh == 12.8
-
-    def test_hours_rounded(self):
-        """Verify hour and minute durations are rounded to one decimal place."""
-        stats = DailyStats(
-            instance_hash="abc",
-            date=date(2025, 3, 6),
-            compressor_hours=18.456,
-            heating_hours=12.345,
-            cooling_hours=0.0,
-            dhw_hours=6.111,
-            defrost_total_minutes=23.456,
-        )
-        anon = anonymize_daily_stats(stats)
-        assert anon.compressor_hours == 18.5
-        assert anon.heating_hours == 12.3
-        assert anon.cooling_hours == 0.0
-        assert anon.dhw_hours == 6.1
-        assert anon.defrost_total_minutes == 23.5
-
-    def test_integer_fields_unchanged(self):
-        """Verify integer count fields are not modified by anonymization."""
-        stats = DailyStats(
-            instance_hash="abc",
-            date=date(2025, 3, 6),
-            compressor_starts=15,
-            defrost_count=3,
-        )
-        anon = anonymize_daily_stats(stats)
-        assert anon.compressor_starts == 15
-        assert anon.defrost_count == 3
+    def test_power_rounded_to_two_decimals(self):
+        """Thermal and electrical power rounded to 2 decimals."""
+        point = {"thermal_power_heating": 5.2345, "electrical_power": 1.8678}
+        result = anonymize_point(point)
+        assert result["thermal_power_heating"] == 5.23
+        assert result["electrical_power"] == 1.87
 
     def test_none_values_preserved(self):
-        """Verify None fields remain None after anonymization."""
-        stats = DailyStats(
-            instance_hash="abc",
-            date=date(2025, 3, 6),
-        )
-        anon = anonymize_daily_stats(stats)
-        assert anon.outdoor_temp_min is None
-        assert anon.cop_avg is None
+        """None values pass through unchanged."""
+        point = {"outdoor_temp": None, "cop_heating": None}
+        result = anonymize_point(point)
+        assert result["outdoor_temp"] is None
+        assert result["cop_heating"] is None
+
+    def test_non_numeric_values_unchanged(self):
+        """String and boolean values pass through."""
+        point = {
+            "operation_state": "heat_on",
+            "unit_power": True,
+            "time": "2026-03-31T12:00:00Z",
+        }
+        result = anonymize_point(point)
+        assert result["operation_state"] == "heat_on"
+        assert result["unit_power"] is True
+
+    def test_does_not_mutate_original(self):
+        """anonymize_point returns a new dict."""
+        point = {"outdoor_temp": 5.3}
+        result = anonymize_point(point)
+        assert result is not point
+        assert point["outdoor_temp"] == 5.3

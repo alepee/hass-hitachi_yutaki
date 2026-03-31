@@ -42,9 +42,8 @@ from .telemetry import (
 )
 from .telemetry.aggregator import aggregate_metrics
 from .telemetry.anonymizer import (
-    anonymize_daily_stats,
     anonymize_installation_info,
-    anonymize_metric_point,
+    anonymize_point,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -301,7 +300,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         try:
             # Send fine-grained metrics
-            anonymized = [anonymize_metric_point(p) for p in points]
+            anonymized = [anonymize_point(p) for p in points]
             batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
             success = await self.telemetry_client.send_metrics(batch)
 
@@ -318,7 +317,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     self._daily_stats_date,
                     self._daily_points_accumulator,
                 )
-                anonymized_stats = anonymize_daily_stats(stats)
+                anonymized_stats = (
+                    stats  # TODO: daily stats anonymization removed, pending Task 4
+                )
                 daily_ok = await self.telemetry_client.send_daily_stats(
                     anonymized_stats
                 )
