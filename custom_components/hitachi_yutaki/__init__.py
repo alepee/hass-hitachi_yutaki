@@ -15,7 +15,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
-from homeassistant.helpers.restore_state import RestoreStateData
+from homeassistant.helpers.restore_state import async_get as async_get_restore_data
 from homeassistant.loader import async_get_integration
 
 from .adapters.derived_metrics import DerivedMetricsAdapter
@@ -76,7 +76,7 @@ async def _async_restore_thermal_energy(
     coordinator: HitachiYutakiDataCoordinator,
 ) -> None:
     """Restore thermal energy accumulators from HA's last state cache."""
-    restore_data = await RestoreStateData.async_get_instance(hass)
+    restore_data = async_get_restore_data(hass)
     entity_registry = er.async_get(hass)
 
     for key in _THERMAL_ENERGY_KEYS:
