@@ -148,6 +148,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             # Inject api_client state into data for derived metrics
             data["is_defrosting"] = self.api_client.is_defrosting
+            data["is_compressor_running"] = self.api_client.is_compressor_running
 
             # Enrich data with derived metrics (thermal power, COP, timing)
             if self.derived_metrics is not None:
@@ -158,11 +159,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             # Telemetry: collect metrics from this poll cycle
             # (collector handles level=OFF internally)
-            self.telemetry_collector.collect(
-                data,
-                is_compressor_running=self.api_client.is_compressor_running,
-                is_defrosting=self.api_client.is_defrosting,
-            )
+            self.telemetry_collector.collect(data)
 
             # Send one-time telemetry data (with backoff on failure)
             # Fire-and-forget to avoid blocking the Modbus poll path
