@@ -111,6 +111,7 @@ DEFAULT_UNIT_ID = 0
 # Telemetry
 CONF_TELEMETRY_LEVEL = "telemetry_level"
 DEFAULT_TELEMETRY_LEVEL = "off"
+TELEMETRY_ENDPOINT = "https://hitachi-telemetry.lepee.dev/v1/ingest"
 
 # COP calculation parameters
 COP_MEASUREMENTS_INTERVAL = 60  # seconds

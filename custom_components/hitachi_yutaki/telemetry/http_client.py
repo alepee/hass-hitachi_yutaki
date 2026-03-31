@@ -10,12 +10,10 @@ from typing import Any
 
 import aiohttp
 
+from ..const import TELEMETRY_ENDPOINT
 from .models import InstallationInfo, MetricsBatch, RegisterSnapshot
 
 _LOGGER = logging.getLogger(__name__)
-
-# Default endpoint (Cloudflare Worker)
-DEFAULT_ENDPOINT = "https://hitachi-telemetry.lepee.dev/v1/ingest"
 
 # Retry configuration
 MAX_RETRIES = 3
@@ -34,7 +32,7 @@ class HttpTelemetryClient:
         self,
         session: aiohttp.ClientSession,
         instance_hash: str,
-        endpoint: str = DEFAULT_ENDPOINT,
+        endpoint: str = TELEMETRY_ENDPOINT,
     ) -> None:
         """Initialize the HTTP telemetry client."""
         self._session = session
