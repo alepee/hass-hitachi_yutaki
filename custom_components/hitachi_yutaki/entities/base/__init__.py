@@ -24,7 +24,6 @@ from .select import (
 from .sensor import (
     HitachiYutakiSensor,
     HitachiYutakiSensorEntityDescription,
-    HitachiYutakiTimingSensor,
     _create_sensors,
 )
 from .switch import (
@@ -40,7 +39,6 @@ from .water_heater import (
 __all__ = [
     "HitachiYutakiSensor",
     "HitachiYutakiSensorEntityDescription",
-    "HitachiYutakiTimingSensor",
     "_create_sensors",
     "HitachiYutakiBinarySensor",
     "HitachiYutakiBinarySensorEntityDescription",

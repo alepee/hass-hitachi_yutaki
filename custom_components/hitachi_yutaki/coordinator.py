@@ -169,11 +169,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             if not self._installation_info_sent or not self._snapshot_sent:
                 self.hass.async_create_task(self._send_onetime_telemetry(data))
 
-            # Update timing sensors
-            for entity in self.entities:
-                if hasattr(entity, "async_update_timing"):
-                    await entity.async_update_timing()
-
             return data
 
         except UpdateFailed:

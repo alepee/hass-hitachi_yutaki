@@ -39,8 +39,11 @@ from ..domain.services.cop import (
 )
 from ..domain.services.defrost_guard import DefrostGuard
 from ..domain.services.thermal import ThermalEnergyAccumulator, ThermalPowerService
+from ..domain.services.timing import CompressorHistory, CompressorTimingService
 
 _LOGGER = logging.getLogger(__name__)
+
+COMPRESSOR_HISTORY_SIZE = 100
 
 
 class DerivedMetricsAdapter:
@@ -83,6 +86,21 @@ class DerivedMetricsAdapter:
         # COP services (one per mode)
         self._cop_services: dict[str, COPService] = {}
         self._init_cop_services(has_cooling, has_dhw, has_pool)
+
+        # Compressor timing services
+        storage_t = InMemoryStorage(max_len=COMPRESSOR_HISTORY_SIZE)
+        history_t = CompressorHistory(
+            storage=storage_t, max_history=COMPRESSOR_HISTORY_SIZE
+        )
+        self._primary_timing = CompressorTimingService(history=history_t)
+
+        self._secondary_timing: CompressorTimingService | None = None
+        if supports_secondary_compressor:
+            storage_t2 = InMemoryStorage(max_len=COMPRESSOR_HISTORY_SIZE)
+            history_t2 = CompressorHistory(
+                storage=storage_t2, max_history=COMPRESSOR_HISTORY_SIZE
+            )
+            self._secondary_timing = CompressorTimingService(history=history_t2)
 
     def _make_cop_service(
         self, thermal_calculator: Any, expected_mode: str
@@ -135,6 +153,7 @@ class DerivedMetricsAdapter:
 
         self._update_thermal(data)
         self._update_cop(data)
+        self._update_timing(data)
 
     def _get_temperature(
         self, data: dict[str, Any], config_key: str, fallback_key: str
@@ -367,3 +386,84 @@ class DerivedMetricsAdapter:
                     )
             except Exception:  # noqa: BLE001
                 _LOGGER.debug("Failed to rehydrate COP for %s", cop_key, exc_info=True)
+
+    def _update_timing(self, data: dict[str, Any]) -> None:
+        """Update compressor timing and inject into data."""
+        # Primary compressor
+        self._primary_timing.update(data.get("compressor_frequency"))
+        timing = self._primary_timing.get_timing()
+        data["compressor_cycle_time"] = timing.cycle_time
+        data["compressor_runtime"] = timing.runtime
+        data["compressor_resttime"] = timing.resttime
+
+        # Secondary compressor
+        if self._secondary_timing is not None:
+            self._secondary_timing.update(data.get("secondary_compressor_frequency"))
+            sec_timing = self._secondary_timing.get_timing()
+            data["secondary_compressor_cycle_time"] = sec_timing.cycle_time
+            data["secondary_compressor_runtime"] = sec_timing.runtime
+            data["secondary_compressor_resttime"] = sec_timing.resttime
+
+    async def async_rehydrate_timing(self) -> None:
+        """Replay Recorder data to rebuild compressor timing history."""
+        if self._hass is None:
+            return
+
+        from datetime import timedelta  # noqa: PLC0415
+
+        from homeassistant.helpers import entity_registry as er  # noqa: PLC0415
+
+        from ..adapters.storage.recorder_rehydrate import (  # noqa: PLC0415
+            async_replay_compressor_states,
+        )
+
+        LOOKBACK = timedelta(hours=6)
+        registry = er.async_get(self._hass)
+        entry_id = self._config_entry.entry_id
+
+        # Primary compressor
+        entity_id = registry.async_get_entity_id(
+            "binary_sensor", DOMAIN, f"{entry_id}_compressor_running"
+        )
+        if entity_id:
+            try:
+                states = await async_replay_compressor_states(
+                    hass=self._hass,
+                    entity_id=entity_id,
+                    window=LOOKBACK,
+                    max_states=COMPRESSOR_HISTORY_SIZE,
+                )
+                if states:
+                    self._primary_timing.preload_states(states)
+                    _LOGGER.debug("Rehydrated %d compressor timing states", len(states))
+            except Exception:  # noqa: BLE001
+                _LOGGER.debug(
+                    "Failed to rehydrate primary compressor timing", exc_info=True
+                )
+
+        # Secondary compressor
+        if self._secondary_timing is not None:
+            entity_id = registry.async_get_entity_id(
+                "binary_sensor",
+                DOMAIN,
+                f"{entry_id}_secondary_compressor_running",
+            )
+            if entity_id:
+                try:
+                    states = await async_replay_compressor_states(
+                        hass=self._hass,
+                        entity_id=entity_id,
+                        window=LOOKBACK,
+                        max_states=COMPRESSOR_HISTORY_SIZE,
+                    )
+                    if states:
+                        self._secondary_timing.preload_states(states)
+                        _LOGGER.debug(
+                            "Rehydrated %d secondary compressor timing states",
+                            len(states),
+                        )
+                except Exception:  # noqa: BLE001
+                    _LOGGER.debug(
+                        "Failed to rehydrate secondary compressor timing",
+                        exc_info=True,
+                    )

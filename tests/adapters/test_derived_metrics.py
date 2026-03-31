@@ -223,3 +223,28 @@ class TestCOP:
 
         adapter._init_cop_services(has_cooling=True, has_dhw=False, has_pool=False)
         assert "cop_cooling" in adapter._cop_services
+
+
+class TestTiming:
+    """Tests for compressor timing enrichment."""
+
+    def test_timing_keys_injected(self):
+        """Timing keys are injected into data dict after update."""
+        adapter = _make_adapter()
+        data = _sample_data(compressor_frequency=65.0)
+        adapter.update(data)
+        assert "compressor_cycle_time" in data
+        assert "compressor_runtime" in data
+        assert "compressor_resttime" in data
+
+    def test_secondary_timing_only_with_secondary_compressor(self):
+        """Secondary timing keys are only present when supports_secondary_compressor=True."""
+        adapter_no = _make_adapter(supports_secondary_compressor=False)
+        data1 = _sample_data()
+        adapter_no.update(data1)
+        assert "secondary_compressor_cycle_time" not in data1
+
+        adapter_yes = _make_adapter(supports_secondary_compressor=True)
+        data2 = _sample_data()
+        adapter_yes.update(data2)
+        assert "secondary_compressor_cycle_time" in data2

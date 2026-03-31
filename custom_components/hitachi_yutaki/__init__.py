@@ -291,6 +291,9 @@ async def async_setup_entry(
     # Rehydrate COP measurement buffers from Recorder history
     await coordinator.derived_metrics.async_rehydrate_cop()
 
+    # Rehydrate compressor timing from Recorder history
+    await coordinator.derived_metrics.async_rehydrate_timing()
+
     _LOGGER.info("Using Hitachi profile: %s", profile.name)
 
     # Register devices
