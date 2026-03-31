@@ -10,12 +10,12 @@ from typing import Any
 
 import aiohttp
 
-from .models import DailyStats, InstallationInfo, MetricsBatch, RegisterSnapshot
+from .models import InstallationInfo, MetricsBatch, RegisterSnapshot
 
 _LOGGER = logging.getLogger(__name__)
 
 # Default endpoint (Cloudflare Worker)
-DEFAULT_ENDPOINT = "https://hitachi-telemetry.antoine-04c.workers.dev/v1/ingest"
+DEFAULT_ENDPOINT = "https://hitachi-telemetry.lepee.dev/v1/ingest"
 
 # Retry configuration
 MAX_RETRIES = 3
@@ -48,10 +48,6 @@ class HttpTelemetryClient:
     async def send_metrics(self, batch: MetricsBatch) -> bool:
         """Send a metrics batch payload."""
         return await self._send(batch.to_dict())
-
-    async def send_daily_stats(self, stats: DailyStats) -> bool:
-        """Send daily stats payload."""
-        return await self._send(stats.to_dict())
 
     async def send_snapshot(self, snapshot: RegisterSnapshot) -> bool:
         """Send a register snapshot payload."""

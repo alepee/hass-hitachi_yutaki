@@ -34,13 +34,11 @@ from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
     HttpTelemetryClient,
     InstallationInfo,
-    MetricPoint,
     MetricsBatch,
     NoopTelemetryClient,
     RegisterSnapshot,
     TelemetryCollector,
 )
-from .telemetry.aggregator import aggregate_metrics
 from .telemetry.anonymizer import (
     anonymize_installation_info,
     anonymize_point,
@@ -85,7 +83,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.telemetry_send_failures: int = 0
 
         # Daily points accumulator for daily stats
-        self._daily_points_accumulator: list[MetricPoint] = []
+        self._daily_points_accumulator: list[dict] = []
         self._daily_stats_date: date | None = None
 
         super().__init__(
@@ -304,36 +302,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
             success = await self.telemetry_client.send_metrics(batch)
 
-            # Check for day boundary BEFORE adding today's points
+            # Accumulate today's points (daily stats removed, pending Task 4 cleanup)
             today = date.today()
-            if (
-                self._daily_stats_date is not None
-                and self._daily_stats_date != today
-                and self._daily_points_accumulator
-            ):
-                # Date changed — send yesterday's accumulated stats
-                stats = aggregate_metrics(
-                    instance_hash,
-                    self._daily_stats_date,
-                    self._daily_points_accumulator,
-                )
-                anonymized_stats = (
-                    stats  # TODO: daily stats anonymization removed, pending Task 4
-                )
-                daily_ok = await self.telemetry_client.send_daily_stats(
-                    anonymized_stats
-                )
-                if daily_ok:
-                    await self._send_installation_info()
-                    # Reset accumulator only on success
-                    self._daily_points_accumulator = []
-                else:
-                    _LOGGER.warning(
-                        "Daily stats send failed, keeping %d points for retry",
-                        len(self._daily_points_accumulator),
-                    )
-
-            # Accumulate today's points
             self._daily_points_accumulator.extend(points)
             self._daily_stats_date = today
 
