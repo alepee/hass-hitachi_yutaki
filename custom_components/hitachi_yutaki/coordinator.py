@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import logging
 from typing import Any
 
@@ -81,10 +81,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self._telemetry_retry_delay: int = 30  # seconds, doubles on each failure
         self.telemetry_last_send: datetime | None = None
         self.telemetry_send_failures: int = 0
-
-        # Daily points accumulator for daily stats
-        self._daily_points_accumulator: list[dict] = []
-        self._daily_stats_date: date | None = None
 
         super().__init__(
             hass,
@@ -286,30 +282,17 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         """Flush telemetry buffer and send data."""
         points = self.telemetry_collector.flush()
         if not points:
-            _LOGGER.debug("Telemetry flush: buffer empty, nothing to send")
             return
 
         instance_hash = self._telemetry_meta["instance_hash"]
-        _LOGGER.debug(
-            "Telemetry flush: %d points to send (level=%s)",
-            len(points),
-            self.telemetry_collector.level.value,
-        )
 
         try:
-            # Send fine-grained metrics
             anonymized = [anonymize_point(p) for p in points]
             batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
             success = await self.telemetry_client.send_metrics(batch)
 
-            # Accumulate today's points (daily stats removed, pending Task 4 cleanup)
-            today = date.today()
-            self._daily_points_accumulator.extend(points)
-            self._daily_stats_date = today
-
             if success:
                 self.telemetry_last_send = datetime.now(tz=UTC)
-                _LOGGER.debug("Telemetry flush: sent successfully")
             else:
                 self.telemetry_send_failures += 1
                 _LOGGER.warning("Telemetry flush: send returned failure")
