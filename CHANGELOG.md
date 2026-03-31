@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0-beta.5] - 2026-04-01
+
+### Changed
+- **DerivedMetricsAdapter** — COP, thermal power, electrical power, and compressor timing are now computed centrally in `adapters/derived_metrics.py` before entities and telemetry consume the data. COP now uses the external power entity when configured (fixes S80 COP accuracy).
+- **Dict-based telemetry** — MetricPoint dataclass (60+ fields) replaced with plain dicts. Adding a new data key to telemetry requires zero code changes. Client-side daily stats aggregation removed (server-side TimescaleDB continuous aggregate is the source of truth).
+- Entities COP, thermal, and timing simplified from complex subclasses (~590 lines) to simple `value_fn` readers
+
+### Fixed
+- COP telemetry was wrong for S80 cascade (8.2 avg vs 1.32 in HA) — now uses same calculation path as HA entities
+- Grafana dashboard queries migrated to JSONB with `time_bucket` sampling for performance
+
+### Removed
+- `MetricPoint`, `DailyStats` dataclasses and client-side aggregator
+- `HitachiYutakiCOPSensor`, `HitachiYutakiThermalSensor`, `HitachiYutakiTimingSensor` subclasses
+
 ## [2.1.0-beta.4] - 2026-03-30
 
 ### Added

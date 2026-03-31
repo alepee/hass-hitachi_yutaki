@@ -74,30 +74,8 @@ ha-version: ## Temporary HA specific version (reset by make install)
 # —— Release ———————————————————————————————————————————
 
 .PHONY: bump
-bump: ## Bump version — usage: make bump [PART=patch|minor|major] (default: patch)
-	@python3 -c " \
-	import json, re, sys; \
-	part = '$(PART)' or 'patch'; \
-	if part not in ('patch', 'minor', 'major'): \
-	    print(f'Error: invalid part \"{part}\" — use patch, minor, or major'); sys.exit(1); \
-	mf = '$(MANIFEST)'; \
-	m = json.load(open(mf)); \
-	old = m['version']; \
-	major, minor, patch = (int(x) for x in old.split('.')); \
-	if part == 'major': major, minor, patch = major+1, 0, 0; \
-	elif part == 'minor': major, minor, patch = major, minor+1, 0; \
-	else: patch += 1; \
-	new = f'{major}.{minor}.{patch}'; \
-	m['version'] = new; \
-	json.dump(m, open(mf,'w'), indent=2, ensure_ascii=False); \
-	open(mf,'a').write('\n'); \
-	\
-	pt = open('pyproject.toml').read(); \
-	pt = pt.replace('version = \"'+old+'\"', 'version = \"'+new+'\"', 1); \
-	open('pyproject.toml','w').write(pt); \
-	\
-	print(f'Bumped {old} → {new} ({part})') \
-	"
+bump: ## Bump version — usage: make bump [PART=patch|minor|major|beta] (default: patch)
+	@python3 scripts/bump_version.py $(PART)
 
 .PHONY: version
 version: ## Show current version
