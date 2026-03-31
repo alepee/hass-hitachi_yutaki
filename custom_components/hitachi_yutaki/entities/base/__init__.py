@@ -25,7 +25,6 @@ from .sensor import (
     HitachiYutakiCOPSensor,
     HitachiYutakiSensor,
     HitachiYutakiSensorEntityDescription,
-    HitachiYutakiThermalSensor,
     HitachiYutakiTimingSensor,
     _create_sensors,
 )
@@ -43,7 +42,6 @@ __all__ = [
     "HitachiYutakiCOPSensor",
     "HitachiYutakiSensor",
     "HitachiYutakiSensorEntityDescription",
-    "HitachiYutakiThermalSensor",
     "HitachiYutakiTimingSensor",
     "_create_sensors",
     "HitachiYutakiBinarySensor",

@@ -45,7 +45,7 @@ def _build_thermal_sensor_descriptions(
             native_unit_of_measurement="kW",
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-wave",
-            sensor_class="thermal",
+            value_fn=lambda c: c.data.get("thermal_power_heating"),
         ),
         HitachiYutakiSensorEntityDescription(
             key="thermal_energy_heating_daily",
@@ -56,7 +56,7 @@ def _build_thermal_sensor_descriptions(
             native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-wave",
-            sensor_class="thermal",
+            value_fn=lambda c: c.data.get("thermal_energy_heating_daily"),
         ),
         HitachiYutakiSensorEntityDescription(
             key="thermal_energy_heating_total",
@@ -67,7 +67,7 @@ def _build_thermal_sensor_descriptions(
             native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-wave",
-            sensor_class="thermal",
+            value_fn=lambda c: c.data.get("thermal_energy_heating_total"),
         ),
     ]
 
@@ -84,7 +84,7 @@ def _build_thermal_sensor_descriptions(
                     native_unit_of_measurement="kW",
                     entity_category=EntityCategory.DIAGNOSTIC,
                     icon="mdi:snowflake",
-                    sensor_class="thermal",
+                    value_fn=lambda c: c.data.get("thermal_power_cooling"),
                 ),
                 HitachiYutakiSensorEntityDescription(
                     key="thermal_energy_cooling_daily",
@@ -95,7 +95,7 @@ def _build_thermal_sensor_descriptions(
                     native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
                     entity_category=EntityCategory.DIAGNOSTIC,
                     icon="mdi:snowflake",
-                    sensor_class="thermal",
+                    value_fn=lambda c: c.data.get("thermal_energy_cooling_daily"),
                 ),
                 HitachiYutakiSensorEntityDescription(
                     key="thermal_energy_cooling_total",
@@ -106,7 +106,7 @@ def _build_thermal_sensor_descriptions(
                     native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
                     entity_category=EntityCategory.DIAGNOSTIC,
                     icon="mdi:snowflake",
-                    sensor_class="thermal",
+                    value_fn=lambda c: c.data.get("thermal_energy_cooling_total"),
                 ),
             ]
         )

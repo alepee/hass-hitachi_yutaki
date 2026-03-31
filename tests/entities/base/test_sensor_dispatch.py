@@ -8,7 +8,6 @@ from custom_components.hitachi_yutaki.entities.base.sensor import (
     HitachiYutakiCOPSensor,
     HitachiYutakiSensor,
     HitachiYutakiSensorEntityDescription,
-    HitachiYutakiThermalSensor,
     HitachiYutakiTimingSensor,
     _create_sensors,
 )
@@ -50,21 +49,6 @@ class TestSensorDispatch:
 
         assert len(sensors) == 1
         assert isinstance(sensors[0], HitachiYutakiCOPSensor)
-
-    def test_thermal_description_creates_thermal_sensor(self):
-        """sensor_class='thermal' creates HitachiYutakiThermalSensor."""
-        coordinator = _make_coordinator()
-        descriptions = (
-            _make_description("thermal_power_heating", sensor_class="thermal"),
-        )
-
-        with patch.object(HitachiYutakiThermalSensor, "__init__", return_value=None):
-            sensors = _create_sensors(
-                coordinator, "test_entry", descriptions, "control_unit"
-            )
-
-        assert len(sensors) == 1
-        assert isinstance(sensors[0], HitachiYutakiThermalSensor)
 
     def test_timing_description_creates_timing_sensor(self):
         """sensor_class='timing' creates HitachiYutakiTimingSensor."""
@@ -133,21 +117,18 @@ class TestSensorDispatch:
         descriptions = (
             _make_description("compressor_frequency"),
             _make_description("cop_heating", sensor_class="cop"),
-            _make_description("thermal_power_heating", sensor_class="thermal"),
             _make_description("compressor_cycle_time", sensor_class="timing"),
         )
 
         with (
             patch.object(HitachiYutakiCOPSensor, "__init__", return_value=None),
-            patch.object(HitachiYutakiThermalSensor, "__init__", return_value=None),
             patch.object(HitachiYutakiTimingSensor, "__init__", return_value=None),
         ):
             sensors = _create_sensors(
                 coordinator, "test_entry", descriptions, "control_unit"
             )
 
-        assert len(sensors) == 4
+        assert len(sensors) == 3
         assert type(sensors[0]) is HitachiYutakiSensor
         assert isinstance(sensors[1], HitachiYutakiCOPSensor)
-        assert isinstance(sensors[2], HitachiYutakiThermalSensor)
-        assert isinstance(sensors[3], HitachiYutakiTimingSensor)
+        assert isinstance(sensors[2], HitachiYutakiTimingSensor)

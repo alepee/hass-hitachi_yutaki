@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import suppress
 from datetime import datetime, timedelta
 import logging
 
@@ -9,11 +10,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_NAME, __version__ as HA_VERSION
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
-from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
+from homeassistant.helpers.restore_state import RestoreStateData
 from homeassistant.loader import async_get_integration
 
 from .adapters.derived_metrics import DerivedMetricsAdapter
@@ -59,6 +61,38 @@ from .telemetry.anonymizer import hash_instance_id
 _LOGGER = logging.getLogger(__name__)
 
 type HitachiYutakiConfigEntry = ConfigEntry[HitachiYutakiDataCoordinator]
+
+_THERMAL_ENERGY_KEYS = (
+    "thermal_energy_heating_daily",
+    "thermal_energy_heating_total",
+    "thermal_energy_cooling_daily",
+    "thermal_energy_cooling_total",
+)
+
+
+async def _async_restore_thermal_energy(
+    hass: HomeAssistant,
+    entry: HitachiYutakiConfigEntry,
+    coordinator: HitachiYutakiDataCoordinator,
+) -> None:
+    """Restore thermal energy accumulators from HA's last state cache."""
+    restore_data = await RestoreStateData.async_get_instance(hass)
+    entity_registry = er.async_get(hass)
+
+    for key in _THERMAL_ENERGY_KEYS:
+        unique_id = f"{entry.entry_id}_{key}"
+        entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+        if entity_id and entity_id in restore_data.last_states:
+            last = restore_data.last_states[entity_id]
+            if (
+                last
+                and last.state
+                and last.state.state not in (None, "unknown", "unavailable", "")
+            ):
+                with suppress(ValueError, TypeError):
+                    coordinator.derived_metrics.restore_thermal_energy(
+                        key, float(last.state.state)
+                    )
 
 
 async def async_setup_entry(
@@ -243,6 +277,9 @@ async def async_setup_entry(
     coordinator.derived_metrics._has_cooling = coordinator.has_circuit(
         CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
     )
+
+    # Restore thermal energy from last known state
+    await _async_restore_thermal_energy(hass, entry, coordinator)
 
     _LOGGER.info("Using Hitachi profile: %s", profile.name)
 

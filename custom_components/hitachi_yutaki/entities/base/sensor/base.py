@@ -46,7 +46,7 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     fallback_translation_key: str | None = None
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
     value_fn: Callable[[HitachiYutakiDataCoordinator], StateType] | None = None
-    sensor_class: Literal["cop", "thermal", "timing"] | None = None
+    sensor_class: Literal["cop", "timing"] | None = None
 
 
 def _create_sensors(
@@ -71,12 +71,10 @@ def _create_sensors(
     """
     # Local imports to avoid circular dependencies (subclasses import HitachiYutakiSensor)
     from .cop import HitachiYutakiCOPSensor  # noqa: PLC0415
-    from .thermal import HitachiYutakiThermalSensor  # noqa: PLC0415
     from .timing import HitachiYutakiTimingSensor  # noqa: PLC0415
 
     _CLASS_MAP: dict[str, type[HitachiYutakiSensor]] = {
         "cop": HitachiYutakiCOPSensor,
-        "thermal": HitachiYutakiThermalSensor,
         "timing": HitachiYutakiTimingSensor,
     }
 
