@@ -11,7 +11,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
-from custom_components.hitachi_yutaki.const import TELEMETRY_ENDPOINT
 from custom_components.hitachi_yutaki.telemetry.http_client import (
     MAX_RETRIES,
     HttpTelemetryClient,
@@ -26,7 +25,7 @@ from custom_components.hitachi_yutaki.telemetry.models import (
 def _make_client(
     session: aiohttp.ClientSession | None = None,
     instance_hash: str = "abc123",
-    endpoint: str = TELEMETRY_ENDPOINT,
+    endpoint: str = "https://test.example.com/v1/ingest",
 ) -> HttpTelemetryClient:
     """Create a client with optional mock session."""
     return HttpTelemetryClient(
