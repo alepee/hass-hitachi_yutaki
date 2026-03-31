@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime
+from datetime import UTC, datetime
 import gzip
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -17,9 +17,7 @@ from custom_components.hitachi_yutaki.telemetry.http_client import (
     HttpTelemetryClient,
 )
 from custom_components.hitachi_yutaki.telemetry.models import (
-    DailyStats,
     InstallationInfo,
-    MetricPoint,
     MetricsBatch,
     RegisterSnapshot,
 )
@@ -97,20 +95,9 @@ class TestHttpClientSuccess:
 
         batch = MetricsBatch(
             instance_hash="abc123",
-            points=[MetricPoint(time=datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC))],
+            points=[{"time": datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC)}],
         )
         result = await client.send_metrics(batch)
-        assert result is True
-
-    @pytest.mark.asyncio
-    async def test_send_daily_stats_success(self):
-        """Verify daily stats are sent successfully."""
-        resp = _mock_response(202)
-        session = _mock_session(resp)
-        client = _make_client(session=session)
-
-        stats = DailyStats(instance_hash="abc123", date=date(2025, 3, 6))
-        result = await client.send_daily_stats(stats)
         assert result is True
 
     @pytest.mark.asyncio

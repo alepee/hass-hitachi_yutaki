@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .models import DailyStats, InstallationInfo, MetricsBatch, RegisterSnapshot
+from .models import InstallationInfo, MetricsBatch, RegisterSnapshot
 
 
 class NoopTelemetryClient:
@@ -18,10 +18,6 @@ class NoopTelemetryClient:
 
     async def send_metrics(self, batch: MetricsBatch) -> bool:
         """No-op: accept and discard metrics batch."""
-        return True
-
-    async def send_daily_stats(self, stats: DailyStats) -> bool:
-        """No-op: accept and discard daily stats."""
         return True
 
     async def send_snapshot(self, snapshot: RegisterSnapshot) -> bool:

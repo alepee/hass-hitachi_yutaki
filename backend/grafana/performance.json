@@ -47,7 +47,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, cop_instant AS \"COP\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE cop_instant IS NOT NULL AND cop_instant > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'cop_instant')::real) AS \"COP\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE data->>'cop_instant' IS NOT NULL AND (data->>'cop_instant')::real > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         }
       ],
@@ -79,7 +79,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, outdoor_temp AS \"Outdoor °C\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE outdoor_temp IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'outdoor_temp')::real) AS \"Outdoor °C\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE data->>'outdoor_temp' IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         }
       ],
@@ -105,11 +105,11 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, compressor_frequency AS \"Frequency (Hz)\" FROM metrics WHERE compressor_frequency IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'compressor_frequency')::real) AS \"Frequency (Hz)\" FROM metrics WHERE data->>'compressor_frequency' IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         },
         {
-          "rawSql": "SELECT time, compressor_current AS \"Current (A)\" FROM metrics WHERE compressor_current IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'compressor_current')::real) AS \"Current (A)\" FROM metrics WHERE data->>'compressor_current' IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         }
       ]
@@ -130,11 +130,11 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, thermal_power AS \"Thermal (kW)\" FROM metrics WHERE thermal_power IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'thermal_power')::real) AS \"Thermal (kW)\" FROM metrics WHERE data->>'thermal_power' IS NOT NULL AND (data->>'thermal_power')::real > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         },
         {
-          "rawSql": "SELECT time, electrical_power AS \"Electrical (kW)\" FROM metrics WHERE electrical_power IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'electrical_power')::real) AS \"Electrical (kW)\" FROM metrics WHERE data->>'electrical_power' IS NOT NULL AND (data->>'electrical_power')::real > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         }
       ],
@@ -160,7 +160,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time, water_inlet_temp AS \"Inlet\", water_outlet_temp AS \"Outlet\", dhw_temp AS \"DHW\" FROM metrics WHERE ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) ORDER BY time;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'water_inlet_temp')::real) AS \"Inlet\", AVG((data->>'water_outlet_temp')::real) AS \"Outlet\", AVG((data->>'dhw_temp')::real) AS \"DHW\" FROM metrics WHERE ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         }
       ],
@@ -186,7 +186,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT i.profile AS \"Model\", ROUND(AVG(d.cop_avg)::numeric, 2) AS \"Avg COP\" FROM daily_stats d JOIN installations i ON d.instance_hash = i.instance_hash WHERE d.date > CURRENT_DATE - 30 AND d.cop_avg IS NOT NULL AND d.cop_avg > 0 GROUP BY i.profile ORDER BY \"Avg COP\" DESC;",
+          "rawSql": "SELECT i.profile AS \"Model\", ROUND(AVG(a.cop_avg)::numeric, 2) AS \"Avg COP\" FROM metrics_daily_agg a JOIN installations i ON a.instance_hash = i.instance_hash WHERE a.bucket > NOW() - INTERVAL '30 days' AND a.cop_avg IS NOT NULL AND a.cop_avg > 0 GROUP BY i.profile ORDER BY \"Avg COP\" DESC;",
           "format": "table"
         }
       ]
@@ -207,7 +207,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT d.date, LEFT(d.instance_hash, 12) AS \"Hash\", i.profile AS \"Model\", d.outdoor_temp_avg AS \"Outdoor Avg °C\", ROUND(d.cop_avg::numeric, 2) AS \"COP Avg\", d.compressor_starts AS \"Starts\", ROUND(d.compressor_hours::numeric, 1) AS \"Comp. Hours\", d.defrost_count AS \"Defrosts\", ROUND(d.thermal_energy_kwh::numeric, 1) AS \"Thermal kWh\", ROUND(d.electrical_energy_kwh::numeric, 1) AS \"Elec. kWh\" FROM daily_stats d LEFT JOIN installations i ON d.instance_hash = i.instance_hash WHERE d.date > CURRENT_DATE - 7 ORDER BY d.date DESC, d.instance_hash;",
+          "rawSql": "SELECT a.bucket::date AS \"Date\", LEFT(a.instance_hash, 12) AS \"Hash\", i.profile AS \"Model\", ROUND(a.outdoor_temp_avg::numeric, 1) AS \"Outdoor Avg °C\", ROUND(a.cop_avg::numeric, 2) AS \"COP Avg\", a.compressor_on_samples AS \"Comp. Samples\", a.defrost_samples AS \"Defrost Samples\", ROUND(a.thermal_power_avg::numeric, 2) AS \"Thermal Avg kW\", ROUND(a.electrical_power_avg::numeric, 2) AS \"Elec. Avg kW\", a.total_samples AS \"Total Samples\" FROM metrics_daily_agg a LEFT JOIN installations i ON a.instance_hash = i.instance_hash WHERE a.bucket > NOW() - INTERVAL '7 days' ORDER BY a.bucket DESC, a.instance_hash;",
           "format": "table"
         }
       ]

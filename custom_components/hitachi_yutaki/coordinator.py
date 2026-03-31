@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, date, datetime, timedelta
+from datetime import UTC, datetime, timedelta
 import logging
 from typing import Any
 
@@ -34,17 +34,14 @@ from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
     HttpTelemetryClient,
     InstallationInfo,
-    MetricPoint,
     MetricsBatch,
     NoopTelemetryClient,
     RegisterSnapshot,
     TelemetryCollector,
 )
-from .telemetry.aggregator import aggregate_metrics
 from .telemetry.anonymizer import (
-    anonymize_daily_stats,
     anonymize_installation_info,
-    anonymize_metric_point,
+    anonymize_point,
 )
 
 _LOGGER = logging.getLogger(__name__)
@@ -84,10 +81,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self._telemetry_retry_delay: int = 30  # seconds, doubles on each failure
         self.telemetry_last_send: datetime | None = None
         self.telemetry_send_failures: int = 0
-
-        # Daily points accumulator for daily stats
-        self._daily_points_accumulator: list[MetricPoint] = []
-        self._daily_stats_date: date | None = None
 
         super().__init__(
             hass,
@@ -148,6 +141,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             # Inject api_client state into data for derived metrics
             data["is_defrosting"] = self.api_client.is_defrosting
+            data["is_compressor_running"] = self.api_client.is_compressor_running
 
             # Enrich data with derived metrics (thermal power, COP, timing)
             if self.derived_metrics is not None:
@@ -158,11 +152,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             # Telemetry: collect metrics from this poll cycle
             # (collector handles level=OFF internally)
-            self.telemetry_collector.collect(
-                data,
-                is_compressor_running=self.api_client.is_compressor_running,
-                is_defrosting=self.api_client.is_defrosting,
-            )
+            self.telemetry_collector.collect(data)
 
             # Send one-time telemetry data (with backoff on failure)
             # Fire-and-forget to avoid blocking the Modbus poll path
@@ -292,56 +282,17 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         """Flush telemetry buffer and send data."""
         points = self.telemetry_collector.flush()
         if not points:
-            _LOGGER.debug("Telemetry flush: buffer empty, nothing to send")
             return
 
         instance_hash = self._telemetry_meta["instance_hash"]
-        _LOGGER.debug(
-            "Telemetry flush: %d points to send (level=%s)",
-            len(points),
-            self.telemetry_collector.level.value,
-        )
 
         try:
-            # Send fine-grained metrics
-            anonymized = [anonymize_metric_point(p) for p in points]
+            anonymized = [anonymize_point(p) for p in points]
             batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
             success = await self.telemetry_client.send_metrics(batch)
 
-            # Check for day boundary BEFORE adding today's points
-            today = date.today()
-            if (
-                self._daily_stats_date is not None
-                and self._daily_stats_date != today
-                and self._daily_points_accumulator
-            ):
-                # Date changed — send yesterday's accumulated stats
-                stats = aggregate_metrics(
-                    instance_hash,
-                    self._daily_stats_date,
-                    self._daily_points_accumulator,
-                )
-                anonymized_stats = anonymize_daily_stats(stats)
-                daily_ok = await self.telemetry_client.send_daily_stats(
-                    anonymized_stats
-                )
-                if daily_ok:
-                    await self._send_installation_info()
-                    # Reset accumulator only on success
-                    self._daily_points_accumulator = []
-                else:
-                    _LOGGER.warning(
-                        "Daily stats send failed, keeping %d points for retry",
-                        len(self._daily_points_accumulator),
-                    )
-
-            # Accumulate today's points
-            self._daily_points_accumulator.extend(points)
-            self._daily_stats_date = today
-
             if success:
                 self.telemetry_last_send = datetime.now(tz=UTC)
-                _LOGGER.debug("Telemetry flush: sent successfully")
             else:
                 self.telemetry_send_failures += 1
                 _LOGGER.warning("Telemetry flush: send returned failure")

@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, date as date_cls, datetime
-from unittest.mock import AsyncMock, MagicMock, patch
+from datetime import UTC, datetime
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -13,7 +13,6 @@ from custom_components.hitachi_yutaki.telemetry import (
     TelemetryLevel,
 )
 from custom_components.hitachi_yutaki.telemetry.models import (
-    DailyStats,
     InstallationInfo,
     MetricsBatch,
     RegisterSnapshot,
@@ -82,7 +81,6 @@ def _make_coordinator(
         coordinator.telemetry_client = AsyncMock()
         coordinator.telemetry_client.send_installation = AsyncMock(return_value=True)
         coordinator.telemetry_client.send_metrics = AsyncMock(return_value=True)
-        coordinator.telemetry_client.send_daily_stats = AsyncMock(return_value=True)
     else:
         coordinator.telemetry_client = NoopTelemetryClient()
 
@@ -97,11 +95,7 @@ class TestFullCycleCollection:
         coordinator = _make_coordinator()
         data = _sample_data()
 
-        coordinator.telemetry_collector.collect(
-            data,
-            is_compressor_running=True,
-            is_defrosting=False,
-        )
+        coordinator.telemetry_collector.collect(data)
 
         assert coordinator.telemetry_collector.buffer_size == 1
 
@@ -111,11 +105,7 @@ class TestFullCycleCollection:
         data = _sample_data()
 
         for _ in range(10):
-            coordinator.telemetry_collector.collect(
-                data,
-                is_compressor_running=True,
-                is_defrosting=False,
-            )
+            coordinator.telemetry_collector.collect(data)
 
         assert coordinator.telemetry_collector.buffer_size == 10
 
@@ -127,11 +117,7 @@ class TestFullCycleCollection:
 
         # Collect 5 points
         for _ in range(5):
-            coordinator.telemetry_collector.collect(
-                data,
-                is_compressor_running=True,
-                is_defrosting=False,
-            )
+            coordinator.telemetry_collector.collect(data)
 
         await coordinator.async_flush_telemetry()
 
@@ -153,7 +139,6 @@ class TestFullCycleCollection:
         await coordinator.async_flush_telemetry()
 
         coordinator.telemetry_client.send_metrics.assert_not_called()
-        coordinator.telemetry_client.send_daily_stats.assert_not_called()
 
 
 class TestAnonymizationInFlush:
@@ -165,18 +150,14 @@ class TestAnonymizationInFlush:
         coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         data = _sample_data(outdoor_temp=5.3, water_inlet_temp=34.8)
 
-        coordinator.telemetry_collector.collect(
-            data,
-            is_compressor_running=True,
-            is_defrosting=False,
-        )
+        coordinator.telemetry_collector.collect(data)
 
         await coordinator.async_flush_telemetry()
 
         batch = coordinator.telemetry_client.send_metrics.call_args[0][0]
         point = batch.points[0]
-        assert point.outdoor_temp == 5.5  # rounded to nearest 0.5
-        assert point.water_inlet_temp == 35.0  # rounded to nearest 0.5
+        assert point["outdoor_temp"] == 5.5  # rounded to nearest 0.5
+        assert point["water_inlet_temp"] == 35.0  # rounded to nearest 0.5
 
 
 class TestInstallationInfo:
@@ -234,7 +215,6 @@ class TestOffLevel:
         # Verify it's a valid replacement
         assert hasattr(client, "send_installation")
         assert hasattr(client, "send_metrics")
-        assert hasattr(client, "send_daily_stats")
         assert hasattr(client, "send_snapshot")
 
 
@@ -247,9 +227,7 @@ class TestSendTracking:
         coordinator = _make_coordinator()
         data = _sample_data()
 
-        coordinator.telemetry_collector.collect(
-            data, is_compressor_running=True, is_defrosting=False
-        )
+        coordinator.telemetry_collector.collect(data)
 
         assert coordinator.telemetry_last_send is None
 
@@ -266,9 +244,7 @@ class TestSendTracking:
         coordinator.telemetry_client.send_metrics = AsyncMock(return_value=False)
         data = _sample_data()
 
-        coordinator.telemetry_collector.collect(
-            data, is_compressor_running=True, is_defrosting=False
-        )
+        coordinator.telemetry_collector.collect(data)
 
         assert coordinator.telemetry_send_failures == 0
 
@@ -286,9 +262,7 @@ class TestSendTracking:
         )
         data = _sample_data()
 
-        coordinator.telemetry_collector.collect(
-            data, is_compressor_running=True, is_defrosting=False
-        )
+        coordinator.telemetry_collector.collect(data)
 
         await coordinator.async_flush_telemetry()
 
@@ -305,9 +279,7 @@ class TestBufferOverflow:
 
         # Fill buffer beyond capacity
         for _i in range(10):
-            coordinator.telemetry_collector.collect(
-                data, is_compressor_running=True, is_defrosting=False
-            )
+            coordinator.telemetry_collector.collect(data)
 
         # Only last 5 points retained
         assert coordinator.telemetry_collector.buffer_size == 5
@@ -319,9 +291,7 @@ class TestBufferOverflow:
         data = _sample_data()
 
         for _ in range(7):
-            coordinator.telemetry_collector.collect(
-                data, is_compressor_running=True, is_defrosting=False
-            )
+            coordinator.telemetry_collector.collect(data)
 
         await coordinator.async_flush_telemetry()
 
@@ -346,9 +316,7 @@ class TestLevelSwap:
         coordinator._telemetry_meta = {"instance_hash": "b" * 64}
 
         data = _sample_data()
-        coordinator.telemetry_collector.collect(
-            data, is_compressor_running=True, is_defrosting=False
-        )
+        coordinator.telemetry_collector.collect(data)
 
         assert coordinator.telemetry_collector.buffer_size == 1
 
@@ -358,9 +326,7 @@ class TestLevelSwap:
         coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
         data = _sample_data()
 
-        coordinator.telemetry_collector.collect(
-            data, is_compressor_running=True, is_defrosting=False
-        )
+        coordinator.telemetry_collector.collect(data)
 
         # Flush before "reload"
         await coordinator.async_flush_telemetry()
@@ -374,82 +340,6 @@ class TestLevelSwap:
 
         # Flush should be noop (collector is empty, level is OFF)
         await coordinator.async_flush_telemetry()
-
-
-class TestFullModeDailyStats:
-    """Tests for ON mode daily stats accumulation."""
-
-    @pytest.mark.asyncio
-    async def test_full_flush_accumulates_points(self):
-        """ON mode: points accumulate across flushes."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
-        data = _sample_data()
-
-        for _ in range(5):
-            coordinator.telemetry_collector.collect(
-                data, is_compressor_running=True, is_defrosting=False
-            )
-
-        await coordinator.async_flush_telemetry()
-        coordinator.telemetry_client.send_metrics.assert_called_once()
-
-        assert len(coordinator._daily_points_accumulator) == 5
-
-    @pytest.mark.asyncio
-    async def test_full_accumulates_across_multiple_flushes(self):
-        """ON mode: daily accumulator grows across multiple flushes."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
-        data = _sample_data()
-
-        # First flush: 3 points
-        for _ in range(3):
-            coordinator.telemetry_collector.collect(
-                data, is_compressor_running=True, is_defrosting=False
-            )
-        await coordinator.async_flush_telemetry()
-
-        # Second flush: 2 more points
-        for _ in range(2):
-            coordinator.telemetry_collector.collect(
-                data, is_compressor_running=True, is_defrosting=False
-            )
-        await coordinator.async_flush_telemetry()
-
-        assert len(coordinator._daily_points_accumulator) == 5
-
-    @pytest.mark.asyncio
-    async def test_full_sends_daily_stats_on_date_change(self):
-        """ON mode: daily stats sent and accumulator reset when date changes."""
-        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
-        data = _sample_data()
-
-        # Collect and flush on "day 1"
-        with patch("custom_components.hitachi_yutaki.coordinator.date") as mock_date:
-            mock_date.today.return_value = date_cls(2026, 3, 18)
-            mock_date.side_effect = date_cls
-
-            for _ in range(5):
-                coordinator.telemetry_collector.collect(
-                    data, is_compressor_running=True, is_defrosting=False
-                )
-            await coordinator.async_flush_telemetry()
-
-        # Now flush on "day 2" — should send daily stats for day 1
-        with patch("custom_components.hitachi_yutaki.coordinator.date") as mock_date:
-            mock_date.today.return_value = date_cls(2026, 3, 19)
-            mock_date.side_effect = date_cls
-
-            coordinator.telemetry_collector.collect(
-                data, is_compressor_running=True, is_defrosting=False
-            )
-            await coordinator.async_flush_telemetry()
-
-        coordinator.telemetry_client.send_daily_stats.assert_called_once()
-        stats = coordinator.telemetry_client.send_daily_stats.call_args[0][0]
-        assert isinstance(stats, DailyStats)
-
-        # Accumulator should have only today's point
-        assert len(coordinator._daily_points_accumulator) == 1
 
 
 class TestRegisterSnapshot:

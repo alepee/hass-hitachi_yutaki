@@ -98,7 +98,7 @@
     {
       "id": 4,
       "type": "stat",
-      "title": "Daily Stats Reports (7d)",
+      "title": "Daily Aggregates (7d)",
       "gridPos": {
         "h": 4,
         "w": 6,
@@ -111,7 +111,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT COUNT(*) FROM daily_stats WHERE date > CURRENT_DATE - 7;",
+          "rawSql": "SELECT COUNT(*) FROM metrics_daily_agg WHERE bucket > NOW() - INTERVAL '7 days';",
           "format": "table"
         }
       ]
