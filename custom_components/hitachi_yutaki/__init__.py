@@ -238,7 +238,6 @@ async def async_setup_entry(
 
     coordinator.telemetry_collector = TelemetryCollector(
         level=telemetry_level,
-        power_supply=entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
     )
     coordinator._telemetry_meta = {
         "instance_hash": instance_hash,
