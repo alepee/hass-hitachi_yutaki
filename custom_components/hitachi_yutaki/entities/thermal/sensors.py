@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import UnitOfEnergy
-from homeassistant.helpers.entity import EntityCategory
 
 from ...const import CIRCUIT_MODE_COOLING, CIRCUIT_PRIMARY_ID, DEVICE_CONTROL_UNIT
 from ..base.sensor import (
@@ -43,7 +42,6 @@ def _build_thermal_sensor_descriptions(
             device_class=SensorDeviceClass.POWER,
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement="kW",
-            entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-wave",
             value_fn=lambda c: c.data.get("thermal_power_heating"),
         ),
@@ -54,7 +52,6 @@ def _build_thermal_sensor_descriptions(
             device_class=SensorDeviceClass.ENERGY,
             state_class=SensorStateClass.TOTAL,
             native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-wave",
             value_fn=lambda c: c.data.get("thermal_energy_heating_daily"),
         ),
@@ -65,7 +62,6 @@ def _build_thermal_sensor_descriptions(
             device_class=SensorDeviceClass.ENERGY,
             state_class=SensorStateClass.TOTAL_INCREASING,
             native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-wave",
             value_fn=lambda c: c.data.get("thermal_energy_heating_total"),
         ),
@@ -82,7 +78,6 @@ def _build_thermal_sensor_descriptions(
                     device_class=SensorDeviceClass.POWER,
                     state_class=SensorStateClass.MEASUREMENT,
                     native_unit_of_measurement="kW",
-                    entity_category=EntityCategory.DIAGNOSTIC,
                     icon="mdi:snowflake",
                     value_fn=lambda c: c.data.get("thermal_power_cooling"),
                 ),
@@ -93,7 +88,6 @@ def _build_thermal_sensor_descriptions(
                     device_class=SensorDeviceClass.ENERGY,
                     state_class=SensorStateClass.TOTAL,
                     native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    entity_category=EntityCategory.DIAGNOSTIC,
                     icon="mdi:snowflake",
                     value_fn=lambda c: c.data.get("thermal_energy_cooling_daily"),
                 ),
@@ -104,7 +98,6 @@ def _build_thermal_sensor_descriptions(
                     device_class=SensorDeviceClass.ENERGY,
                     state_class=SensorStateClass.TOTAL_INCREASING,
                     native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-                    entity_category=EntityCategory.DIAGNOSTIC,
                     icon="mdi:snowflake",
                     value_fn=lambda c: c.data.get("thermal_energy_cooling_total"),
                 ),

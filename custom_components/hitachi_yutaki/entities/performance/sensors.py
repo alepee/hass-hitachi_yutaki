@@ -5,7 +5,6 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import SensorStateClass
-from homeassistant.helpers.entity import EntityCategory
 
 from ...const import (
     CIRCUIT_MODE_COOLING,
@@ -44,7 +43,6 @@ def _build_performance_sensor_descriptions() -> tuple[
             description="Coefficient of Performance for Space Heating",
             device_class=None,
             state_class=SensorStateClass.MEASUREMENT,
-            entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-pump",
             condition=lambda c: (
                 c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
@@ -63,7 +61,6 @@ def _build_performance_sensor_descriptions() -> tuple[
             description="Coefficient of Performance for Space Cooling",
             device_class=None,
             state_class=SensorStateClass.MEASUREMENT,
-            entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:heat-pump-outline",
             condition=lambda c: (
                 c.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
@@ -82,7 +79,6 @@ def _build_performance_sensor_descriptions() -> tuple[
             description="Coefficient of Performance for Domestic Hot Water",
             device_class=None,
             state_class=SensorStateClass.MEASUREMENT,
-            entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:water-boiler",
             condition=lambda c: c.has_dhw(),
             value_fn=lambda c: c.data.get("cop_dhw"),
@@ -98,7 +94,6 @@ def _build_performance_sensor_descriptions() -> tuple[
             description="Coefficient of Performance for Pool Heating",
             device_class=None,
             state_class=SensorStateClass.MEASUREMENT,
-            entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:pool",
             condition=lambda c: c.has_pool(),
             value_fn=lambda c: c.data.get("cop_pool"),

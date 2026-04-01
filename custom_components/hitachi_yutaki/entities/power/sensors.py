@@ -6,7 +6,6 @@ from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import UnitOfEnergy, UnitOfPower
-from homeassistant.helpers.entity import EntityCategory
 
 from ...const import CONF_ELECTRICITY_PRICE_ENTITY, DEVICE_CONTROL_UNIT
 from ..base.sensor import (
@@ -50,7 +49,6 @@ def _build_power_sensor_descriptions(
             state_class=SensorStateClass.TOTAL_INCREASING,
             native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
             value_fn=lambda c: c.data.get("electrical_energy_consumed"),
-            entity_category=EntityCategory.DIAGNOSTIC,
         ),
     ]
 
