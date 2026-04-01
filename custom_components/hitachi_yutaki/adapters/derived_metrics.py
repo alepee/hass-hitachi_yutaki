@@ -381,6 +381,10 @@ class DerivedMetricsAdapter:
         """Restore electricity cost state from HA last state cache."""
         self._electricity_cost = value
 
+    def restore_accumulated_energy(self, value: float) -> None:
+        """Restore accumulated energy state from HA last state cache."""
+        self._accumulated_energy = value
+
     async def async_rehydrate_cop(self) -> None:
         """Replay Recorder data to rebuild COP measurement buffers."""
         if self._hass is None:

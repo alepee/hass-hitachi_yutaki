@@ -96,32 +96,35 @@ async def _async_restore_thermal_energy(
                     )
 
 
-async def _async_restore_electricity_cost(
+async def _async_restore_energy_state(
     hass: HomeAssistant,
     entry: HitachiYutakiConfigEntry,
     coordinator: HitachiYutakiDataCoordinator,
 ) -> None:
-    """Restore electricity cost accumulator from HA's last state cache."""
-    if CONF_ELECTRICITY_PRICE_ENTITY not in entry.data:
-        return
-    entity_registry = er.async_get(hass)
-    unique_id = f"{entry.entry_id}_electricity_cost"
-    entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
-    if not entity_id:
-        return
+    """Restore energy accumulators from HA's last state cache."""
     restore_data = async_get_restore_data(hass)
-    if entity_id not in restore_data.last_states:
-        return
-    last = restore_data.last_states[entity_id]
-    if (
-        last
-        and last.state
-        and last.state.state not in (None, "unknown", "unavailable", "")
-    ):
-        with suppress(ValueError, TypeError):
-            coordinator.derived_metrics.restore_electricity_cost(
-                float(last.state.state)
-            )
+    entity_registry = er.async_get(hass)
+
+    restore_map = {
+        "power_consumption": coordinator.derived_metrics.restore_accumulated_energy,
+    }
+    if CONF_ELECTRICITY_PRICE_ENTITY in entry.data:
+        restore_map["electricity_cost"] = (
+            coordinator.derived_metrics.restore_electricity_cost
+        )
+
+    for key, restore_fn in restore_map.items():
+        unique_id = f"{entry.entry_id}_{key}"
+        entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+        if entity_id and entity_id in restore_data.last_states:
+            last = restore_data.last_states[entity_id]
+            if (
+                last
+                and last.state
+                and last.state.state not in (None, "unknown", "unavailable", "")
+            ):
+                with suppress(ValueError, TypeError):
+                    restore_fn(float(last.state.state))
 
 
 async def async_setup_entry(
@@ -316,8 +319,8 @@ async def async_setup_entry(
     # Restore thermal energy from last known state
     await _async_restore_thermal_energy(hass, entry, coordinator)
 
-    # Restore electricity cost from last known state
-    await _async_restore_electricity_cost(hass, entry, coordinator)
+    # Restore energy accumulators (electrical energy + cost) from last known state
+    await _async_restore_energy_state(hass, entry, coordinator)
 
     # Rehydrate COP measurement buffers from Recorder history
     await coordinator.derived_metrics.async_rehydrate_cop()
