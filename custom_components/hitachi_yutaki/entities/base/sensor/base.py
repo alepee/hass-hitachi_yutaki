@@ -21,7 +21,6 @@ from homeassistant.helpers.typing import StateType
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ....const import (
-    CONF_ENERGY_ENTITY,
     DEVICE_TYPES,
     DOMAIN,
 )
@@ -120,17 +119,6 @@ class HitachiYutakiSensor(
                     return float(state.state)
         return self.coordinator.data.get(fallback_key)
 
-    def _get_energy_value(self) -> StateType:
-        """Get energy from configured external entity, or Modbus fallback."""
-        entity_id = self.coordinator.config_entry.data.get(CONF_ENERGY_ENTITY)
-        if entity_id:
-            state = self.hass.states.get(entity_id)
-            if state and state.state not in (None, "unknown", "unavailable"):
-                with suppress(ValueError):
-                    return float(state.state)
-            return None  # No fallback — external sensor configured but unavailable
-        return self.coordinator.data.get("power_consumption")
-
     def _resolve_entity_id(self, platform_domain: str, key: str) -> str | None:
         """Return the entity_id registered for the provided (domain, unique_id)."""
         registry = er.async_get(self.hass)
@@ -143,10 +131,6 @@ class HitachiYutakiSensor(
         if self.coordinator.data is None:
             return None
 
-        if self.entity_description.key == "power_consumption":
-            return self._get_energy_value()
-
-        # For simple sensors, use value_fn if provided
         if self.entity_description.value_fn:
             return self.entity_description.value_fn(self.coordinator)
 
@@ -188,8 +172,5 @@ class HitachiYutakiSensor(
             return self._get_alarm_attributes()
         elif key == "operation_state":
             return self._get_operation_state_attributes()
-        elif key == "power_consumption":
-            entity_id = self.coordinator.config_entry.data.get(CONF_ENERGY_ENTITY)
-            return {"source": entity_id if entity_id else "gateway"}
 
         return None
