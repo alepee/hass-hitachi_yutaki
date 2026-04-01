@@ -2,7 +2,10 @@
 
 ## Goal
 
-Allow users to provide an electricity price sensor so the integration can estimate the cumulative energy cost of the heat pump.
+Centralize electrical energy resolution in the `DerivedMetricsAdapter` and use it to:
+
+1. Provide cumulative electrical energy consumption (kWh) — refactoring the existing `power_consumption` sensor to read from the adapter instead of having its own cascade logic in the base sensor entity.
+2. Allow users to provide an electricity price sensor to estimate cumulative energy cost.
 
 ## Constraints
 
@@ -60,7 +63,12 @@ Extract a `_resolve_electrical_energy()` method in the adapter that returns the 
 2. **`power_consumption`** (Modbus built-in counter, if available) — accurate
 3. **`electrical_power`** (calculated from current × voltage) — fallback, requires time integration
 
-This helper replaces the existing `_get_energy_value()` in the base sensor entity, which currently implements the same cascade. The adapter injects the resolved value into the `data` dict, and the sensor reads from it.
+This helper replaces the existing `_get_energy_value()` in the base sensor entity, which currently implements the same cascade. The adapter:
+
+- Tracks the previous energy reading to compute `delta_kWh` each cycle.
+- Accumulates `electrical_energy_consumed` (kWh, `total_increasing`) — replaces the current `power_consumption` sensor logic.
+- Injects `data["electrical_energy_consumed"]` into the data dict.
+- The existing `power_consumption` sensor is refactored to read from `data` via `value_fn`, like all other derived sensors.
 
 ### Cost accumulation
 
@@ -81,7 +89,25 @@ At each poll cycle:
 
 ---
 
-## 3. Sensor
+## 3. Sensors
+
+### `electrical_energy_consumed` — Cumulative electrical energy (refactored)
+
+| Property | Value |
+|---|---|
+| `device_class` | `SensorDeviceClass.ENERGY` |
+| `state_class` | `SensorStateClass.TOTAL_INCREASING` |
+| `native_unit_of_measurement` | `kWh` |
+| `value_fn` | `lambda c: c.data.get("electrical_energy_consumed")` |
+| Device | `DEVICE_CONTROL_UNIT` |
+
+This replaces the existing `power_consumption` sensor's custom `_get_energy_value()` logic. The sensor becomes a simple `value_fn` reader like all other derived sensors.
+
+Extra attributes:
+
+| Attribute | Description |
+|---|---|
+| `energy_source` | `"external"`, `"gateway"`, or `"calculated"` — active source in the cascade |
 
 ### `energy_cost` — Cumulative energy cost
 
@@ -94,7 +120,7 @@ At each poll cycle:
 | `condition` | price entity is configured |
 | Device | `DEVICE_CONTROL_UNIT` |
 
-### Extra attributes
+Extra attributes:
 
 | Attribute | Description |
 |---|---|
@@ -104,7 +130,7 @@ At each poll cycle:
 
 ### State restoration
 
-Restored from HA state restore on restart, same pattern as `thermal_energy_*_total`.
+Both sensors restored from HA state restore on restart, same pattern as `thermal_energy_*_total`.
 
 ---
 
