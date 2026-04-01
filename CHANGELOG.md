@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Electricity cost estimation sensor — configure an electricity price entity to track cumulative energy costs
+- Repair flow to onboard existing users to the electricity cost feature
+
+### Changed
+- Electrical energy resolution centralized in DerivedMetricsAdapter (internal refactor, no user-facing change)
+- `power_consumption` sensor now reads from adapter like all other derived sensors
+
 ## [2.1.0-beta.5] - 2026-04-01
 
 ### Changed
