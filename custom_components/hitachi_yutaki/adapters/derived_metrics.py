@@ -108,6 +108,7 @@ class DerivedMetricsAdapter:
 
         # Energy resolution state
         self._last_energy_value: float | None = None
+        self._last_energy_source: str | None = None
         self._last_energy_time: float | None = None
         self._accumulated_energy: float = 0.0  # kWh from power integration fallback
         self._electricity_cost: float = 0.0
@@ -170,15 +171,11 @@ class DerivedMetricsAdapter:
         self, data: dict[str, Any], config_key: str, fallback_key: str
     ) -> float | None:
         """Get temperature from configured external entity or coordinator data."""
-        if self._hass is not None:
-            entity_id = self._config_entry_data.get(config_key)
-            if entity_id:
-                state = self._hass.states.get(entity_id)
-                if state and state.state not in (None, "unknown", "unavailable"):
-                    try:
-                        return float(state.state)
-                    except ValueError:
-                        pass
+        entity_id = self._config_entry_data.get(config_key)
+        if entity_id:
+            value = self._get_float_from_entity(entity_id)
+            if value is not None:
+                return value
         return data.get(fallback_key)
 
     def _get_float_from_entity(self, entity_id: str) -> float | None:
@@ -237,6 +234,7 @@ class DerivedMetricsAdapter:
                 and energy_value is not None
                 and self._last_energy_value is not None
                 and self._last_energy_time is not None
+                and self._last_energy_source == energy_source
             ):
                 dt = now - self._last_energy_time
                 if dt <= DEFAULT_SCAN_INTERVAL * 2:
@@ -257,6 +255,7 @@ class DerivedMetricsAdapter:
 
         # Track for next cycle
         self._last_energy_value = energy_value
+        self._last_energy_source = energy_source
         self._last_energy_time = now
 
     def _get_hvac_action(self, data: dict[str, Any]) -> str | None:

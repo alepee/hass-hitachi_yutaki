@@ -12,8 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repair flow to onboard existing users to the electricity cost feature
 
 ### Changed
-- Electrical energy resolution centralized in DerivedMetricsAdapter (internal refactor, no user-facing change)
+- Electrical energy resolution centralized in DerivedMetricsAdapter (internal refactor)
 - `power_consumption` sensor now reads from adapter like all other derived sensors
+- **Breaking:** `power_consumption` sensor attribute renamed from `source` to `energy_source` (values changed from entity_id/`"gateway"` to `"external"`/`"gateway"`/`"calculated"`)
 
 ## [2.1.0-beta.5] - 2026-04-01
 
