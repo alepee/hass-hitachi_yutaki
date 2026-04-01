@@ -36,7 +36,7 @@ def _build_power_sensor_descriptions(
         HitachiYutakiSensorEntityDescription(
             key="power_consumption",
             translation_key="power_consumption",
-            description="Total electrical energy consumed by the unit (gateway register)",
+            description="Total electrical energy consumed by the unit",
             device_class=SensorDeviceClass.ENERGY,
             state_class=SensorStateClass.TOTAL_INCREASING,
             native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
