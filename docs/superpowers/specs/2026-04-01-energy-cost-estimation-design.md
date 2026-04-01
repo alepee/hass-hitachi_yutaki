@@ -66,8 +66,7 @@ Extract a `_resolve_electrical_energy()` method in the adapter that returns the 
 This helper replaces the existing `_get_energy_value()` in the base sensor entity, which currently implements the same cascade. The adapter:
 
 - Tracks the previous energy reading to compute `delta_kWh` each cycle.
-- Accumulates `electrical_energy_consumed` (kWh, `total_increasing`) — replaces the current `power_consumption` sensor logic.
-- Injects `data["electrical_energy_consumed"]` into the data dict.
+- Accumulates electrical energy (kWh) and injects into `data["power_consumption"]` — replaces the current sensor's custom cascade logic.
 - The existing `power_consumption` sensor is refactored to read from `data` via `value_fn`, like all other derived sensors.
 
 ### Cost accumulation
@@ -77,8 +76,8 @@ At each poll cycle:
 1. Read price from `electricity_price_entity` via `hass.states.get()`.
 2. Compute `delta_kWh` from the energy source helper (counter difference for sources 1-2, power × dt for source 3).
 3. **Gap detection**: if `dt > 2 × poll_interval`, skip accumulation for this cycle (price may have changed during the gap — unreliable data).
-4. Accumulate: `energy_cost += delta_kWh × price`.
-5. Inject `data["energy_cost"] = energy_cost`.
+4. Accumulate: `electricity_cost += delta_kWh × price`.
+5. Inject `data["electricity_cost"] = electricity_cost`.
 
 ### Edge cases
 
@@ -91,17 +90,11 @@ At each poll cycle:
 
 ## 3. Sensors
 
-### `electrical_energy_consumed` — Cumulative electrical energy (refactored)
+### `power_consumption` — Cumulative electrical energy (refactored internals)
 
-| Property | Value |
-|---|---|
-| `device_class` | `SensorDeviceClass.ENERGY` |
-| `state_class` | `SensorStateClass.TOTAL_INCREASING` |
-| `native_unit_of_measurement` | `kWh` |
-| `value_fn` | `lambda c: c.data.get("electrical_energy_consumed")` |
-| Device | `DEVICE_CONTROL_UNIT` |
+Existing sensor — **key and entity_id unchanged** to preserve user history.
 
-This replaces the existing `power_consumption` sensor's custom `_get_energy_value()` logic. The sensor becomes a simple `value_fn` reader like all other derived sensors.
+The refactor replaces the custom `_get_energy_value()` logic in the base sensor entity. The adapter now resolves the energy source and injects the value into `data["power_consumption"]`. The sensor becomes a simple `value_fn` reader like all other derived sensors.
 
 Extra attributes:
 
@@ -109,14 +102,14 @@ Extra attributes:
 |---|---|
 | `energy_source` | `"external"`, `"gateway"`, or `"calculated"` — active source in the cascade |
 
-### `energy_cost` — Cumulative energy cost
+### `electricity_cost` — Cumulative energy cost (new)
 
 | Property | Value |
 |---|---|
 | `device_class` | `SensorDeviceClass.MONETARY` |
 | `state_class` | `SensorStateClass.TOTAL_INCREASING` |
 | `native_unit_of_measurement` | `hass.config.currency` |
-| `value_fn` | `lambda c: c.data.get("energy_cost")` |
+| `value_fn` | `lambda c: c.data.get("electricity_cost")` |
 | `condition` | price entity is configured |
 | Device | `DEVICE_CONTROL_UNIT` |
 
@@ -130,7 +123,7 @@ Extra attributes:
 
 ### State restoration
 
-Both sensors restored from HA state restore on restart, same pattern as `thermal_energy_*_total`.
+`electricity_cost` restored from HA state restore on restart, same pattern as `thermal_energy_*_total`. `power_consumption` keeps its existing restoration logic.
 
 ---
 
