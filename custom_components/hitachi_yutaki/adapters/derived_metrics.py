@@ -223,6 +223,16 @@ class DerivedMetricsAdapter:
 
             data["electricity_cost"] = round(self._electricity_cost, 2)
 
+        _LOGGER.debug(
+            "Energy: power=%.3f kW, dt=%.1fs, energy=%.3f kWh, cost=%.4f %s, price=%s",
+            electrical_power,
+            (now - self._last_energy_time) if self._last_energy_time else 0,
+            self._accumulated_energy,
+            self._electricity_cost,
+            self._config_entry_data.get(CONF_ELECTRICITY_PRICE_ENTITY, "n/a"),
+            data.get("_current_price"),
+        )
+
         self._last_energy_time = now
 
     def _get_hvac_action(self, data: dict[str, Any]) -> str | None:
@@ -261,6 +271,12 @@ class DerivedMetricsAdapter:
                     electrical_power += sec_power
 
         data["electrical_power"] = round(electrical_power, 3)
+        _LOGGER.debug(
+            "Electrical: I1=%.1fA, I2=%s, power=%.3f kW",
+            current or 0,
+            data.get("secondary_compressor_current"),
+            data["electrical_power"],
+        )
 
         # Build COP input
         hvac_action = self._get_hvac_action(data)

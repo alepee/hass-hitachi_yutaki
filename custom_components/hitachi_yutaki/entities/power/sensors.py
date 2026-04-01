@@ -40,7 +40,7 @@ def _build_power_sensor_descriptions(
             device_class=SensorDeviceClass.ENERGY,
             state_class=SensorStateClass.TOTAL_INCREASING,
             native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
-            value_fn=lambda c: c.data.get("power_consumption"),
+            value_fn=lambda c: c.data.get("electrical_energy_consumed"),
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
     ]
