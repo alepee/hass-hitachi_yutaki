@@ -57,7 +57,7 @@ def _build_power_sensor_descriptions(
                 translation_key="electricity_cost",
                 description="Cumulative electricity cost of the heat pump",
                 device_class=SensorDeviceClass.MONETARY,
-                state_class=SensorStateClass.TOTAL_INCREASING,
+                state_class=SensorStateClass.TOTAL,
                 native_unit_of_measurement=currency,
                 value_fn=lambda c: c.data.get("electricity_cost"),
                 attributes_fn=lambda c: {

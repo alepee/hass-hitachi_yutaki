@@ -107,7 +107,7 @@ Extra attributes:
 | Property | Value |
 |---|---|
 | `device_class` | `SensorDeviceClass.MONETARY` |
-| `state_class` | `SensorStateClass.TOTAL_INCREASING` |
+| `state_class` | `SensorStateClass.TOTAL` |
 | `native_unit_of_measurement` | `hass.config.currency` |
 | `value_fn` | `lambda c: c.data.get("electricity_cost")` |
 | `condition` | price entity is configured |
