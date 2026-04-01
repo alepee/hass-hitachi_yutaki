@@ -47,7 +47,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'cop_instant')::real) AS \"COP\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE data->>'cop_instant' IS NOT NULL AND (data->>'cop_instant')::real > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, percentile_cont(0.95) WITHIN GROUP (ORDER BY (data->>'cop_instant')::real) AS \"COP\", LEFT(instance_hash, 8) AS \"metric\" FROM metrics WHERE data->>'cop_instant' IS NOT NULL AND (data->>'cop_instant')::real > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         }
       ],
@@ -105,11 +105,11 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'compressor_frequency')::real) AS \"Frequency (Hz)\" FROM metrics WHERE data->>'compressor_frequency' IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, percentile_cont(0.5) WITHIN GROUP (ORDER BY (data->>'compressor_frequency')::real) AS \"Frequency (Hz)\" FROM metrics WHERE data->>'compressor_frequency' IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         },
         {
-          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'compressor_current')::real) AS \"Current (A)\" FROM metrics WHERE data->>'compressor_current' IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, percentile_cont(0.5) WITHIN GROUP (ORDER BY (data->>'compressor_current')::real) AS \"Current (A)\" FROM metrics WHERE data->>'compressor_current' IS NOT NULL AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         }
       ]
@@ -130,11 +130,11 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'thermal_power')::real) AS \"Thermal (kW)\" FROM metrics WHERE data->>'thermal_power' IS NOT NULL AND (data->>'thermal_power')::real > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, percentile_cont(0.5) WITHIN GROUP (ORDER BY (data->>'thermal_power')::real) AS \"Thermal (kW)\" FROM metrics WHERE data->>'thermal_power' IS NOT NULL AND (data->>'thermal_power')::real > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         },
         {
-          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'electrical_power')::real) AS \"Electrical (kW)\" FROM metrics WHERE data->>'electrical_power' IS NOT NULL AND (data->>'electrical_power')::real > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, percentile_cont(0.5) WITHIN GROUP (ORDER BY (data->>'electrical_power')::real) AS \"Electrical (kW)\" FROM metrics WHERE data->>'electrical_power' IS NOT NULL AND (data->>'electrical_power')::real > 0 AND ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         }
       ],
@@ -160,7 +160,7 @@
       },
       "targets": [
         {
-          "rawSql": "SELECT time_bucket('1 hour', time) AS time, AVG((data->>'water_inlet_temp')::real) AS \"Inlet\", AVG((data->>'water_outlet_temp')::real) AS \"Outlet\", AVG((data->>'dhw_temp')::real) AS \"DHW\" FROM metrics WHERE ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
+          "rawSql": "SELECT time_bucket('1 hour', time) AS time, percentile_cont(0.5) WITHIN GROUP (ORDER BY (data->>'water_inlet_temp')::real) AS \"Inlet\", percentile_cont(0.5) WITHIN GROUP (ORDER BY (data->>'water_outlet_temp')::real) AS \"Outlet\", percentile_cont(0.5) WITHIN GROUP (ORDER BY (data->>'dhw_temp')::real) AS \"DHW\" FROM metrics WHERE ('${instance:raw}' = '$__all' OR instance_hash IN (${instance:sqlstring})) AND $__timeFilter(time) GROUP BY 1, instance_hash ORDER BY 1;",
           "format": "time_series"
         }
       ],
