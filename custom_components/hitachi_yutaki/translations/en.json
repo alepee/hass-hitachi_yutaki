@@ -288,6 +288,9 @@
       "compressor_evo_outdoor_expansion_valve_opening": {
         "name": "Outdoor Expansion Valve Opening"
       },
+      "electrical_power": {
+        "name": "Electrical Power"
+      },
       "power_consumption": {
         "name": "Power Consumption"
       },

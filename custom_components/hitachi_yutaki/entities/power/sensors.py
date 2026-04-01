@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
-from homeassistant.const import UnitOfEnergy
+from homeassistant.const import UnitOfEnergy, UnitOfPower
 from homeassistant.helpers.entity import EntityCategory
 
 from ...const import CONF_ELECTRICITY_PRICE_ENTITY, DEVICE_CONTROL_UNIT
@@ -33,6 +33,15 @@ def _build_power_sensor_descriptions(
 ) -> tuple[HitachiYutakiSensorEntityDescription, ...]:
     """Build power sensor descriptions."""
     descriptions: list[HitachiYutakiSensorEntityDescription] = [
+        HitachiYutakiSensorEntityDescription(
+            key="electrical_power",
+            translation_key="electrical_power",
+            description="Current electrical power drawn by the heat pump",
+            device_class=SensorDeviceClass.POWER,
+            state_class=SensorStateClass.MEASUREMENT,
+            native_unit_of_measurement=UnitOfPower.KILO_WATT,
+            value_fn=lambda c: c.data.get("electrical_power"),
+        ),
         HitachiYutakiSensorEntityDescription(
             key="power_consumption",
             translation_key="power_consumption",
