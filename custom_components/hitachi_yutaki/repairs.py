@@ -13,7 +13,12 @@ from homeassistant.helpers import selector
 from homeassistant.helpers.issue_registry import async_delete_issue
 
 from .api import GATEWAY_INFO
-from .const import CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL, DOMAIN
+from .const import (
+    CONF_ELECTRICITY_PRICE_ENTITY,
+    CONF_TELEMETRY_LEVEL,
+    DEFAULT_TELEMETRY_LEVEL,
+    DOMAIN,
+)
 from .profiles import PROFILES
 
 
@@ -154,12 +159,61 @@ class EnableTelemetryRepairFlow(RepairsFlow):
         )
 
 
+class EnergyCostRepairFlow(RepairsFlow):
+    """Handler for repair flow to configure electricity price sensor."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Redirect to the confirm step."""
+        return await self.async_step_confirm()
+
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the electricity price entity selection step."""
+        entry_id = self.issue_id.replace("enable_energy_cost_", "")
+
+        config_entries = self.hass.config_entries.async_entries(DOMAIN)
+        entry = next((e for e in config_entries if e.entry_id == entry_id), None)
+
+        if entry is None:
+            return self.async_abort(reason="entry_not_found")
+
+        if user_input is not None:
+            price_entity = user_input.get(CONF_ELECTRICITY_PRICE_ENTITY)
+            if price_entity:
+                new_data = {**entry.data, CONF_ELECTRICITY_PRICE_ENTITY: price_entity}
+                self.hass.config_entries.async_update_entry(entry, data=new_data)
+
+            async_delete_issue(self.hass, DOMAIN, self.issue_id)
+            await self.hass.config_entries.async_reload(entry.entry_id)
+            return self.async_create_entry(data={})
+
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Optional(
+                        CONF_ELECTRICITY_PRICE_ENTITY
+                    ): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["sensor", "number", "input_number"],
+                        ),
+                    ),
+                }
+            ),
+        )
+
+
 async def async_create_fix_flow(
     hass: HomeAssistant,
     issue_id: str,
     data: dict[str, str | int | float | None] | None,
 ) -> RepairsFlow:
     """Create a repair flow based on the issue type."""
+    if issue_id.startswith("enable_energy_cost_"):
+        return EnergyCostRepairFlow()
     if issue_id.startswith("enable_telemetry_"):
         return EnableTelemetryRepairFlow()
     return MissingConfigRepairFlow()

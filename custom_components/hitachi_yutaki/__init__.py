@@ -25,6 +25,7 @@ from .const import (
     CIRCUIT_MODE_HEATING,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
+    CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
@@ -399,6 +400,19 @@ async def async_setup_entry(
             name=DEVICE_POOL.replace("_", " ").title(),  # Fallback name
             translation_key="pool",
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+        )
+
+    # Energy cost onboarding: suggest price entity configuration
+    if CONF_ELECTRICITY_PRICE_ENTITY not in entry.data:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            f"enable_energy_cost_{entry.entry_id}",
+            is_fixable=True,
+            is_persistent=True,
+            severity=IssueSeverity.WARNING,
+            issue_domain=DOMAIN,
+            translation_key="enable_energy_cost",
         )
 
     # Telemetry onboarding: create repair issue for existing users who haven't chosen yet
