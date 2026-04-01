@@ -11,6 +11,7 @@ and delegates computation to domain services.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from ..adapters.calculators.electrical import ElectricalPowerCalculatorAdapter
@@ -25,8 +26,11 @@ from ..adapters.providers.operation_mode import (
 )
 from ..adapters.storage.in_memory import InMemoryStorage
 from ..const import (
+    CONF_ELECTRICITY_PRICE_ENTITY,
+    CONF_ENERGY_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 from ..domain.models.cop import COPInput
@@ -102,6 +106,12 @@ class DerivedMetricsAdapter:
             )
             self._secondary_timing = CompressorTimingService(history=history_t2)
 
+        # Energy resolution state
+        self._last_energy_value: float | None = None
+        self._last_energy_time: float | None = None
+        self._accumulated_energy: float = 0.0  # kWh from power integration fallback
+        self._electricity_cost: float = 0.0
+
     def _make_cop_service(
         self, thermal_calculator: Any, expected_mode: str
     ) -> COPService:
@@ -153,6 +163,7 @@ class DerivedMetricsAdapter:
 
         self._update_thermal(data)
         self._update_cop(data)
+        self._update_energy(data)
         self._update_timing(data)
 
     def _get_temperature(
@@ -169,6 +180,84 @@ class DerivedMetricsAdapter:
                     except ValueError:
                         pass
         return data.get(fallback_key)
+
+    def _get_float_from_entity(self, entity_id: str) -> float | None:
+        """Read a float value from a HA entity state."""
+        if self._hass is None or not entity_id:
+            return None
+        state = self._hass.states.get(entity_id)
+        if state and state.state not in (None, "unknown", "unavailable"):
+            try:
+                return float(state.state)
+            except ValueError:
+                pass
+        return None
+
+    def _update_energy(self, data: dict[str, Any]) -> None:
+        """Resolve electrical energy source, accumulate cost, inject into data."""
+        now = time.monotonic()
+        energy_value: float | None = None
+        energy_source: str = "calculated"
+
+        # Cascade: external > gateway > calculated
+        external_entity = self._config_entry_data.get(CONF_ENERGY_ENTITY)
+        if external_entity:
+            energy_value = self._get_float_from_entity(external_entity)
+            if energy_value is not None:
+                energy_source = "external"
+
+        if energy_value is None:
+            gateway_value = data.get("power_consumption")
+            if gateway_value is not None:
+                energy_value = gateway_value
+                energy_source = "gateway"
+
+        if energy_value is None:
+            # Fallback: integrate electrical_power over time
+            electrical_power = data.get("electrical_power", 0)
+            if self._last_energy_time is not None and electrical_power > 0:
+                dt = now - self._last_energy_time
+                if dt <= DEFAULT_SCAN_INTERVAL * 2:
+                    self._accumulated_energy += electrical_power * (dt / 3600)
+            energy_value = round(self._accumulated_energy, 3)
+            energy_source = "calculated"
+
+        # Inject resolved energy into data
+        data["power_consumption"] = energy_value
+        data["_energy_source"] = energy_source
+
+        # Cost accumulation
+        price_entity = self._config_entry_data.get(CONF_ELECTRICITY_PRICE_ENTITY)
+        if price_entity:
+            price = self._get_float_from_entity(price_entity)
+            data["_current_price"] = price
+
+            if (
+                price is not None
+                and energy_value is not None
+                and self._last_energy_value is not None
+                and self._last_energy_time is not None
+            ):
+                dt = now - self._last_energy_time
+                if dt <= DEFAULT_SCAN_INTERVAL * 2:
+                    if energy_source in ("external", "gateway"):
+                        delta_kwh = energy_value - self._last_energy_value
+                    else:
+                        electrical_power = data.get("electrical_power", 0)
+                        delta_kwh = (
+                            electrical_power * (dt / 3600)
+                            if electrical_power > 0
+                            else 0
+                        )
+
+                    if delta_kwh > 0:
+                        self._electricity_cost += round(delta_kwh * price, 6)
+
+            data["electricity_cost"] = round(self._electricity_cost, 2)
+
+        # Track for next cycle
+        self._last_energy_value = energy_value
+        self._last_energy_time = now
 
     def _get_hvac_action(self, data: dict[str, Any]) -> str | None:
         """Detect the current HVAC action from unit mode and temperatures."""
@@ -295,6 +384,10 @@ class DerivedMetricsAdapter:
         restore_fn = restore_map.get(key)
         if restore_fn:
             restore_fn(value)
+
+    def restore_electricity_cost(self, value: float) -> None:
+        """Restore electricity cost state from HA last state cache."""
+        self._electricity_cost = value
 
     async def async_rehydrate_cop(self) -> None:
         """Replay Recorder data to rebuild COP measurement buffers."""

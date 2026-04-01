@@ -1,6 +1,9 @@
 """Tests for DerivedMetricsAdapter."""
 
+import time
 from unittest.mock import MagicMock
+
+import pytest
 
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
     DerivedMetricsAdapter,
@@ -248,3 +251,208 @@ class TestTiming:
         data2 = _sample_data()
         adapter_yes.update(data2)
         assert "secondary_compressor_cycle_time" in data2
+
+
+class TestEnergyResolution:
+    """Tests for electrical energy source resolution and cost accumulation."""
+
+    def test_power_consumption_injected_from_gateway(self):
+        """power_consumption is injected from gateway data when no external entity."""
+        adapter = _make_adapter()
+        data = _sample_data(power_consumption=42.5)
+        adapter.update(data)
+        assert data["power_consumption"] == 42.5
+        assert data["_energy_source"] == "gateway"
+
+    def test_power_consumption_from_electrical_power_fallback(self):
+        """power_consumption is accumulated from electrical_power when no counter."""
+        adapter = _make_adapter()
+        data1 = _sample_data(compressor_current=8.5)
+        adapter.update(data1)
+        time.sleep(0.01)
+        data2 = _sample_data(compressor_current=8.5)
+        adapter.update(data2)
+        assert data2["_energy_source"] == "calculated"
+        assert "power_consumption" in data2
+
+    def test_power_consumption_external_entity(self):
+        """power_consumption is read from external entity when configured."""
+        mock_hass = MagicMock()
+        mock_state = MagicMock()
+        mock_state.state = "123.45"
+        mock_hass.states.get.return_value = mock_state
+
+        config_entry = MagicMock()
+        config_entry.data = {"energy_entity": "sensor.external_energy"}
+
+        adapter = DerivedMetricsAdapter(
+            hass=mock_hass,
+            config_entry=config_entry,
+            power_supply="single",
+        )
+        data = _sample_data()
+        adapter.update(data)
+        assert data["power_consumption"] == 123.45
+        assert data["_energy_source"] == "external"
+
+    def test_electricity_cost_not_injected_without_price_entity(self):
+        """electricity_cost is not in data when no price entity configured."""
+        adapter = _make_adapter()
+        data = _sample_data(power_consumption=42.5)
+        adapter.update(data)
+        assert "electricity_cost" not in data
+
+    def test_electricity_cost_accumulated_with_price_entity(self):
+        """electricity_cost accumulates delta_kWh * price."""
+        mock_hass = MagicMock()
+
+        price_state = MagicMock()
+        price_state.state = "0.18"
+        energy_state_1 = MagicMock()
+        energy_state_1.state = "100.0"
+        energy_state_2 = MagicMock()
+        energy_state_2.state = "102.0"
+
+        config_entry = MagicMock()
+        config_entry.data = {
+            "energy_entity": "sensor.energy",
+            "electricity_price_entity": "sensor.price",
+        }
+
+        def states_get(entity_id):
+            if entity_id == "sensor.price":
+                return price_state
+            if entity_id == "sensor.energy":
+                return mock_hass._energy_state
+            return None
+
+        mock_hass.states.get = states_get
+        mock_hass._energy_state = energy_state_1
+
+        adapter = DerivedMetricsAdapter(
+            hass=mock_hass,
+            config_entry=config_entry,
+            power_supply="single",
+        )
+
+        data1 = _sample_data()
+        adapter.update(data1)
+        assert data1["electricity_cost"] == 0
+
+        mock_hass._energy_state = energy_state_2
+        data2 = _sample_data()
+        adapter.update(data2)
+        assert data2["electricity_cost"] == pytest.approx(0.36, abs=0.01)
+
+    def test_electricity_cost_stalls_when_price_unavailable(self):
+        """electricity_cost does not accumulate when price entity is unavailable."""
+        mock_hass = MagicMock()
+
+        price_state = MagicMock()
+        price_state.state = "unavailable"
+        energy_state = MagicMock()
+        energy_state.state = "100.0"
+
+        config_entry = MagicMock()
+        config_entry.data = {
+            "energy_entity": "sensor.energy",
+            "electricity_price_entity": "sensor.price",
+        }
+
+        def states_get(entity_id):
+            if entity_id == "sensor.price":
+                return price_state
+            if entity_id == "sensor.energy":
+                return energy_state
+            return None
+
+        mock_hass.states.get = states_get
+
+        adapter = DerivedMetricsAdapter(
+            hass=mock_hass,
+            config_entry=config_entry,
+            power_supply="single",
+        )
+
+        data1 = _sample_data()
+        adapter.update(data1)
+        data2 = _sample_data()
+        adapter.update(data2)
+        assert data2["electricity_cost"] == 0
+
+    def test_electricity_cost_restore(self):
+        """restore_electricity_cost restores the accumulated cost."""
+        mock_hass = MagicMock()
+        price_state = MagicMock()
+        price_state.state = "0.18"
+        energy_state = MagicMock()
+        energy_state.state = "100.0"
+
+        config_entry = MagicMock()
+        config_entry.data = {
+            "energy_entity": "sensor.energy",
+            "electricity_price_entity": "sensor.price",
+        }
+
+        def states_get(entity_id):
+            if entity_id == "sensor.price":
+                return price_state
+            if entity_id == "sensor.energy":
+                return energy_state
+            return None
+
+        mock_hass.states.get = states_get
+
+        adapter = DerivedMetricsAdapter(
+            hass=mock_hass,
+            config_entry=config_entry,
+            power_supply="single",
+        )
+        adapter.restore_electricity_cost(50.25)
+
+        data = _sample_data()
+        adapter.update(data)
+        assert data["electricity_cost"] >= 50.25
+
+    def test_gap_detection_skips_accumulation(self):
+        """Cost is not accumulated when time gap exceeds 2x poll interval."""
+        mock_hass = MagicMock()
+        price_state = MagicMock()
+        price_state.state = "0.18"
+        energy_state_1 = MagicMock()
+        energy_state_1.state = "100.0"
+        energy_state_2 = MagicMock()
+        energy_state_2.state = "200.0"
+
+        config_entry = MagicMock()
+        config_entry.data = {
+            "energy_entity": "sensor.energy",
+            "electricity_price_entity": "sensor.price",
+        }
+
+        def states_get(entity_id):
+            if entity_id == "sensor.price":
+                return price_state
+            if entity_id == "sensor.energy":
+                return mock_hass._energy_state
+            return None
+
+        mock_hass.states.get = states_get
+        mock_hass._energy_state = energy_state_1
+
+        adapter = DerivedMetricsAdapter(
+            hass=mock_hass,
+            config_entry=config_entry,
+            power_supply="single",
+        )
+
+        data1 = _sample_data()
+        adapter.update(data1)
+
+        # Simulate a long gap
+        adapter._last_energy_time = adapter._last_energy_time - 60
+
+        mock_hass._energy_state = energy_state_2
+        data2 = _sample_data()
+        adapter.update(data2)
+        assert data2["electricity_cost"] == 0
