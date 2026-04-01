@@ -19,6 +19,7 @@ from homeassistant.helpers import selector
 from .api import GATEWAY_INFO, create_register_map
 from .api.config_providers import GATEWAY_CONFIG_PROVIDERS, GatewayConfigProvider
 from .const import (
+    CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_ENERGY_ENTITY,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
@@ -90,6 +91,11 @@ POWER_SCHEMA = vol.Schema(
             selector.EntitySelectorConfig(
                 domain=["sensor", "number", "input_number"],
                 device_class=["temperature"],
+            ),
+        ),
+        vol.Optional(CONF_ELECTRICITY_PRICE_ENTITY): selector.EntitySelector(
+            selector.EntitySelectorConfig(
+                domain=["sensor", "number", "input_number"],
             ),
         ),
     }
@@ -583,6 +589,18 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                         selector.EntitySelectorConfig(
                             domain=["sensor", "number", "input_number"],
                             device_class=["temperature"],
+                        ),
+                    ),
+                    vol.Optional(
+                        CONF_ELECTRICITY_PRICE_ENTITY,
+                        default=(
+                            data.get(CONF_ELECTRICITY_PRICE_ENTITY)
+                            if data.get(CONF_ELECTRICITY_PRICE_ENTITY) is not None
+                            else vol.UNDEFINED
+                        ),
+                    ): selector.EntitySelector(
+                        selector.EntitySelectorConfig(
+                            domain=["sensor", "number", "input_number"],
                         ),
                     ),
                 }
