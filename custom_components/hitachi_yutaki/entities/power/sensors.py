@@ -36,14 +36,11 @@ def _build_power_sensor_descriptions(
         HitachiYutakiSensorEntityDescription(
             key="power_consumption",
             translation_key="power_consumption",
-            description="Total electrical energy consumed by the unit",
+            description="Total electrical energy consumed by the unit (gateway register)",
             device_class=SensorDeviceClass.ENERGY,
             state_class=SensorStateClass.TOTAL_INCREASING,
             native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
             value_fn=lambda c: c.data.get("power_consumption"),
-            attributes_fn=lambda c: {
-                "energy_source": c.data.get("_energy_source", "gateway")
-            },
             entity_category=EntityCategory.DIAGNOSTIC,
         ),
     ]
@@ -65,7 +62,6 @@ def _build_power_sensor_descriptions(
                         CONF_ELECTRICITY_PRICE_ENTITY
                     ),
                     "current_price": c.data.get("_current_price"),
-                    "energy_source": c.data.get("_energy_source", "gateway"),
                 },
             ),
         )

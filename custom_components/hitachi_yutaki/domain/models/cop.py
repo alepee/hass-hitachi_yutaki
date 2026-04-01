@@ -24,6 +24,7 @@ class COPInput:
     water_flow: float | None
     compressor_current: float | None
     compressor_frequency: float | None
+    electrical_power: float | None = None  # pre-computed total electrical power (kW)
     secondary_compressor_current: float | None = None
     secondary_compressor_frequency: float | None = None
     hvac_action: str | None = None  # "heating", "cooling", or None

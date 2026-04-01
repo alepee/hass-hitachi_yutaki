@@ -27,7 +27,6 @@ from ..adapters.providers.operation_mode import (
 from ..adapters.storage.in_memory import InMemoryStorage
 from ..const import (
     CONF_ELECTRICITY_PRICE_ENTITY,
-    CONF_ENERGY_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
     DEFAULT_SCAN_INTERVAL,
@@ -106,11 +105,9 @@ class DerivedMetricsAdapter:
             )
             self._secondary_timing = CompressorTimingService(history=history_t2)
 
-        # Energy resolution state
-        self._last_energy_value: float | None = None
-        self._last_energy_source: str | None = None
+        # Energy accumulation state
         self._last_energy_time: float | None = None
-        self._accumulated_energy: float = 0.0  # kWh from power integration fallback
+        self._accumulated_energy: float = 0.0  # kWh integrated from electrical_power
         self._electricity_cost: float = 0.0
 
     def _make_cop_service(
@@ -191,39 +188,24 @@ class DerivedMetricsAdapter:
         return None
 
     def _update_energy(self, data: dict[str, Any]) -> None:
-        """Resolve electrical energy source, accumulate cost, inject into data."""
+        """Integrate electrical power over time for energy and cost accumulation.
+
+        Uses data["electrical_power"] (kW) computed by _update_cop() which
+        already handles the priority chain (power_entity > I×U calculated)
+        and sums both compressors for S80.
+        """
         now = time.monotonic()
-        energy_value: float | None = None
-        energy_source: str = "calculated"
+        electrical_power = data.get("electrical_power", 0)
 
-        # Cascade: external > gateway > calculated
-        external_entity = self._config_entry_data.get(CONF_ENERGY_ENTITY)
-        if external_entity:
-            energy_value = self._get_float_from_entity(external_entity)
-            if energy_value is not None:
-                energy_source = "external"
+        # Integrate electrical power over time for energy (kWh)
+        if self._last_energy_time is not None and electrical_power > 0:
+            dt = now - self._last_energy_time
+            if dt <= DEFAULT_SCAN_INTERVAL * 2:
+                self._accumulated_energy += electrical_power * (dt / 3600)
 
-        if energy_value is None:
-            gateway_value = data.get("power_consumption")
-            if gateway_value is not None:
-                energy_value = gateway_value
-                energy_source = "gateway"
+        data["electrical_energy_consumed"] = round(self._accumulated_energy, 3)
 
-        if energy_value is None:
-            # Fallback: integrate electrical_power over time
-            electrical_power = data.get("electrical_power", 0)
-            if self._last_energy_time is not None and electrical_power > 0:
-                dt = now - self._last_energy_time
-                if dt <= DEFAULT_SCAN_INTERVAL * 2:
-                    self._accumulated_energy += electrical_power * (dt / 3600)
-            energy_value = round(self._accumulated_energy, 3)
-            energy_source = "calculated"
-
-        # Inject resolved energy into data
-        data["power_consumption"] = energy_value
-        data["_energy_source"] = energy_source
-
-        # Cost accumulation
+        # Cost accumulation (only when price entity is configured)
         price_entity = self._config_entry_data.get(CONF_ELECTRICITY_PRICE_ENTITY)
         if price_entity:
             price = self._get_float_from_entity(price_entity)
@@ -231,31 +213,16 @@ class DerivedMetricsAdapter:
 
             if (
                 price is not None
-                and energy_value is not None
-                and self._last_energy_value is not None
                 and self._last_energy_time is not None
-                and self._last_energy_source == energy_source
+                and electrical_power > 0
             ):
                 dt = now - self._last_energy_time
                 if dt <= DEFAULT_SCAN_INTERVAL * 2:
-                    if energy_source in ("external", "gateway"):
-                        delta_kwh = energy_value - self._last_energy_value
-                    else:
-                        electrical_power = data.get("electrical_power", 0)
-                        delta_kwh = (
-                            electrical_power * (dt / 3600)
-                            if electrical_power > 0
-                            else 0
-                        )
-
-                    if delta_kwh > 0:
-                        self._electricity_cost += round(delta_kwh * price, 6)
+                    delta_kwh = electrical_power * (dt / 3600)
+                    self._electricity_cost += round(delta_kwh * price, 6)
 
             data["electricity_cost"] = round(self._electricity_cost, 2)
 
-        # Track for next cycle
-        self._last_energy_value = energy_value
-        self._last_energy_source = energy_source
         self._last_energy_time = now
 
     def _get_hvac_action(self, data: dict[str, Any]) -> str | None:
@@ -279,12 +246,21 @@ class DerivedMetricsAdapter:
 
     def _update_cop(self, data: dict[str, Any]) -> None:
         """Compute electrical power and COP for all configured modes."""
-        # Electrical power
+        # Electrical power — sum primary + secondary compressor
+        electrical_power = 0.0
         current = data.get("compressor_current")
         if current is not None and current > 0:
-            data["electrical_power"] = round(self._electrical_calculator(current), 3)
-        else:
-            data["electrical_power"] = 0
+            electrical_power = self._electrical_calculator(current)
+
+        if self._supports_secondary_compressor:
+            sec_current = data.get("secondary_compressor_current")
+            sec_freq = data.get("secondary_compressor_frequency")
+            if sec_current is not None and sec_freq is not None and sec_freq > 0:
+                sec_power = self._electrical_calculator(sec_current)
+                if sec_power > 0:
+                    electrical_power += sec_power
+
+        data["electrical_power"] = round(electrical_power, 3)
 
         # Build COP input
         hvac_action = self._get_hvac_action(data)
@@ -300,6 +276,7 @@ class DerivedMetricsAdapter:
             water_flow=data.get("water_flow"),
             compressor_current=data.get("compressor_current"),
             compressor_frequency=data.get("compressor_frequency"),
+            electrical_power=data["electrical_power"],
             secondary_compressor_current=(
                 data.get("secondary_compressor_current")
                 if self._supports_secondary_compressor
