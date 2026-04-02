@@ -116,6 +116,13 @@ async def _async_restore_energy_state(
     for key, restore_fn in restore_map.items():
         unique_id = f"{entry.entry_id}_{key}"
         entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+        _LOGGER.debug(
+            "Energy restore: key=%s unique_id=%s entity_id=%s in_restore=%s",
+            key,
+            unique_id,
+            entity_id,
+            entity_id in restore_data.last_states if entity_id else "no_entity",
+        )
         if entity_id and entity_id in restore_data.last_states:
             last = restore_data.last_states[entity_id]
             if (
@@ -123,8 +130,11 @@ async def _async_restore_energy_state(
                 and last.state
                 and last.state.state not in (None, "unknown", "unavailable", "")
             ):
+                _LOGGER.debug("Energy restore: %s = %s", key, last.state.state)
                 with suppress(ValueError, TypeError):
                     restore_fn(float(last.state.state))
+            else:
+                _LOGGER.debug("Energy restore: %s — no valid state", key)
 
 
 async def async_setup_entry(
