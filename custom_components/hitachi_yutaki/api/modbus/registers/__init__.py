@@ -18,6 +18,10 @@ class RegisterDefinition:
             When None, writes use the same address as reads.
         fallback: Optional fallback register to read when the primary returns None
             (e.g. 0xFFFF sensor error) or a read error.
+        sentinel_values: Set of deserialized values that indicate the sensor is
+            unavailable. These are gateway-specific conventions (e.g. -127 for
+            absent sensor, -67 for unavailable module). When a read returns one
+            of these values, the gateway returns None instead.
 
     """
 
@@ -26,6 +30,7 @@ class RegisterDefinition:
     serializer: Callable[[Any], Any] | None = None
     write_address: int | None = None
     fallback: "RegisterDefinition | None" = None
+    sentinel_values: frozenset[int] | None = None
 
 
 class HitachiRegisterMap(ABC):

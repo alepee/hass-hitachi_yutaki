@@ -252,8 +252,12 @@ REGISTER_CONTROL_UNIT = {
         deserializer=convert_signed_16bit,
         fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
     ),
-    "water_outlet_2_temp": RegisterDefinition(1204, deserializer=convert_signed_16bit),
-    "water_outlet_3_temp": RegisterDefinition(1205, deserializer=convert_signed_16bit),
+    "water_outlet_2_temp": RegisterDefinition(
+        1204, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
+    ),
+    "water_outlet_3_temp": RegisterDefinition(
+        1205, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
+    ),
     "water_target_temp": RegisterDefinition(1219, deserializer=convert_signed_16bit),
     "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
     "pump_speed": RegisterDefinition(1221),
@@ -344,7 +348,9 @@ REGISTER_DHW = {
     "dhw_antilegionella": RegisterDefinition(1030),
     "dhw_antilegionella_temp": RegisterDefinition(1031),
     "dhw_demand_mode": RegisterDefinition(1079),
-    "dhw_current_temp": RegisterDefinition(1080, deserializer=convert_signed_16bit),
+    "dhw_current_temp": RegisterDefinition(
+        1080, deserializer=convert_signed_16bit, sentinel_values=frozenset({-67})
+    ),
     "dhw_antilegionella_status": RegisterDefinition(1084),
     "dhw_antilegionella_temp_status": RegisterDefinition(1085),
 }
@@ -352,7 +358,9 @@ REGISTER_DHW = {
 REGISTER_POOL = {
     "pool_power": RegisterDefinition(1028),
     "pool_target_temp": RegisterDefinition(1029),
-    "pool_current_temp": RegisterDefinition(1083, deserializer=convert_signed_16bit),
+    "pool_current_temp": RegisterDefinition(
+        1083, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
+    ),
 }
 
 # All registers in a single map for easy lookup

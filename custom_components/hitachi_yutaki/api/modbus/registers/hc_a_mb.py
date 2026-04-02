@@ -332,10 +332,14 @@ class HcAMbRegisterMap(HitachiRegisterMap):
                 self._addr(144), deserializer=convert_signed_16bit
             ),
             "water_outlet_2_temp": RegisterDefinition(
-                self._addr(154), deserializer=convert_signed_16bit
+                self._addr(154),
+                deserializer=convert_signed_16bit,
+                sentinel_values=frozenset({-127}),
             ),
             "water_outlet_3_temp": RegisterDefinition(
-                self._addr(155), deserializer=convert_signed_16bit
+                self._addr(155),
+                deserializer=convert_signed_16bit,
+                sentinel_values=frozenset({-127}),
             ),
             "water_target_temp": RegisterDefinition(
                 self._addr(163), deserializer=convert_signed_16bit
@@ -462,7 +466,9 @@ class HcAMbRegisterMap(HitachiRegisterMap):
                 self._addr(136), write_address=self._addr(82)
             ),
             "dhw_current_temp": RegisterDefinition(
-                self._addr(131), deserializer=convert_signed_16bit
+                self._addr(131),
+                deserializer=convert_signed_16bit,
+                sentinel_values=frozenset({-67}),
             ),
             "dhw_antilegionella_status": RegisterDefinition(self._addr(135)),
             "dhw_antilegionella_temp_status": RegisterDefinition(self._addr(136)),
@@ -478,7 +484,9 @@ class HcAMbRegisterMap(HitachiRegisterMap):
                 self._addr(133), write_address=self._addr(80)
             ),
             "pool_current_temp": RegisterDefinition(
-                self._addr(134), deserializer=convert_signed_16bit
+                self._addr(134),
+                deserializer=convert_signed_16bit,
+                sentinel_values=frozenset({-127}),
             ),
         }
 

@@ -294,12 +294,40 @@ class ModbusApiClient(HitachiApiClient):
         decoded["has_pool"] = bool(system_config & rmap.mask_pool)
         return decoded
 
+    def _gate_unconfigured_modules(self) -> None:
+        """Remove data for modules not present in system_config.
+
+        Prevents propagation of default/stale register values for modules
+        that are not physically installed (e.g. DHW target temp = 45 on a
+        unit without DHW). This ensures all downstream consumers (entities,
+        telemetry) only see data for modules that actually exist.
+        """
+        rmap = self._register_map
+
+        if not self.has_dhw:
+            for key in rmap.dhw_keys:
+                self._data.pop(key, None)
+
+        if not self.has_pool:
+            for key in rmap.pool_keys:
+                self._data.pop(key, None)
+
+        if not self.has_circuit(
+            CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING
+        ) and not self.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING):
+            for key in rmap.circuit_2_keys:
+                self._data.pop(key, None)
+
+    # Internal marker to distinguish sentinel-filtered None from read errors
+    _SENTINEL_FILTERED = object()
+
     async def _read_register(
         self, definition: RegisterDefinition, device_param: str
     ) -> Any:
         """Read and deserialize a single register.
 
-        Returns the deserialized value, or None on read error or sensor error.
+        Returns the deserialized value, _SENTINEL_FILTERED when the value is a
+        gateway sentinel (unavailable sensor/module), or None on read error.
         """
         result = await self._hass.async_add_executor_job(
             lambda addr=definition.address, param=device_param: (
@@ -312,7 +340,13 @@ class ModbusApiClient(HitachiApiClient):
             return None
         value = result.registers[0]
         if definition.deserializer:
-            return definition.deserializer(value)
+            value = definition.deserializer(value)
+        if (
+            value is not None
+            and definition.sentinel_values
+            and value in definition.sentinel_values
+        ):
+            return self._SENTINEL_FILTERED
         return value
 
     async def read_values(self, keys: list[str]) -> ReadResult:
@@ -399,16 +433,24 @@ class ModbusApiClient(HitachiApiClient):
 
                 for name, definition in registers_to_read.items():
                     value = await self._read_register(definition, device_param)
+                    # Fallback only on read error (None), not on sentinel
+                    # (sentinel = sensor known-absent, no point trying fallback)
                     if value is None and definition.fallback:
                         value = await self._read_register(
                             definition.fallback, device_param
                         )
-                    if value is not None:
+                    if value is self._SENTINEL_FILTERED:
+                        # Sensor/module unavailable — clear any stale value
+                        self._data.pop(name, None)
+                    elif value is not None:
                         self._data[name] = value
                     else:
                         _LOGGER.debug(
                             "Error reading register %s at %s", name, definition.address
                         )
+
+                # Remove data for modules not declared in system_config
+                self._gate_unconfigured_modules()
 
                 # If we got here, read was successful
                 return ReadResult.SUCCESS
