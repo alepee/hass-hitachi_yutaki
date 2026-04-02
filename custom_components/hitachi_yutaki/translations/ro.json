@@ -113,7 +113,11 @@
           "power_entity": "Senzor putere (opțional)",
           "energy_entity": "Contor energie (opțional)",
           "water_inlet_temp_entity": "Senzor temperatură intrare apă (opțional)",
-          "water_outlet_temp_entity": "Senzor temperatură ieșire apă (opțional)"
+          "water_outlet_temp_entity": "Senzor temperatură ieșire apă (opțional)",
+          "electricity_price_entity": "Senzor preț electricitate (opțional)"
+        },
+        "data_description": {
+          "electricity_price_entity": "Un senzor care furnizează prețul curent al electricității în moneda dvs. per kWh (de ex. 0,18 pentru 0,18 {currency}/kWh). Activează senzorul de cost al electricității."
         }
       },
       "repair": {
@@ -188,7 +192,11 @@
           "power_entity": "Senzor putere (opțional)",
           "energy_entity": "Contor energie (opțional)",
           "water_inlet_temp_entity": "Senzor temperatură intrare apă (opțional)",
-          "water_outlet_temp_entity": "Senzor temperatură ieșire apă (opțional)"
+          "water_outlet_temp_entity": "Senzor temperatură ieșire apă (opțional)",
+          "electricity_price_entity": "Senzor preț electricitate (opțional)"
+        },
+        "data_description": {
+          "electricity_price_entity": "Un senzor care furnizează prețul curent al electricității în moneda dvs. per kWh (de ex. 0,18 pentru 0,18 {currency}/kWh). Activează senzorul de cost al electricității."
         }
       }
     },
@@ -279,6 +287,9 @@
       },
       "compressor_evo_outdoor_expansion_valve_opening": {
         "name": "Deschidere supapă expansiune exterioară"
+      },
+      "electrical_power": {
+        "name": "Putere electrică"
       },
       "power_consumption": {
         "name": "Consum electric"
@@ -510,6 +521,9 @@
           "standard": "Standard",
           "high_demand": "Cerere mare"
         }
+      },
+      "electricity_cost": {
+        "name": "Cost electricitate"
       }
     },
     "binary_sensor": {
@@ -701,6 +715,23 @@
     "missing_config": {
       "title": "Configurație Hitachi Yutaki incompletă",
       "description": "Integrarea Hitachi Yutaki nu are parametrii de configurare necesari (tip gateway și/sau profil pompă de căldură). Integrarea nu poate fi configurată până când acești parametri nu sunt definiți.\n\n**Pentru a rezolva:**\n1. Mergeți la Setări > Dispozitive și servicii > Hitachi Yutaki\n2. Faceți clic pe integrare și selectați Configurare\n3. Selectați parametrii lipsă (tip gateway și profil pompă de căldură)\n4. Salvați configurația"
+    },
+    "enable_energy_cost": {
+      "title": "Urmăriți costul electricității pompei de căldură",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Monitorizarea costurilor de electricitate",
+            "description": "Acum puteți urmări costul electricității pompei de căldură. Furnizați un senzor care expune prețul curent al electricității în moneda dvs. per kWh, iar integrarea va calcula un senzor de cost cumulativ.\n\nPuteți modifica acest lucru oricând în opțiunile integrării.",
+            "data": {
+              "electricity_price_entity": "Senzor preț electricitate"
+            },
+            "data_description": {
+              "electricity_price_entity": "Un senzor care furnizează prețul curent al electricității în moneda dvs. per kWh (de ex. 0,18 pentru 0,18 {currency}/kWh)."
+            }
+          }
+        }
+      }
     },
     "enable_telemetry": {
       "title": "Ajutați la îmbunătățirea Hitachi Yutaki",

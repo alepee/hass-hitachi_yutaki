@@ -279,6 +279,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="power",
             data_schema=POWER_SCHEMA,
+            description_placeholders={
+                "currency": self.hass.config.currency,
+            },
             errors=errors,
         )
 
@@ -356,6 +359,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         return self.async_show_form(
             step_id="power",
             data_schema=POWER_SCHEMA,
+            description_placeholders={
+                "currency": self.hass.config.currency,
+            },
             errors=errors,
         )
 
@@ -605,6 +611,9 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     ),
                 }
             ),
+            description_placeholders={
+                "currency": self.hass.config.currency,
+            },
         )
 
     async def async_step_telemetry(

@@ -117,7 +117,7 @@
           "electricity_price_entity": "Electricity Price Sensor (Optional)"
         },
         "data_description": {
-          "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 €/kWh). Enables the electricity cost sensor."
+          "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh). Enables the electricity cost sensor."
         }
       },
       "repair": {
@@ -196,7 +196,7 @@
           "electricity_price_entity": "Electricity Price Sensor (Optional)"
         },
         "data_description": {
-          "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 €/kWh). Enables the electricity cost sensor."
+          "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh). Enables the electricity cost sensor."
         }
       }
     },
@@ -741,7 +741,7 @@
               "electricity_price_entity": "Electricity Price Sensor"
             },
             "data_description": {
-              "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 €/kWh)."
+              "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh)."
             }
           }
         }

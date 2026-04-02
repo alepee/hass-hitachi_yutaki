@@ -203,6 +203,9 @@ class EnergyCostRepairFlow(RepairsFlow):
                     ),
                 }
             ),
+            description_placeholders={
+                "currency": self.hass.config.currency,
+            },
         )
 
 
