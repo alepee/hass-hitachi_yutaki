@@ -225,22 +225,23 @@ class COPService:
             data.water_flow,  # type: ignore
         )
 
-        # Calculate electrical power from primary compressor
-        electrical_power = self._electrical_calculator(
-            data.compressor_current  # type: ignore
-        )
-
-        # Add secondary compressor power if available and running
-        if (
-            data.secondary_compressor_current is not None
-            and data.secondary_compressor_frequency is not None
-            and data.secondary_compressor_frequency > 0
-        ):
-            additional_power = self._electrical_calculator(
-                data.secondary_compressor_current
+        # Use pre-computed electrical power if available, else compute from current
+        if data.electrical_power is not None:
+            electrical_power = data.electrical_power
+        else:
+            electrical_power = self._electrical_calculator(
+                data.compressor_current  # type: ignore
             )
-            if additional_power > 0:
-                electrical_power += additional_power
+            if (
+                data.secondary_compressor_current is not None
+                and data.secondary_compressor_frequency is not None
+                and data.secondary_compressor_frequency > 0
+            ):
+                additional_power = self._electrical_calculator(
+                    data.secondary_compressor_current
+                )
+                if additional_power > 0:
+                    electrical_power += additional_power
 
         # Store measurement if valid
         if thermal_power > 0 and electrical_power > 0:

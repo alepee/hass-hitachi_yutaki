@@ -59,7 +59,6 @@ def _build_control_unit_sensor_descriptions() -> tuple[
             translation_key="operation_state",
             description="Current operation state of the heat pump",
             value_fn=lambda coordinator: coordinator.data.get("operation_state"),
-            entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:state-machine",
         ),
     )

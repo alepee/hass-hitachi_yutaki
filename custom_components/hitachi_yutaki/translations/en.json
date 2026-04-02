@@ -113,7 +113,11 @@
           "power_entity": "Power Sensor (Optional)",
           "energy_entity": "Energy Sensor (Optional)",
           "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
-          "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
+          "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)",
+          "electricity_price_entity": "Electricity Price Sensor (Optional)"
+        },
+        "data_description": {
+          "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh). Enables the electricity cost sensor."
         }
       },
       "repair": {
@@ -188,7 +192,11 @@
           "power_entity": "Power Sensor (Optional)",
           "energy_entity": "Energy Sensor (Optional)",
           "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
-          "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)"
+          "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)",
+          "electricity_price_entity": "Electricity Price Sensor (Optional)"
+        },
+        "data_description": {
+          "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh). Enables the electricity cost sensor."
         }
       }
     },
@@ -279,6 +287,9 @@
       },
       "compressor_evo_outdoor_expansion_valve_opening": {
         "name": "Outdoor Expansion Valve Opening"
+      },
+      "electrical_power": {
+        "name": "Electrical Power"
       },
       "power_consumption": {
         "name": "Power Consumption"
@@ -510,6 +521,9 @@
           "standard": "Standard",
           "high_demand": "High Demand"
         }
+      },
+      "electricity_cost": {
+        "name": "Electricity Cost"
       }
     },
     "binary_sensor": {
@@ -711,6 +725,23 @@
             "description": "I develop and test on a single heat pump model. For all others, I'm working blind — your anonymous data helps me build realistic tests, catch regressions, and develop new features. No personal information is ever collected. You can change this at any time in the integration options.\n\n[Learn more about telemetry]({learn_more_url})",
             "data": {
               "telemetry_level": "Anonymous telemetry"
+            }
+          }
+        }
+      }
+    },
+    "enable_energy_cost": {
+      "title": "Track Your Heat Pump's Electricity Cost",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Electricity Cost Tracking",
+            "description": "You can now track the electricity cost of your heat pump. Provide a sensor that exposes the current electricity price in your currency per kWh, and the integration will compute a cumulative cost sensor.\n\nYou can change this at any time in the integration options.",
+            "data": {
+              "electricity_price_entity": "Electricity Price Sensor"
+            },
+            "data_description": {
+              "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh)."
             }
           }
         }

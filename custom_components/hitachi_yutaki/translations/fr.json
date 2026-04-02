@@ -113,7 +113,11 @@
           "power_entity": "Capteur de puissance (Optionnel)",
           "energy_entity": "Compteur d'énergie (Optionnel)",
           "water_inlet_temp_entity": "Capteur de température d'entrée d'eau (Optionnel)",
-          "water_outlet_temp_entity": "Capteur de température de sortie d'eau (Optionnel)"
+          "water_outlet_temp_entity": "Capteur de température de sortie d'eau (Optionnel)",
+          "electricity_price_entity": "Capteur de prix de l'électricité (Optionnel)"
+        },
+        "data_description": {
+          "electricity_price_entity": "Un capteur fournissant le prix actuel de l'électricité dans votre devise par kWh (ex. 0.18 pour 0,18 {currency}/kWh). Active le capteur de coût d'électricité."
         }
       },
       "repair": {
@@ -188,7 +192,11 @@
           "power_entity": "Capteur de puissance (Optionnel)",
           "energy_entity": "Compteur d'énergie (Optionnel)",
           "water_inlet_temp_entity": "Capteur de température d'entrée d'eau (Optionnel)",
-          "water_outlet_temp_entity": "Capteur de température de sortie d'eau (Optionnel)"
+          "water_outlet_temp_entity": "Capteur de température de sortie d'eau (Optionnel)",
+          "electricity_price_entity": "Capteur de prix de l'électricité (Optionnel)"
+        },
+        "data_description": {
+          "electricity_price_entity": "Un capteur fournissant le prix actuel de l'électricité dans votre devise par kWh (ex. 0.18 pour 0,18 {currency}/kWh). Active le capteur de coût d'électricité."
         }
       }
     },
@@ -279,6 +287,9 @@
       },
       "compressor_evo_outdoor_expansion_valve_opening": {
         "name": "Ouverture Vanne d'Expansion Extérieure"
+      },
+      "electrical_power": {
+        "name": "Puissance Électrique"
       },
       "power_consumption": {
         "name": "Consommation Électrique"
@@ -510,6 +521,9 @@
           "standard": "Standard",
           "high_demand": "Haute demande"
         }
+      },
+      "electricity_cost": {
+        "name": "Coût d'Électricité"
       }
     },
     "binary_sensor": {
@@ -701,6 +715,23 @@
     "missing_config": {
       "title": "Configuration Hitachi Yutaki Incomplète",
       "description": "Votre intégration Hitachi Yutaki manque des paramètres de configuration requis (type de passerelle et/ou profil de pompe à chaleur). L'intégration ne peut pas être configurée tant que ces paramètres ne sont pas définis.\n\n**Pour résoudre ce problème :**\n1. Allez dans Paramètres > Appareils et services > Hitachi Yutaki\n2. Cliquez sur l'intégration et sélectionnez Configurer\n3. Sélectionnez les paramètres manquants (type de passerelle et profil de pompe à chaleur)\n4. Enregistrez la configuration"
+    },
+    "enable_energy_cost": {
+      "title": "Suivez le coût d'électricité de votre pompe à chaleur",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Suivi du coût d'électricité",
+            "description": "Vous pouvez désormais suivre le coût d'électricité de votre pompe à chaleur. Fournissez un capteur qui expose le prix actuel de l'électricité dans votre devise par kWh, et l'intégration calculera un capteur de coût cumulé.\n\nVous pouvez modifier cela à tout moment dans les options de l'intégration.",
+            "data": {
+              "electricity_price_entity": "Capteur de prix de l'électricité"
+            },
+            "data_description": {
+              "electricity_price_entity": "Un capteur fournissant le prix actuel de l'électricité dans votre devise par kWh (ex. 0.18 pour 0,18 {currency}/kWh)."
+            }
+          }
+        }
+      }
     },
     "enable_telemetry": {
       "title": "Aidez à améliorer Hitachi Yutaki",

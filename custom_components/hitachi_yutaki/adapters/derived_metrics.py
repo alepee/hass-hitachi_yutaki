@@ -11,6 +11,7 @@ and delegates computation to domain services.
 from __future__ import annotations
 
 import logging
+import time
 from typing import Any
 
 from ..adapters.calculators.electrical import ElectricalPowerCalculatorAdapter
@@ -25,8 +26,10 @@ from ..adapters.providers.operation_mode import (
 )
 from ..adapters.storage.in_memory import InMemoryStorage
 from ..const import (
+    CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
 )
 from ..domain.models.cop import COPInput
@@ -102,6 +105,11 @@ class DerivedMetricsAdapter:
             )
             self._secondary_timing = CompressorTimingService(history=history_t2)
 
+        # Energy accumulation state
+        self._last_energy_time: float | None = None
+        self._accumulated_energy: float = 0.0  # kWh integrated from electrical_power
+        self._electricity_cost: float = 0.0
+
     def _make_cop_service(
         self, thermal_calculator: Any, expected_mode: str
     ) -> COPService:
@@ -153,22 +161,79 @@ class DerivedMetricsAdapter:
 
         self._update_thermal(data)
         self._update_cop(data)
+        self._update_energy(data)
         self._update_timing(data)
 
     def _get_temperature(
         self, data: dict[str, Any], config_key: str, fallback_key: str
     ) -> float | None:
         """Get temperature from configured external entity or coordinator data."""
-        if self._hass is not None:
-            entity_id = self._config_entry_data.get(config_key)
-            if entity_id:
-                state = self._hass.states.get(entity_id)
-                if state and state.state not in (None, "unknown", "unavailable"):
-                    try:
-                        return float(state.state)
-                    except ValueError:
-                        pass
+        entity_id = self._config_entry_data.get(config_key)
+        if entity_id:
+            value = self._get_float_from_entity(entity_id)
+            if value is not None:
+                return value
         return data.get(fallback_key)
+
+    def _get_float_from_entity(self, entity_id: str) -> float | None:
+        """Read a float value from a HA entity state."""
+        if self._hass is None or not entity_id:
+            return None
+        state = self._hass.states.get(entity_id)
+        if state and state.state not in (None, "unknown", "unavailable"):
+            try:
+                return float(state.state)
+            except ValueError:
+                pass
+        return None
+
+    def _update_energy(self, data: dict[str, Any]) -> None:
+        """Integrate electrical power over time for energy and cost accumulation.
+
+        Uses data["electrical_power"] (kW) computed by _update_cop() which
+        already handles the priority chain (power_entity > I×U calculated)
+        and sums both compressors for S80.
+        """
+        now = time.monotonic()
+        electrical_power = data.get("electrical_power", 0)
+
+        # Integrate electrical power over time for energy (kWh)
+        if self._last_energy_time is not None and electrical_power > 0:
+            dt = now - self._last_energy_time
+            if dt <= DEFAULT_SCAN_INTERVAL * 2:
+                self._accumulated_energy += electrical_power * (dt / 3600)
+
+        data["electrical_energy_consumed"] = round(self._accumulated_energy, 3)
+
+        # Cost accumulation (only when price entity is configured)
+        price_entity = self._config_entry_data.get(CONF_ELECTRICITY_PRICE_ENTITY)
+        if price_entity:
+            price = self._get_float_from_entity(price_entity)
+            data["_current_price"] = price
+
+            if (
+                price is not None
+                and self._last_energy_time is not None
+                and electrical_power > 0
+            ):
+                dt = now - self._last_energy_time
+                if dt <= DEFAULT_SCAN_INTERVAL * 2:
+                    delta_kwh = electrical_power * (dt / 3600)
+                    self._electricity_cost += round(delta_kwh * price, 6)
+
+            data["electricity_cost"] = round(self._electricity_cost, 2)
+
+        _LOGGER.debug(
+            "Energy: power=%.3f kW, dt=%.1fs, energy=%.3f kWh, cost=%.4f %s, price=%s",
+            electrical_power,
+            (now - self._last_energy_time) if self._last_energy_time else 0,
+            self._accumulated_energy,
+            self._electricity_cost,
+            self._config_entry_data.get(CONF_ELECTRICITY_PRICE_ENTITY, "n/a"),
+            data.get("_current_price"),
+        )
+
+        self._last_energy_time = now
 
     def _get_hvac_action(self, data: dict[str, Any]) -> str | None:
         """Detect the current HVAC action from unit mode and temperatures."""
@@ -191,12 +256,27 @@ class DerivedMetricsAdapter:
 
     def _update_cop(self, data: dict[str, Any]) -> None:
         """Compute electrical power and COP for all configured modes."""
-        # Electrical power
+        # Electrical power — sum primary + secondary compressor
+        electrical_power = 0.0
         current = data.get("compressor_current")
         if current is not None and current > 0:
-            data["electrical_power"] = round(self._electrical_calculator(current), 3)
-        else:
-            data["electrical_power"] = 0
+            electrical_power = self._electrical_calculator(current)
+
+        if self._supports_secondary_compressor:
+            sec_current = data.get("secondary_compressor_current")
+            sec_freq = data.get("secondary_compressor_frequency")
+            if sec_current is not None and sec_freq is not None and sec_freq > 0:
+                sec_power = self._electrical_calculator(sec_current)
+                if sec_power > 0:
+                    electrical_power += sec_power
+
+        data["electrical_power"] = round(electrical_power, 3)
+        _LOGGER.debug(
+            "Electrical: I1=%.1fA, I2=%s, power=%.3f kW",
+            current or 0,
+            data.get("secondary_compressor_current"),
+            data["electrical_power"],
+        )
 
         # Build COP input
         hvac_action = self._get_hvac_action(data)
@@ -212,6 +292,7 @@ class DerivedMetricsAdapter:
             water_flow=data.get("water_flow"),
             compressor_current=data.get("compressor_current"),
             compressor_frequency=data.get("compressor_frequency"),
+            electrical_power=data["electrical_power"],
             secondary_compressor_current=(
                 data.get("secondary_compressor_current")
                 if self._supports_secondary_compressor
@@ -295,6 +376,14 @@ class DerivedMetricsAdapter:
         restore_fn = restore_map.get(key)
         if restore_fn:
             restore_fn(value)
+
+    def restore_electricity_cost(self, value: float) -> None:
+        """Restore electricity cost state from HA last state cache."""
+        self._electricity_cost = value
+
+    def restore_accumulated_energy(self, value: float) -> None:
+        """Restore accumulated energy state from HA last state cache."""
+        self._accumulated_energy = value
 
     async def async_rehydrate_cop(self) -> None:
         """Replay Recorder data to rebuild COP measurement buffers."""

@@ -25,6 +25,7 @@ from .const import (
     CIRCUIT_MODE_HEATING,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
+    CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
@@ -93,6 +94,47 @@ async def _async_restore_thermal_energy(
                     coordinator.derived_metrics.restore_thermal_energy(
                         key, float(last.state.state)
                     )
+
+
+async def _async_restore_energy_state(
+    hass: HomeAssistant,
+    entry: HitachiYutakiConfigEntry,
+    coordinator: HitachiYutakiDataCoordinator,
+) -> None:
+    """Restore energy accumulators from HA's last state cache."""
+    restore_data = async_get_restore_data(hass)
+    entity_registry = er.async_get(hass)
+
+    restore_map = {
+        "power_consumption": coordinator.derived_metrics.restore_accumulated_energy,
+    }
+    if CONF_ELECTRICITY_PRICE_ENTITY in entry.data:
+        restore_map["electricity_cost"] = (
+            coordinator.derived_metrics.restore_electricity_cost
+        )
+
+    for key, restore_fn in restore_map.items():
+        unique_id = f"{entry.entry_id}_{key}"
+        entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+        _LOGGER.debug(
+            "Energy restore: key=%s unique_id=%s entity_id=%s in_restore=%s",
+            key,
+            unique_id,
+            entity_id,
+            entity_id in restore_data.last_states if entity_id else "no_entity",
+        )
+        if entity_id and entity_id in restore_data.last_states:
+            last = restore_data.last_states[entity_id]
+            if (
+                last
+                and last.state
+                and last.state.state not in (None, "unknown", "unavailable", "")
+            ):
+                _LOGGER.debug("Energy restore: %s = %s", key, last.state.state)
+                with suppress(ValueError, TypeError):
+                    restore_fn(float(last.state.state))
+            else:
+                _LOGGER.debug("Energy restore: %s — no valid state", key)
 
 
 async def async_setup_entry(
@@ -287,6 +329,9 @@ async def async_setup_entry(
     # Restore thermal energy from last known state
     await _async_restore_thermal_energy(hass, entry, coordinator)
 
+    # Restore energy accumulators (electrical energy + cost) from last known state
+    await _async_restore_energy_state(hass, entry, coordinator)
+
     # Rehydrate COP measurement buffers from Recorder history
     await coordinator.derived_metrics.async_rehydrate_cop()
 
@@ -399,6 +444,19 @@ async def async_setup_entry(
             name=DEVICE_POOL.replace("_", " ").title(),  # Fallback name
             translation_key="pool",
             via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+        )
+
+    # Energy cost onboarding: suggest price entity configuration
+    if CONF_ELECTRICITY_PRICE_ENTITY not in entry.data:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            f"enable_energy_cost_{entry.entry_id}",
+            is_fixable=True,
+            is_persistent=True,
+            severity=IssueSeverity.WARNING,
+            issue_domain=DOMAIN,
+            translation_key="enable_energy_cost",
         )
 
     # Telemetry onboarding: create repair issue for existing users who haven't chosen yet

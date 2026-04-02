@@ -113,7 +113,11 @@
           "power_entity": "Vermogenssensor (optioneel)",
           "energy_entity": "Energiesensor (optioneel)",
           "water_inlet_temp_entity": "Waterinlaattemperatuursensor (optioneel)",
-          "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)"
+          "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)",
+          "electricity_price_entity": "Elektriciteitsprijssensor (optioneel)"
+        },
+        "data_description": {
+          "electricity_price_entity": "Een sensor die de huidige elektriciteitsprijs levert in uw valuta per kWh (bijv. 0,18 voor 0,18 {currency}/kWh). Schakelt de elektriciteitskostensensor in."
         }
       },
       "repair": {
@@ -188,7 +192,11 @@
           "power_entity": "Vermogenssensor (optioneel)",
           "energy_entity": "Energiesensor (optioneel)",
           "water_inlet_temp_entity": "Waterinlaattemperatuursensor (optioneel)",
-          "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)"
+          "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)",
+          "electricity_price_entity": "Elektriciteitsprijssensor (optioneel)"
+        },
+        "data_description": {
+          "electricity_price_entity": "Een sensor die de huidige elektriciteitsprijs levert in uw valuta per kWh (bijv. 0,18 voor 0,18 {currency}/kWh). Schakelt de elektriciteitskostensensor in."
         }
       }
     },
@@ -279,6 +287,9 @@
       },
       "compressor_evo_outdoor_expansion_valve_opening": {
         "name": "Buiten-expansieventielopening"
+      },
+      "electrical_power": {
+        "name": "Elektrisch vermogen"
       },
       "power_consumption": {
         "name": "Elektriciteitsverbruik"
@@ -510,6 +521,9 @@
           "standard": "Standaard",
           "high_demand": "Hoge vraag"
         }
+      },
+      "electricity_cost": {
+        "name": "Elektriciteitskosten"
       }
     },
     "binary_sensor": {
@@ -701,6 +715,23 @@
     "missing_config": {
       "title": "Hitachi Yutaki configuratie onvolledig",
       "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters (gatewaytype en/of warmtepompmodel). De integratie kan niet worden ingesteld totdat deze parameters zijn geconfigureerd.\n\n**Om dit op te lossen:**\n1. Ga naar Instellingen > Apparaten en services > Hitachi Yutaki\n2. Klik op de integratie en selecteer Configureren\n3. Selecteer de ontbrekende parameters (gatewaytype en warmtepompmodel)\n4. Sla de configuratie op"
+    },
+    "enable_energy_cost": {
+      "title": "Elektriciteitskosten van uw warmtepomp bijhouden",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Elektriciteitskostenbewaking",
+            "description": "U kunt nu de elektriciteitskosten van uw warmtepomp bijhouden. Geef een sensor op die de huidige elektriciteitsprijs levert in uw valuta per kWh, en de integratie berekent een cumulatieve kostensensor.\n\nU kunt dit op elk moment wijzigen in de integratieopties.",
+            "data": {
+              "electricity_price_entity": "Elektriciteitsprijssensor"
+            },
+            "data_description": {
+              "electricity_price_entity": "Een sensor die de huidige elektriciteitsprijs levert in uw valuta per kWh (bijv. 0,18 voor 0,18 {currency}/kWh)."
+            }
+          }
+        }
+      }
     },
     "enable_telemetry": {
       "title": "Help Hitachi Yutaki verbeteren",
