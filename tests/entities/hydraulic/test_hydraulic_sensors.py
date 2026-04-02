@@ -58,8 +58,8 @@ class TestHydraulicSensorConditionalVisibility:
         assert "water_outlet_2_temp" in keys
 
     def test_two2_not_created_when_sensor_disconnected(self):
-        """Two2 entity not created when register returns -127."""
-        coordinator = _make_coordinator({"water_outlet_2_temp": -127})
+        """Two2 entity not created when gateway returns None (sentinel filtered)."""
+        coordinator = _make_coordinator({"water_outlet_2_temp": None})
         sensors = build_hydraulic_sensors(coordinator, "test_entry")
         keys = [s.entity_description.key for s in sensors]
         assert "water_outlet_2_temp" not in keys
@@ -86,8 +86,8 @@ class TestHydraulicSensorConditionalVisibility:
         assert "water_outlet_3_temp" in keys
 
     def test_two3_not_created_when_sensor_disconnected(self):
-        """Two3 entity not created when register returns -127."""
-        coordinator = _make_coordinator({"water_outlet_3_temp": -127})
+        """Two3 entity not created when gateway returns None (sentinel filtered)."""
+        coordinator = _make_coordinator({"water_outlet_3_temp": None})
         sensors = build_hydraulic_sensors(coordinator, "test_entry")
         keys = [s.entity_description.key for s in sensors]
         assert "water_outlet_3_temp" not in keys
