@@ -7,69 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.1.0-beta.6] - 2026-04-03
+## [2.1.0] - 2026-04-24
 
-### Added
-- Electricity cost estimation sensor — configure an electricity price entity to track cumulative energy costs (#273)
-- Repair flow to onboard existing users to the electricity cost feature (#273)
-- `electrical_power` sensor (kW) derived from external power entity or Modbus register (#273)
-- Currency-aware descriptions in config/options/repair flows using `{currency}` placeholder (#273)
-
-### Fixed
-- Gateway sentinel filtering — Modbus sentinel values (-127, -67) for absent sensors are now filtered at the gateway layer instead of propagating to entities and telemetry (#272)
-- Module gating — unconfigured modules (DHW, pool, circuit 2) no longer leak default register values into data and telemetry (#272)
-- Remove hardcoded `-127` checks from hydraulic entity conditions (#272)
-- Restore accumulated electricity cost on restart (#273)
-
-### Changed
-- Electrical energy resolution centralized in DerivedMetricsAdapter (internal refactor) (#273)
-- `power_consumption` sensor now reads from adapter like all other derived sensors (#273)
-- `power_consumption` sensor attribute `source` removed — energy source selection is now internal to the adapter (#273)
-- Entity recategorization: sensors vs diagnostic (#273)
-
-## [2.1.0-beta.5] - 2026-04-01
-
-### Changed
-- **DerivedMetricsAdapter** — COP, thermal power, electrical power, and compressor timing are now computed centrally in `adapters/derived_metrics.py` before entities and telemetry consume the data. COP now uses the external power entity when configured (fixes S80 COP accuracy).
-- **Dict-based telemetry** — MetricPoint dataclass (60+ fields) replaced with plain dicts. Adding a new data key to telemetry requires zero code changes. Client-side daily stats aggregation removed (server-side TimescaleDB continuous aggregate is the source of truth).
-- Entities COP, thermal, and timing simplified from complex subclasses (~590 lines) to simple `value_fn` readers
-
-### Fixed
-- COP telemetry was wrong for S80 cascade (8.2 avg vs 1.32 in HA) — now uses same calculation path as HA entities
-- Grafana dashboard queries migrated to JSONB with `time_bucket` sampling for performance
-
-### Removed
-- `MetricPoint`, `DailyStats` dataclasses and client-side aggregator
-- `HitachiYutakiCOPSensor`, `HitachiYutakiThermalSensor`, `HitachiYutakiTimingSensor` subclasses
-
-## [2.1.0-beta.4] - 2026-03-30
-
-### Added
-- Add DHW demand mode diagnostic sensor (standard/high demand) read from STATUS register — disabled by default (#255)
-
-### Fixed
-- Compute thermal power, electrical power, and COP in telemetry collector instead of sending null values to backend
-
-## [2.1.0-beta.3] - 2026-03-29
-
-### Added
-- Anonymous telemetry system (Off / On) — helps build realistic test fixtures for all heat pump models ([Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200))
-- Telemetry consent step in config flow (options) and repair flow for existing users
-- Telemetry diagnostic sensor (`sensor.telemetry_status`) with send tracking attributes
-- Backend: Cloudflare Worker (ingestion proxy), TigerData migrations, R2 cold archive
-
-## [2.1.0-beta.2] - 2026-03-29
-
-### Fixed
-- Fix gateway sync state sensor showing raw integer instead of translated string during initializing/desynchronized states (#254)
-- Fix entities remaining "available" with stale data when gateway is stuck in initializing state (#254)
-- Reduce log spam from ~685 identical warnings to periodic reminders every 5 minutes during extended gateway sync issues (#254)
-- Add adaptive polling backoff (5s → 10s → ... → 300s max) when gateway is not ready, reducing unnecessary Modbus traffic (#254)
-
-### Changed
-- Refactor config flow to provider-based orchestrator — each gateway declares its own configuration steps via `GatewayConfigProvider` protocol, eliminating all gateway-specific conditionals from config_flow.py
-
-## [2.1.0-beta.1] - 2026-03-20
+This release adds support for pre-2016 ATW-MBS-02 gateways (Gen 1 Yutaki S/S Combi), an opt-in anonymous telemetry system to grow realistic test fixtures across all heat pump models, and an electricity cost estimation feature. Internally, derived metrics (COP, thermal/electrical power, compressor timing) are now centralized in a single adapter, fixing COP accuracy for S80 cascade installations.
 
 ### Added
 - Support for Before Line-up 2016 ATW-MBS-02 gateway — Gen 1 Yutaki S and S Combi units with full read/write support (#248)
@@ -78,13 +18,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Scanner auto-detection and annotation for before-2016 units
 - Model nomenclature reference documentation (`docs/reference/model-nomenclature.md`)
 - Config entry migration v2.4 — adds `gateway_variant` field to existing entries
-
-### Fixed
-- Fix cooling OTC compensation method showing "Unknown" and not settable on ATW-MBS-02 (#239)
-- Entities depending on missing registers (eco mode, DHW boost/high demand) are now hidden automatically on gateways that lack them
+- Anonymous telemetry system (Off / On) — helps build realistic test fixtures for all heat pump models ([Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200))
+- Telemetry consent step in config flow (options) and repair flow for existing users
+- Telemetry diagnostic sensor (`sensor.telemetry_status`) with send tracking attributes
+- Backend: Cloudflare Worker (ingestion proxy), TigerData migrations, R2 cold archive
+- DHW demand mode diagnostic sensor (standard/high demand) read from STATUS register — disabled by default (#255)
+- Electricity cost estimation sensor — configure an electricity price entity to track cumulative energy costs (#273)
+- Repair flow to onboard existing users to the electricity cost feature (#273)
+- `electrical_power` sensor (kW) derived from external power entity or Modbus register (#273)
+- Currency-aware descriptions in config/options/repair flows using `{currency}` placeholder (#273)
 
 ### Changed
+- Refactor config flow to provider-based orchestrator — each gateway declares its own configuration steps via `GatewayConfigProvider` protocol, eliminating all gateway-specific conditionals from `config_flow.py`
+- **DerivedMetricsAdapter** — COP, thermal power, electrical power, and compressor timing are now computed centrally in `adapters/derived_metrics.py` before entities and telemetry consume the data. COP now uses the external power entity when configured.
+- **Dict-based telemetry** — `MetricPoint` dataclass (60+ fields) replaced with plain dicts. Adding a new data key to telemetry requires zero code changes. Client-side daily stats aggregation removed (server-side TimescaleDB continuous aggregate is the source of truth).
+- Entities COP, thermal, and timing simplified from complex subclasses (~590 lines) to simple `value_fn` readers
+- `power_consumption` sensor now reads from `DerivedMetricsAdapter` like all other derived sensors (#273)
+- Entity recategorization: sensors vs diagnostic (#273)
 - Reorganize gateway tests to mirror source structure (`tests/api/modbus/`)
+- Grafana dashboard queries migrated to JSONB with `time_bucket` sampling for performance
+
+### Fixed
+- Cooling OTC compensation method showing "Unknown" and not settable on ATW-MBS-02 (#239)
+- Entities depending on missing registers (eco mode, DHW boost/high demand) are now hidden automatically on gateways that lack them
+- Gateway sync state sensor showing raw integer instead of translated string during initializing/desynchronized states (#254)
+- Entities remaining "available" with stale data when gateway is stuck in initializing state (#254)
+- Log spam reduced from ~685 identical warnings to periodic reminders every 5 minutes during extended gateway sync issues (#254)
+- Adaptive polling backoff (5s → 10s → ... → 300s max) when gateway is not ready, reducing unnecessary Modbus traffic (#254)
+- COP telemetry was wrong for S80 cascade (8.2 avg vs 1.32 in HA) — now uses same calculation path as HA entities
+- Gateway sentinel filtering — Modbus sentinel values (-127, -67) for absent sensors are now filtered at the gateway layer instead of propagating to entities and telemetry (#272)
+- Module gating — unconfigured modules (DHW, pool, circuit 2) no longer leak default register values into data and telemetry (#272)
+- Remove hardcoded `-127` checks from hydraulic entity conditions (#272)
+- Restore accumulated electricity cost on restart (#273)
+
+### Removed
+- `MetricPoint`, `DailyStats` dataclasses and client-side aggregator
+- `HitachiYutakiCOPSensor`, `HitachiYutakiThermalSensor`, `HitachiYutakiTimingSensor` subclasses
+- `power_consumption` sensor `source` attribute — energy source selection is now internal to the adapter (#273)
 
 ## [2.0.2] - 2026-03-09
 
