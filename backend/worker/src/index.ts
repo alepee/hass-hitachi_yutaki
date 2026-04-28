@@ -5,8 +5,8 @@
  *   - Accepts gzipped or plain JSON
  *   - Validates and sanitizes payload (field whitelist)
  *   - Rate limits per instance_hash (1 req/min via Cache API)
- *   - Dual write: TigerData (hot, 30-day) + R2 (cold, permanent)
- *   - Returns 202 Accepted on success
+ *   - Dual write in parallel: TigerData (hot, 30-day) + R2 (cold, permanent)
+ *   - Returns 202 Accepted if at least one sink succeeds, 502 Bad Gateway when both fail
  */
 
 import { archiveToR2 } from "./archive";
@@ -53,14 +53,23 @@ export default {
         }
       }
 
-      // Dual write: hot (TigerData) + cold (R2)
-      await writeToDatabase(env, payload);
+      // Dual write in parallel — neither sink blocks the other.
+      // Success requires at least one sink to accept the payload.
+      const [dbResult, r2Result] = await Promise.allSettled([
+        writeToDatabase(env, payload),
+        archiveToR2(env.ARCHIVE, payload),
+      ]);
 
-      // R2 archive is fire-and-forget
-      try {
-        await archiveToR2(env.ARCHIVE, payload);
-      } catch (err) {
-        console.warn("R2 archive failed (non-fatal):", err);
+      if (dbResult.status === "rejected") {
+        console.warn("TigerData write failed:", dbResult.reason);
+      }
+      if (r2Result.status === "rejected") {
+        console.warn("R2 archive failed:", r2Result.reason);
+      }
+
+      if (dbResult.status === "rejected" && r2Result.status === "rejected") {
+        console.error("Ingestion error: both sinks failed");
+        return new Response("Both telemetry sinks unavailable", { status: 502 });
       }
 
       return new Response(null, { status: 202 });
