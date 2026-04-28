@@ -6,7 +6,7 @@
  *   - Validates and sanitizes payload (field whitelist)
  *   - Rate limits per instance_hash (1 req/min via Cache API)
  *   - Dual write in parallel: TigerData (hot, 30-day) + R2 (cold, permanent)
- *   - Returns 202 Accepted if at least one sink succeeds, 500 only when both fail
+ *   - Returns 202 Accepted if at least one sink succeeds, 502 Bad Gateway when both fail
  */
 
 import { archiveToR2 } from "./archive";
@@ -69,7 +69,7 @@ export default {
 
       if (dbResult.status === "rejected" && r2Result.status === "rejected") {
         console.error("Ingestion error: both sinks failed");
-        return new Response("Internal Server Error", { status: 500 });
+        return new Response("Both telemetry sinks unavailable", { status: 502 });
       }
 
       return new Response(null, { status: 202 });

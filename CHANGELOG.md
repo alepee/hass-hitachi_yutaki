@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
-- Telemetry backend: parallelize TigerData and R2 writes via `Promise.allSettled` so that an R2 archive is performed even when the TigerData insert fails. Previously the R2 archive was only attempted after a successful database write, which meant payloads received during a TigerData outage were lost (#284)
+- Telemetry backend: parallelize TigerData and R2 writes via `Promise.allSettled` so that an R2 archive is performed even when the TigerData insert fails. Previously the R2 archive was only attempted after a successful database write, which meant payloads received during a TigerData outage were lost. The endpoint now returns `202` when at least one sink succeeds, and `502 Bad Gateway` only when both upstream sinks fail (#284)
 
 ## [2.1.0] - 2026-04-24
 
