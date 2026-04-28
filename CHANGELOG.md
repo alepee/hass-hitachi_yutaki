@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Telemetry backend: parallelize TigerData and R2 writes via `Promise.allSettled` so that an R2 archive is performed even when the TigerData insert fails. Previously the R2 archive was only attempted after a successful database write, which meant payloads received during a TigerData outage were lost (#284)
+
 ## [2.1.0] - 2026-04-24
 
 This release adds support for pre-2016 ATW-MBS-02 gateways (Gen 1 Yutaki S/S Combi), an opt-in anonymous telemetry system to grow realistic test fixtures across all heat pump models, and an electricity cost estimation feature. Internally, derived metrics (COP, thermal/electrical power, compressor timing) are now centralized in a single adapter, fixing COP accuracy for S80 cascade installations.
