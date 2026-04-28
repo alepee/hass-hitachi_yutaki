@@ -33,7 +33,9 @@ function shortHash(instanceHash: string): string {
 
 /**
  * Archive a validated payload to R2.
- * Fire-and-forget: caller should catch errors and log, not fail the request.
+ * Throws on R2 failure; the caller decides how to handle it
+ * (currently: combined with the TigerData result via Promise.allSettled,
+ * the request only fails when both sinks reject).
  */
 export async function archiveToR2(
   bucket: R2Bucket,
