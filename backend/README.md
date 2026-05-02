@@ -8,50 +8,32 @@ Anonymous telemetry ingestion pipeline for the Hitachi Yutaki integration.
 HA Integration (HttpTelemetryClient)
     → POST /v1/ingest (gzip JSON)
     → Cloudflare Worker (validate, rate limit, enrich with Köppen zone)
-        → TigerData (hot, 30-day rolling, TimescaleDB)
-        → R2 (cold, permanent JSON archive)
-    → Grafana Cloud (dashboards)
+        → R2 (permanent JSON archive, partitioned Hive-style)
 ```
 
 ## Infrastructure
 
-| Service | ID / URL | Purpose |
-|---------|----------|---------|
-| **TigerData** | `ojqwsu3e4j` (us-east-1) | TimescaleDB — hot storage |
+| Service | Identifier | Purpose |
+|---------|------------|---------|
 | **Cloudflare Worker** | `hitachi-telemetry.antoine-04c.workers.dev` | Ingestion proxy |
-| **Hyperdrive** | `6022ba5b4aa84149bced9823002142d7` | Connection pooling Worker → TigerData |
-| **R2 Bucket** | `hitachi-telemetry-archive` | Cold JSON archive |
-| **Grafana Cloud** | `alepee.grafana.net` | Dashboards (datasource: `TigerData`) |
+| **R2** | `hitachi-telemetry-archive` | Permanent JSON archive of all payloads |
 
-## Database
+## Querying the archive
 
-### Roles
+R2 holds every telemetry payload as JSON, partitioned Hive-style by date. The recommended way to explore the archive is DuckDB with the `httpfs` extension and an R2 access key:
 
-| Role | Purpose | Permissions |
-|------|---------|-------------|
-| `tsdbadmin` | Admin (provisioning) | Full |
-| `worker_write` | Worker ingestion | INSERT + UPDATE on all tables |
-| `grafana_read` | Grafana dashboards | SELECT on all tables + views |
+```sql
+INSTALL httpfs; LOAD httpfs;
+SET s3_endpoint = '<account-id>.r2.cloudflarestorage.com';
+SET s3_access_key_id = '<r2-access-key>';
+SET s3_secret_access_key = '<r2-secret>';
 
-### Tables
-
-- **`installations`** — one row per instance (upserted daily)
-- **`metrics`** — hypertable, fine metrics every 5min (ON level), 30-day retention
-- **`daily_stats`** — daily aggregates, kept indefinitely
-- **`register_snapshots`** — hypertable, Modbus register dumps, 90-day retention
-- **`metrics_daily_agg`** — continuous aggregate (auto-downsampled from metrics)
-
-### Migrations
-
-Run with `tiger db connect < backend/migrations/NNN_*.sql` or via MCP:
-
-```
-001_initial_schema.sql           — tables, hypertables, indexes
-002_compression_retention.sql    — compression, retention, continuous aggregate
-003_roles.sql                    — worker_write + grafana_read roles
-004_world_model_fields.sql       — setpoints, flow, OTC, control state
-005_extended_world_model_fields.sql — compressor thermo, secondary, system state
-006_geolocation.sql              — latitude, longitude, climate_zone
+SELECT instance_hash, COUNT(*) AS points
+FROM read_json_auto(
+  's3://hitachi-telemetry-archive/metrics/year=2026/month=04/day=*/batch_*.json'
+)
+GROUP BY 1
+ORDER BY points DESC;
 ```
 
 ## Worker
@@ -80,8 +62,7 @@ src/
 ├── types.ts          — Payload type definitions
 ├── validator.ts      — JSON validation + field whitelist (final anonymization)
 ├── rate-limiter.ts   — Per-hash rate limiting via Cache API (1 req/min)
-├── db.ts             — TigerData writes (parameterized INSERT via Hyperdrive)
-├── archive.ts        — R2 cold writes (Hive-style partitioned JSON)
+├── archive.ts        — R2 writes (Hive-style partitioned JSON)
 ├── climate.ts        — Köppen-Geiger lookup from rounded coordinates
 └── koppen-lookup.json — 14,938-entry climate zone table (Beck et al. 2018)
 ```
@@ -96,56 +77,26 @@ src/
 
 **Payload types**: `installation`, `metrics`, `daily_stats`, `snapshot`
 
-**Responses**: `202` Accepted, `400` Bad Request, `413` Too Large, `429` Rate Limited, `500` Error
+**Responses**: `202` Accepted, `400` Bad Request, `413` Too Large, `429` Rate Limited, `500` Error, `502` R2 Unavailable
 
 ### Köppen enrichment
 
 The Worker enriches `installation` payloads with a precise Köppen-Geiger climate zone (e.g., `Cfb`, `Csa`, `Dfb`) using a server-side lookup table. The client sends coordinates rounded to 1° (~110 km), the Worker classifies.
 
-## Grafana Dashboards
-
-Import via **Dashboards → Import → Upload JSON**:
-
-| Dashboard | File | Content |
-|-----------|------|---------|
-| Fleet Overview | `grafana/fleet-overview.json` | Active installations, model/version distribution |
-| Performance | `grafana/performance.json` | COP, temperatures, compressor, power (with instance filter) |
-| Snapshots | `grafana/snapshots.json` | Browse register snapshots by model |
-
-Datasource must be named `TigerData` (PostgreSQL pointing to TigerData with `grafana_read` role).
-
 ## Provisioning from scratch
 
 If you need to recreate the infrastructure:
 
-### 1. TigerData
+### 1. Cloudflare resources
 
 ```bash
-tiger service create --name hitachi-telemetry  # us-east-1 (free tier)
-# Apply migrations in order:
-tiger db connect < backend/migrations/001_initial_schema.sql
-tiger db connect < backend/migrations/002_compression_retention.sql
-tiger db connect < backend/migrations/003_roles.sql  # Change passwords first!
-tiger db connect < backend/migrations/004_world_model_fields.sql
-tiger db connect < backend/migrations/005_extended_world_model_fields.sql
-tiger db connect < backend/migrations/006_geolocation.sql
-```
-
-### 2. Cloudflare resources
-
-```bash
-# R2 bucket for cold archive
+# R2 bucket for the archive
 npx wrangler r2 bucket create hitachi-telemetry-archive
-
-# Hyperdrive for connection pooling
-npx wrangler hyperdrive create hitachi-telemetry \
-  --connection-string="postgresql://worker_write:<PASSWORD>@<HOST>:<PORT>/tsdb?sslmode=require"
-# → update id in wrangler.toml
 ```
 
-Or use Cloudflare MCP tools (`accounts_list`, `r2_bucket_create`, and `cloudflare-api execute` for Hyperdrive).
+Or use Cloudflare MCP tools (`accounts_list`, `r2_bucket_create`).
 
-### 3. Deploy Worker
+### 2. Deploy Worker
 
 ```bash
 cd backend/worker
@@ -153,7 +104,3 @@ npm install
 npx wrangler login
 npx wrangler deploy
 ```
-
-### 4. Grafana
-
-Add PostgreSQL datasource pointing to TigerData with `grafana_read` role, then import the 3 dashboard JSONs.
