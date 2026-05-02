@@ -246,9 +246,9 @@ Coordinator poll ──→ TelemetryCollector (circular buffer)
                │
                ▼
      Cloudflare Worker (validate, rate-limit per type)
-          │              │
-          ▼              ▼
-     TigerData (hot)   R2 (cold archive)
+                         │
+                         ▼
+                R2 (permanent JSON archive)
 ```
 
 **Key design decisions:**
