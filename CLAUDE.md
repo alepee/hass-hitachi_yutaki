@@ -71,7 +71,7 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Binary consent (Off / On) stored in `entry.options["telemetry_level"]`
 - **Package** (`telemetry/`): models, collector (circular buffer), aggregator (daily stats from points), anonymizer (SHA-256 hash, 0.5°C rounding, geolocation rounding), HTTP client (gzip + retry), noop client
 - **Coordinator wiring**: collector.collect() on each poll, 5-min flush timer, daily stats at day boundary, one-time installation info + register snapshot (fire-and-forget with `asyncio.Lock` + exponential backoff)
-- **Backend**: Cloudflare Worker (ingestion/validation/rate-limit per payload type) → TigerData (TimescaleDB) + R2 cold archive
+- **Backend**: Cloudflare Worker (ingestion/validation/rate-limit per payload type) → R2 (single sink, permanent JSON archive partitioned Hive-style)
 - **Consent flows**: options flow step (after sensors), repair flow for existing users (defaults to "on")
 - **Diagnostic entity**: `sensor.telemetry_status` (ENUM: off/on) with attributes (points_buffered, last_send, send_failures)
 - See [docs/reference/telemetry.md](docs/reference/telemetry.md)
