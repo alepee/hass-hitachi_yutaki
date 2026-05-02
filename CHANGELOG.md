@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Telemetry backend: Cloudflare R2 is now the single source of truth. The Worker no longer dual-writes to TimescaleDB / TigerData; the `pg` driver, `db.ts` module, and Hyperdrive binding have been removed. R2 partitioning (`metrics/year=YYYY/month=MM/day=DD/`) is unchanged. Notebooks should consume the JSON archive directly via DuckDB + httpfs.
+
 ### Fixed
 - Telemetry backend: parallelize TigerData and R2 writes via `Promise.allSettled` so that an R2 archive is performed even when the TigerData insert fails. Previously the R2 archive was only attempted after a successful database write, which meant payloads received during a TigerData outage were lost. The endpoint now returns `202` when at least one sink succeeds, and `502 Bad Gateway` only when both upstream sinks fail (#284)
 
