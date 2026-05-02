@@ -5,15 +5,14 @@
  *   - Accepts gzipped or plain JSON
  *   - Validates and sanitizes payload (field whitelist)
  *   - Rate limits per instance_hash (1 req/min via Cache API)
- *   - Dual write in parallel: TigerData (hot, 30-day) + R2 (cold, permanent)
- *   - Returns 202 Accepted if at least one sink succeeds, 502 Bad Gateway when both fail
+ *   - Single sink: R2 (permanent JSON archive, partitioned Hive-style)
+ *   - Returns 202 Accepted on success, 502 Bad Gateway if R2 is unavailable
  */
 
 import { archiveToR2 } from "./archive";
 import { classifyClimateZone } from "./climate";
-import { getClient, writeDailyStats, writeInstallation, writeMetrics, writeSnapshot } from "./db";
 import { RateLimitError, checkRateLimit } from "./rate-limiter";
-import type { Env, TelemetryPayload } from "./types";
+import type { Env } from "./types";
 import { ValidationError, validate } from "./validator";
 
 export default {
@@ -53,23 +52,11 @@ export default {
         }
       }
 
-      // Dual write in parallel — neither sink blocks the other.
-      // Success requires at least one sink to accept the payload.
-      const [dbResult, r2Result] = await Promise.allSettled([
-        writeToDatabase(env, payload),
-        archiveToR2(env.ARCHIVE, payload),
-      ]);
-
-      if (dbResult.status === "rejected") {
-        console.warn("TigerData write failed:", dbResult.reason);
-      }
-      if (r2Result.status === "rejected") {
-        console.warn("R2 archive failed:", r2Result.reason);
-      }
-
-      if (dbResult.status === "rejected" && r2Result.status === "rejected") {
-        console.error("Ingestion error: both sinks failed");
-        return new Response("Both telemetry sinks unavailable", { status: 502 });
+      try {
+        await archiveToR2(env.ARCHIVE, payload);
+      } catch (err) {
+        console.error("R2 archive failed:", err);
+        return new Response("R2 archive unavailable", { status: 502 });
       }
 
       return new Response(null, { status: 202 });
@@ -88,25 +75,3 @@ export default {
     }
   },
 } satisfies ExportedHandler<Env>;
-
-async function writeToDatabase(env: Env, payload: TelemetryPayload): Promise<void> {
-  const client = await getClient(env.DB.connectionString);
-  try {
-    switch (payload.type) {
-      case "installation":
-        await writeInstallation(client, payload);
-        break;
-      case "metrics":
-        await writeMetrics(client, payload);
-        break;
-      case "daily_stats":
-        await writeDailyStats(client, payload);
-        break;
-      case "snapshot":
-        await writeSnapshot(client, payload);
-        break;
-    }
-  } finally {
-    await client.end();
-  }
-}
