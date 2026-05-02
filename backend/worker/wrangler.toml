@@ -10,3 +10,8 @@ bucket_name = "hitachi-telemetry-archive"
 [[hyperdrive]]
 binding = "DB"
 id = "6022ba5b4aa84149bced9823002142d7"
+
+[observability]
+[observability.logs]
+enabled = true
+invocation_logs = true
