@@ -103,8 +103,8 @@ Domain logic goes in `domain/services/`, adapter logic in `adapters/calculators/
 ### When Modifying Telemetry
 
 - **Integration side**: models/collector/aggregator in `telemetry/`, wiring in `coordinator.py`, consent in `config_flow.py` + `repairs.py`
-- **Backend side**: Cloudflare Worker in `backend/worker/src/`, DB migrations in `backend/migrations/`
-- Fields must match across: Python models (`to_dict()`), Worker validator (field whitelists), DB schema (INSERT columns)
+- **Backend side**: Cloudflare Worker in `backend/worker/src/`
+- Fields must match across: Python models (`to_dict()`) and Worker validator (field whitelists)
 - Telemetry entities read from coordinator attributes (not `coordinator.data`) — use `HitachiYutakiTelemetrySensor` subclass
 - Daily stats accumulator clears only on successful send; one-time sends use `asyncio.Lock` to prevent concurrent fire-and-forget
 - Deploy Worker changes with `cd backend/worker && npx wrangler deploy`
