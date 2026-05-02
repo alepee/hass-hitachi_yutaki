@@ -1,5 +1,5 @@
 /**
- * R2 cold archive — writes JSON payloads as individual files.
+ * R2 archive — writes JSON payloads as individual files (single sink).
  * Hive-style partitioning for DuckDB/Parquet compatibility.
  *
  * File layout:
@@ -32,10 +32,8 @@ function shortHash(instanceHash: string): string {
 }
 
 /**
- * Archive a validated payload to R2.
- * Throws on R2 failure; the caller decides how to handle it
- * (currently: combined with the TigerData result via Promise.allSettled,
- * the request only fails when both sinks reject).
+ * Archive a validated payload to R2 — the single sink for telemetry.
+ * Throws on R2 failure; the request handler returns 502 in that case.
  */
 export async function archiveToR2(
   bucket: R2Bucket,

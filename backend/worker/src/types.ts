@@ -1,6 +1,5 @@
 /** Cloudflare Worker environment bindings. */
 export interface Env {
-  DB: Hyperdrive;
   ARCHIVE: R2Bucket;
 }
 
