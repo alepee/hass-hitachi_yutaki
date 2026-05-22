@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1-beta.1] - 2026-05-22
+
 ### Changed
 - Telemetry backend: Cloudflare R2 is now the single source of truth. The Worker no longer dual-writes to TimescaleDB / TigerData; the `pg` driver, `db.ts` module, and Hyperdrive binding have been removed. R2 partitioning (`metrics/year=YYYY/month=MM/day=DD/`) is unchanged. Notebooks should consume the JSON archive directly via DuckDB + httpfs.
 
