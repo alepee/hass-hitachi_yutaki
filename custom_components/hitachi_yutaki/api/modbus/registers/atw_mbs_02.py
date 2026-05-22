@@ -239,8 +239,8 @@ REGISTER_GATEWAY = {
 }
 
 REGISTER_CONTROL_UNIT = {
-    "unit_power": RegisterDefinition(1000),
-    "unit_mode": RegisterDefinition(1001),
+    "unit_power": RegisterDefinition(1050, write_address=1000),
+    "unit_mode": RegisterDefinition(1051, write_address=1001),
     "operation_state": RegisterDefinition(
         1090, deserializer=deserialize_operation_state
     ),
@@ -305,48 +305,56 @@ REGISTER_SECONDARY_COMPRESSOR = {
 }
 
 REGISTER_CIRCUIT_1 = {
-    "circuit1_power": RegisterDefinition(1002),
+    "circuit1_power": RegisterDefinition(1052, write_address=1002),
     "circuit1_otc_calculation_method_heating": RegisterDefinition(
-        1003, deserializer=deserialize_otc_method_heating
+        1053, deserializer=deserialize_otc_method_heating, write_address=1003
     ),
     "circuit1_otc_calculation_method_cooling": RegisterDefinition(
-        1004, deserializer=deserialize_otc_method_cooling
+        1054, deserializer=deserialize_otc_method_cooling, write_address=1004
     ),
-    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1005),
-    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1006),
-    "circuit1_eco_mode": RegisterDefinition(1007),
-    "circuit1_heat_eco_offset": RegisterDefinition(1008),
-    "circuit1_cool_eco_offset": RegisterDefinition(1009),
+    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1055, write_address=1005),
+    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1056, write_address=1006),
+    "circuit1_eco_mode": RegisterDefinition(1057, write_address=1007),
+    "circuit1_heat_eco_offset": RegisterDefinition(1058, write_address=1008),
+    "circuit1_cool_eco_offset": RegisterDefinition(1059, write_address=1009),
     "circuit1_thermostat": RegisterDefinition(1010),
-    "circuit1_target_temp": RegisterDefinition(1011, deserializer=convert_from_tenths),
-    "circuit1_current_temp": RegisterDefinition(1012, deserializer=convert_from_tenths),
+    "circuit1_target_temp": RegisterDefinition(
+        1060, deserializer=convert_from_tenths, write_address=1011
+    ),
+    "circuit1_current_temp": RegisterDefinition(
+        1061, deserializer=convert_from_tenths, write_address=1012
+    ),
 }
 
 REGISTER_CIRCUIT_2 = {
-    "circuit2_power": RegisterDefinition(1013),
+    "circuit2_power": RegisterDefinition(1064, write_address=1013),
     "circuit2_otc_calculation_method_heating": RegisterDefinition(
-        1014, deserializer=deserialize_otc_method_heating
+        1065, deserializer=deserialize_otc_method_heating, write_address=1014
     ),
     "circuit2_otc_calculation_method_cooling": RegisterDefinition(
-        1015, deserializer=deserialize_otc_method_cooling
+        1066, deserializer=deserialize_otc_method_cooling, write_address=1015
     ),
-    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1016),
-    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1017),
-    "circuit2_eco_mode": RegisterDefinition(1018),
-    "circuit2_heat_eco_offset": RegisterDefinition(1019),
-    "circuit2_cool_eco_offset": RegisterDefinition(1020),
+    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1067, write_address=1016),
+    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1068, write_address=1017),
+    "circuit2_eco_mode": RegisterDefinition(1069, write_address=1018),
+    "circuit2_heat_eco_offset": RegisterDefinition(1070, write_address=1019),
+    "circuit2_cool_eco_offset": RegisterDefinition(1071, write_address=1020),
     "circuit2_thermostat": RegisterDefinition(1021),
-    "circuit2_target_temp": RegisterDefinition(1022, deserializer=convert_from_tenths),
-    "circuit2_current_temp": RegisterDefinition(1023, deserializer=convert_from_tenths),
+    "circuit2_target_temp": RegisterDefinition(
+        1072, deserializer=convert_from_tenths, write_address=1022
+    ),
+    "circuit2_current_temp": RegisterDefinition(
+        1073, deserializer=convert_from_tenths, write_address=1023
+    ),
 }
 
 REGISTER_DHW = {
-    "dhw_power": RegisterDefinition(1024),
-    "dhw_target_temp": RegisterDefinition(1025),
-    "dhw_boost": RegisterDefinition(1026),
-    "dhw_high_demand": RegisterDefinition(1027),
-    "dhw_antilegionella": RegisterDefinition(1030),
-    "dhw_antilegionella_temp": RegisterDefinition(1031),
+    "dhw_power": RegisterDefinition(1076, write_address=1024),
+    "dhw_target_temp": RegisterDefinition(1077, write_address=1025),
+    "dhw_boost": RegisterDefinition(1078, write_address=1026),
+    "dhw_high_demand": RegisterDefinition(1079, write_address=1027),
+    "dhw_antilegionella": RegisterDefinition(1084, write_address=1030),
+    "dhw_antilegionella_temp": RegisterDefinition(1085, write_address=1031),
     "dhw_demand_mode": RegisterDefinition(1079),
     "dhw_current_temp": RegisterDefinition(
         1080, deserializer=convert_signed_16bit, sentinel_values=frozenset({-67})
@@ -356,8 +364,8 @@ REGISTER_DHW = {
 }
 
 REGISTER_POOL = {
-    "pool_power": RegisterDefinition(1028),
-    "pool_target_temp": RegisterDefinition(1029),
+    "pool_power": RegisterDefinition(1081, write_address=1028),
+    "pool_target_temp": RegisterDefinition(1082, write_address=1029),
     "pool_current_temp": RegisterDefinition(
         1083, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
     ),

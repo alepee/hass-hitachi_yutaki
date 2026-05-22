@@ -134,6 +134,81 @@ class TestKeyNamingCompatibility:
             assert key in hca.all_registers, f"Writable key {key} not in all_registers"
 
 
+class TestStatusReadInvariant:
+    """Every writable key must read from STATUS, with rare documented exceptions.
+
+    See issue #295: reading from CONTROL returns the last commanded value rather
+    than what the unit is actually using, which masks internal overrides
+    (anti-legionella, OTC adjustment, central-control conflicts).
+    """
+
+    # Keys that have no STATUS counterpart in the gateway documentation
+    # and must therefore read from CONTROL. Keep this set tight — adding an
+    # entry without a documented justification re-introduces the bug class.
+    ATW_MBS_02_EXCEPTIONS = {
+        # No STATUS "Room thermostat available" bit in the 2016 R section
+        "circuit1_thermostat",
+        "circuit2_thermostat",
+    }
+    ATW_MBS_02_PRE2016_EXCEPTIONS = {
+        # No Status Unit Run/Stop in pre-2016 (only Status Unit Mode)
+        "unit_power",
+        # No STATUS counterpart for "Room thermostat available" pre-2016
+        "circuit1_thermostat",
+        "circuit2_thermostat",
+    }
+
+    HC_A_MB_EXCEPTIONS = {
+        # CONTROL-only: no STATUS counterpart for "Room thermostat available"
+        "circuit1_thermostat",
+        "circuit2_thermostat",
+    }
+
+    def _assert_split(self, register_map, exceptions, gateway_label):
+        for key in register_map.writable_keys:
+            reg = register_map.all_registers[key]
+            if key in exceptions:
+                # CONTROL-only key: either write_address is unset, or it equals
+                # address (defensive duplication). Both mean "reads the same
+                # CONTROL register that writes target".
+                if reg.write_address is not None:
+                    assert reg.write_address == reg.address, (
+                        f"{gateway_label}: {key} is a CONTROL-only exception "
+                        f"but read ({reg.address}) and write ({reg.write_address}) "
+                        f"addresses differ."
+                    )
+                continue
+            assert reg.write_address is not None, (
+                f"{gateway_label}: writable key {key} reads from CONTROL "
+                f"({reg.address}); should read from STATUS and set write_address. "
+                f"See issue #295."
+            )
+            assert reg.address != reg.write_address, (
+                f"{gateway_label}: {key} read and write addresses are equal "
+                f"({reg.address}) — STATUS/CONTROL split missing."
+            )
+
+    def test_atw_mbs_02_writes_separate_from_reads(self):
+        """ATW-MBS-02 (2016): every R/W key reads STATUS, writes CONTROL."""
+        self._assert_split(
+            AtwMbs02RegisterMap(),
+            self.ATW_MBS_02_EXCEPTIONS,
+            "ATW-MBS-02",
+        )
+
+    def test_atw_mbs_02_pre2016_writes_separate_from_reads(self):
+        """ATW-MBS-02 pre-2016: every R/W key reads STATUS, writes CONTROL."""
+        self._assert_split(
+            AtwMbs02Pre2016RegisterMap(),
+            self.ATW_MBS_02_PRE2016_EXCEPTIONS,
+            "ATW-MBS-02 Pre-2016",
+        )
+
+    def test_hc_a_mb_writes_separate_from_reads(self):
+        """HC-A(16/64)MB: every R/W key reads STATUS offset, writes CONTROL offset."""
+        self._assert_split(HcAMbRegisterMap(), self.HC_A_MB_EXCEPTIONS, "HC-A(16/64)MB")
+
+
 class TestBitMasks:
     """Test bit mask values across gateways."""
 

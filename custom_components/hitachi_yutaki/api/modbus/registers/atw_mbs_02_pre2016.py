@@ -99,7 +99,7 @@ REGISTER_GATEWAY = {
 
 REGISTER_CONTROL_UNIT = {
     "unit_power": RegisterDefinition(1000),
-    "unit_mode": RegisterDefinition(1001),
+    "unit_mode": RegisterDefinition(1050, write_address=1001),
     "operation_state": RegisterDefinition(
         1077, deserializer=deserialize_operation_state
     ),
@@ -165,40 +165,48 @@ REGISTER_SECONDARY_COMPRESSOR = {
 }
 
 REGISTER_CIRCUIT_1 = {
-    "circuit1_power": RegisterDefinition(1002),
+    "circuit1_power": RegisterDefinition(1051, write_address=1002),
     "circuit1_otc_calculation_method_heating": RegisterDefinition(
-        1003, deserializer=deserialize_otc_method_heating
+        1052, deserializer=deserialize_otc_method_heating, write_address=1003
     ),
     "circuit1_otc_calculation_method_cooling": RegisterDefinition(
-        1004, deserializer=deserialize_otc_method_cooling
+        1053, deserializer=deserialize_otc_method_cooling, write_address=1004
     ),
-    "circuit1_target_temp": RegisterDefinition(1005, deserializer=convert_from_tenths),
-    "circuit1_current_temp": RegisterDefinition(1006, deserializer=convert_from_tenths),
-    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1007),
-    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1008),
+    "circuit1_target_temp": RegisterDefinition(
+        1054, deserializer=convert_from_tenths, write_address=1005
+    ),
+    "circuit1_current_temp": RegisterDefinition(
+        1055, deserializer=convert_from_tenths, write_address=1006
+    ),
+    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1056, write_address=1007),
+    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1057, write_address=1008),
     "circuit1_thermostat": RegisterDefinition(1029),
 }
 
 REGISTER_CIRCUIT_2 = {
-    "circuit2_power": RegisterDefinition(1009),
+    "circuit2_power": RegisterDefinition(1058, write_address=1009),
     "circuit2_otc_calculation_method_heating": RegisterDefinition(
-        1010, deserializer=deserialize_otc_method_heating
+        1059, deserializer=deserialize_otc_method_heating, write_address=1010
     ),
     "circuit2_otc_calculation_method_cooling": RegisterDefinition(
-        1011, deserializer=deserialize_otc_method_cooling
+        1060, deserializer=deserialize_otc_method_cooling, write_address=1011
     ),
-    "circuit2_target_temp": RegisterDefinition(1012, deserializer=convert_from_tenths),
-    "circuit2_current_temp": RegisterDefinition(1013, deserializer=convert_from_tenths),
-    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1014),
-    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1015),
+    "circuit2_target_temp": RegisterDefinition(
+        1061, deserializer=convert_from_tenths, write_address=1012
+    ),
+    "circuit2_current_temp": RegisterDefinition(
+        1062, deserializer=convert_from_tenths, write_address=1013
+    ),
+    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1063, write_address=1014),
+    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1064, write_address=1015),
     "circuit2_thermostat": RegisterDefinition(1029),
 }
 
 REGISTER_DHW = {
-    "dhw_power": RegisterDefinition(1016),
-    "dhw_target_temp": RegisterDefinition(1017),
-    "dhw_antilegionella": RegisterDefinition(1020),
-    "dhw_antilegionella_temp": RegisterDefinition(1021),
+    "dhw_power": RegisterDefinition(1065, write_address=1016),
+    "dhw_target_temp": RegisterDefinition(1066, write_address=1017),
+    "dhw_antilegionella": RegisterDefinition(1069, write_address=1020),
+    "dhw_antilegionella_temp": RegisterDefinition(1070, write_address=1021),
     "dhw_current_temp": RegisterDefinition(
         1075, deserializer=convert_signed_16bit, sentinel_values=frozenset({-67})
     ),
@@ -207,8 +215,8 @@ REGISTER_DHW = {
 }
 
 REGISTER_POOL = {
-    "pool_power": RegisterDefinition(1018),
-    "pool_target_temp": RegisterDefinition(1019),
+    "pool_power": RegisterDefinition(1067, write_address=1018),
+    "pool_target_temp": RegisterDefinition(1068, write_address=1019),
     "pool_current_temp": RegisterDefinition(
         1076, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
     ),

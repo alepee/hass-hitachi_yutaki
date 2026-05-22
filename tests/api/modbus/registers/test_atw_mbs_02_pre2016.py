@@ -61,7 +61,8 @@ class TestPre2016RegisterMap:
             "outdoor_temp": 1078,
             "water_inlet_temp": 1079,
             "unit_model": 1217,
-            "dhw_power": 1016,
+            # dhw_power reads from STATUS (1065) since #295; writes go to CONTROL 1016
+            "dhw_power": 1065,
             "dhw_current_temp": 1075,
             "system_config": 1074,
         }
