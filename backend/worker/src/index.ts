@@ -5,7 +5,8 @@
  *   - Accepts gzipped or plain JSON
  *   - Validates and sanitizes payload (field whitelist)
  *   - Rate limits per instance_hash (1 req/min via Cache API)
- *   - Single sink: R2 (permanent JSON archive, partitioned Hive-style)
+ *   - R2 (permanent JSON archive, partitioned Hive-style) — sole archive, all types
+ *   - Analytics Engine (dataset hitachi_installations) — installation payloads only, for the fleet dashboard
  *   - Returns 202 Accepted on success, 502 Bad Gateway if R2 is unavailable
  */
 
@@ -57,6 +58,38 @@ export default {
       } catch (err) {
         console.error("R2 archive failed:", err);
         return new Response("R2 archive unavailable", { status: 502 });
+      }
+
+      // Mirror installation payloads into Analytics Engine for the fleet
+      // dashboard. Non-blocking and best-effort: a WAE failure never changes
+      // the response — R2 success is the contract.
+      if (payload.type === "installation") {
+        try {
+          const d = payload.data;
+          env.AE.writeDataPoint({
+            indexes: [payload.instance_hash],
+            blobs: [
+              payload.instance_hash,
+              d.profile,
+              d.gateway_type,
+              d.power_supply ?? "",
+              d.integration_version ?? "",
+              d.ha_version ?? "",
+              d.climate_zone ?? "",
+            ],
+            doubles: [
+              d.has_dhw ? 1 : 0,
+              d.has_pool ? 1 : 0,
+              d.has_cooling ? 1 : 0,
+              d.has_secondary_compressor ? 1 : 0,
+              d.max_circuits ?? 0,
+              d.latitude ?? 0,
+              d.longitude ?? 0,
+            ],
+          });
+        } catch (err) {
+          console.warn("WAE write failed:", err);
+        }
       }
 
       return new Response(null, { status: 202 });
