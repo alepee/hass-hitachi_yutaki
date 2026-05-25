@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 import logging
 from typing import Any
 
@@ -75,6 +75,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.telemetry_client: HttpTelemetryClient | NoopTelemetryClient = None  # type: ignore[assignment]
         self._telemetry_meta: dict[str, Any] = {}
         self._installation_info_sent: bool = False
+        self._installation_sent_date: date | None = None
         self._snapshot_sent: bool = False
         self._onetime_send_lock: asyncio.Lock = asyncio.Lock()
         self._telemetry_next_retry: datetime | None = None
@@ -154,6 +155,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             # (collector handles level=OFF internally)
             self.telemetry_collector.collect(data)
 
+            # Re-arm the daily installation re-send before the send gate so a
+            # stable install stays visible in WAE's 90-day fleet window.
+            self._maybe_rearm_installation_resend(datetime.now(tz=UTC).date())
+
             # Send one-time telemetry data (with backoff on failure)
             # Fire-and-forget to avoid blocking the Modbus poll path
             if not self._installation_info_sent or not self._snapshot_sent:
@@ -210,6 +215,24 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self._telemetry_retry_delay = min(self._telemetry_retry_delay * 2, 300)
             else:
                 self._telemetry_next_retry = None
+                # Reset so each new day's installation re-send starts with a fresh backoff baseline.
+                self._telemetry_retry_delay = 30
+
+    def _maybe_rearm_installation_resend(self, today: date) -> None:
+        """Re-arm the installation telemetry send when the UTC day changes.
+
+        WAE retains 90 days, so a stable installation that never restarts HA
+        would otherwise drop off the fleet dashboard. Re-arming once per UTC
+        day keeps the 90-day window populated. The actual send rides the
+        existing one-time send path (lock + exponential backoff). Only the
+        installation flag is re-armed; the register snapshot is a genuine
+        one-time payload and is intentionally left sent.
+        """
+        if (
+            self._installation_sent_date is not None
+            and self._installation_sent_date != today
+        ):
+            self._installation_info_sent = False
 
     async def _send_installation_info(self) -> None:
         """Build and send installation info on first successful poll."""
@@ -244,6 +267,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             success = await self.telemetry_client.send_installation(info)
             if success:
                 self._installation_info_sent = True
+                self._installation_sent_date = datetime.now(tz=UTC).date()
         except Exception:
             _LOGGER.debug("Failed to send telemetry installation info", exc_info=True)
 

@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Telemetry backend: fleet-inventory dashboard. The Worker now mirrors each `installation` payload into Cloudflare Workers Analytics Engine (dataset `hitachi_installations`), feeding a Grafana dashboard that shows active integration/HA versions, heat-pump profiles, gateway types, and configuration flags (cooling, DHW, pool, S80, circuits, power supply) plus per-installation drill-down by anonymous hash. R2 remains the single permanent archive. The integration re-sends the (anonymous) installation payload once per day so the dashboard's 90-day window reflects the active fleet.
+
+## [2.1.1-beta.1] - 2026-05-22
+
 ### Changed
 - Telemetry backend: Cloudflare R2 is now the single source of truth. The Worker no longer dual-writes to TimescaleDB / TigerData; the `pg` driver, `db.ts` module, and Hyperdrive binding have been removed. R2 partitioning (`metrics/year=YYYY/month=MM/day=DD/`) is unchanged. Notebooks should consume the JSON archive directly via DuckDB + httpfs.
+- Dev tooling: bump `ruff` from 0.15.11 to 0.15.14 (#287, #294, #297)
 
 ### Fixed
 - ATW-MBS-02: read R/W registers from STATUS addresses instead of CONTROL. The CONTROL range only reflects what was last commanded; STATUS reflects what the unit is actually using. This fixes silent divergences when the unit internally overrides a setpoint (anti-legionella cycle, OTC adjustment, central-control conflict). Affects both Line-up 2016 (29 keys) and Before Line-up 2016 (19 keys) maps. Writes still target CONTROL via the existing `write_address` mechanism, mirroring the HC-A(16/64)MB pattern. Likely root cause of the DHW reference temperature jumping reported in #293 (#295)

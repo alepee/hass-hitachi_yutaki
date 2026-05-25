@@ -7,6 +7,10 @@ compatibility_flags = ["nodejs_compat"]
 binding = "ARCHIVE"
 bucket_name = "hitachi-telemetry-archive"
 
+[[analytics_engine_datasets]]
+binding = "AE"
+dataset = "hitachi_installations"
+
 [observability]
 [observability.logs]
 enabled = true

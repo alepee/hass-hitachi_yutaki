@@ -247,8 +247,11 @@ Coordinator poll ──→ TelemetryCollector (circular buffer)
                ▼
      Cloudflare Worker (validate, rate-limit per type)
                          │
-                         ▼
-                R2 (permanent JSON archive)
+              ┌──────────┴───────────┐
+              ▼                      ▼
+     R2 (permanent JSON       Analytics Engine
+     archive, all types)      (installation only,
+                              90-day fleet dashboard)
 ```
 
 **Key design decisions:**
@@ -258,3 +261,4 @@ Coordinator poll ──→ TelemetryCollector (circular buffer)
 - One-time sends (installation info, register snapshot) are fire-and-forget (`async_create_task`) with `asyncio.Lock` + exponential backoff to avoid blocking the Modbus poll path
 - `thermal_power`, `electrical_power`, `cop_instant` are NULL — they require per-entity domain service state and can be recomputed server-side from raw data
 - Poll interval for time-based aggregations (compressor hours, energy kWh) is computed from actual point timestamps, not hardcoded
+- Installation payloads are mirrored to Workers Analytics Engine (`hitachi_installations`, 90-day window) to power a Grafana fleet-inventory dashboard; R2 stays the only permanent archive

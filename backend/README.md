@@ -9,6 +9,7 @@ HA Integration (HttpTelemetryClient)
     → POST /v1/ingest (gzip JSON)
     → Cloudflare Worker (validate, rate limit, enrich with Köppen zone)
         → R2 (permanent JSON archive, partitioned Hive-style)
+        → Analytics Engine (installation payloads only, fleet dashboard)
 ```
 
 ## Infrastructure
@@ -17,6 +18,7 @@ HA Integration (HttpTelemetryClient)
 |---------|------------|---------|
 | **Cloudflare Worker** | `hitachi-telemetry.antoine-04c.workers.dev` | Ingestion proxy |
 | **R2** | `hitachi-telemetry-archive` | Permanent JSON archive of all payloads |
+| **Analytics Engine** | `hitachi_installations` | Installation payloads mirrored for the Grafana fleet dashboard |
 
 ## Querying the archive
 
@@ -35,6 +37,44 @@ FROM read_json_auto(
 GROUP BY 1
 ORDER BY points DESC;
 ```
+
+## Fleet dashboard (Grafana + Analytics Engine)
+
+Each `installation` payload is mirrored into the Workers Analytics Engine dataset
+`hitachi_installations` (the worker auto-creates it on first write). Grafana Cloud
+reads it through the WAE SQL API. The dashboard model is committed at
+`backend/grafana/installations-dashboard.json`.
+
+**Grafana data source** (Altinity ClickHouse plugin):
+- URL: `https://api.cloudflare.com/client/v4/accounts/<account_id>/analytics_engine/sql`
+- Auth: add a custom header `Authorization: Bearer <token>`, where `<token>` has the
+  `Account Analytics Read` permission. Leave the plugin's own auth settings off.
+
+**Base query — latest config per active install:**
+
+```sql
+SELECT
+  blob1 AS instance_hash,
+  argMax(blob2, timestamp) AS profile,
+  argMax(blob3, timestamp) AS gateway_type,
+  argMax(blob4, timestamp) AS power_supply,
+  argMax(blob5, timestamp) AS integration_version,
+  argMax(blob6, timestamp) AS ha_version,
+  argMax(blob7, timestamp) AS climate_zone,
+  argMax(double5, timestamp) AS max_circuits
+FROM hitachi_installations
+WHERE timestamp > NOW() - INTERVAL '90' DAY
+GROUP BY instance_hash
+```
+
+"Active" means the install sent telemetry in the last 90 days (the integration
+re-sends the installation payload daily, so the window stays populated).
+
+> **Sampling note:** WAE samples high-volume datasets. At the current fleet scale
+> (hundreds of installs, ~1 event/install/day) no sampling occurs, so raw `count()`
+> is exact. The distribution panels count over a per-hash de-duplicated subquery
+> (one row per install), which is sample-safe regardless. If the fleet ever grows
+> large enough for WAE to sample, switch raw event counts to `SUM(_sample_interval)`.
 
 ## Worker
 
