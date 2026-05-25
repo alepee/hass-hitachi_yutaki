@@ -1,6 +1,7 @@
 /** Cloudflare Worker environment bindings. */
 export interface Env {
   ARCHIVE: R2Bucket;
+  AE: AnalyticsEngineDataset;
 }
 
 /** Base payload with type discriminator. */
