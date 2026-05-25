@@ -106,8 +106,8 @@ self-heals on the next poll.
 | `double6` | `latitude` (0 if absent) |
 | `double7` | `longitude` (0 if absent) |
 
-This is well within WAE limits (≤ 20 blobs, ≤ 20 doubles, ≤ 1 index, ≤ 5 KB per
-data point). The dataset is auto-created on first write — no manual setup.
+This is well within WAE per-data-point limits (≤ 20 blobs, ≤ 20 doubles, 1 index).
+The dataset is auto-created on first write — no manual setup.
 
 ### 3. Grafana Cloud
 

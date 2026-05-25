@@ -106,6 +106,14 @@ def coordinator():
         coord = HitachiYutakiDataCoordinator(hass, entry, api_client, profile)
     coord.telemetry_collector = TelemetryCollector(level=TelemetryLevel.OFF)
     coord.telemetry_client = NoopTelemetryClient()
+    coord._telemetry_meta = {
+        "instance_hash": "0" * 64,
+        "profile": "yutaki_s",
+        "gateway_type": "modbus_atw_mbs_02",
+        "ha_version": "2026.5.0",
+        "integration_version": "2.1.1",
+        "power_supply": "single",
+    }
     return coord
 
 
@@ -213,7 +221,7 @@ Replace it with:
 
 - [ ] **Step 7: Record the send date on success**
 
-In `_send_installation_info`, the success branch (lines 245-246) currently reads:
+In `_send_installation_info`, the success branch (lines 244-246) currently reads:
 
 ```python
             success = await self.telemetry_client.send_installation(info)
@@ -228,6 +236,27 @@ Change it to:
             if success:
                 self._installation_info_sent = True
                 self._installation_sent_date = datetime.now(tz=UTC).date()
+```
+
+- [ ] **Step 7b: Reset the backoff delay on a successful one-time send**
+
+The daily re-send now exercises `_send_onetime_telemetry` far more often than the
+old once-per-session path. Today its success branch clears `_telemetry_next_retry`
+but leaves `_telemetry_retry_delay` permanently inflated after any transient
+failure. In `_send_onetime_telemetry`, the success branch (lines 211-212)
+currently reads:
+
+```python
+            else:
+                self._telemetry_next_retry = None
+```
+
+Change it to:
+
+```python
+            else:
+                self._telemetry_next_retry = None
+                self._telemetry_retry_delay = 30
 ```
 
 - [ ] **Step 8: Run the test to verify it passes**
@@ -460,16 +489,22 @@ Expected: `HTTP/1.1 400` (validator requires `profile` and `gateway_type`).
 - Modify: `docs/reference/telemetry.md`
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: Update the backend README external-services table**
+- [ ] **Step 1: Add an Analytics Engine row to the backend README Infrastructure table**
 
-In `backend/README.md`, add a row to the "External services" table so it reads:
+In `backend/README.md`, the table lives under the `## Infrastructure` heading and
+already has a `Cloudflare Worker` row and an `R2` row. **Append one row** (do not
+replace the table — the Worker and R2 rows must stay). After the edit it reads:
 
 ```markdown
 | Service | Identifier | Purpose |
 |---------|------------|---------|
+| **Cloudflare Worker** | `hitachi-telemetry.antoine-04c.workers.dev` | Ingestion proxy |
 | **R2** | `hitachi-telemetry-archive` | Permanent JSON archive of all payloads |
 | **Analytics Engine** | `hitachi_installations` | Installation payloads mirrored for the Grafana fleet dashboard |
 ```
+
+Also update the `## Architecture` ASCII diagram (backend/README.md:7-12): under the
+`→ R2 (...)` line, add a sibling line `→ Analytics Engine (installation only, fleet dashboard)`.
 
 - [ ] **Step 2: Add a "Fleet dashboard" section to the backend README**
 
@@ -507,6 +542,12 @@ GROUP BY instance_hash
 
 "Active" means the install sent telemetry in the last 90 days (the integration
 re-sends the installation payload daily, so the window stays populated).
+
+> **Sampling note:** WAE samples high-volume datasets. At the current fleet scale
+> (hundreds of installs, ~1 event/install/day) no sampling occurs, so raw `count()`
+> is exact. The distribution panels count over a per-hash de-duplicated subquery
+> (one row per install), which is sample-safe regardless. If the fleet ever grows
+> large enough for WAE to sample, switch raw event counts to `SUM(_sample_interval)`.
 ````
 
 - [ ] **Step 3: Update `docs/reference/telemetry.md`**
