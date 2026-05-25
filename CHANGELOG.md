@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Telemetry backend: fleet-inventory dashboard. The Worker now mirrors each `installation` payload into Cloudflare Workers Analytics Engine (dataset `hitachi_installations`), feeding a Grafana dashboard that shows active integration/HA versions, heat-pump profiles, gateway types, and configuration flags (cooling, DHW, pool, S80, circuits, power supply) plus per-installation drill-down by anonymous hash. R2 remains the single permanent archive. The integration re-sends the (anonymous) installation payload once per day so the dashboard's 90-day window reflects the active fleet.
+
 ## [2.1.1-beta.1] - 2026-05-22
 
 ### Changed
