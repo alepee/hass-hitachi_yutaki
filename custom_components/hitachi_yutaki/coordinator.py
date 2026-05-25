@@ -215,6 +215,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self._telemetry_retry_delay = min(self._telemetry_retry_delay * 2, 300)
             else:
                 self._telemetry_next_retry = None
+                # Reset so each new day's installation re-send starts with a fresh backoff baseline.
                 self._telemetry_retry_delay = 30
 
     def _maybe_rearm_installation_resend(self, today: date) -> None:
@@ -223,7 +224,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         WAE retains 90 days, so a stable installation that never restarts HA
         would otherwise drop off the fleet dashboard. Re-arming once per UTC
         day keeps the 90-day window populated. The actual send rides the
-        existing one-time send path (lock + exponential backoff).
+        existing one-time send path (lock + exponential backoff). Only the
+        installation flag is re-armed; the register snapshot is a genuine
+        one-time payload and is intentionally left sent.
         """
         if (
             self._installation_sent_date is not None
