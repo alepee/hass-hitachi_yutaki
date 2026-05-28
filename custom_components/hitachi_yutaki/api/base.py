@@ -8,7 +8,21 @@ from custom_components.hitachi_yutaki.const import CIRCUIT_IDS, CIRCUIT_MODES
 
 
 class ReadResult(Enum):
-    """Result of a read_values operation."""
+    """Result of a read_values operation.
+
+    Callers MUST check this return value before reading individual register
+    values via read_value(). Contract:
+
+    - SUCCESS: requested keys were read and _data is populated. read_value()
+      will return the actual register values (or None if a specific register
+      failed/was filtered as a sentinel).
+    - GATEWAY_NOT_READY: the gateway reported an unhealthy system_state
+      (initializing or desynchronized from the heat pump). read_values()
+      short-circuited BEFORE reading any of the requested keys, so _data is
+      NOT populated and read_value() will return None for all of them.
+      Callers must surface a user-facing error and not attempt to use the
+      values.
+    """
 
     SUCCESS = "success"
     GATEWAY_NOT_READY = "gateway_not_ready"
@@ -69,7 +83,13 @@ class HitachiApiClient(ABC):
 
     @abstractmethod
     async def read_values(self, keys_to_read: list[str]) -> ReadResult:
-        """Fetch data from the heat pump for the given keys."""
+        """Fetch data from the heat pump for the given keys.
+
+        Callers MUST inspect the returned ReadResult. See ReadResult for the
+        full contract. On GATEWAY_NOT_READY, none of the requested keys were
+        read; callers must not consume read_value() output and should surface
+        an appropriate error to the user.
+        """
 
     @property
     @abstractmethod

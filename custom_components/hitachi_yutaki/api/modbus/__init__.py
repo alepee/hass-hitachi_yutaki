@@ -270,8 +270,14 @@ class ModbusApiClient(HitachiApiClient):
         return bool(system_config & self._register_map.mask_pool)
 
     def decode_config(self, data: dict[str, Any]) -> dict[str, Any]:
-        """Decode raw config data into a dictionary of boolean flags."""
-        system_config = data.get("system_config", 0)
+        """Decode raw config data into a dictionary of boolean flags.
+
+        Defensive: treats a missing or ``None`` ``system_config`` as ``0``
+        (no modules detected) instead of raising ``TypeError``. Callers should
+        still avoid passing unread data (see :class:`ReadResult` contract).
+        """
+        # `or 0` (not the dict default) so a None value also falls back to 0.
+        system_config = data.get("system_config") or 0
         rmap = self._register_map
         decoded = data.copy()
         decoded["has_dhw"] = bool(system_config & rmap.mask_dhw)
@@ -350,7 +356,15 @@ class ModbusApiClient(HitachiApiClient):
         return value
 
     async def read_values(self, keys: list[str]) -> ReadResult:
-        """Fetch data from the heat pump for the given keys."""
+        """Fetch data from the heat pump for the given keys.
+
+        Always performs a preflight read of ``system_state``. If the gateway
+        reports an unhealthy state (initializing or desynchronized), returns
+        ``ReadResult.GATEWAY_NOT_READY`` WITHOUT reading any of the requested
+        keys — only ``system_state`` is populated in ``_data``. Callers must
+        check the return value before consuming ``read_value()`` output. See
+        :class:`ReadResult` for the full contract.
+        """
         retry_count = 0
         max_read_retries = 1  # Only retry once after reconnection
 
