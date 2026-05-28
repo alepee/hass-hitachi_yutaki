@@ -208,7 +208,7 @@
       "unknown": "Er is een onbekende fout opgetreden. Controleer de logboeken.",
       "system_initializing": "De Hitachi Yutaki gateway wordt geïnitialiseerd. Wacht even en probeer het opnieuw.",
       "desync_error": "De gateway is niet gesynchroniseerd met de warmtepomp. Controleer of de warmtepomp is ingeschakeld en of de verbinding tussen beide apparaten correct is.",
-      "gateway_not_ready": "De gateway is bereikbaar maar nog niet klaar (wordt nog geïnitialiseerd of is niet gesynchroniseerd met de warmtepomp). Dit is normaal gedurende enkele minuten na het inschakelen van de gateway. Als het probleem aanhoudt, raadpleeg de probleemoplossingsgids: https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/troubleshooting.md"
+      "gateway_not_ready": "De gateway is bereikbaar maar nog niet klaar (wordt nog geïnitialiseerd of is niet gesynchroniseerd met de warmtepomp). Dit is normaal gedurende enkele minuten na het inschakelen van de gateway. Als het probleem aanhoudt, controleer de H-LINK bedrading (klemmen 1-2 op de PCB van de binnenunit, afgeschermde getwiste paar 0.75 mm²) en raadpleeg de probleemoplossingsgids van het project."
     },
     "abort": {
       "already_configured": "Deze Hitachi Yutaki gateway is al geconfigureerd.",
