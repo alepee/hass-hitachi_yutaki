@@ -97,6 +97,16 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             return self.derived_metrics.defrost_guard
         return self._defrost_guard
 
+    @property
+    def gateway_not_ready(self) -> bool:
+        """Return True when the most recent poll hit GATEWAY_NOT_READY.
+
+        Set by ``_async_update_data`` and cleared on the first successful read.
+        Used by setup code to discriminate a transient H-LINK init window from
+        a genuine connectivity failure.
+        """
+        return self._gateway_not_ready_count > 0
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Hitachi Yutaki."""
         try:

@@ -137,3 +137,43 @@ async def test_coordinator_restores_interval_on_recovery(coordinator, mock_api_c
         await coordinator._async_update_data()
         assert coordinator.update_interval == normal
         assert coordinator._gateway_not_ready_count == 0
+
+
+@pytest.mark.asyncio
+async def test_gateway_not_ready_property_false_initially(coordinator):
+    """Initially the gateway is considered ready."""
+    assert coordinator.gateway_not_ready is False
+
+
+@pytest.mark.asyncio
+async def test_gateway_not_ready_property_true_after_gateway_not_ready(
+    coordinator, mock_api_client
+):
+    """Property reflects a recent gateway_not_ready result."""
+    mock_api_client.read_values.return_value = ReadResult.GATEWAY_NOT_READY
+
+    with (
+        patch("custom_components.hitachi_yutaki.coordinator.ir"),
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    assert coordinator.gateway_not_ready is True
+
+
+@pytest.mark.asyncio
+async def test_gateway_not_ready_property_false_after_recovery(
+    coordinator, mock_api_client
+):
+    """Property clears once the gateway poll succeeds again."""
+    mock_api_client.read_values.return_value = ReadResult.GATEWAY_NOT_READY
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        with pytest.raises(UpdateFailed):  # noqa: SIM117
+            await coordinator._async_update_data()
+        assert coordinator.gateway_not_ready is True
+
+        mock_api_client.read_values.return_value = ReadResult.SUCCESS
+        await coordinator._async_update_data()
+
+    assert coordinator.gateway_not_ready is False

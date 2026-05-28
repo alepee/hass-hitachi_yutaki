@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Options/reconfigure flow: fill missing translations in `translations/en.json`, `translations/fr.json`, `translations/nl.json` and `translations/ro.json` so the connection step shows translated error messages and field labels (`name`, `scan_interval`) instead of raw keys like `gateway_not_ready`. Both ATW-MBS-02 and HC-A(16/64)MB connection steps now mirror the initial setup flow (#302).
+- Setup: tolerate a transient `gateway_not_ready` (Modbus TCP up, H-LINK still initializing after a gateway power-cycle) during entry setup/reload. Previously a duplicate `async_config_entry_first_refresh()` call re-raised `ConfigEntryNotReady` and produced a "Setup failed, will retry" banner even though the gateway was simply in its H-LINK initialization window. Setup now completes; entities are `unavailable` until the next successful poll. Genuine connection failures (TCP unreachable, other Modbus errors) still raise `ConfigEntryNotReady` so HA's standard retry mechanism applies (#303).
 
 ### Changed
 - Config flow: preserve user-typed values (host, port, slave, name, scan interval, gateway variant) when a provider step fails validation (`cannot_connect`, `gateway_not_ready`, `invalid_slave`, ...). Applies to both initial setup and reconfigure/options flows, for ATW-MBS-02 and HC-A(16/64)MB providers. Previously, fields were reset to defaults on every retry (#304).
