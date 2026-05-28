@@ -80,21 +80,25 @@
       },
       "atw_mbs_02_connection": {
         "title": "Setări de conexiune",
-        "description": "Introduceți detaliile de conexiune pentru gateway-ul dumneavoastră.",
+        "description": "Introduceți detaliile de conexiune pentru gateway-ul pompei de căldură Hitachi Yutaki.",
         "data": {
+          "name": "Nume",
           "modbus_host": "Gazdă/Adresă IP",
           "modbus_port": "Port",
-          "modbus_device_id": "ID Dispozitiv Modbus"
+          "modbus_device_id": "ID Dispozitiv Modbus",
+          "scan_interval": "Interval de interogare (secunde)"
         }
       },
       "hc_a_mb_connection": {
         "title": "Setări de conexiune",
-        "description": "Introduceți detaliile de conexiune pentru gateway-ul dumneavoastră.",
+        "description": "Introduceți detaliile de conexiune pentru gateway-ul pompei de căldură Hitachi Yutaki.",
         "data": {
+          "name": "Nume",
           "modbus_host": "Gazdă/Adresă IP",
           "modbus_port": "Port",
           "modbus_device_id": "ID Dispozitiv Modbus",
-          "unit_id": "ID unitate"
+          "unit_id": "ID unitate",
+          "scan_interval": "Interval de interogare (secunde)"
         }
       },
       "profile": {
@@ -135,6 +139,16 @@
           "telemetry_level": "Telemetrie anonimă"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Nu s-a putut conecta la gateway. Verificați gazda și portul.",
+      "invalid_slave": "ID slave Modbus invalid. Verificați ID-ul și încercați din nou.",
+      "modbus_error": "A apărut o eroare Modbus. Consultați jurnalele pentru mai multe detalii.",
+      "invalid_central_control_mode": "Gateway-ul trebuie să fie în modul de control 'Central'. Modificați această setare în configurarea gateway-ului.",
+      "unknown": "A apărut o eroare necunoscută. Consultați jurnalele.",
+      "system_initializing": "Gateway-ul Hitachi Yutaki se inițializează. Așteptați un moment și încercați din nou.",
+      "desync_error": "Gateway-ul este desincronizat de pompa de căldură. Asigurați-vă că pompa de căldură este pornită și că legătura dintre cele două dispozitive este corectă.",
+      "gateway_not_ready": "Gateway-ul este accesibil, dar nu este pregătit (încă se inițializează sau este desincronizat de pompa de căldură). Acest lucru este normal timp de câteva minute după pornirea gateway-ului. Dacă problema persistă, verificați cablajul H-LINK (bornele 1-2 pe PCB-ul unității interioare, pereche torsadată ecranată 0.75 mm²) și consultați ghidul de depanare al proiectului."
     }
   },
   "config": {

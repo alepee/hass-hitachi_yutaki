@@ -80,21 +80,25 @@
       },
       "atw_mbs_02_connection": {
         "title": "Verbindingsinstellingen",
-        "description": "Voer de verbindingsgegevens in voor uw gateway.",
+        "description": "Voer de verbindingsgegevens in voor uw Hitachi Yutaki warmtepompgateway.",
         "data": {
+          "name": "Naam",
           "modbus_host": "Host/IP-adres",
           "modbus_port": "Poort",
-          "modbus_device_id": "Modbus Apparaat-ID"
+          "modbus_device_id": "Modbus Apparaat-ID",
+          "scan_interval": "Polling-interval (seconden)"
         }
       },
       "hc_a_mb_connection": {
         "title": "Verbindingsinstellingen",
-        "description": "Voer de verbindingsgegevens in voor uw gateway.",
+        "description": "Voer de verbindingsgegevens in voor uw Hitachi Yutaki warmtepompgateway.",
         "data": {
+          "name": "Naam",
           "modbus_host": "Host/IP-adres",
           "modbus_port": "Poort",
           "modbus_device_id": "Modbus Apparaat-ID",
-          "unit_id": "Unit ID"
+          "unit_id": "Unit ID",
+          "scan_interval": "Polling-interval (seconden)"
         }
       },
       "profile": {
@@ -135,6 +139,16 @@
           "telemetry_level": "Anonieme telemetrie"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Kan geen verbinding maken met de gateway. Controleer de host en poort.",
+      "invalid_slave": "Ongeldig Modbus slave-ID. Controleer het ID en probeer het opnieuw.",
+      "modbus_error": "Er is een Modbus-fout opgetreden. Controleer de logboeken voor meer informatie.",
+      "invalid_central_control_mode": "De gateway moet in de 'Centraal' bedieningsmodus staan. Wijzig dit in de gatewayinstellingen.",
+      "unknown": "Er is een onbekende fout opgetreden. Controleer de logboeken.",
+      "system_initializing": "De Hitachi Yutaki gateway wordt geïnitialiseerd. Wacht even en probeer het opnieuw.",
+      "desync_error": "De gateway is niet gesynchroniseerd met de warmtepomp. Controleer of de warmtepomp is ingeschakeld en of de verbinding tussen beide apparaten correct is.",
+      "gateway_not_ready": "De gateway is bereikbaar maar nog niet klaar (wordt nog geïnitialiseerd of is niet gesynchroniseerd met de warmtepomp). Dit is normaal gedurende enkele minuten na het inschakelen van de gateway. Als het probleem aanhoudt, controleer de H-LINK bedrading (klemmen 1-2 op de PCB van de binnenunit, afgeschermde getwiste paar 0.75 mm²) en raadpleeg de probleemoplossingsgids van het project."
     }
   },
   "config": {
