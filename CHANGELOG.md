@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Options/reconfigure flow: fill missing translations in `translations/en.json`, `translations/fr.json`, `translations/nl.json` and `translations/ro.json` so the connection step shows translated error messages and field labels (`name`, `scan_interval`) instead of raw keys like `gateway_not_ready`. Both ATW-MBS-02 and HC-A(16/64)MB connection steps now mirror the initial setup flow (#302).
 
+### Changed
+- Config flow: preserve user-typed values (host, port, slave, name, scan interval, gateway variant) when a provider step fails validation (`cannot_connect`, `gateway_not_ready`, `invalid_slave`, ...). Applies to both initial setup and reconfigure/options flows, for ATW-MBS-02 and HC-A(16/64)MB providers. Previously, fields were reset to defaults on every retry (#304).
+
 ## [2.1.2] - 2026-05-28
 
 ### Fixed
