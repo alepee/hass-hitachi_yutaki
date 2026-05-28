@@ -319,14 +319,27 @@ async def async_setup_entry(
         "power_supply": entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
     }
 
+    # Seed capability flags from persisted system_config so COP services are
+    # initialised correctly even when the first refresh fails with
+    # gateway_not_ready (#308). decode_config tolerates missing/0 values and
+    # returns all-False flags for never-yet-refreshed entries.
+    persisted_flags = api_client.decode_config(
+        {"system_config": entry.data.get("system_config", 0)}
+    )
+    persisted_has_cooling = persisted_flags.get(
+        "has_circuit1_cooling", False
+    ) or persisted_flags.get("has_circuit2_cooling", False)
+    persisted_has_dhw = persisted_flags.get("has_dhw", False)
+    persisted_has_pool = persisted_flags.get("has_pool", False)
+
     # Create derived metrics adapter (enriches data with thermal power, COP, etc.)
     coordinator.derived_metrics = DerivedMetricsAdapter(
         hass=hass,
         config_entry=entry,
         power_supply=entry.data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
-        has_cooling=False,  # updated after first refresh
-        has_dhw=False,  # updated after first refresh
-        has_pool=False,  # updated after first refresh
+        has_cooling=persisted_has_cooling,
+        has_dhw=persisted_has_dhw,
+        has_pool=persisted_has_pool,
         supports_secondary_compressor=profile.supports_secondary_compressor,
     )
 
@@ -341,15 +354,22 @@ async def async_setup_entry(
 
     entry.runtime_data = coordinator
 
-    # Update COP services now that system_config is available
-    coordinator.derived_metrics._has_cooling = coordinator.has_circuit(
-        CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
-    )
-    coordinator.derived_metrics._init_cop_services(
-        has_cooling=coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING),
-        has_dhw=coordinator.has_dhw(),
-        has_pool=coordinator.has_pool(),
-    )
+    # Re-initialise COP services if the live system_config disagrees with the
+    # persisted value (first-time setup, or capability changed on the unit).
+    live_has_cooling = coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
+    live_has_dhw = coordinator.has_dhw()
+    live_has_pool = coordinator.has_pool()
+    if (
+        live_has_cooling != persisted_has_cooling
+        or live_has_dhw != persisted_has_dhw
+        or live_has_pool != persisted_has_pool
+    ):
+        coordinator.derived_metrics._has_cooling = live_has_cooling
+        coordinator.derived_metrics._init_cop_services(
+            has_cooling=live_has_cooling,
+            has_dhw=live_has_dhw,
+            has_pool=live_has_pool,
+        )
 
     # Restore thermal energy from last known state
     await _async_restore_thermal_energy(hass, entry, coordinator)

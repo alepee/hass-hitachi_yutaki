@@ -105,7 +105,11 @@ class TestAtwMbs02GatewayNotReady:
         """_detect_profiles must surface gateway_not_ready, not crash."""
         client = _make_mock_client(ReadResult.GATEWAY_NOT_READY)
         with _patch_client_class(client):
-            detected, error = await AtwMbs02ConfigProvider._detect_profiles(
+            (
+                detected,
+                system_config,
+                error,
+            ) = await AtwMbs02ConfigProvider._detect_profiles(
                 hass=MagicMock(),
                 context={
                     "name": "test",
@@ -116,6 +120,7 @@ class TestAtwMbs02GatewayNotReady:
                 variant="gen2",
             )
         assert detected == []
+        assert system_config == 0
         assert error == "gateway_not_ready"
         client.read_value.assert_not_called()  # short-circuit before decode
 

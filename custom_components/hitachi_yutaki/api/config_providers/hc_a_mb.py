@@ -129,6 +129,7 @@ class HcAMbConfigProvider:
 
             # Decode raw config to get boolean flags for profile detection
             decoded_data = api_client.decode_config(all_data)
+            system_config = int(all_data.get("system_config") or 0)
 
             _LOGGER.debug("HC-A-MB detecting profile with data: %s", decoded_data)
             detected_profiles = [
@@ -141,15 +142,21 @@ class HcAMbConfigProvider:
                     "No profile detected for HC-A-MB, showing all available profiles"
                 )
 
+            # Persist system_config so COP services and device capabilities
+            # can be initialised on next setup before any refresh (#308).
+            config_data: dict[str, Any] = {
+                CONF_NAME: name,
+                CONF_MODBUS_HOST: host,
+                CONF_MODBUS_PORT: port,
+                CONF_MODBUS_DEVICE_ID: device_id,
+                CONF_SCAN_INTERVAL: scan_interval,
+                CONF_UNIT_ID: unit_id,
+            }
+            if system_config:
+                config_data["system_config"] = system_config
+
             return StepOutcome(
-                config_data={
-                    CONF_NAME: name,
-                    CONF_MODBUS_HOST: host,
-                    CONF_MODBUS_PORT: port,
-                    CONF_MODBUS_DEVICE_ID: device_id,
-                    CONF_SCAN_INTERVAL: scan_interval,
-                    CONF_UNIT_ID: unit_id,
-                },
+                config_data=config_data,
                 detected_profiles=detected_profiles,
             )
 

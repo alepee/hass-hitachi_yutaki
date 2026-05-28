@@ -69,6 +69,11 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.derived_metrics: DerivedMetricsAdapter | None = None
         self._normal_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
         self._gateway_not_ready_count: int = 0
+        # Seed from persisted value (0 = unknown / never refreshed) so callers
+        # of has_dhw/has_pool/has_circuit get sensible answers before the
+        # first successful refresh. The api_client cache is the live source,
+        # this attribute only mirrors what's been observed for diagnostics.
+        self.system_config: int = entry.data.get("system_config", 0)
 
         # Telemetry (injected by async_setup_entry — always set, noop when OFF)
         self.telemetry_collector: TelemetryCollector = None  # type: ignore[assignment]
@@ -86,6 +91,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
+            config_entry=entry,
             name=DOMAIN,
             update_interval=self._normal_interval,
         )
@@ -149,6 +155,20 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 data[key] = await self.api_client.read_value(key)
 
             self.system_config = data.get("system_config", 0)
+
+            # Persist system_config in entry.data so COP services and device
+            # capabilities can be initialised at next setup *before* any
+            # refresh — survives reloads that hit gateway_not_ready (#308).
+            # Only write when the value actually changed to avoid churn.
+            persisted = self.config_entry.data.get("system_config")
+            if self.system_config and persisted != self.system_config:
+                self.hass.config_entries.async_update_entry(
+                    self.config_entry,
+                    data={
+                        **self.config_entry.data,
+                        "system_config": self.system_config,
+                    },
+                )
 
             # Inject api_client state into data for derived metrics
             data["is_defrosting"] = self.api_client.is_defrosting

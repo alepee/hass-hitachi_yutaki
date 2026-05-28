@@ -180,12 +180,20 @@ class AtwMbs02ConfigProvider:
         """Detect profiles using the chosen variant."""
         variant = user_input["gateway_variant"]
 
-        detected_profiles, error = await self._detect_profiles(hass, context, variant)
+        detected_profiles, system_config, error = await self._detect_profiles(
+            hass, context, variant
+        )
         if error:
             return StepOutcome(errors={"base": error})
 
+        # Persist system_config so COP services and device capabilities can
+        # be initialised on next setup before any refresh (#308).
+        config_data: dict[str, Any] = {"gateway_variant": variant}
+        if system_config:
+            config_data["system_config"] = system_config
+
         return StepOutcome(
-            config_data={"gateway_variant": variant},
+            config_data=config_data,
             detected_profiles=detected_profiles,
         )
 
@@ -295,10 +303,13 @@ class AtwMbs02ConfigProvider:
         hass: HomeAssistant,
         context: dict[str, Any],
         variant: str,
-    ) -> tuple[list[str], str | None]:
+    ) -> tuple[list[str], int, str | None]:
         """Connect, read base_keys, decode config, and detect profiles.
 
-        Returns (detected_profiles, error_key). error_key is None on success.
+        Returns (detected_profiles, system_config, error_key). error_key is
+        None on success. ``system_config`` is the raw register value (0 on
+        error) so the config flow can persist it for early COP-service
+        initialisation on subsequent setups (#308).
         """
         api_client_class = GATEWAY_INFO[_GATEWAY_TYPE].client_class
         register_map = create_register_map(
@@ -314,7 +325,7 @@ class AtwMbs02ConfigProvider:
         )
         try:
             if not await api_client.connect():
-                return [], "cannot_connect"
+                return [], 0, "cannot_connect"
 
             _LOGGER.debug("Fetching all values to allow profiles to detect device")
             keys_to_read = api_client.register_map.base_keys
@@ -322,10 +333,11 @@ class AtwMbs02ConfigProvider:
             if result == ReadResult.GATEWAY_NOT_READY:
                 # _data is not populated; trying to decode would yield None
                 # values and crash. Surface a user-facing error instead.
-                return [], "gateway_not_ready"
+                return [], 0, "gateway_not_ready"
             all_data = {key: await api_client.read_value(key) for key in keys_to_read}
 
             decoded_data = api_client.decode_config(all_data)
+            system_config = int(all_data.get("system_config") or 0)
 
             _LOGGER.debug("Detecting profile with data: %s", decoded_data)
             detected_profiles = [
@@ -335,9 +347,9 @@ class AtwMbs02ConfigProvider:
             _LOGGER.debug("Detected profiles: %s", detected_profiles)
             if not detected_profiles:
                 _LOGGER.warning("No profile detected, showing all available profiles")
-            return detected_profiles, None
+            return detected_profiles, system_config, None
         except (ModbusException, ConnectionException, OSError):
-            return [], "cannot_connect"
+            return [], 0, "cannot_connect"
         finally:
             if api_client.connected:
                 await api_client.close()
