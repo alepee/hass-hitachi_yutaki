@@ -30,6 +30,7 @@ from ...const import (
 )
 from ...profiles import PROFILES
 from .. import GATEWAY_INFO, create_register_map
+from ..base import ReadResult
 from . import StepOutcome, StepSchema
 
 _LOGGER = logging.getLogger(__name__)
@@ -119,7 +120,11 @@ class HcAMbConfigProvider:
 
             # Read base keys for profile detection
             keys_to_read = api_client.register_map.base_keys
-            await api_client.read_values(keys_to_read)
+            result = await api_client.read_values(keys_to_read)
+            if result == ReadResult.GATEWAY_NOT_READY:
+                # _data is not populated; trying to decode would yield None
+                # values and crash. Surface a user-facing error instead.
+                return StepOutcome(errors={"base": "gateway_not_ready"})
             all_data = {key: await api_client.read_value(key) for key in keys_to_read}
 
             # Decode raw config to get boolean flags for profile detection

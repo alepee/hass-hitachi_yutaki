@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Config flow: surface a clear `gateway_not_ready` error (with H-LINK troubleshooting hints) instead of crashing with `TypeError` when the gateway reports an unhealthy `system_state` (initializing or desynchronized) during integration setup. Affects both ATW-MBS-02 and HC-A(16/64)MB providers. Regression introduced in 2.1.0-beta.2 (#260): the new short-circuit in `read_values` was not propagated to the config providers (#300).
+
+### Changed
+- `ReadResult` enum and `read_values` now document the contract explicitly: callers MUST check the return value before consuming `read_value()` output, since `GATEWAY_NOT_READY` short-circuits before populating internal data.
+- `decode_config` defensively coerces a missing/None `system_config` to `0` instead of raising, so an upstream contract violation degrades to "no modules detected" rather than crashing.
+
 ## [2.1.1] - 2026-05-25
 
 ### Added

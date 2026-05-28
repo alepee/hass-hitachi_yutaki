@@ -207,7 +207,8 @@
       "invalid_central_control_mode": "La passerelle doit être en mode de contrôle 'Central'. Veuillez modifier ce paramètre dans les réglages de la passerelle.",
       "unknown": "Une erreur inconnue s'est produite. Veuillez consulter les journaux.",
       "system_initializing": "La passerelle Hitachi Yutaki est en cours d'initialisation. Veuillez patienter quelques instants et réessayer.",
-      "desync_error": "La passerelle est désynchronisée de la pompe à chaleur. Assurez-vous que la pompe à chaleur est sous tension et que la connexion entre les deux appareils est correcte."
+      "desync_error": "La passerelle est désynchronisée de la pompe à chaleur. Assurez-vous que la pompe à chaleur est sous tension et que la connexion entre les deux appareils est correcte.",
+      "gateway_not_ready": "La passerelle est joignable mais n'est pas prête (en cours d'initialisation, ou désynchronisée de la pompe à chaleur). C'est normal pendant quelques minutes après la mise sous tension de la passerelle. Si le problème persiste, vérifiez le câblage H-LINK (bornes 1-2 sur le PCB de l'unité intérieure, paire torsadée blindée 0.75 mm²) et consultez le guide de dépannage du projet."
     },
     "abort": {
       "already_configured": "Cette passerelle Hitachi Yutaki est déjà configurée.",

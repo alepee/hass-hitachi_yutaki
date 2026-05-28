@@ -30,6 +30,7 @@ from ...const import (
 )
 from ...profiles import PROFILES
 from .. import GATEWAY_INFO, create_register_map
+from ..base import ReadResult
 from ..modbus.registers import GATEWAY_VARIANTS
 from . import StepOutcome, StepSchema
 
@@ -120,11 +121,13 @@ class AtwMbs02ConfigProvider:
             ),
         }
 
-        # Test basic connectivity
-        if not await self._test_connection(hass, config):
-            return StepOutcome(errors={"base": "cannot_connect"})
+        # Test basic connectivity (also detects unhealthy gateway state).
+        ok, error = await self._test_connection(hass, config)
+        if not ok:
+            return StepOutcome(errors={"base": error or "cannot_connect"})
 
-        # Auto-detect variant for the next step
+        # Auto-detect variant for the next step. Failures here are
+        # non-fatal: the user can still pick the variant manually.
         detected_variant = await self._detect_variant(hass, config)
         config["_detected_variant"] = detected_variant or ""
 
@@ -194,11 +197,17 @@ class AtwMbs02ConfigProvider:
     async def _test_connection(
         hass: HomeAssistant,
         config: dict[str, Any],
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """Test basic Modbus connectivity.
 
         Uses the default (gen2) register map for the connectivity test —
         only connect + read gateway_keys to verify the gateway is reachable.
+
+        Returns (ok, error_key):
+            - (True, None) on success.
+            - (False, "cannot_connect") on network/Modbus error.
+            - (False, "gateway_not_ready") if the gateway is reachable but
+              reports an unhealthy system_state (initializing or desync).
         """
         api_client_class = GATEWAY_INFO[_GATEWAY_TYPE].client_class
         register_map = create_register_map(
@@ -214,11 +223,13 @@ class AtwMbs02ConfigProvider:
         )
         try:
             if not await api_client.connect():
-                return False
-            await api_client.read_values(api_client.register_map.gateway_keys)
-            return True
+                return False, "cannot_connect"
+            result = await api_client.read_values(api_client.register_map.gateway_keys)
+            if result == ReadResult.GATEWAY_NOT_READY:
+                return False, "gateway_not_ready"
+            return True, None
         except (ModbusException, ConnectionException, OSError):
-            return False
+            return False, "cannot_connect"
         finally:
             if api_client.connected:
                 await api_client.close()
@@ -256,7 +267,13 @@ class AtwMbs02ConfigProvider:
             try:
                 if not await api_client.connect():
                     return None
-                await api_client.read_values(api_client.register_map.gateway_keys)
+                result = await api_client.read_values(
+                    api_client.register_map.gateway_keys
+                )
+                if result != ReadResult.SUCCESS:
+                    # Gateway is reachable but not ready — skip auto-detect;
+                    # the user can still pick the variant manually.
+                    return None
                 unit_model = await api_client.read_value("unit_model")
                 if unit_model is not None and unit_model != "unknown":
                     _LOGGER.debug(
@@ -301,7 +318,11 @@ class AtwMbs02ConfigProvider:
 
             _LOGGER.debug("Fetching all values to allow profiles to detect device")
             keys_to_read = api_client.register_map.base_keys
-            await api_client.read_values(keys_to_read)
+            result = await api_client.read_values(keys_to_read)
+            if result == ReadResult.GATEWAY_NOT_READY:
+                # _data is not populated; trying to decode would yield None
+                # values and crash. Surface a user-facing error instead.
+                return [], "gateway_not_ready"
             all_data = {key: await api_client.read_value(key) for key in keys_to_read}
 
             decoded_data = api_client.decode_config(all_data)
