@@ -196,6 +196,116 @@ async def test_connection_failure(hass: HomeAssistant) -> None:
     assert result["errors"] == {"base": "cannot_connect"}
 
 
+def _suggested_values(schema) -> dict:
+    """Extract `suggested_value` for each key in a voluptuous Schema.
+
+    HA stores user-typed defaults in `key.description["suggested_value"]`
+    after `FlowHandler.add_suggested_values_to_schema()` is applied.
+    """
+    out: dict = {}
+    for key in schema.schema:
+        desc = getattr(key, "description", None)
+        if isinstance(desc, dict) and "suggested_value" in desc:
+            out[key.schema] = desc["suggested_value"]
+    return out
+
+
+async def test_connection_failure_preserves_user_input(hass: HomeAssistant) -> None:
+    """On connection failure, the form re-renders with the user-typed values.
+
+    Regression test for #304: host/port/slave/name typed by the user must
+    survive a validation error so they don't have to re-type on every retry.
+    """
+    result = await _advance_to_connection(hass)
+
+    mock_client = _mock_api_client()
+    mock_client.connect = AsyncMock(return_value=False)
+    mock_gw_info = _mock_gateway_info(mock_client)
+
+    typed = {
+        "name": "My Yutaki",
+        CONF_MODBUS_HOST: "10.20.30.40",
+        CONF_MODBUS_PORT: 1502,
+        CONF_MODBUS_DEVICE_ID: 7,
+        "scan_interval": DEFAULT_SCAN_INTERVAL,
+    }
+
+    with (
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], typed
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+    suggested = _suggested_values(result["data_schema"])
+    assert suggested.get("name") == "My Yutaki"
+    assert suggested.get(CONF_MODBUS_HOST) == "10.20.30.40"
+    assert suggested.get(CONF_MODBUS_PORT) == 1502
+    assert suggested.get(CONF_MODBUS_DEVICE_ID) == 7
+
+
+async def test_options_flow_connection_failure_preserves_user_input(
+    hass: HomeAssistant,
+) -> None:
+    """Options flow: connection failure preserves user-typed values (#304)."""
+    entry = MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title=DEFAULT_NAME,
+        data={
+            "gateway_type": "modbus_atw_mbs_02",
+            "gateway_variant": "gen2",
+            "name": DEFAULT_NAME,
+            CONF_MODBUS_HOST: DEFAULT_HOST,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
+            "profile": "yutaki_s",
+            "power_supply": DEFAULT_POWER_SUPPLY,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"gateway_type": "modbus_atw_mbs_02"},
+    )
+    assert result["step_id"] == "atw_mbs_02_connection"
+
+    mock_client = _mock_api_client()
+    mock_client.connect = AsyncMock(return_value=False)
+    mock_gw_info = _mock_gateway_info(mock_client)
+
+    typed = {
+        "name": "Renamed Yutaki",
+        CONF_MODBUS_HOST: "10.20.30.40",
+        CONF_MODBUS_PORT: 1502,
+        CONF_MODBUS_DEVICE_ID: 9,
+        "scan_interval": DEFAULT_SCAN_INTERVAL,
+    }
+
+    with (
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], typed
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "cannot_connect"}
+    suggested = _suggested_values(result["data_schema"])
+    assert suggested.get("name") == "Renamed Yutaki"
+    assert suggested.get(CONF_MODBUS_HOST) == "10.20.30.40"
+    assert suggested.get(CONF_MODBUS_PORT) == 1502
+    assert suggested.get(CONF_MODBUS_DEVICE_ID) == 9
+
+
 async def test_connection_success_advances_to_variant(
     hass: HomeAssistant,
 ) -> None:

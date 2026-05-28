@@ -202,9 +202,15 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if outcome.errors:
                 step_schema = self._provider.step_schema(step_id, self._step_context)
+                # Preserve user-typed values (host/port/slave/...) so the
+                # user doesn't have to re-enter them on every validation
+                # error. See issue #304.
+                data_schema = self.add_suggested_values_to_schema(
+                    step_schema.schema, user_input
+                )
                 return self.async_show_form(
                     step_id=step_id,
-                    data_schema=step_schema.schema,
+                    data_schema=data_schema,
                     description_placeholders=step_schema.description_placeholders,
                     errors=outcome.errors,
                 )
@@ -457,9 +463,15 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
 
             if outcome.errors:
                 step_schema = self._provider.step_schema(step_id, self._step_context)
+                # Preserve user-typed values (host/port/slave/...) so the
+                # user doesn't have to re-enter them on every validation
+                # error. See issue #304.
+                data_schema = self.add_suggested_values_to_schema(
+                    step_schema.schema, user_input
+                )
                 return self.async_show_form(
                     step_id=step_id,
-                    data_schema=step_schema.schema,
+                    data_schema=data_schema,
                     description_placeholders=step_schema.description_placeholders,
                     errors=outcome.errors,
                 )
