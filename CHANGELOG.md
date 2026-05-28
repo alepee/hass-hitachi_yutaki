@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Config flow: preserve user-typed values (host, port, slave, name, scan interval, gateway variant) when a provider step fails validation (`cannot_connect`, `gateway_not_ready`, `invalid_slave`, ...). Applies to both initial setup and reconfigure/options flows, for ATW-MBS-02 and HC-A(16/64)MB providers. Previously, fields were reset to defaults on every retry (#304).
+- Persist the gateway `system_config` (capability bitfield) in the config entry data on every successful refresh. At setup time, COP services for cooling, DHW and pool are now initialised from this persisted value *before* the first refresh, so they survive a reload that hits `gateway_not_ready` during the gateway's H-LINK init window. Existing installations get the value populated on their next successful poll; until then the previous (post-refresh) behaviour applies as a fallback (#308).
 
 ## [2.1.2] - 2026-05-28
 
