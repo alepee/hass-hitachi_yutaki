@@ -71,6 +71,35 @@ _THERMAL_ENERGY_KEYS = (
 )
 
 
+async def _async_first_refresh_tolerating_gateway_not_ready(
+    coordinator: HitachiYutakiDataCoordinator,
+) -> bool:
+    """Run the coordinator's first refresh, tolerating a transient gateway-not-ready.
+
+    The ATW-MBS-02 gateway can report ``GATEWAY_NOT_READY`` while its H-LINK bus
+    is initializing after a power cycle (Modbus TCP is up, H-LINK is not). At
+    setup time this is a transient, expected condition: the entry was already
+    validated by the config flow, so we let setup complete and entities will
+    transition to ``available`` on the next successful poll. Any other cause
+    (TCP unreachable, Modbus error, etc.) is re-raised so HA retries setup.
+
+    Returns ``True`` when the refresh succeeded and fresh register data is
+    available, ``False`` when the refresh failed because of ``gateway_not_ready``
+    (callers must not assume ``coordinator.data`` reflects the current install).
+    """
+    try:
+        await coordinator.async_config_entry_first_refresh()
+    except ConfigEntryNotReady:
+        if coordinator.gateway_not_ready:
+            _LOGGER.warning(
+                "Gateway H-LINK is still initializing; continuing setup with "
+                "stale capabilities. Entities will recover on the next poll."
+            )
+            return False
+        raise
+    return True
+
+
 async def _async_restore_thermal_energy(
     hass: HomeAssistant,
     entry: HitachiYutakiConfigEntry,
@@ -301,20 +330,16 @@ async def async_setup_entry(
         supports_secondary_compressor=profile.supports_secondary_compressor,
     )
 
-    try:
-        await coordinator.async_config_entry_first_refresh()
-    except ConfigEntryNotReady:
-        _LOGGER.warning(
-            "Initial connection to Hitachi Yutaki failed. "
-            "The integration will retry in the background, and entities will be unavailable."
-        )
+    # Initial poll. A transient gateway_not_ready (H-LINK still initializing
+    # after a gateway power-cycle) must not fail setup of an already-configured
+    # entry: log a warning and continue. Entities will go ``available`` on the
+    # next successful poll. Any other ConfigEntryNotReady is re-raised so HA
+    # retries setup via its standard mechanism.
+    await _async_first_refresh_tolerating_gateway_not_ready(coordinator)
 
     _LOGGER.debug("Data coordinator initialized")
 
     entry.runtime_data = coordinator
-
-    # Wait for the first refresh to succeed before setting up platforms
-    await coordinator.async_config_entry_first_refresh()
 
     # Update COP services now that system_config is available
     coordinator.derived_metrics._has_cooling = coordinator.has_circuit(
