@@ -207,7 +207,8 @@
       "invalid_central_control_mode": "De gateway moet in de 'Centraal' bedieningsmodus staan. Wijzig dit in de gatewayinstellingen.",
       "unknown": "Er is een onbekende fout opgetreden. Controleer de logboeken.",
       "system_initializing": "De Hitachi Yutaki gateway wordt geïnitialiseerd. Wacht even en probeer het opnieuw.",
-      "desync_error": "De gateway is niet gesynchroniseerd met de warmtepomp. Controleer of de warmtepomp is ingeschakeld en of de verbinding tussen beide apparaten correct is."
+      "desync_error": "De gateway is niet gesynchroniseerd met de warmtepomp. Controleer of de warmtepomp is ingeschakeld en of de verbinding tussen beide apparaten correct is.",
+      "gateway_not_ready": "De gateway is bereikbaar maar nog niet klaar (wordt nog geïnitialiseerd of is niet gesynchroniseerd met de warmtepomp). Dit is normaal gedurende enkele minuten na het inschakelen van de gateway. Als het probleem aanhoudt, raadpleeg de probleemoplossingsgids: https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/troubleshooting.md"
     },
     "abort": {
       "already_configured": "Deze Hitachi Yutaki gateway is al geconfigureerd.",

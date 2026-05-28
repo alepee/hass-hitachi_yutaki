@@ -207,7 +207,8 @@
       "invalid_central_control_mode": "Gateway-ul trebuie să fie în modul de control 'Central'. Modificați această setare în configurarea gateway-ului.",
       "unknown": "A apărut o eroare necunoscută. Consultați jurnalele.",
       "system_initializing": "Gateway-ul Hitachi Yutaki se inițializează. Așteptați un moment și încercați din nou.",
-      "desync_error": "Gateway-ul este desincronizat de pompa de căldură. Asigurați-vă că pompa de căldură este pornită și că legătura dintre cele două dispozitive este corectă."
+      "desync_error": "Gateway-ul este desincronizat de pompa de căldură. Asigurați-vă că pompa de căldură este pornită și că legătura dintre cele două dispozitive este corectă.",
+      "gateway_not_ready": "Gateway-ul este accesibil, dar nu este pregătit (încă se inițializează sau este desincronizat de pompa de căldură). Acest lucru este normal timp de câteva minute după pornirea gateway-ului. Dacă problema persistă, consultați ghidul de depanare: https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/troubleshooting.md"
     },
     "abort": {
       "already_configured": "Acest gateway Hitachi Yutaki este deja configurat.",
