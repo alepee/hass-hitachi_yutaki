@@ -24,6 +24,6 @@ Hitachi specifies a shielded twisted pair cable (0.75 mm² section), grounded on
 
 ### Recent power cycle
 
-After a power cycle of the gateway or the heat pump, the H-LINK bus needs a few minutes to synchronize. During this time, the integration may report the gateway as "initializing" or "desynchronized."
+After a power cycle of the gateway or the heat pump, the H-LINK bus needs a few minutes to synchronize. During this time, the integration reports the gateway as "initializing" or "desynchronized." Reloads of an already-configured entry complete normally during this window: entities show as `unavailable` until the next successful poll, then come back automatically. Initial setup, however, requires a synchronized H-LINK to detect your heat pump model and capabilities.
 
 **Fix:** wait 3-5 minutes after a restart. If the issue persists beyond that, check the wiring.
