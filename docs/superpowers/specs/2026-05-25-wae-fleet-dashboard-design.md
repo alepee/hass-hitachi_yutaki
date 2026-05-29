@@ -164,3 +164,36 @@ The dataset is auto-created on first write — no manual setup.
 - Modify: `CLAUDE.md` (update the telemetry backend bullet)
 - Modify: `CHANGELOG.md` (Unreleased entry)
 - Add: integration unit test for the daily-resend flag
+
+## Addendum — climate-zone choropleth (2026-05-29)
+
+The "Installs by climate zone" bar chart can be complemented by a world
+choropleth that colours each Köppen-Geiger class by its install count
+(composition view, not install geography — a Köppen class spans its whole global
+extent, so the map reads as "which climate types my fleet has", not "where").
+
+**Asset:** `backend/grafana/koppen-zones.geojson` — `FeatureCollection`, 29
+features, one dissolved `MultiPolygon` per Köppen class, properties
+`{ CODE, name }` (both hold the class code, e.g. `Cfb`). Polar classes `EF`
+(ice cap) and `ET` (tundra) are excluded — uninhabited, and the heaviest
+polygons. ~116 KB.
+
+**Provenance:** source GeoJSON from
+[`circleofconfusion/climate-map`](https://github.com/circleofconfusion/climate-map)
+(`topojson/1976-2000.geojson`, derived from Köppen-Geiger), regenerated with:
+
+```sh
+npx mapshaper koppen_1976_2000.geojson \
+  -filter 'CODE != "EF" && CODE != "ET"' \
+  -dissolve CODE \
+  -simplify 8% keep-shapes \
+  -o format=geojson koppen-zones.geojson
+# then add a `name` property equal to CODE (ECharts joins on `name` by default)
+```
+
+**Panel:** Volkov Labs Business Charts (ECharts) `map` series + `visualMap`
+(signed, works on Grafana Cloud and self-hosted). Query is the existing
+climate-zone aggregation (`climate_zone`, `installs`); the series `data` joins to
+features by `name`; classes with no installs keep a neutral `areaColor`. Serve
+the GeoJSON from the repo raw URL (CORS `*`) or via Infinity if CSP blocks the
+direct `fetch`.
