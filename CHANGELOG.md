@@ -7,15 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
-- ATW-MBS-02 (Before Line-up 2016): the "Room Thermostat available" flag is a single global register (address 1029), not a per-circuit control as on the 2016 line-up. The pre-2016 map previously defined `circuit2_thermostat` at the same address 1029 as `circuit1_thermostat`, so toggling circuit 2 silently rewrote the global flag (and shadowed circuit 1). The duplicate `circuit2_thermostat` key has been removed; the flag is now modelled once as `circuit1_thermostat` (#318).
-
 ### Added
 - Telemetry backend: `backend/grafana/koppen-zones.geojson`, a simplified Köppen-Geiger climate-zone polygon set (29 classes, polar `EF`/`ET` excluded, keyed by `CODE`/`name`) for a climate-zone choropleth panel on the fleet-inventory Grafana dashboard. Active zones are painted with their canonical Köppen family colours (the install count shows in the tooltip and as a per-zone label); zones with no installs stay a neutral, theme-aware grey. Provenance and the `mapshaper` regeneration command are documented in the dashboard design doc.
 
 ### Fixed
+- ATW-MBS-02 (Before Line-up 2016): the "Room Thermostat available" flag is a single global register (address 1029), not a per-circuit control as on the 2016 line-up. The pre-2016 map previously defined `circuit2_thermostat` at the same address 1029 as `circuit1_thermostat`, so toggling circuit 2 silently rewrote the global flag (and shadowed circuit 1). The duplicate `circuit2_thermostat` key has been removed; the flag is now modelled once as `circuit1_thermostat` (#318).
 - COP: fix electrical power double-counting on S80 units when a whole-unit power meter (`power_entity`) is configured. The derived-metrics calculator was called once per compressor and the results summed; with a power meter each call returns the *total* unit power, so the sum was ~2x the real consumption and COP was roughly halved. Electrical power is now computed with a single calculator call using the summed compressor current, which is correct for both the measured-power path (whole unit returned once) and the I×U estimate (`U×(I1+I2) == U×I1 + U×I2`) (#316).
 - COP: fix incorrect COP reconstruction on restart for installations using a whole-unit power meter. During Recorder rehydration every replayed point was stamped with a single live `power_entity` reading captured at startup, instead of each point's own historical value. Rehydration now fetches the historical `power_entity` (and `voltage_entity`) from the Recorder and reconstructs the electrical power per point at its own timestamp (falling back to the per-point I×U estimate when no power meter is configured), matching how historical water temperatures are already replayed (#316).
+- Setup: when the first refresh is tolerated through `gateway_not_ready` (#303/#307), the gateway's live `system_config` is unavailable (register data is empty), so live capability flags all read `False`. Setup now keeps using the persisted `system_config` (#308) in that case instead of the empty live data. This fixes two regressions: (1) COP services seeded from the persisted capabilities are no longer destroyed by a spurious live-vs-persisted mismatch re-init, and (2) DHW, Pool and Circuit 1/2 devices are now registered from the persisted capabilities instead of silently disappearing until a later reload hits a successful poll. When the first refresh succeeds, live capabilities remain authoritative and behaviour is unchanged (#317).
 
 ## [2.1.3] - 2026-05-29
 
