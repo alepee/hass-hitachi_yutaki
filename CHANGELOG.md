@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Telemetry backend: `backend/grafana/koppen-zones.geojson`, a simplified Köppen-Geiger climate-zone polygon set (29 classes, polar `EF`/`ET` excluded, keyed by `CODE`/`name`) for a climate-zone choropleth panel on the fleet-inventory Grafana dashboard. Colours each Köppen class by the per-zone install count; classes with no installs stay neutral. Provenance and the `mapshaper` regeneration command are documented in the dashboard design doc.
+- Telemetry backend: `backend/grafana/koppen-zones.geojson`, a simplified Köppen-Geiger climate-zone polygon set (29 classes, polar `EF`/`ET` excluded, keyed by `CODE`/`name`) for a climate-zone choropleth panel on the fleet-inventory Grafana dashboard. Active zones are painted with their canonical Köppen family colours (the install count shows in the tooltip and as a per-zone label); zones with no installs stay a neutral, theme-aware grey. Provenance and the `mapshaper` regeneration command are documented in the dashboard design doc.
 
 ## [2.1.3] - 2026-05-29
 

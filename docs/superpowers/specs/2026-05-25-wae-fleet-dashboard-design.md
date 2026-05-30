@@ -176,7 +176,7 @@ extent, so the map reads as "which climate types my fleet has", not "where").
 features, one dissolved `MultiPolygon` per Köppen class, properties
 `{ CODE, name }` (both hold the class code, e.g. `Cfb`). Polar classes `EF`
 (ice cap) and `ET` (tundra) are excluded — uninhabited, and the heaviest
-polygons. ~116 KB.
+polygons. ~197 KB (mapshaper `-simplify 45%`).
 
 **Provenance:** source GeoJSON from
 [`circleofconfusion/climate-map`](https://github.com/circleofconfusion/climate-map)
@@ -186,14 +186,20 @@ polygons. ~116 KB.
 npx mapshaper koppen_1976_2000.geojson \
   -filter 'CODE != "EF" && CODE != "ET"' \
   -dissolve CODE \
-  -simplify 8% keep-shapes \
+  -simplify 45% keep-shapes \
   -o format=geojson koppen-zones.geojson
 # then add a `name` property equal to CODE (ECharts joins on `name` by default)
 ```
 
-**Panel:** Volkov Labs Business Charts (ECharts) `map` series + `visualMap`
-(signed, works on Grafana Cloud and self-hosted). Query is the existing
-climate-zone aggregation (`climate_zone`, `installs`); the series `data` joins to
-features by `name`; classes with no installs keep a neutral `areaColor`. Serve
-the GeoJSON from the repo raw URL (CORS `*`) or via Infinity if CSP blocks the
-direct `fetch`.
+**Panel:** Volkov Labs Business Charts (ECharts) `map` series (signed, works on
+Grafana Cloud and self-hosted). The function `fetch()`es the GeoJSON, registers
+it via `context.echarts.registerMap`, and renders through `context.panel.chart`
+(the ECharts instance — *not* `context.echartsInstance`, which does not exist;
+the function is **not** async-wrapped, so use `.then()`, never top-level
+`await`). Query is the existing climate-zone aggregation (`climate_zone`,
+`installs`); the series `data` joins to features by `name`. Active zones are
+painted with their **canonical Köppen family colours** (Peel 2007 palette) via
+per-datum `itemStyle.areaColor`, the count shown in the tooltip and as a label;
+zones with no installs use a neutral grey chosen from `context.grafana.theme.isDark`
+(light grey on light themes, dark grey on dark). Serve the GeoJSON from the repo
+raw URL (CORS `*`) or via Infinity if CSP blocks the direct `fetch`.
