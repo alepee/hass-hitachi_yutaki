@@ -7,10 +7,14 @@ from datetime import datetime, timedelta
 import logging
 
 from homeassistant.components.recorder import get_instance, history
+from homeassistant.const import UnitOfPower
 from homeassistant.core import HomeAssistant, State
 from homeassistant.util import dt as dt_util
+from homeassistant.util.unit_conversion import PowerConverter
 
 from ...domain.models.cop import PowerMeasurement
+from ...domain.models.electrical import ElectricalPowerInput
+from ...domain.services.electrical import calculate_electrical_power
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -23,13 +27,30 @@ async def async_replay_cop_history(
     *,
     entity_ids: dict[str, str],
     thermal_calculator: ThermalCalculator,
-    electrical_calculator: ElectricalCalculator,
+    electrical_calculator: ElectricalCalculator | None = None,
     window: timedelta,
     measurement_interval: int,
     max_measurements: int,
     accepted_operation_states: set[str] | None = None,
+    is_three_phase: bool = False,
 ) -> list[PowerMeasurement]:
-    """Reconstruct power measurements from Recorder sensor history."""
+    """Reconstruct power measurements from Recorder sensor history.
+
+    Electrical power is rebuilt per replayed point from that point's *historical*
+    data (issue #316): when a whole-unit power meter is configured its value is
+    looked up under the ``power_entity`` / ``measured_power`` key for the matching
+    timestamp; otherwise an I×U estimate is computed from the historical current
+    (and historical voltage when available). The live ``electrical_calculator`` is
+    intentionally NOT used here — reusing it would stamp the single instantaneous
+    live power reading onto every replayed point.
+
+    ``electrical_calculator`` is accepted for backward compatibility but ignored.
+    """
+    if electrical_calculator is not None:
+        _LOGGER.debug(
+            "async_replay_cop_history ignores the live electrical_calculator; "
+            "electrical power is reconstructed per-point from history (#316)"
+        )
     required_keys = {
         "water_inlet_temp",
         "water_outlet_temp",
@@ -63,6 +84,32 @@ async def async_replay_cop_history(
                 for state in states
                 if state.state not in (None, "unknown", "unavailable")
             )
+        elif key == "power_entity":
+            # Whole-unit power meter: normalise each historical reading to kW
+            # using its own unit_of_measurement and store under "measured_power".
+            for state in states:
+                parsed = _parse_power_kw(state)
+                if parsed is None:
+                    continue
+                timeline.append(
+                    (
+                        _as_local_naive(state.last_changed or state.last_updated),
+                        "measured_power",
+                        parsed,
+                    )
+                )
+        elif key == "voltage_entity":
+            for state in states:
+                parsed = _parse_float(state)
+                if parsed is None:
+                    continue
+                timeline.append(
+                    (
+                        _as_local_naive(state.last_changed or state.last_updated),
+                        "voltage",
+                        parsed,
+                    )
+                )
         else:
             parser = _parse_bool if key.endswith("_running") else _parse_float
             for state in states:
@@ -106,7 +153,7 @@ async def async_replay_cop_history(
             timestamp,
             latest,
             thermal_calculator,
-            electrical_calculator,
+            is_three_phase=is_three_phase,
         )
         if measurement is None:
             continue
@@ -151,8 +198,16 @@ def _build_power_measurement(
     timestamp: datetime,
     latest: dict[str, float],
     thermal_calculator: ThermalCalculator,
-    electrical_calculator: ElectricalCalculator,
+    *,
+    is_three_phase: bool = False,
 ) -> PowerMeasurement | None:
+    """Build a single COP measurement from the per-point historical snapshot.
+
+    Electrical power is reconstructed from this point's own historical values
+    (issue #316): a whole-unit power meter reading wins (``measured_power``,
+    already in kW); otherwise an I×U estimate is computed from the summed
+    historical compressor currents and the historical (or default) voltage.
+    """
     try:
         water_inlet = latest["water_inlet_temp"]
         water_outlet = latest["water_outlet_temp"]
@@ -165,17 +220,26 @@ def _build_power_measurement(
     if thermal_power <= 0:
         return None
 
-    electrical_power = electrical_calculator(compressor_current)
-    if electrical_power <= 0:
-        return None
+    measured_power = latest.get("measured_power")
+    voltage = latest.get("voltage")
 
+    # Sum compressor currents (S80) so a single calculation covers the whole
+    # unit. For the measured_power path the current is ignored anyway; for the
+    # I×U path U×(I1+I2) == U×I1 + U×I2.
+    total_current = compressor_current
     secondary_frequency = latest.get("secondary_compressor_frequency")
     secondary_current = latest.get("secondary_compressor_current")
     if secondary_frequency and secondary_frequency > 0 and secondary_current:
-        additional = electrical_calculator(secondary_current)
-        if additional > 0:
-            electrical_power += additional
+        total_current += secondary_current
 
+    electrical_power = calculate_electrical_power(
+        ElectricalPowerInput(
+            current=total_current,
+            measured_power=measured_power,
+            voltage=voltage,
+            is_three_phase=is_three_phase,
+        )
+    )
     if electrical_power <= 0:
         return None
 
@@ -186,6 +250,20 @@ def _parse_float(state: State) -> float | None:
     try:
         return float(state.state)
     except (TypeError, ValueError):
+        return None
+
+
+def _parse_power_kw(state: State) -> float | None:
+    """Parse a power-meter state and normalise it to kW via its unit attribute."""
+    value = _parse_float(state)
+    if value is None:
+        return None
+    from_unit = state.attributes.get("unit_of_measurement")
+    if from_unit is None:
+        return None
+    try:
+        return PowerConverter.convert(value, from_unit, UnitOfPower.KILO_WATT)
+    except (ValueError, KeyError):
         return None
 
 
