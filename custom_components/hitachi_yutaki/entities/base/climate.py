@@ -16,6 +16,7 @@ from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
+from ...adapters.providers.operation_mode import resolve_operation_mode
 from ...const import (
     CIRCUIT_IDS,
     CIRCUIT_MODE_COOLING,
@@ -25,6 +26,7 @@ from ...const import (
     PRESET_COMFORT,
 )
 from ...coordinator import HitachiYutakiDataCoordinator
+from ...domain.models.operation import MODE_COOLING, MODE_HEATING
 
 
 @dataclass
@@ -170,8 +172,20 @@ class HitachiYutakiClimate(
         hvac_mode = self.coordinator.api_client.get_unit_mode()
         if hvac_mode == HVACMode.COOL:
             return HVACAction.COOLING
-        elif hvac_mode == HVACMode.HEAT:
+        if hvac_mode == HVACMode.HEAT:
             return HVACAction.HEATING
+
+        # AUTO: unit mode does not tell heating from cooling. Derive the actual
+        # running direction from the STATUS operation_state register so the card
+        # shows heating/cooling instead of "unknown".
+        if hvac_mode == HVACMode.AUTO:
+            operation_mode = resolve_operation_mode(
+                self.coordinator.api_client.get_operation_state()
+            )
+            if operation_mode == MODE_HEATING:
+                return HVACAction.HEATING
+            if operation_mode == MODE_COOLING:
+                return HVACAction.COOLING
 
         return None
 

@@ -570,3 +570,19 @@ async def test_read_values_logs_periodic_reminder_after_5_minutes(
         ]
         assert len(reminders) == 1
         assert "5 minutes" in reminders[0].message
+
+
+def test_get_operation_state_reads_data():
+    """get_operation_state returns the deserialized operation_state from _data."""
+    with patch.object(ModbusApiClient, "__init__", lambda x, *args, **kwargs: None):
+        api = ModbusApiClient.__new__(ModbusApiClient)
+        api._data = {"operation_state": "operation_state_heat_thermo_on"}
+        assert api.get_operation_state() == "operation_state_heat_thermo_on"
+
+
+def test_get_operation_state_absent_returns_none():
+    """get_operation_state returns None when operation_state is absent."""
+    with patch.object(ModbusApiClient, "__init__", lambda x, *args, **kwargs: None):
+        api = ModbusApiClient.__new__(ModbusApiClient)
+        api._data = {}
+        assert api.get_operation_state() is None
