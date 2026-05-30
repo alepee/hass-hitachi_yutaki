@@ -333,7 +333,12 @@ class ModbusApiClient(HitachiApiClient):
         """Read and deserialize a single register.
 
         Returns the deserialized value, _SENTINEL_FILTERED when the value is a
-        gateway sentinel (unavailable sensor/module), or None on read error.
+        gateway sentinel (unavailable sensor/module), or None when no fresh
+        value is available. None covers both a Modbus read error
+        (``result.isError()``) and a deserializer that maps a sensor-error raw
+        value (e.g. 0xFFFF) to ``None``. Callers must treat a remaining None
+        (after any fallback) as "no value" and clear the stored reading rather
+        than retaining a stale one (see :meth:`read_values`, issue #320).
         """
         result = await self._hass.async_add_executor_job(
             lambda addr=definition.address, param=device_param: (
@@ -447,8 +452,9 @@ class ModbusApiClient(HitachiApiClient):
 
                 for name, definition in registers_to_read.items():
                     value = await self._read_register(definition, device_param)
-                    # Fallback only on read error (None), not on sentinel
-                    # (sentinel = sensor known-absent, no point trying fallback)
+                    # Fallback on any None (read error or a sensor-error raw
+                    # value such as 0xFFFF deserialized to None), but not on
+                    # sentinel (sentinel = module known-absent, no point trying)
                     if value is None and definition.fallback:
                         value = await self._read_register(
                             definition.fallback, device_param
@@ -459,8 +465,15 @@ class ModbusApiClient(HitachiApiClient):
                     elif value is not None:
                         self._data[name] = value
                     else:
+                        # No fresh value: a sensor-error raw value (e.g. 0xFFFF)
+                        # deserialized to None, or a read error, with no working
+                        # fallback. Clear the stored reading so the entity goes
+                        # unavailable instead of reporting a frozen value (#320).
+                        self._data.pop(name, None)
                         _LOGGER.debug(
-                            "Error reading register %s at %s", name, definition.address
+                            "Clearing %s (no fresh value: sensor error or read error at %s)",
+                            name,
+                            definition.address,
                         )
 
                 # Remove data for modules not declared in system_config
