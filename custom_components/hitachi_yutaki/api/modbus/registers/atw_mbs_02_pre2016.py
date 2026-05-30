@@ -180,6 +180,12 @@ REGISTER_CIRCUIT_1 = {
     ),
     "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1056, write_address=1007),
     "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1057, write_address=1008),
+    # Pre-2016 hardware (PMML0419A Section 5.2) has a SINGLE global
+    # "Room Thermostat available" flag at address 1029 (doc: 1028 = DHW Mode,
+    # 1029 = Room Thermostat available). Unlike the 2016 line-up, which splits
+    # the flag into per-circuit registers 1010/1021, pre-2016 exposes only one.
+    # It is modelled once here on circuit 1 (always present); there is no
+    # circuit2_thermostat register on this hardware. See #318.
     "circuit1_thermostat": RegisterDefinition(1029),
 }
 
@@ -199,7 +205,8 @@ REGISTER_CIRCUIT_2 = {
     ),
     "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1063, write_address=1014),
     "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1064, write_address=1015),
-    "circuit2_thermostat": RegisterDefinition(1029),
+    # No circuit2_thermostat: pre-2016 has a single global thermostat-available
+    # flag (modelled as circuit1_thermostat at address 1029). See #318.
 }
 
 REGISTER_DHW = {
@@ -252,7 +259,6 @@ WRITABLE_KEYS = {
     "circuit2_otc_calculation_method_cooling",
     "circuit2_max_flow_temp_heating_otc",
     "circuit2_max_flow_temp_cooling_otc",
-    "circuit2_thermostat",
     "circuit2_target_temp",
     "circuit2_current_temp",
     "dhw_power",

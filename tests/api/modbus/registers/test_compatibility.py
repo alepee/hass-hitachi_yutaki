@@ -153,9 +153,9 @@ class TestStatusReadInvariant:
     ATW_MBS_02_PRE2016_EXCEPTIONS = {
         # No Status Unit Run/Stop in pre-2016 (only Status Unit Mode)
         "unit_power",
-        # No STATUS counterpart for "Room thermostat available" pre-2016
+        # Single global "Room thermostat available" flag, no STATUS counterpart
+        # (pre-2016 has only circuit1_thermostat; see #318)
         "circuit1_thermostat",
-        "circuit2_thermostat",
     }
 
     HC_A_MB_EXCEPTIONS = {
@@ -283,3 +283,31 @@ class TestPre2016Specifics:
             ]:
                 key = f"circuit{circuit}_{suffix}"
                 assert key in regs, f"{key} missing from before-2016 map"
+
+    def test_pre2016_single_global_thermostat(self):
+        """Pre-2016 exposes a single global thermostat flag (see #318).
+
+        2016 hardware splits the 'Room Thermostat available' flag into
+        per-circuit registers; pre-2016 has only one. circuit2_thermostat
+        must therefore be absent from the pre-2016 map.
+        """
+        pre = AtwMbs02Pre2016RegisterMap()
+        assert "circuit1_thermostat" in pre.all_registers
+        assert "circuit2_thermostat" not in pre.all_registers
+
+
+class Test2016ThermostatRegisters:
+    """Guard the 2016 per-circuit thermostat split against regression."""
+
+    def test_distinct_per_circuit_addresses(self):
+        """2016 keeps distinct thermostat addresses 1010 / 1021 (see #318).
+
+        Prevents a future change from accidentally collapsing the two
+        per-circuit thermostat registers onto one address (the pre-2016
+        behaviour, which would re-introduce the shadowing bug).
+        """
+        atw = AtwMbs02RegisterMap()
+        regs = atw.all_registers
+        assert regs["circuit1_thermostat"].address == 1010
+        assert regs["circuit2_thermostat"].address == 1021
+        assert regs["circuit1_thermostat"].address != regs["circuit2_thermostat"].address
