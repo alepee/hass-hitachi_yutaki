@@ -204,8 +204,6 @@ class COPService:
         if current_time - self._last_measurement_time < COP_MEASUREMENTS_INTERVAL:
             return
 
-        self._last_measurement_time = current_time
-
         # Validate input data
         if any(
             x is None
@@ -216,7 +214,12 @@ class COPService:
                 data.compressor_current,
             ]
         ):
+            # Transient missing data: do not advance the interval timer, so the
+            # next complete poll within the interval is still accepted (#319).
             return
+
+        # A complete measurement is being attempted: advance the interval timer.
+        self._last_measurement_time = current_time
 
         # Calculate thermal power
         thermal_power = self._thermal_calculator(

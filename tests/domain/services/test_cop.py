@@ -11,8 +11,10 @@ from custom_components.hitachi_yutaki.domain.models.operation import (
     MODE_HEATING,
     MODE_POOL,
 )
+from custom_components.hitachi_yutaki.domain.services import cop as cop_module
 from custom_components.hitachi_yutaki.domain.services.cop import (
     COP_MEASUREMENTS_HISTORY_SIZE,
+    COP_MEASUREMENTS_INTERVAL,
     COP_MEASUREMENTS_PERIOD,
     COPService,
     EnergyAccumulator,
@@ -20,13 +22,20 @@ from custom_components.hitachi_yutaki.domain.services.cop import (
 
 
 def _make_input(
-    *, operation_mode: str | None = None, hvac_action: str | None = None
+    *,
+    operation_mode: str | None = None,
+    hvac_action: str | None = None,
+    water_flow: float | None = 15.0,
 ) -> COPInput:
-    """Create a COPInput with valid sensor data and the given operation_mode."""
+    """Create a COPInput with valid sensor data and the given operation_mode.
+
+    ``water_flow`` defaults to a valid value; pass ``None`` to simulate a
+    transient missing required input.
+    """
     return COPInput(
         water_inlet_temp=30.0,
         water_outlet_temp=35.0,
-        water_flow=15.0,
+        water_flow=water_flow,
         compressor_current=5.0,
         compressor_frequency=50.0,
         hvac_action=hvac_action,
@@ -154,3 +163,66 @@ class TestCOPModeFiltering:
             assert not service._accumulator.measurements, (
                 f"Should not accumulate with None operation_mode for mode={mode}"
             )
+
+
+class TestCOPTransientNoneTimer:
+    """Regression tests for issue #319.
+
+    The measurement-interval timer must only advance once a complete, valid
+    measurement is attempted, not on a transient None on a required sensor input.
+    """
+
+    def test_transient_none_does_not_block_next_valid_measurement(self, monkeypatch):
+        """A transient None must not consume the interval window.
+
+        With the buggy ordering, the first (None) call advances the timer to
+        ``now`` and the immediately following complete poll is rejected by the
+        interval gate, dropping a valid measurement.
+        """
+        fixed_now = 10_000.0
+        monkeypatch.setattr(cop_module, "time", lambda: fixed_now)
+
+        service = _build_service(expected_mode=None)
+        # Open the gate: last measurement is older than the interval.
+        service._last_measurement_time = fixed_now - COP_MEASUREMENTS_INTERVAL - 1
+
+        # First poll: one required field missing, but compressor running + mode OK.
+        service.update(_make_input(operation_mode=None, water_flow=None))
+        assert not service._accumulator.measurements, (
+            "Incomplete poll must not store a measurement"
+        )
+
+        # Second poll, same instant, fully valid: must be accepted.
+        service.update(_make_input(operation_mode=None))
+        assert service._accumulator.measurements, (
+            "Valid poll following a transient None must be accepted"
+        )
+
+    def test_timer_not_advanced_on_invalid_input(self, monkeypatch):
+        """The interval timer must stay put when a required input is None."""
+        fixed_now = 10_000.0
+        monkeypatch.setattr(cop_module, "time", lambda: fixed_now)
+
+        service = _build_service(expected_mode=None)
+        sentinel = fixed_now - COP_MEASUREMENTS_INTERVAL - 1
+        service._last_measurement_time = sentinel
+
+        service.update(_make_input(operation_mode=None, water_flow=None))
+
+        assert service._last_measurement_time == sentinel, (
+            "Timer must not advance on invalid (None) input"
+        )
+
+    def test_timer_advanced_on_valid_input(self, monkeypatch):
+        """The interval timer must advance exactly when a valid measurement is attempted."""
+        fixed_now = 10_000.0
+        monkeypatch.setattr(cop_module, "time", lambda: fixed_now)
+
+        service = _build_service(expected_mode=None)
+        service._last_measurement_time = fixed_now - COP_MEASUREMENTS_INTERVAL - 1
+
+        service.update(_make_input(operation_mode=None))
+
+        assert service._last_measurement_time == fixed_now, (
+            "Timer must advance to now when a valid measurement is attempted"
+        )
