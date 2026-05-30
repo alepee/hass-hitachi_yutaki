@@ -40,6 +40,20 @@ from .profiles import PROFILES
 
 _LOGGER = logging.getLogger(__name__)
 
+# Editable optional external-sensor keys rendered by the options "sensors" step.
+# These are the only keys reconciled when a selector is cleared (see #323):
+# an EntitySelector left empty is omitted from user_input, so the key must be
+# explicitly removed from the merged entry data rather than re-supplied from the
+# existing config entry. Kept in sync with the schema built in async_step_sensors.
+_OPTIONAL_SENSOR_KEYS = (
+    CONF_VOLTAGE_ENTITY,
+    CONF_POWER_ENTITY,
+    CONF_ENERGY_ENTITY,
+    CONF_WATER_INLET_TEMP_ENTITY,
+    CONF_WATER_OUTLET_TEMP_ENTITY,
+    CONF_ELECTRICITY_PRICE_ENTITY,
+)
+
 # Schema for gateway selection
 GATEWAY_SELECTION_SCHEMA = vol.Schema(
     {
@@ -382,6 +396,9 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         self._provider_steps: list[str] = []
         self._current_step_index: int = 0
         self._step_context: dict[str, Any] = {}
+        # Whether the "sensors" step was submitted, so cleared optional sensor
+        # keys are only reconciled for flows that actually reached it (#323).
+        self._sensors_submitted: bool = False
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -527,101 +544,74 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Step 4: Power supply and external sensors."""
         if user_input is not None:
+            self._sensors_submitted = True
             self._collected.update(user_input)
             return await self.async_step_telemetry()
 
         data = self.config_entry.data
 
+        # Use suggested_value (not default) for the optional sensors: a default
+        # is re-substituted by voluptuous when the field is omitted, so clearing
+        # an EntitySelector would silently re-apply the old value. suggested_value
+        # only pre-fills the field for display, leaving a cleared selector absent
+        # from user_input so it can be reconciled/removed downstream (#323).
+        schema_dict: dict[Any, Any] = {
+            vol.Required(
+                CONF_POWER_SUPPLY,
+                default=data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
+            ): selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=["single", "three"],
+                    translation_key="power_supply",
+                ),
+            ),
+            vol.Optional(CONF_VOLTAGE_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain=["sensor", "number", "input_number"],
+                ),
+            ),
+            vol.Optional(CONF_POWER_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain=["sensor"],
+                    device_class=["power"],
+                ),
+            ),
+            vol.Optional(CONF_ENERGY_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain=["sensor"],
+                    device_class=["energy"],
+                ),
+            ),
+            vol.Optional(CONF_WATER_INLET_TEMP_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain=["sensor", "number", "input_number"],
+                    device_class=["temperature"],
+                ),
+            ),
+            vol.Optional(CONF_WATER_OUTLET_TEMP_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain=["sensor", "number", "input_number"],
+                    device_class=["temperature"],
+                ),
+            ),
+            vol.Optional(CONF_ELECTRICITY_PRICE_ENTITY): selector.EntitySelector(
+                selector.EntitySelectorConfig(
+                    domain=["sensor", "number", "input_number"],
+                ),
+            ),
+        }
+
+        # Pre-fill the optional sensor fields with the currently-configured
+        # entities so the user sees their existing selection without it being
+        # re-applied as a default on clear.
+        suggested = {
+            key: data[key] for key in _OPTIONAL_SENSOR_KEYS if data.get(key) is not None
+        }
+
         return self.async_show_form(
             step_id="sensors",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_POWER_SUPPLY,
-                        default=data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=["single", "three"],
-                            translation_key="power_supply",
-                        ),
-                    ),
-                    vol.Optional(
-                        CONF_VOLTAGE_ENTITY,
-                        default=(
-                            data.get(CONF_VOLTAGE_ENTITY)
-                            if data.get(CONF_VOLTAGE_ENTITY) is not None
-                            else vol.UNDEFINED
-                        ),
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain=["sensor", "number", "input_number"],
-                        ),
-                    ),
-                    vol.Optional(
-                        CONF_POWER_ENTITY,
-                        default=(
-                            data.get(CONF_POWER_ENTITY)
-                            if data.get(CONF_POWER_ENTITY) is not None
-                            else vol.UNDEFINED
-                        ),
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain=["sensor"],
-                            device_class=["power"],
-                        ),
-                    ),
-                    vol.Optional(
-                        CONF_ENERGY_ENTITY,
-                        default=(
-                            data.get(CONF_ENERGY_ENTITY)
-                            if data.get(CONF_ENERGY_ENTITY) is not None
-                            else vol.UNDEFINED
-                        ),
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain=["sensor"],
-                            device_class=["energy"],
-                        ),
-                    ),
-                    vol.Optional(
-                        CONF_WATER_INLET_TEMP_ENTITY,
-                        default=(
-                            data.get(CONF_WATER_INLET_TEMP_ENTITY)
-                            if data.get(CONF_WATER_INLET_TEMP_ENTITY) is not None
-                            else vol.UNDEFINED
-                        ),
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain=["sensor", "number", "input_number"],
-                            device_class=["temperature"],
-                        ),
-                    ),
-                    vol.Optional(
-                        CONF_WATER_OUTLET_TEMP_ENTITY,
-                        default=(
-                            data.get(CONF_WATER_OUTLET_TEMP_ENTITY)
-                            if data.get(CONF_WATER_OUTLET_TEMP_ENTITY) is not None
-                            else vol.UNDEFINED
-                        ),
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain=["sensor", "number", "input_number"],
-                            device_class=["temperature"],
-                        ),
-                    ),
-                    vol.Optional(
-                        CONF_ELECTRICITY_PRICE_ENTITY,
-                        default=(
-                            data.get(CONF_ELECTRICITY_PRICE_ENTITY)
-                            if data.get(CONF_ELECTRICITY_PRICE_ENTITY) is not None
-                            else vol.UNDEFINED
-                        ),
-                    ): selector.EntitySelector(
-                        selector.EntitySelectorConfig(
-                            domain=["sensor", "number", "input_number"],
-                        ),
-                    ),
-                }
+            data_schema=self.add_suggested_values_to_schema(
+                vol.Schema(schema_dict), suggested
             ),
             description_placeholders={
                 "currency": self.hass.config.currency,
@@ -647,6 +637,19 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                 k: v for k, v in self._step_context.items() if not k.startswith("_")
             }
             new_data = {**self.config_entry.data, **provider_data, **self._collected}
+
+            # Reconcile cleared optional sensors: an EntitySelector left empty is
+            # omitted from user_input, so the key never lands in self._collected
+            # and the merge above re-applies the old value from config_entry.data.
+            # Remove any editable optional sensor key the user did not submit, so
+            # a previously-configured sensor can actually be unset (#323). Only
+            # the known sensor keys are touched; unrelated persisted data (host,
+            # profile, capability flags, ...) is left intact.
+            if self._sensors_submitted:
+                for key in _OPTIONAL_SENSOR_KEYS:
+                    if key not in self._collected:
+                        new_data.pop(key, None)
+
             self.hass.config_entries.async_update_entry(
                 self.config_entry, data=new_data, options=new_options
             )
