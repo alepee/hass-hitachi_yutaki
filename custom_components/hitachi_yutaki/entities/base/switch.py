@@ -2,6 +2,7 @@
 
 from collections.abc import Callable
 from dataclasses import dataclass
+import logging
 from typing import Any
 
 from homeassistant.components.switch import SwitchEntity
@@ -10,6 +11,8 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ...const import DEVICE_TYPES, DOMAIN
 from ...coordinator import HitachiYutakiDataCoordinator
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass
@@ -80,35 +83,49 @@ class HitachiYutakiSwitch(CoordinatorEntity, SwitchEntity):
         circuit_id = self._get_circuit_id()
         return self._description.get_fn(self._coordinator.api_client, circuit_id)
 
+    @property
+    def _register_key(self) -> str:
+        """Return the coordinator data key for this switch."""
+        if self._register_prefix:
+            return f"{self._register_prefix}_{self._description.key}"
+        return self._description.key
+
+    async def _async_set(self, value: bool) -> None:
+        """Write a value via set_fn and re-sync from the live device state.
+
+        ``set_fn`` returns a bool success flag. On failure we do not apply an
+        optimistic state, we log and request a refresh so the entity reverts to
+        the real device state. On success we also request a refresh because
+        ``is_on`` reads from the live ``api_client`` (not ``coordinator.data``).
+        """
+        circuit_id = self._get_circuit_id()
+        success = await self._description.set_fn(
+            self._coordinator.api_client, circuit_id, value
+        )
+
+        if not success:
+            _LOGGER.warning(
+                "Failed to set %s to %s for %s",
+                self._register_key,
+                value,
+                self._attr_unique_id,
+            )
+            await self._coordinator.async_request_refresh()
+            return
+
+        # Re-sync from the live state. is_on reads from api_client, so the
+        # refresh (not an optimistic coordinator.data write) drives the UI.
+        await self._coordinator.async_request_refresh()
+
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the switch on."""
-        circuit_id = self._get_circuit_id()
-        await self._description.set_fn(self._coordinator.api_client, circuit_id, True)
-
-        # Update coordinator data
-        if self._register_prefix:
-            register_key = f"{self._register_prefix}_{self._description.key}"
-        else:
-            register_key = self._description.key
-        self._coordinator.data[register_key] = True
-        self.async_write_ha_state()
+        await self._async_set(True)
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the switch off."""
         if not self._description.set_fn:
             return
-
-        # Use dedicated API method
-        circuit_id = self._get_circuit_id()
-        await self._description.set_fn(self._coordinator.api_client, circuit_id, False)
-
-        # Update coordinator data
-        if self._register_prefix:
-            register_key = f"{self._register_prefix}_{self._description.key}"
-        else:
-            register_key = self._description.key
-        self._coordinator.data[register_key] = False
-        self.async_write_ha_state()
+        await self._async_set(False)
 
 
 def _create_switches(
