@@ -181,11 +181,13 @@ REGISTER_CIRCUIT_1 = {
     "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1056, write_address=1007),
     "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1057, write_address=1008),
     # Pre-2016 hardware (PMML0419A Section 5.2) has a SINGLE global
-    # "Room Thermostat available" flag at address 1029 (doc: 1028 = DHW Mode,
+    # "Room Thermostat available" enable at address 1029 (doc: 1028 = DHW Mode,
     # 1029 = Room Thermostat available). Unlike the 2016 line-up, which splits
-    # the flag into per-circuit registers 1010/1021, pre-2016 exposes only one.
-    # It is modelled once here on circuit 1 (always present); there is no
-    # circuit2_thermostat register on this hardware. See #318.
+    # the enable into per-circuit registers 1010/1021, pre-2016 exposes only
+    # one. (Per-circuit *availability* is still reported read-only via system-
+    # config register 1075 bits 6/7.) It is modelled once here on circuit 1
+    # (always present); there is no per-circuit thermostat *control* register,
+    # hence no circuit2_thermostat on this map. See #318.
     "circuit1_thermostat": RegisterDefinition(1029),
 }
 
