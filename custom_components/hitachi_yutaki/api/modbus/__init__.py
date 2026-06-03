@@ -613,6 +613,10 @@ class ModbusApiClient(HitachiApiClient):
             mode_map[rmap.hvac_unit_mode_auto] = HVACMode.AUTO
         return mode_map.get(unit_mode)
 
+    def get_operation_state(self) -> str | None:
+        """Get the deserialized unit operation state (e.g. heat_thermo_on)."""
+        return self._data.get("operation_state")
+
     # Unit control - Setters
     async def set_unit_power(self, enabled: bool) -> bool:
         """Enable/disable the main heat pump unit."""

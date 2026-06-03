@@ -183,6 +183,10 @@ class HitachiApiClient(ABC):
     def get_unit_mode(self):
         """Get the current unit mode (returns HVACMode: COOL/HEAT/AUTO)."""
 
+    @abstractmethod
+    def get_operation_state(self) -> str | None:
+        """Get the deserialized unit operation state (e.g. heat_thermo_on)."""
+
     # Unit control - Setters
     @abstractmethod
     async def set_unit_power(self, enabled: bool) -> bool:
