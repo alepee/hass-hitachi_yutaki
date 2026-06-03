@@ -27,6 +27,8 @@ from ..adapters.providers.operation_mode import (
 from ..adapters.storage.in_memory import InMemoryStorage
 from ..const import (
     CONF_ELECTRICITY_PRICE_ENTITY,
+    CONF_POWER_ENTITY,
+    CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
     DEFAULT_SCAN_INTERVAL,
@@ -70,6 +72,7 @@ class DerivedMetricsAdapter:
         )
         self._has_cooling = has_cooling
         self._supports_secondary_compressor = supports_secondary_compressor
+        self._is_three_phase = power_supply == "three"
 
         # Defrost guard (shared across all derived metrics)
         self.defrost_guard = DefrostGuard()
@@ -256,19 +259,29 @@ class DerivedMetricsAdapter:
 
     def _update_cop(self, data: dict[str, Any]) -> None:
         """Compute electrical power and COP for all configured modes."""
-        # Electrical power — sum primary + secondary compressor
+        # Electrical power — call the calculator ONCE with the summed current.
+        #
+        # Issue #316: calling the calculator twice (once per compressor) and
+        # summing double-counts when a whole-unit power meter (CONF_POWER_ENTITY)
+        # is configured, because the calculator returns the *total* measured
+        # power for both calls (~2x real -> COP halved on S80 + power meter).
+        #
+        # Summing the currents first is correct for both backends:
+        #   - measured_power path: returned once (whole unit) -> no double count.
+        #   - I×U estimate path: U×(I1+I2) == U×I1 + U×I2 -> identical to old sum.
         electrical_power = 0.0
         current = data.get("compressor_current")
-        if current is not None and current > 0:
-            electrical_power = self._electrical_calculator(current)
+        total_current = current if current is not None and current > 0 else 0.0
 
         if self._supports_secondary_compressor:
             sec_current = data.get("secondary_compressor_current")
             sec_freq = data.get("secondary_compressor_frequency")
+            # Only count the secondary compressor when it is actually running.
             if sec_current is not None and sec_freq is not None and sec_freq > 0:
-                sec_power = self._electrical_calculator(sec_current)
-                if sec_power > 0:
-                    electrical_power += sec_power
+                total_current += sec_current
+
+        if total_current > 0:
+            electrical_power = self._electrical_calculator(total_current)
 
         data["electrical_power"] = round(electrical_power, 3)
         _LOGGER.debug(
@@ -449,6 +462,15 @@ class DerivedMetricsAdapter:
                 if eid:
                     entity_map[key] = eid
 
+        # Optional external power/voltage meters (#316): include their *historical*
+        # values so each replayed point uses its own power, not a single live read.
+        power_entity = self._config_entry_data.get(CONF_POWER_ENTITY)
+        if power_entity:
+            entity_map["power_entity"] = power_entity
+        voltage_entity = self._config_entry_data.get(CONF_VOLTAGE_ENTITY)
+        if voltage_entity:
+            entity_map["voltage_entity"] = voltage_entity
+
         # Rehydrate each COP service
         for cop_key, service in self._cop_services.items():
             accepted_states: set[str] | None = None
@@ -460,11 +482,11 @@ class DerivedMetricsAdapter:
                     hass=self._hass,
                     entity_ids=entity_map,
                     thermal_calculator=thermal_power_calculator_wrapper,
-                    electrical_calculator=self._electrical_calculator,
                     window=COP_MEASUREMENTS_PERIOD,
                     measurement_interval=COP_MEASUREMENTS_INTERVAL,
                     max_measurements=COP_MEASUREMENTS_HISTORY_SIZE,
                     accepted_operation_states=accepted_states,
+                    is_three_phase=self._is_three_phase,
                 )
                 if measurements:
                     service.preload_measurements(measurements)

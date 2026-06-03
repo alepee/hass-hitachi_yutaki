@@ -10,6 +10,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Telemetry backend: `backend/grafana/koppen-zones.geojson`, a simplified Köppen-Geiger climate-zone polygon set (29 classes, polar `EF`/`ET` excluded, keyed by `CODE`/`name`) for a climate-zone choropleth panel on the fleet-inventory Grafana dashboard. Active zones are painted with their canonical Köppen family colours (the install count shows in the tooltip and as a per-zone label); zones with no installs stay a neutral, theme-aware grey. Provenance and the `mapshaper` regeneration command are documented in the dashboard design doc.
 
+### Fixed
+- COP: fix electrical power double-counting on S80 units when a whole-unit power meter (`power_entity`) is configured. The derived-metrics calculator was called once per compressor and the results summed; with a power meter each call returns the *total* unit power, so the sum was ~2x the real consumption and COP was roughly halved. Electrical power is now computed with a single calculator call using the summed compressor current, which is correct for both the measured-power path (whole unit returned once) and the I×U estimate (`U×(I1+I2) == U×I1 + U×I2`) (#316).
+- COP: fix incorrect COP reconstruction on restart for installations using a whole-unit power meter. During Recorder rehydration every replayed point was stamped with a single live `power_entity` reading captured at startup, instead of each point's own historical value. Rehydration now fetches the historical `power_entity` (and `voltage_entity`) from the Recorder and reconstructs the electrical power per point at its own timestamp (falling back to the per-point I×U estimate when no power meter is configured), matching how historical water temperatures are already replayed (#316).
+
 ## [2.1.3] - 2026-05-29
 
 ### Fixed

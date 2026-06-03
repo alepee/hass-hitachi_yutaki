@@ -5,6 +5,10 @@ from unittest.mock import MagicMock
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
     DerivedMetricsAdapter,
 )
+from custom_components.hitachi_yutaki.domain.services.electrical import (
+    POWER_FACTOR,
+    VOLTAGE_SINGLE_PHASE,
+)
 
 
 def _sample_data(**overrides) -> dict:
@@ -451,3 +455,58 @@ class TestEnergyAndCost:
         assert data["electrical_power"] > 0
         # COP keys should be present (uses the same electrical_power)
         assert "cop_heating" in data
+
+    def test_s80_with_power_meter_does_not_double_count(self):
+        """Regression #316: S80 + whole-unit power meter must not double-count.
+
+        With ``power_entity`` configured, the meter reports total unit power.
+        Summing two per-compressor calculator calls (both returning the same
+        whole-unit value) yields ~2x the real power, halving COP.
+        """
+        mock_hass = MagicMock()
+
+        power_state = MagicMock()
+        power_state.state = "3000"  # 3000 W = 3 kW whole unit
+        power_state.attributes = {"unit_of_measurement": "W"}
+
+        config_entry = MagicMock()
+        config_entry.data = {"power_entity": "sensor.unit_power"}
+
+        def states_get(entity_id):
+            if entity_id == "sensor.unit_power":
+                return power_state
+            return None
+
+        mock_hass.states.get = states_get
+
+        adapter = DerivedMetricsAdapter(
+            hass=mock_hass,
+            config_entry=config_entry,
+            power_supply="single",
+            supports_secondary_compressor=True,
+        )
+
+        data = _sample_data(
+            compressor_current=8.5,
+            secondary_compressor_current=6.0,
+            secondary_compressor_frequency=50.0,
+        )
+        adapter.update(data)
+        # measured whole-unit power is 3 kW; must NOT be ~6 kW
+        assert data["electrical_power"] == 3.0
+
+    def test_s80_ixu_estimate_matches_summed_current(self):
+        """S80 I×U estimate is unchanged: U×(I1+I2) == U×I1 + U×I2.
+
+        Guards the refactor that calls the calculator once with the summed
+        current instead of twice.
+        """
+        adapter = _make_adapter(supports_secondary_compressor=True)
+        data = _sample_data(
+            compressor_current=8.5,
+            secondary_compressor_current=6.0,
+            secondary_compressor_frequency=50.0,
+        )
+        adapter.update(data)
+        expected = round((VOLTAGE_SINGLE_PHASE * (8.5 + 6.0) * POWER_FACTOR) / 1000, 3)
+        assert data["electrical_power"] == expected

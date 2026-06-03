@@ -225,23 +225,22 @@ class COPService:
             data.water_flow,  # type: ignore
         )
 
-        # Use pre-computed electrical power if available, else compute from current
+        # Use pre-computed electrical power if available, else compute from current.
+        #
+        # Fallback path: call the calculator ONCE with the summed compressor
+        # current. Calling it per compressor and summing would double-count when
+        # the calculator returns a whole-unit measured power (issue #316).
         if data.electrical_power is not None:
             electrical_power = data.electrical_power
         else:
-            electrical_power = self._electrical_calculator(
-                data.compressor_current  # type: ignore
-            )
+            total_current = data.compressor_current  # type: ignore
             if (
                 data.secondary_compressor_current is not None
                 and data.secondary_compressor_frequency is not None
                 and data.secondary_compressor_frequency > 0
             ):
-                additional_power = self._electrical_calculator(
-                    data.secondary_compressor_current
-                )
-                if additional_power > 0:
-                    electrical_power += additional_power
+                total_current += data.secondary_compressor_current
+            electrical_power = self._electrical_calculator(total_current)
 
         # Store measurement if valid
         if thermal_power > 0 and electrical_power > 0:
