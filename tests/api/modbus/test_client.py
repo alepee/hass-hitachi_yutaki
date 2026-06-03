@@ -426,6 +426,113 @@ async def test_read_values_resets_throttle_state_on_recovery(
     assert api._gateway_not_ready_last_log == 0.0
 
 
+# --- Stale-value clearing on sensor-error / read-error (issue #320) ---
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_clears_stale_value_on_sensor_error_without_fallback(
+    _mock_ir, mock_hass, mock_client
+):
+    """A 0xFFFF sensor-error with no fallback must clear the stale value (#320)."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._data["outdoor_temp"] = 5  # stale good value
+
+    # [preflight system_state, outdoor_temp = 0xFFFF sensor error]
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(0xFFFF),
+    ]
+
+    result = await api.read_values(["outdoor_temp"])
+
+    assert result == ReadResult.SUCCESS
+    assert "outdoor_temp" not in api._data
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_clears_stale_value_on_read_error_without_fallback(
+    _mock_ir, mock_hass, mock_client
+):
+    """A per-register read error with no fallback must clear the stale value (#320)."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._data["outdoor_temp"] = 5  # stale good value
+
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_error(),
+    ]
+
+    result = await api.read_values(["outdoor_temp"])
+
+    assert result == ReadResult.SUCCESS
+    assert "outdoor_temp" not in api._data
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_keeps_value_on_successful_read(
+    _mock_ir, mock_hass, mock_client
+):
+    """A fresh successful read overwrites the stored value (regression guard)."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._data["outdoor_temp"] = 5  # stale value to be overwritten
+
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(200),  # convert_signed_16bit(200) == 200
+    ]
+
+    result = await api.read_values(["outdoor_temp"])
+
+    assert result == ReadResult.SUCCESS
+    assert api._data["outdoor_temp"] == 200
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_fallback_still_recovers_on_sensor_error(
+    _mock_ir, mock_hass, mock_client
+):
+    """Fallback register must still recover when primary is a 0xFFFF sensor-error."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+
+    # [preflight, primary 1200 = 0xFFFF, fallback 1093 = 350]
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(0xFFFF),
+        _make_modbus_result(350),
+    ]
+
+    result = await api.read_values(["water_outlet_temp"])
+
+    assert result == ReadResult.SUCCESS
+    assert api._data["water_outlet_temp"] == 350
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_clears_when_both_primary_and_fallback_error(
+    _mock_ir, mock_hass, mock_client
+):
+    """When both primary and fallback error, the stale value must be cleared (#320)."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._data["water_outlet_temp"] = 42  # stale good value
+
+    # [preflight, primary 1200 = 0xFFFF, fallback 1093 = 0xFFFF]
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(0xFFFF),
+        _make_modbus_result(0xFFFF),
+    ]
+
+    result = await api.read_values(["water_outlet_temp"])
+
+    assert result == ReadResult.SUCCESS
+    assert "water_outlet_temp" not in api._data
+
+
 @pytest.mark.asyncio
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
 @patch("custom_components.hitachi_yutaki.api.modbus.time")
