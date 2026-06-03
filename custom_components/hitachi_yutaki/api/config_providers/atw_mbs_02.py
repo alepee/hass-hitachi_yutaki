@@ -142,7 +142,11 @@ class AtwMbs02ConfigProvider:
         """Build schema for the variant selection step."""
         detected_variant = context.get("_detected_variant", "")
         variant_keys = list(GATEWAY_VARIANTS[_GATEWAY_TYPE].keys())
-        default_variant = detected_variant if detected_variant else vol.UNDEFINED
+        # Priority: fresh detection wins, then the variant already stored in
+        # the entry (present during reconfigure, see #325), then no default.
+        default_variant = (
+            detected_variant or context.get("gateway_variant") or vol.UNDEFINED
+        )
 
         if detected_variant:
             auto_detect_status = detected_variant.upper().replace("GEN", "Gen ")

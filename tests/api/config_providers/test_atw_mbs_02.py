@@ -3,6 +3,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import voluptuous as vol
 
 from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.api.config_providers.atw_mbs_02 import (
@@ -90,6 +91,44 @@ class TestAtwMbs02ConfigProvider:
         """Verify step_schema raises ValueError for an unknown step ID."""
         with pytest.raises(ValueError, match="Unknown step_id"):
             self.provider.step_schema("invalid", {})
+
+    @staticmethod
+    def _variant_default(step):
+        """Extract the default of the gateway_variant schema key."""
+        key = next(
+            k
+            for k in step.schema.schema
+            if getattr(k, "schema", None) == "gateway_variant"
+        )
+        default = key.default
+        return default() if callable(default) else default
+
+    def test_variant_schema_defaults_to_stored_variant_when_detection_fails(
+        self,
+    ) -> None:
+        """Regression #325: fall back to the stored variant when detection fails.
+
+        In the reconfigure flow the entry already holds a ``gateway_variant``.
+        When auto-detection comes back empty the selector must default to that
+        stored value instead of forcing the user to re-pick it.
+        """
+        context = {"_detected_variant": "", "gateway_variant": "gen1"}
+        step = self.provider.step_schema("atw_mbs_02_variant", context)
+        assert self._variant_default(step) == "gen1"
+        # Placeholder still reflects that detection failed.
+        assert step.description_placeholders["detected_variant"] == "?"
+
+    def test_variant_schema_prefers_detected_over_stored(self) -> None:
+        """Fresh detection wins over the previously stored variant."""
+        context = {"_detected_variant": "gen2", "gateway_variant": "gen1"}
+        step = self.provider.step_schema("atw_mbs_02_variant", context)
+        assert self._variant_default(step) == "gen2"
+
+    def test_variant_schema_default_undefined_when_nothing_known(self) -> None:
+        """Initial setup: no detection and no stored variant leaves no default."""
+        context = {"_detected_variant": ""}
+        step = self.provider.step_schema("atw_mbs_02_variant", context)
+        assert self._variant_default(step) is vol.UNDEFINED
 
 
 @pytest.mark.asyncio
