@@ -7,9 +7,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.hitachi_yutaki.const import (
+    CONF_ENERGY_ENTITY,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
+    CONF_POWER_ENTITY,
     DEFAULT_DEVICE_ID,
     DEFAULT_HOST,
     DEFAULT_NAME,
@@ -617,3 +619,184 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
     assert entry.data["profile"] == "yutaki_s_combi"
     assert entry.data["power_supply"] == "three"
     assert entry.data["gateway_variant"] == "gen1"
+
+
+async def _walk_options_flow_to_sensors(hass: HomeAssistant, entry: MockConfigEntry):
+    """Drive the options flow from init up to (and including) the sensors form.
+
+    Returns the flow result whose step_id is "sensors", ready for the caller to
+    submit the sensors user_input.
+    """
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"gateway_type": "modbus_atw_mbs_02"},
+    )
+
+    mock_client = _mock_api_client()
+    mock_gw_info = _mock_gateway_info(mock_client)
+
+    with (
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {
+                "name": DEFAULT_NAME,
+                CONF_MODBUS_HOST: DEFAULT_HOST,
+                CONF_MODBUS_PORT: DEFAULT_PORT,
+                CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+                "scan_interval": DEFAULT_SCAN_INTERVAL,
+            },
+        )
+
+    mock_profs = _mock_profiles()
+    with (
+        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
+        patch(_PATCH_ATW_CREATE_RM),
+        patch(_PATCH_ATW_PROFILES, mock_profs),
+    ):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {"gateway_variant": "gen1"},
+        )
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"profile": "yutaki_s"},
+    )
+    assert result["step_id"] == "sensors"
+    return result
+
+
+async def test_options_flow_clears_optional_sensor(hass: HomeAssistant) -> None:
+    """Clearing a previously-configured optional sensor unsets it (#323)."""
+    entry = MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title=DEFAULT_NAME,
+        data={
+            "gateway_type": "modbus_atw_mbs_02",
+            "gateway_variant": "gen2",
+            "name": DEFAULT_NAME,
+            CONF_MODBUS_HOST: DEFAULT_HOST,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
+            "profile": "yutaki_s",
+            "power_supply": DEFAULT_POWER_SUPPLY,
+            CONF_POWER_ENTITY: "sensor.old_power",
+        },
+    )
+    entry.add_to_hass(hass)
+
+    result = await _walk_options_flow_to_sensors(hass, entry)
+
+    # Submit the sensors form with the power sensor cleared (omitted, as HA does).
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"power_supply": "single"},
+    )
+    assert result["step_id"] == "telemetry"
+
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {"telemetry_level": "off"},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.data.get(CONF_POWER_ENTITY) is None
+
+
+async def test_options_flow_keeps_unset_optional_sensor_value(
+    hass: HomeAssistant,
+) -> None:
+    """A sensor still present in the submitted input is preserved/updated."""
+    entry = MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title=DEFAULT_NAME,
+        data={
+            "gateway_type": "modbus_atw_mbs_02",
+            "gateway_variant": "gen2",
+            "name": DEFAULT_NAME,
+            CONF_MODBUS_HOST: DEFAULT_HOST,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
+            "profile": "yutaki_s",
+            "power_supply": DEFAULT_POWER_SUPPLY,
+            CONF_ENERGY_ENTITY: "sensor.old_energy",
+        },
+    )
+    entry.add_to_hass(hass)
+
+    result = await _walk_options_flow_to_sensors(hass, entry)
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {
+            "power_supply": "single",
+            CONF_ENERGY_ENTITY: "sensor.new_energy",
+        },
+    )
+    assert result["step_id"] == "telemetry"
+
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {"telemetry_level": "off"},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.data[CONF_ENERGY_ENTITY] == "sensor.new_energy"
+
+
+async def test_options_flow_preserves_unrelated_data_when_clearing_sensor(
+    hass: HomeAssistant,
+) -> None:
+    """Reconciliation only touches the editable optional sensor keys (#323)."""
+    entry = MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title=DEFAULT_NAME,
+        data={
+            "gateway_type": "modbus_atw_mbs_02",
+            "gateway_variant": "gen2",
+            "name": DEFAULT_NAME,
+            CONF_MODBUS_HOST: DEFAULT_HOST,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
+            "profile": "yutaki_s",
+            "power_supply": DEFAULT_POWER_SUPPLY,
+            CONF_POWER_ENTITY: "sensor.old_power",
+        },
+    )
+    entry.add_to_hass(hass)
+
+    result = await _walk_options_flow_to_sensors(hass, entry)
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"power_supply": "single"},
+    )
+    assert result["step_id"] == "telemetry"
+
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {"telemetry_level": "off"},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    # Cleared sensor is gone, but unrelated persisted data survives.
+    assert entry.data.get(CONF_POWER_ENTITY) is None
+    assert entry.data["gateway_variant"] == "gen1"
+    assert entry.data["scan_interval"] == DEFAULT_SCAN_INTERVAL
+    assert entry.data["profile"] == "yutaki_s"
