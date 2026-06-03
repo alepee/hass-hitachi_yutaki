@@ -12,7 +12,12 @@
 
 import { archiveToR2 } from "./archive";
 import { classifyClimateZone } from "./climate";
-import { RateLimitError, checkRateLimit } from "./rate-limiter";
+import {
+  RateLimitError,
+  WINDOW_SECONDS,
+  isRateLimited,
+  markRateLimit,
+} from "./rate-limiter";
 import type { Env } from "./types";
 import { ValidationError, validate } from "./validator";
 
@@ -42,8 +47,12 @@ export default {
       const instanceHashHeader = request.headers.get("x-instance-hash");
       const payload = validate(body, instanceHashHeader);
 
-      // Rate limit (per instance_hash + payload type)
-      await checkRateLimit(payload.instance_hash, payload.type);
+      // Rate limit (per instance_hash + payload type). Read-only check here;
+      // the slot is only committed (markRateLimit) after a successful archive
+      // so a transient R2 outage never burns the window (#324).
+      if (await isRateLimited(payload.instance_hash, payload.type)) {
+        throw new RateLimitError(WINDOW_SECONDS);
+      }
 
       // Enrich installation payload with precise Köppen climate zone
       if (payload.type === "installation") {
@@ -58,6 +67,19 @@ export default {
       } catch (err) {
         console.error("R2 archive failed:", err);
         return new Response("R2 archive unavailable", { status: 502 });
+      }
+
+      // Commit the rate-limit slot only now that the payload is durably
+      // archived. On R2 failure we returned 502 above and never reach this,
+      // so the client's retry within the window is accepted (no data loss).
+      // Best-effort: a Cache API put failure must not turn a successful
+      // archive into a 500 (which would prompt a client retry and double-write
+      // to R2). Failing to mark only widens the window by one extra accepted
+      // request — the documented tradeoff.
+      try {
+        await markRateLimit(payload.instance_hash, payload.type);
+      } catch (err) {
+        console.warn("markRateLimit failed (archive already durable):", err);
       }
 
       // Mirror installation payloads into Analytics Engine for the fleet
