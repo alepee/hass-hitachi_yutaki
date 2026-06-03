@@ -144,6 +144,8 @@ The ATW-MBS-02 has two distinct register maps depending on the Yutaki hardware g
 | 1031 | 1030 | Control Eco offset | 1~10 | R/W |
 | 1032~1050 | 1031~1049 | (Reserved) | — | — |
 
+> **Thermostat availability (pre-2016):** the *enable* control is global — address 1029 ("Room Thermostat available", R/W) is a **single flag covering all circuits**, unlike the 2016 line-up which splits the enable into per-circuit registers 1010 / 1021. Per-circuit *availability* is still reported read-only via the System Configuration bitfield (reg 1075, bits 6/7 — see [System Configuration Bits (Before 2016)](#system-configuration-bits-before-2016)). The integration therefore models the writable enable as `circuit1_thermostat` only; there is no per-circuit thermostat *control* register, so no `circuit2_thermostat` on this map (see issue #318).
+
 ### Status Registers (R)
 
 | Register | Address | Description | Range | Type |

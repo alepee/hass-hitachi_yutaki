@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- ATW-MBS-02 (Before Line-up 2016): the "Room Thermostat available" flag is a single global register (address 1029), not a per-circuit control as on the 2016 line-up. The pre-2016 map previously defined `circuit2_thermostat` at the same address 1029 as `circuit1_thermostat`, so toggling circuit 2 silently rewrote the global flag (and shadowed circuit 1). The duplicate `circuit2_thermostat` key has been removed; the flag is now modelled once as `circuit1_thermostat` (#318).
+
 ### Added
 - Telemetry backend: `backend/grafana/koppen-zones.geojson`, a simplified Köppen-Geiger climate-zone polygon set (29 classes, polar `EF`/`ET` excluded, keyed by `CODE`/`name`) for a climate-zone choropleth panel on the fleet-inventory Grafana dashboard. Active zones are painted with their canonical Köppen family colours (the install count shows in the tooltip and as a per-zone label); zones with no installs stay a neutral, theme-aware grey. Provenance and the `mapshaper` regeneration command are documented in the dashboard design doc.
 

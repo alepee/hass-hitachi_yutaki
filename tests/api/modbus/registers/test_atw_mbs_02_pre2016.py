@@ -89,6 +89,66 @@ class TestPre2016RegisterMap:
         for key in ["dhw_boost", "dhw_high_demand"]:
             assert key not in regs, f"{key} should not exist in before-2016 map"
 
+    def test_no_duplicate_read_addresses(self):
+        """No two distinct semantic keys may share the same read address.
+
+        Pre-2016 (PMML0419A Section 5.2) defines a handful of intentional
+        STATUS/CONTROL aliases (one read register surfaced under two keys).
+        Those are whitelisted below. Any *other* address collision indicates
+        a copy-paste error mapping one key onto an unrelated register --
+        which is exactly the bug behind #318 (circuit2_thermostat duplicated
+        circuit1_thermostat at address 1029).
+        """
+        reg_map = AtwMbs02Pre2016RegisterMap()
+
+        # Documented intentional aliases: each pair is the same physical
+        # register exposed under two keys (a derived/deserialized view plus
+        # the raw value). These legitimately share an address.
+        allowed_alias_pairs = {
+            frozenset({"operation_state", "operation_state_code"}),
+            frozenset({"dhw_antilegionella", "dhw_antilegionella_status"}),
+            frozenset(
+                {"dhw_antilegionella_temp", "dhw_antilegionella_temp_status"}
+            ),
+        }
+
+        by_address: dict[int, list[str]] = {}
+        for key, definition in reg_map.all_registers.items():
+            by_address.setdefault(definition.address, []).append(key)
+
+        for address, keys in by_address.items():
+            if len(keys) == 1:
+                continue
+            assert frozenset(keys) in allowed_alias_pairs, (
+                f"Address {address} is shared by {sorted(keys)}, which is not "
+                f"a documented STATUS/CONTROL alias pair. See #318."
+            )
+
+    def test_single_global_thermostat_register(self):
+        """Pre-2016 has ONE shared 'Room Thermostat available' register.
+
+        Unlike the 2016 line-up (which splits the flag into per-circuit
+        registers 1010/1021), pre-2016 hardware (PMML0419A Section 5.2)
+        exposes a single global flag at address 1029. The integration must
+        therefore model it once -- circuit2_thermostat must not exist (it
+        would silently shadow circuit1_thermostat). See #318.
+        """
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        regs = reg_map.all_registers
+        assert "circuit1_thermostat" in regs
+        assert "circuit2_thermostat" not in regs
+        assert "circuit1_thermostat" in reg_map.writable_keys
+        assert "circuit2_thermostat" not in reg_map.writable_keys
+
+    def test_thermostat_address_correct(self):
+        """The shared thermostat flag sits at address 1029.
+
+        Doc anchor: 1028 = DHW Mode, 1029 = Room Thermostat available
+        (docs/gateway/atw-mbs-02.md, pre-2016 Control section).
+        """
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        assert reg_map.all_registers["circuit1_thermostat"].address == 1029
+
 
 class TestPre2016UnitModelDeserializer:
     """Test the before-2016 unit model deserializer."""
