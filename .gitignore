@@ -10,23 +10,6 @@ docs/plans/
 # Home Assistant config
 config/
 
-
-#Links for local development
-/translations
-/__init__.py
-/binary_sensor.py
-/climate.py
-/config_flow.py
-/const.py
-/coordinator.py
-/manifest.json
-/number.py
-/select.py
-/sensor.py
-/switch.py
-
-todo
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -102,7 +85,7 @@ target/
 .ipynb_checkpoints
 
 # pyenv
-.python-version
+# (.python-version is tracked - pins the Python version for uv)
 
 # celery beat schedule file
 celerybeat-schedule
