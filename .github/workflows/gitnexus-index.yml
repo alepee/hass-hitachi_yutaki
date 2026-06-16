@@ -1,0 +1,53 @@
+name: GitNexus Index
+
+# Builds the GitNexus knowledge graph on every push to main and stores it in the
+# GitHub Actions cache. A future PR-review workflow can restore this cache (the
+# default-branch cache is readable from pull requests) and run an incremental
+# `analyze` so an agent can query an index that reflects the PR.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Serialize runs: aborting an analyze mid-flight can corrupt the KuzuDB index.
+concurrency:
+  group: gitnexus-index
+  cancel-in-progress: false
+
+jobs:
+  index:
+    name: Build knowledge graph
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      # Warm the incremental analyze with the most recent index from main.
+      # The exact (sha-keyed) entry never hits, so the prefix restore-key wins.
+      - name: Restore previous index
+        uses: actions/cache/restore@v4
+        with:
+          path: .gitnexus
+          key: gitnexus-index-${{ github.sha }}
+          restore-keys: |
+            gitnexus-index-
+
+      - name: Build / refresh the knowledge graph
+        run: npx --yes gitnexus analyze
+
+      # Only runs if analyze succeeded, so a corrupt/partial index is never cached.
+      - name: Save index to cache
+        uses: actions/cache/save@v4
+        with:
+          path: .gitnexus
+          key: gitnexus-index-${{ github.sha }}
