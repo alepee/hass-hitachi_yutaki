@@ -28,14 +28,14 @@ jobs:
         uses: actions/checkout@v5
 
       - name: Set up Node
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: "24"
 
       # Warm the incremental analyze with the most recent index from main.
       # The exact (sha-keyed) entry never hits, so the prefix restore-key wins.
       - name: Restore previous index
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: .gitnexus
           key: gitnexus-index-${{ github.sha }}
@@ -47,7 +47,7 @@ jobs:
 
       # Only runs if analyze succeeded, so a corrupt/partial index is never cached.
       - name: Save index to cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         with:
           path: .gitnexus
           key: gitnexus-index-${{ github.sha }}
