@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Logging: the gateway now logs an explicit recovery line (with the real not-ready duration) when its `system_state` transitions back from initializing/desynchronized to synchronized. Previously the recovery was silent in the Modbus layer, so the full outage window (and its true length) was not visible in the logs; only the "not ready" detection and the periodic "still not ready" reminders were. This makes it possible to measure the actual desync windows directly from Home Assistant's logs (#356).
+
 ## [2.1.4] - 2026-06-03
 
 ### Added
