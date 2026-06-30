@@ -409,9 +409,9 @@ async def test_read_values_throttles_gateway_not_ready_logs(
 @pytest.mark.asyncio
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
 async def test_read_values_resets_throttle_state_on_recovery(
-    _mock_ir, mock_hass, mock_client
+    _mock_ir, mock_hass, mock_client, caplog
 ):
-    """Test that throttle state is reset after recovery."""
+    """Test that throttle state is reset and a recovery line is logged (#356)."""
     api = _make_preflight_api_client(mock_hass, mock_client)
 
     # Not ready
@@ -421,9 +421,13 @@ async def test_read_values_resets_throttle_state_on_recovery(
 
     # Recovered
     mock_client.read_holding_registers.return_value = _make_modbus_result(0)
-    await api.read_values(["system_state"])
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        await api.read_values(["system_state"])
     assert api._gateway_not_ready_since is None
     assert api._gateway_not_ready_last_log == 0.0
+    recovery_logs = [r for r in caplog.records if "recovered" in r.message.lower()]
+    assert len(recovery_logs) == 1
 
 
 # --- Stale-value clearing on sensor-error / read-error (issue #320) ---

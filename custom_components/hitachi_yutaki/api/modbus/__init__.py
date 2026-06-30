@@ -447,6 +447,13 @@ class ModbusApiClient(HitachiApiClient):
 
                 # Gateway is ready - reset throttle state if recovering
                 if self._gateway_not_ready_since is not None:
+                    elapsed = int(time.monotonic() - self._gateway_not_ready_since)
+                    _LOGGER.warning(
+                        "Gateway recovered (state: %s) after being not-ready for %d min %d s.",
+                        raw_state,
+                        elapsed // 60,
+                        elapsed % 60,
+                    )
                     self._gateway_not_ready_since = None
                     self._gateway_not_ready_last_log = 0.0
 
