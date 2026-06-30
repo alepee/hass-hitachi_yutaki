@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Docs: refreshed the HC-A(8/16/64)MB datasheet to the official PMML0351 rev.6 (04/2026) and corrected the outdoor-unit register addressing in `docs/gateway/hc-a-mb.md`. The outdoor block is keyed on the **outdoor unit refrigerant cycle** (`30000 + (Cycle × 100) + offset`), not the indoor `Modbus_Id` — the previous `5000 + (Modbus_Id × 200)` formula was wrong (groundwork for #353).
+
 ## [2.1.5] - 2026-06-30
 
 ### Added

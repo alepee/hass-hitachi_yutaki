@@ -31,7 +31,7 @@ The original Hitachi PDF documentation is stored in the `datasheets/` subfolder:
 
 - [`ATW-MBS-02_before_line_up_2016.pdf`](datasheets/ATW-MBS-02_before_line_up_2016.pdf) — PMML0419A rev.1 (05/2016), Yutaki series before 2016
 - [`ATW-MBS-02_line_up_2016.pdf`](datasheets/ATW-MBS-02_line_up_2016.pdf) — PMML0419A rev.1 (05/2016), Yutaki 2016 series
-- [`HC-A16MB.pdf`](datasheets/HC-A16MB.pdf) — PMML0351A rev.4 (04/2020), HC-A(8/16/64)MB / HC-A64NET series
+- [`HC-A16MB.pdf`](datasheets/HC-A16MB.pdf) — PMML0351 rev.6 (04/2026), HC-A(8/16/64)MB / HC-A64NET series
 
 ## Integration Register Mapping
 
