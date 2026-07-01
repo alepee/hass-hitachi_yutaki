@@ -1,6 +1,6 @@
 # HC-A(8/16/64)MB / HC-A64NET — Network / Modbus Gateway Register Map
 
-> Source: PMML0351A rev.4 — 04/2020
+> Source: PMML0351 rev.6 — 04/2026
 
 ## Overview
 
@@ -471,7 +471,7 @@ Offset 145:
 
 Some state registers about outdoor unit have been added. Using these registers it is now possible to know the status of the refrigerant cycle. Some control registers have also been added.
 
-The register address for outdoor units is calculated the same way: `5000 + (Modbus_Id × 200) + Offset`.
+The outdoor unit block uses a **different** base from the indoor block, indexed by the **outdoor unit refrigerant cycle address** (not the indoor `Modbus_Id`): `30000 + (Cycle × 100) + Offset`, where `Cycle` is the outdoor unit cycle refrigerant. Multiple indoor units sharing one outdoor unit therefore read the same outdoor block (same cycle); independent systems on distinct cycles read distinct blocks (cycle 0 → 30000, cycle 1 → 30100, ...).
 
 | Offset | Description | Values | R/W |
 |---|---|---|---|
