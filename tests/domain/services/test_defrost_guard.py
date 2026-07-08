@@ -203,3 +203,44 @@ class TestDefrostGuard:
         assert guard.state == DefrostState.DEFROST
         guard.update(is_defrosting=True, delta_t=0.0)
         assert guard.state == DefrostState.DEFROST
+
+    def test_excluded_sample_count_increments_during_defrost_and_recovery(self):
+        """excluded_sample_count increments for every non-NORMAL poll.
+
+        The counter uses the state *after* the dispatch so transitions
+        that land in NORMAL are not counted.
+        """
+        guard = DefrostGuard(stable_readings_required=3)
+
+        # NORMAL — no exclusions yet
+        assert guard.excluded_sample_count == 0
+
+        # NORMAL → DEFROST: state after dispatch = DEFROST → counted
+        guard.update(is_defrosting=True, delta_t=5.0)
+        assert guard.excluded_sample_count == 1
+
+        # Two more updates in DEFROST
+        guard.update(is_defrosting=True, delta_t=-1.0)
+        guard.update(is_defrosting=True, delta_t=-2.0)
+        assert guard.excluded_sample_count == 3
+
+        # DEFROST → RECOVERY: state after dispatch = RECOVERY → counted
+        guard.update(is_defrosting=False, delta_t=-2.0)
+        assert guard.excluded_sample_count == 4
+
+        # One more update in RECOVERY (unstable ΔT = 0.0, not > 0.5)
+        guard.update(is_defrosting=False, delta_t=0.0)
+        assert guard.excluded_sample_count == 5
+
+        # Three stable updates — first two stay RECOVERY, third transitions to NORMAL.
+        # The transition-to-NORMAL update: state after dispatch = NORMAL → NOT counted.
+        guard.update(is_defrosting=False, delta_t=1.0)  # stable_count=1, RECOVERY
+        guard.update(is_defrosting=False, delta_t=2.0)  # stable_count=2, RECOVERY
+        assert guard.excluded_sample_count == 7
+        guard.update(is_defrosting=False, delta_t=3.0)  # stable_count=3, → NORMAL
+        assert guard.excluded_sample_count == 7
+        assert guard.state == DefrostState.NORMAL
+
+        # Updates in NORMAL do not increment the counter
+        guard.update(is_defrosting=False, delta_t=4.0)
+        assert guard.excluded_sample_count == 7

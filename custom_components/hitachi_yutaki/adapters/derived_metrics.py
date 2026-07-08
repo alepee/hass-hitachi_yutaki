@@ -162,6 +162,10 @@ class DerivedMetricsAdapter:
         is_defrosting = data.get("is_defrosting", False)
         self.defrost_guard.update(is_defrosting=is_defrosting, delta_t=delta_t)
 
+        # Expose defrost state into coordinator data
+        data["defrost_active"] = not self.defrost_guard.is_data_reliable
+        data["defrost_excluded_samples"] = self.defrost_guard.excluded_sample_count
+
         self._update_thermal(data)
         self._update_cop(data)
         self._update_energy(data)

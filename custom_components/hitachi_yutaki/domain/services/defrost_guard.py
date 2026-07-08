@@ -54,6 +54,7 @@ class DefrostGuard:
         self._pre_defrost_sign: bool | None = None  # True = positive (heating)
         self._stable_count = 0
         self._recovery_start_time: float = 0.0
+        self._excluded_count: int = 0
 
     @property
     def state(self) -> DefrostState:
@@ -64,6 +65,11 @@ class DefrostGuard:
     def is_data_reliable(self) -> bool:
         """Return True only when state is NORMAL."""
         return self._state == DefrostState.NORMAL
+
+    @property
+    def excluded_sample_count(self) -> int:
+        """Return the number of samples excluded due to defrost or recovery state."""
+        return self._excluded_count
 
     def update(self, is_defrosting: bool, delta_t: float | None) -> None:
         """Update the defrost guard with fresh data.
@@ -81,6 +87,9 @@ class DefrostGuard:
             self._handle_defrost(is_defrosting)
         elif self._state == DefrostState.RECOVERY:
             self._handle_recovery(is_defrosting, delta_t)
+
+        if self._state != DefrostState.NORMAL:
+            self._excluded_count += 1
 
     def _handle_normal(self, is_defrosting: bool, delta_t: float | None) -> None:
         """Handle NORMAL state transitions."""

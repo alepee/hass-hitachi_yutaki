@@ -510,3 +510,36 @@ class TestEnergyAndCost:
         adapter.update(data)
         expected = round((VOLTAGE_SINGLE_PHASE * (8.5 + 6.0) * POWER_FACTOR) / 1000, 3)
         assert data["electrical_power"] == expected
+
+
+class TestDefrostAttributes:
+    """Tests for defrost_active and defrost_excluded_samples data-dict injection."""
+
+    def test_defrost_active_false_when_not_defrosting(self):
+        """defrost_active is False and excluded_samples is 0 on a normal update."""
+        adapter = _make_adapter()
+        data = _sample_data(is_defrosting=False)
+        adapter.update(data)
+        assert data["defrost_active"] is False
+        assert data["defrost_excluded_samples"] == 0
+
+    def test_defrost_active_attribute_injected(self):
+        """defrost_active and defrost_excluded_samples are injected correctly.
+
+        After a normal update the flags are False/0.
+        After a defrosting update defrost_active becomes True and the
+        excluded-sample counter advances to >= 1.
+        """
+        adapter = _make_adapter()
+
+        # Normal poll
+        data1 = _sample_data(is_defrosting=False)
+        adapter.update(data1)
+        assert data1["defrost_active"] is False
+        assert data1["defrost_excluded_samples"] == 0
+
+        # Defrost poll
+        data2 = _sample_data(is_defrosting=True)
+        adapter.update(data2)
+        assert data2["defrost_active"] is True
+        assert data2["defrost_excluded_samples"] >= 1
