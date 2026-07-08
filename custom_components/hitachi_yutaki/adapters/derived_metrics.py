@@ -44,11 +44,16 @@ from ..domain.services.cop import (
 )
 from ..domain.services.defrost_guard import DefrostGuard
 from ..domain.services.thermal import ThermalEnergyAccumulator, ThermalPowerService
+from ..domain.services.anomaly import (
+    AnomalyBaselineService,
+    RefrigerantSample,
+)
 from ..domain.services.timing import CompressorHistory, CompressorTimingService
 
 _LOGGER = logging.getLogger(__name__)
 
 COMPRESSOR_HISTORY_SIZE = 100
+ANOMALY_BUFFER_SIZE = 500
 
 
 class DerivedMetricsAdapter:
@@ -108,6 +113,11 @@ class DerivedMetricsAdapter:
             )
             self._secondary_timing = CompressorTimingService(history=history_t2)
 
+        # Anomaly baseline service (per-installation rolling buffer)
+        self._anomaly_service = AnomalyBaselineService(
+            storage=InMemoryStorage(max_len=ANOMALY_BUFFER_SIZE),
+        )
+
         # Energy accumulation state
         self._last_energy_time: float | None = None
         self._accumulated_energy: float = 0.0  # kWh integrated from electrical_power
@@ -166,6 +176,7 @@ class DerivedMetricsAdapter:
         self._update_cop(data)
         self._update_energy(data)
         self._update_timing(data)
+        self._update_anomaly_baseline(data)
 
     def _get_temperature(
         self, data: dict[str, Any], config_key: str, fallback_key: str
@@ -497,6 +508,24 @@ class DerivedMetricsAdapter:
                     )
             except Exception:  # noqa: BLE001
                 _LOGGER.debug("Failed to rehydrate COP for %s", cop_key, exc_info=True)
+
+    def _update_anomaly_baseline(self, data: dict[str, Any]) -> None:
+        """Build a refrigerant sample, update the anomaly service, inject keys."""
+        sample = RefrigerantSample(
+            timestamp=time.monotonic(),
+            tg_gas=data.get("compressor_tg_gas_temp"),
+            ti_liquid=data.get("compressor_ti_liquid_temp"),
+            td_discharge=data.get("compressor_td_discharge_temp"),
+            te_evaporator=data.get("compressor_te_evaporator_temp"),
+            frequency=data.get("compressor_frequency"),
+            current=data.get("compressor_current"),
+        )
+        self._anomaly_service.update(sample)
+        data["anomaly_state"] = self._anomaly_service.state
+        data["anomaly_elapsed_seconds"] = round(self._anomaly_service.elapsed_seconds, 1)
+        data["anomaly_sample_count"] = self._anomaly_service.sample_count
+        data["anomaly_min_samples"] = self._anomaly_service.min_samples
+        data["anomaly_min_duration_seconds"] = self._anomaly_service.min_duration_seconds
 
     def _update_timing(self, data: dict[str, Any]) -> None:
         """Update compressor timing and inject into data."""

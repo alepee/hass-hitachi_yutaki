@@ -103,4 +103,20 @@ def _build_performance_sensor_descriptions() -> tuple[
                 "time_span_minutes": c.data.get("cop_pool_time_span_minutes"),
             },
         ),
+        HitachiYutakiSensorEntityDescription(
+            key="anomaly_state",
+            translation_key="anomaly_state",
+            description="Refrigerant circuit anomaly baseline",
+            device_class=None,
+            state_class=None,
+            icon="mdi:chart-bell-curve-cumulative",
+            condition=None,
+            value_fn=lambda c: c.data.get("anomaly_state"),
+            attributes_fn=lambda c: {
+                "elapsed_seconds": c.data.get("anomaly_elapsed_seconds"),
+                "sample_count": c.data.get("anomaly_sample_count"),
+                "min_samples": c.data.get("anomaly_min_samples"),
+                "min_duration_seconds": c.data.get("anomaly_min_duration_seconds"),
+            },
+        ),
     )
