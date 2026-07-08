@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from homeassistant.components.sensor import SensorStateClass
+from homeassistant.helpers.entity import EntityCategory
 
 from ...const import (
     CIRCUIT_MODE_COOLING,
@@ -102,5 +103,14 @@ def _build_performance_sensor_descriptions() -> tuple[
                 "measurements": c.data.get("cop_pool_measurements"),
                 "time_span_minutes": c.data.get("cop_pool_time_span_minutes"),
             },
+        ),
+        HitachiYutakiSensorEntityDescription(
+            key="refrigerant_loss_diagnostic",
+            translation_key="refrigerant_loss_diagnostic",
+            entity_category=EntityCategory.DIAGNOSTIC,
+            device_class=None,
+            state_class=None,
+            icon="mdi:pipe-leak",
+            value_fn=lambda c: c.data.get("refrigerant_loss_state"),
         ),
     )

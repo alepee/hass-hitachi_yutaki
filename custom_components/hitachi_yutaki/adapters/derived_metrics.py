@@ -43,6 +43,7 @@ from ..domain.services.cop import (
     EnergyAccumulator,
 )
 from ..domain.services.defrost_guard import DefrostGuard
+from ..domain.services.refrigerant import RefrigerantLossService
 from ..domain.services.thermal import ThermalEnergyAccumulator, ThermalPowerService
 from ..domain.services.timing import CompressorHistory, CompressorTimingService
 
@@ -108,6 +109,9 @@ class DerivedMetricsAdapter:
             )
             self._secondary_timing = CompressorTimingService(history=history_t2)
 
+        # Refrigerant-loss diagnostic service
+        self._refrigerant_service = RefrigerantLossService()
+
         # Energy accumulation state
         self._last_energy_time: float | None = None
         self._accumulated_energy: float = 0.0  # kWh integrated from electrical_power
@@ -166,6 +170,7 @@ class DerivedMetricsAdapter:
         self._update_cop(data)
         self._update_energy(data)
         self._update_timing(data)
+        data["refrigerant_loss_state"] = self._refrigerant_service.get_state()
 
     def _get_temperature(
         self, data: dict[str, Any], config_key: str, fallback_key: str
