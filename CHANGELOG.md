@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- CI/tooling: raised `requires-python` from `>=3.13` to `>=3.13.2`, which collapses a stale `uv.lock` resolution fork. Because `>=3.13` allowed 3.13.0/3.13.1, the resolver forked to an ancient `homeassistant 2024.1.5` (which we never support -- our floor is 2025.1.0) that pinned `orjson==3.9.9`; that sdist fails to build under recent `uv`, so any lockfile-regenerating dependency PR broke on the lint/test jobs. The lock is now single-version.
+
 ### Changed
+- CI/tooling: Dependabot now ignores `zeroconf`, a transitive dependency pinned exactly by Home Assistant (`==0.148.0`); bumping it independently forces the resolver to backtrack HA and can never merge.
 - Docs: refreshed the HC-A(8/16/64)MB datasheet to the official PMML0351 rev.6 (04/2026) and corrected the outdoor-unit register addressing in `docs/gateway/hc-a-mb.md`. The outdoor block is keyed on the **outdoor unit refrigerant cycle** (`30000 + (Cycle × 100) + offset`), not the indoor `Modbus_Id` — the previous `5000 + (Modbus_Id × 200)` formula was wrong (groundwork for #353).
 
 ## [2.1.5] - 2026-06-30
