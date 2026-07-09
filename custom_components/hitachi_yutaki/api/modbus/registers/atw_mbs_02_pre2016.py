@@ -124,6 +124,10 @@ REGISTER_CONTROL_UNIT = {
     # Global eco mode register (addr 1027, same address for read and write).
     # Write 1=ECO / 0=Comfort. Not present in 2016+ map.
     "eco_mode": RegisterDefinition(1027, write_address=1027),
+    # Global eco offset register (addr 1090, read-only entity; write_address=1030
+    # retained for completeness but eco_offset is not added to WRITABLE_KEYS).
+    # Not present in 2016+ map.
+    "eco_offset": RegisterDefinition(1090, write_address=1030),
 }
 
 REGISTER_PRIMARY_COMPRESSOR = {

@@ -297,13 +297,21 @@ class TestPre2016Specifics:
         assert "circuit1_thermostat" in pre.all_registers
         assert "circuit2_thermostat" not in pre.all_registers
 
-
     def test_global_eco_mode_pre2016_only(self):
-        """Global eco_mode register exists only in pre-2016 map, not in 2016+ map."""
+        """Global eco_mode register exists only in the pre-2016 map, not 2016+.
+
+        The 2016+ line-up removed the global ECO mode register (addr 1027).
+        Asserting absence here guards against accidentally re-adding it to
+        the 2016 map.
+        """
         pre = AtwMbs02Pre2016RegisterMap()
         atw = AtwMbs02RegisterMap()
-        assert "eco_mode" in pre.all_registers, "eco_mode should be in pre-2016 map"
-        assert "eco_mode" not in atw.all_registers, "eco_mode should not be in 2016+ map"
+        assert "eco_mode" in pre.all_registers, (
+            "eco_mode must be present in the pre-2016 register map"
+        )
+        assert "eco_mode" not in atw.all_registers, (
+            "eco_mode must NOT be present in the 2016+ register map"
+        )
 
 
 class Test2016ThermostatRegisters:

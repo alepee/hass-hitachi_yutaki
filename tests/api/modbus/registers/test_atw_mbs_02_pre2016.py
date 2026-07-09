@@ -159,6 +159,26 @@ class TestPre2016RegisterMap:
         assert regs["eco_mode"].write_address == 1027
         assert "eco_mode" in reg_map.writable_keys
 
+    def test_eco_offset_register(self):
+        """eco_offset register is present at addr 1090, write_address=1030."""
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        regs = reg_map.all_registers
+        assert "eco_offset" in regs, "eco_offset missing from all_registers"
+        assert regs["eco_offset"].address == 1090
+        assert regs["eco_offset"].write_address == 1030
+
+    def test_eco_offset_not_writable(self):
+        """eco_offset is NOT in writable_keys (entity is read-only)."""
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        assert "eco_offset" not in reg_map.writable_keys
+
+    def test_eco_offset_absent_from_2016_map(self):
+        """eco_offset must not appear in the 2016+ register map."""
+        from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
+            AtwMbs02RegisterMap,
+        )
+        assert "eco_offset" not in AtwMbs02RegisterMap().all_registers
+
 
 class TestPre2016UnitModelDeserializer:
     """Test the before-2016 unit model deserializer."""

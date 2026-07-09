@@ -16,6 +16,7 @@ from .const import (
 
 # Import builders from domain entities
 from .entities.circuit import build_circuit_numbers
+from .entities.control_unit import build_control_unit_numbers
 from .entities.dhw import build_dhw_numbers
 from .entities.pool import build_pool_numbers
 
@@ -29,6 +30,9 @@ async def async_setup_entry(
     coordinator = entry.runtime_data
 
     entities = []
+
+    # Control unit numbers (e.g. eco_offset for pre-2016 units)
+    entities.extend(build_control_unit_numbers(coordinator, entry.entry_id))
 
     # Circuit numbers (dynamic based on configuration)
     if coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING):

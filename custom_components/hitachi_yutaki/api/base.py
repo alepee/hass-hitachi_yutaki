@@ -192,6 +192,10 @@ class HitachiApiClient(ABC):
         """Get the global ECO mode state (True=ECO, False=Comfort, None=unavailable)."""
 
     @abstractmethod
+    def get_eco_offset(self) -> int | None:
+        """Get global Eco Offset value (pre-2016 only, register 1090)."""
+
+    @abstractmethod
     async def set_eco_mode(self, enabled: bool) -> bool:
         """Enable (1=ECO) or disable (0=Comfort) global ECO mode by writing to addr 1027."""
 
