@@ -606,6 +606,17 @@ class ModbusApiClient(HitachiApiClient):
             return None
         return bool(value)
 
+    def get_eco_mode(self) -> bool | None:
+        """Get the global eco mode state (pre-2016 units only).
+
+        Returns True if eco mode is on, False if off, None if not available.
+        Register 1027: 0=off, 1=on (non-inverted).
+        """
+        value = self._data.get("eco_mode")
+        if value is None:
+            return None
+        return bool(value)
+
     def get_unit_mode(self):
         """Get the current unit mode."""
         unit_mode = self._data.get("unit_mode")

@@ -121,6 +121,9 @@ REGISTER_CONTROL_UNIT = {
     "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
     "pump_speed": RegisterDefinition(1221),
     "power_consumption": RegisterDefinition(1098),
+    # Read-only global eco mode register (addr 1027, no write_address).
+    # 0 = off, 1 = on (non-inverted). Not present in 2016+ map.
+    "eco_mode": RegisterDefinition(1027),
 }
 
 REGISTER_PRIMARY_COMPRESSOR = {
@@ -244,7 +247,9 @@ ALL_REGISTERS = {
 }
 
 # Writable keys for Before Line-up 2016
-# Note: no eco_mode, eco_offset, dhw_boost, dhw_high_demand registers in before-2016
+# Note: a read-only global eco_mode register IS present at addr 1027 but is
+# intentionally absent from WRITABLE_KEYS (no write_address in its definition).
+# eco_offset, dhw_boost, dhw_high_demand registers do not exist in before-2016.
 WRITABLE_KEYS = {
     "unit_power",
     "unit_mode",

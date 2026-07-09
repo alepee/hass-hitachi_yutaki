@@ -150,6 +150,16 @@ class TestPre2016RegisterMap:
         assert reg_map.all_registers["circuit1_thermostat"].address == 1029
 
 
+    def test_eco_mode_register(self):
+        """eco_mode register is present at addr 1027, read-only (no write_address)."""
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        regs = reg_map.all_registers
+        assert "eco_mode" in regs, "eco_mode missing from all_registers"
+        assert regs["eco_mode"].address == 1027
+        assert regs["eco_mode"].write_address is None
+        assert "eco_mode" not in reg_map.writable_keys
+
+
 class TestPre2016UnitModelDeserializer:
     """Test the before-2016 unit model deserializer."""
 
