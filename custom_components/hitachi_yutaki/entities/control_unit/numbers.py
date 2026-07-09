@@ -27,15 +27,15 @@ def build_control_unit_numbers(
         HitachiYutakiNumberEntityDescription(
             key="eco_offset",
             translation_key="eco_offset",
-            native_min_value=0,
-            native_max_value=255,
+            native_min_value=1,
+            native_max_value=10,
             native_step=1,
             mode=NumberMode.BOX,
             entity_category=EntityCategory.CONFIG,
             get_fn=lambda api, _: (
                 float(v) if (v := api.get_eco_offset()) is not None else None
             ),
-            set_fn=None,
+            set_fn=lambda api, _, value: api.set_eco_offset(int(value)),
             condition=lambda c: (
                 "eco_offset" in c.api_client.register_map.all_registers
             ),

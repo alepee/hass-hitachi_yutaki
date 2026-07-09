@@ -124,9 +124,8 @@ REGISTER_CONTROL_UNIT = {
     # Global eco mode register (addr 1027, same address for read and write).
     # Write 1=ECO / 0=Comfort. Not present in 2016+ map.
     "eco_mode": RegisterDefinition(1027, write_address=1027),
-    # Global eco offset register (addr 1090, read-only entity; write_address=1030
-    # retained for completeness but eco_offset is not added to WRITABLE_KEYS).
-    # Not present in 2016+ map.
+    # Global eco offset register (addr 1090, write_address=1030).
+    # Write range 1–10, validated in set_eco_offset(). Not present in 2016+ map.
     "eco_offset": RegisterDefinition(1090, write_address=1030),
 }
 
@@ -251,7 +250,7 @@ ALL_REGISTERS = {
 }
 
 # Writable keys for Before Line-up 2016
-# eco_offset, dhw_boost, dhw_high_demand registers do not exist in before-2016.
+# dhw_boost, dhw_high_demand registers do not exist in before-2016.
 WRITABLE_KEYS = {
     "unit_power",
     "unit_mode",
@@ -277,6 +276,7 @@ WRITABLE_KEYS = {
     "dhw_antilegionella",
     "dhw_antilegionella_temp",
     "eco_mode",
+    "eco_offset",
 }
 
 # In before-2016, system_state (addr 1083) is the H-LINK communication alarm:

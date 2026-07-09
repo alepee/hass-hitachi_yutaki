@@ -621,6 +621,15 @@ class ModbusApiClient(HitachiApiClient):
         """Get global Eco Offset value (pre-2016 only, register 1090)."""
         return self._data.get("eco_offset")
 
+    async def set_eco_offset(self, offset: int) -> bool:
+        """Write global Eco Offset (1–10) to addr 1030."""
+        if not (1 <= offset <= 10):
+            _LOGGER.warning(
+                "eco_offset %s is out of range 1–10, write rejected", offset
+            )
+            return False
+        return await self.write_value("eco_offset", offset)
+
     async def set_eco_mode(self, enabled: bool) -> bool:
         """Enable (1=ECO) or disable (0=Comfort) global ECO mode by writing to addr 1027."""
         return await self.write_value("eco_mode", 1 if enabled else 0)

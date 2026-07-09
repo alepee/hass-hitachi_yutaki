@@ -196,6 +196,10 @@ class HitachiApiClient(ABC):
         """Get global Eco Offset value (pre-2016 only, register 1090)."""
 
     @abstractmethod
+    async def set_eco_offset(self, offset: int) -> bool:
+        """Write global Eco Offset (1–10) to addr 1030."""
+
+    @abstractmethod
     async def set_eco_mode(self, enabled: bool) -> bool:
         """Enable (1=ECO) or disable (0=Comfort) global ECO mode by writing to addr 1027."""
 
