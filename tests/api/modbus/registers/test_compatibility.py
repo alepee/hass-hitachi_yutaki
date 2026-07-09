@@ -156,6 +156,8 @@ class TestStatusReadInvariant:
         # Single global "Room thermostat available" flag, no STATUS counterpart
         # (pre-2016 has only circuit1_thermostat; see #318)
         "circuit1_thermostat",
+        # eco_mode: read and write both use addr 1027 (no STATUS/CONTROL split)
+        "eco_mode",
     }
 
     HC_A_MB_EXCEPTIONS = {

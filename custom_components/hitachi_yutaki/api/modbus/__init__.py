@@ -617,6 +617,10 @@ class ModbusApiClient(HitachiApiClient):
             return None
         return bool(value)
 
+    async def set_eco_mode(self, enabled: bool) -> bool:
+        """Enable (1=ECO) or disable (0=Comfort) global ECO mode by writing to addr 1027."""
+        return await self.write_value("eco_mode", 1 if enabled else 0)
+
     def get_unit_mode(self):
         """Get the current unit mode."""
         unit_mode = self._data.get("unit_mode")

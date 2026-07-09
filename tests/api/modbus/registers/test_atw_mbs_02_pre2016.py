@@ -151,13 +151,13 @@ class TestPre2016RegisterMap:
 
 
     def test_eco_mode_register(self):
-        """eco_mode register is present at addr 1027, read-only (no write_address)."""
+        """eco_mode register is present at addr 1027, writable (write_address=1027)."""
         reg_map = AtwMbs02Pre2016RegisterMap()
         regs = reg_map.all_registers
         assert "eco_mode" in regs, "eco_mode missing from all_registers"
         assert regs["eco_mode"].address == 1027
-        assert regs["eco_mode"].write_address is None
-        assert "eco_mode" not in reg_map.writable_keys
+        assert regs["eco_mode"].write_address == 1027
+        assert "eco_mode" in reg_map.writable_keys
 
 
 class TestPre2016UnitModelDeserializer:

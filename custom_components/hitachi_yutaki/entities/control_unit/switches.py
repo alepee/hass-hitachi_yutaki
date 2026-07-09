@@ -15,9 +15,6 @@ if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
 
 
-async def _noop_set(api, _, enabled: bool) -> bool:
-    """No-op setter for read-only switch entities; always returns False."""
-    return False
 
 
 def build_control_unit_switches(
@@ -46,7 +43,7 @@ def _build_control_unit_switch_descriptions() -> tuple[
             name="Eco Mode",
             icon="mdi:leaf",
             get_fn=lambda api, _: api.get_eco_mode(),
-            set_fn=_noop_set,
+            set_fn=lambda api, _, enabled: api.set_eco_mode(enabled),
             condition=lambda coordinator: "eco_mode"
             in coordinator.api_client.register_map.all_registers,
         ),
