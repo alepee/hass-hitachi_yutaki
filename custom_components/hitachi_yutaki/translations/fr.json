@@ -627,7 +627,8 @@
         "name": "Thermostat"
       },
       "eco_mode": {
-        "name": "Mode ECO"
+        "name": "Mode ECO",
+        "description": "S'applique à tous les circuits simultanément."
       },
       "boost": {
         "name": "Forçage ECS"
@@ -653,6 +654,10 @@
       },
       "cool_eco_offset": {
         "name": "Décalage ECO Refroidissement"
+      },
+      "eco_offset": {
+        "name": "Décalage ECO",
+        "description": "S'applique à tous les circuits simultanément."
       },
       "current_temp": {
         "name": "Température Ambiante"
