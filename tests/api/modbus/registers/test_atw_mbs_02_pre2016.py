@@ -168,7 +168,7 @@ class TestPre2016RegisterMap:
         assert regs["eco_offset"].write_address == 1030
 
     def test_eco_offset_is_writable(self):
-        """eco_offset IS in writable_keys (write_address=1030, range 1–10)."""
+        """eco_offset IS in writable_keys (write_address=1030, range 1~10)."""
         reg_map = AtwMbs02Pre2016RegisterMap()
         assert "eco_offset" in reg_map.writable_keys
 

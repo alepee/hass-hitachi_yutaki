@@ -25,7 +25,6 @@ class HitachiYutakiSwitchEntityDescription:
     set_fn: Callable[[Any, int | None, bool], bool]
     icon: str | None = None
     entity_category: str | None = None
-    translation_key: str | None = None
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
 
 
@@ -55,9 +54,6 @@ class HitachiYutakiSwitch(CoordinatorEntity, SwitchEntity):
 
         # Set name
         self._attr_name = description.name
-        if description.translation_key:
-            self._attr_translation_key = description.translation_key
-            self._attr_name = None
 
         # Set icon
         if description.icon:

@@ -15,6 +15,9 @@ from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
     convert_signed_16bit,
 )
+from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
+    AtwMbs02Pre2016RegisterMap,
+)
 
 
 @pytest.fixture
@@ -590,3 +593,83 @@ def test_get_operation_state_absent_returns_none():
         api = ModbusApiClient.__new__(ModbusApiClient)
         api._data = {}
         assert api.get_operation_state() is None
+
+
+@pytest.fixture
+def pre2016_api_client(mock_hass, mock_client):
+    """Create a ModbusApiClient wired with the pre-2016 register map for write tests."""
+    with patch.object(ModbusApiClient, "__init__", lambda x, *args, **kwargs: None):
+        api = ModbusApiClient.__new__(ModbusApiClient)
+        api._hass = mock_hass
+        api._client = mock_client
+        api._slave = 1
+        api._register_map = AtwMbs02Pre2016RegisterMap()
+        api._data = {}
+        write_result = MagicMock()
+        write_result.isError.return_value = False
+        mock_client.write_register.return_value = write_result
+        return api
+
+
+class TestGlobalEcoAccessors:
+    """Behavior of the global (pre-2016) eco accessors.
+
+    The pre-2016 Space mode register is NON-inverted (0=Comfort, 1=ECO),
+    unlike the 2016+ per-circuit eco registers which are inverted
+    (0=eco, 1=comfort). These tests lock that convention in.
+    """
+
+    def test_get_eco_mode_non_inverted(self, pre2016_api_client):
+        """Raw 1 means ECO on, raw 0 means Comfort (off), absent means None."""
+        pre2016_api_client._data = {"eco_mode": 1}
+        assert pre2016_api_client.get_eco_mode() is True
+        pre2016_api_client._data = {"eco_mode": 0}
+        assert pre2016_api_client.get_eco_mode() is False
+        pre2016_api_client._data = {}
+        assert pre2016_api_client.get_eco_mode() is None
+
+    @pytest.mark.asyncio
+    async def test_set_eco_mode_writes_raw_1_at_1027(
+        self, pre2016_api_client, mock_client
+    ):
+        """Enabling ECO writes raw 1 (non-inverted) to address 1027."""
+        assert await pre2016_api_client.set_eco_mode(True) is True
+        kwargs = mock_client.write_register.call_args.kwargs
+        assert kwargs["address"] == 1027
+        assert kwargs["value"] == 1
+
+    @pytest.mark.asyncio
+    async def test_set_eco_mode_writes_raw_0_when_disabled(
+        self, pre2016_api_client, mock_client
+    ):
+        """Disabling ECO writes raw 0 (Comfort) to address 1027."""
+        assert await pre2016_api_client.set_eco_mode(False) is True
+        kwargs = mock_client.write_register.call_args.kwargs
+        assert kwargs["address"] == 1027
+        assert kwargs["value"] == 0
+
+    def test_get_eco_offset_reads_data(self, pre2016_api_client):
+        """get_eco_offset returns the raw buffered value, None when absent."""
+        pre2016_api_client._data = {"eco_offset": 4}
+        assert pre2016_api_client.get_eco_offset() == 4
+        pre2016_api_client._data = {}
+        assert pre2016_api_client.get_eco_offset() is None
+
+    @pytest.mark.asyncio
+    async def test_set_eco_offset_writes_control_address_1030(
+        self, pre2016_api_client, mock_client
+    ):
+        """A valid offset is written to CONTROL 1030, not STATUS 1090."""
+        assert await pre2016_api_client.set_eco_offset(5) is True
+        kwargs = mock_client.write_register.call_args.kwargs
+        assert kwargs["address"] == 1030
+        assert kwargs["value"] == 5
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("offset", [0, 11])
+    async def test_set_eco_offset_rejects_out_of_range_without_write(
+        self, pre2016_api_client, mock_client, offset
+    ):
+        """Out-of-range offsets are rejected before any Modbus write."""
+        assert await pre2016_api_client.set_eco_offset(offset) is False
+        mock_client.write_register.assert_not_called()

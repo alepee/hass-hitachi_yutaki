@@ -23,6 +23,8 @@ For patterns and conventions used to build these entities, see
 |--------|------|-------------|--------|
 | power | switch | Main power switch for the heat pump unit | on/off |
 | operation_mode | select | Operating mode of the heat pump (modes depend on configuration) | heat only, or heat/cool/auto |
+| eco_mode | switch | Global ECO mode, applies to all circuits simultaneously (Before Line-up 2016 units only) | on/off |
+| eco_offset | number | Global ECO temperature offset, applies to all circuits simultaneously (Before Line-up 2016 units only, config category) | 1~10 |
 
 ### Temperatures
 
@@ -127,7 +129,7 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 | Entity | Type | Description | Values |
 |--------|------|-------------|--------|
 | climate | climate | Main climate control entity | off/heat/cool/auto or off/heat_cool |
-| eco_mode | switch | Enable ECO mode (reduced temperatures) | on/off |
+| eco_mode | switch | Enable ECO mode (reduced temperatures). On Before Line-up 2016 units this per-circuit switch does not exist; use the global ECO mode switch on the Control Unit device instead | on/off |
 | thermostat | switch | Enable Modbus thermostat function (if available) | on/off |
 
 ### Configuration (disabled by default)

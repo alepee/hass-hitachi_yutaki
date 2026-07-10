@@ -193,20 +193,20 @@ class HitachiApiClient(ABC):
 
     @abstractmethod
     def get_eco_offset(self) -> int | None:
-        """Get global Eco Offset value (pre-2016 only, register 1090)."""
-
-    @abstractmethod
-    async def set_eco_offset(self, offset: int) -> bool:
-        """Write global Eco Offset (1–10) to addr 1030."""
-
-    @abstractmethod
-    async def set_eco_mode(self, enabled: bool) -> bool:
-        """Enable (1=ECO) or disable (0=Comfort) global ECO mode by writing to addr 1027."""
+        """Get the global ECO offset value, shared by all circuits."""
 
     # Unit control - Setters
     @abstractmethod
     async def set_unit_power(self, enabled: bool) -> bool:
         """Enable/disable the main heat pump unit."""
+
+    @abstractmethod
+    async def set_eco_mode(self, enabled: bool) -> bool:
+        """Enable (ECO) or disable (Comfort) the global ECO mode."""
+
+    @abstractmethod
+    async def set_eco_offset(self, offset: int) -> bool:
+        """Write the global ECO offset (valid range 1~10)."""
 
     @abstractmethod
     async def set_unit_mode(self, mode) -> bool:
