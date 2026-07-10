@@ -627,8 +627,7 @@
         "name": "Termostat"
       },
       "eco_mode": {
-        "name": "Mod ECO",
-        "description": "Se aplică tuturor circuitelor simultan."
+        "name": "Mod ECO"
       },
       "boost": {
         "name": "Boost"
@@ -656,8 +655,7 @@
         "name": "Offset ECO răcire"
       },
       "eco_offset": {
-        "name": "Offset ECO",
-        "description": "Se aplică tuturor circuitelor simultan."
+        "name": "Offset ECO"
       },
       "current_temp": {
         "name": "Temperatură curentă"

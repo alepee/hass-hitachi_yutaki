@@ -627,8 +627,7 @@
         "name": "Thermostat"
       },
       "eco_mode": {
-        "name": "ECO Mode",
-        "description": "Applies to all circuits simultaneously."
+        "name": "ECO Mode"
       },
       "boost": {
         "name": "Boost"
@@ -656,8 +655,7 @@
         "name": "Cool ECO Offset"
       },
       "eco_offset": {
-        "name": "Eco Offset",
-        "description": "Applies to all circuits simultaneously."
+        "name": "Eco Offset"
       },
       "current_temp": {
         "name": "Current Temperature"

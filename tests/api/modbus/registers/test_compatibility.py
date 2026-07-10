@@ -328,4 +328,6 @@ class Test2016ThermostatRegisters:
         regs = atw.all_registers
         assert regs["circuit1_thermostat"].address == 1010
         assert regs["circuit2_thermostat"].address == 1021
-        assert regs["circuit1_thermostat"].address != regs["circuit2_thermostat"].address
+        assert (
+            regs["circuit1_thermostat"].address != regs["circuit2_thermostat"].address
+        )

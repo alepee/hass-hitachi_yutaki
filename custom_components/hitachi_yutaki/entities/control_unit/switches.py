@@ -15,8 +15,6 @@ if TYPE_CHECKING:
     from ...coordinator import HitachiYutakiDataCoordinator
 
 
-
-
 def build_control_unit_switches(
     coordinator: HitachiYutakiDataCoordinator,
     entry_id: str,
@@ -45,7 +43,8 @@ def _build_control_unit_switch_descriptions() -> tuple[
             icon="mdi:leaf",
             get_fn=lambda api, _: api.get_eco_mode(),
             set_fn=lambda api, _, enabled: api.set_eco_mode(enabled),
-            condition=lambda coordinator: "eco_mode"
-            in coordinator.api_client.register_map.all_registers,
+            condition=lambda coordinator: (
+                "eco_mode" in coordinator.api_client.register_map.all_registers
+            ),
         ),
     )

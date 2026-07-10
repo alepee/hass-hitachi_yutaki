@@ -36,9 +36,7 @@ def build_control_unit_numbers(
                 float(v) if (v := api.get_eco_offset()) is not None else None
             ),
             set_fn=lambda api, _, value: api.set_eco_offset(int(value)),
-            condition=lambda c: (
-                "eco_offset" in c.api_client.register_map.all_registers
-            ),
+            condition=lambda c: "eco_offset" in c.api_client.register_map.all_registers,
         ),
     )
     return _create_numbers(

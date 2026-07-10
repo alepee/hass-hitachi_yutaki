@@ -627,8 +627,7 @@
         "name": "Thermostaat"
       },
       "eco_mode": {
-        "name": "ECO-modus",
-        "description": "Is van toepassing op alle circuits tegelijkertijd."
+        "name": "ECO-modus"
       },
       "boost": {
         "name": "Boost"
@@ -656,8 +655,7 @@
         "name": "ECO-offset koeling"
       },
       "eco_offset": {
-        "name": "ECO-offset",
-        "description": "Is van toepassing op alle circuits tegelijkertijd."
+        "name": "ECO-offset"
       },
       "current_temp": {
         "name": "Huidige temperatuur"

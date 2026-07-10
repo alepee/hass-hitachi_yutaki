@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- ATW-MBS-02 (Before Line-up 2016): ECO mode support. Unlike the 2016+ line-up where ECO is controlled per circuit, pre-2016 units expose a single global "Space mode" toggle (address 1027, read/write on the same address) and a single global ECO offset (STATUS 1090 / CONTROL 1030, range 1~10) shared by all circuits. They surface as a new ECO Mode switch and Eco Offset number on the Control Unit device, created only when the active register map defines these registers (#253).
+
 ### Fixed
 - CI/tooling: raised `requires-python` from `>=3.13` to `>=3.13.2`, which collapses a stale `uv.lock` resolution fork. Because `>=3.13` allowed 3.13.0/3.13.1, the resolver forked to an ancient `homeassistant 2024.1.5` (which we never support -- our floor is 2025.1.0) that pinned `orjson==3.9.9`; that sdist fails to build under recent `uv`, so any lockfile-regenerating dependency PR broke on the lint/test jobs. The lock is now single-version.
 
