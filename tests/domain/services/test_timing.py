@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 from custom_components.hitachi_yutaki.adapters.storage.in_memory import InMemoryStorage
 from custom_components.hitachi_yutaki.domain.services.timing import (
     CompressorHistory,
-    CompressorTimingService,
 )
 
 
@@ -48,19 +47,34 @@ class TestNegativeDurationGuard:
         assert run == 8
         assert rest == 12
 
-    def test_bulk_load_with_dst_backstep_stays_non_negative(self):
-        """bulk_load over a backwards clock step never averages a negative."""
-        base = datetime(2026, 10, 25, 2, 30, 0)  # DST-like fall-back window
-        states = [
-            (base, True),
-            (base + timedelta(minutes=15), False),
-            (base + timedelta(minutes=30), True),
-            # Clock steps back one hour: timestamp precedes the previous one.
-            (base - timedelta(minutes=45), False),
-        ]
-        service = CompressorTimingService(_history())
-        service.preload_states(states)
+    def test_live_then_rehydrate_seam_stays_non_negative(self):
+        """The real reachable trigger: a live reading, then replay of OLDER states.
 
-        result = service.get_timing()
-        for value in (result.cycle_time, result.runtime, result.resttime):
+        On startup the coordinator does one live poll (stores a state at ~now),
+        then rehydration replays the last ~6h of Recorder states via
+        preload_states. bulk_load only sorts its own iterable, so the first
+        replayed (older) state lands after the live "now" entry and yields a
+        large negative duration at the seam. This is exactly the -360 min value
+        the telemetry archive showed; the guard must absorb it. This test fails
+        on the pre-fix code (the -360 was averaged into rest/run time).
+        """
+        base = datetime(2026, 7, 1, 13, 0, 0)
+        history = _history()
+        # Live poll first: a running state stored at ~now (13:00).
+        history.add_state(True, timestamp=base)
+        # Rehydration then replays OLDER Recorder states (07:00..10:00).
+        history.bulk_load(
+            [
+                (base - timedelta(hours=6), False),
+                (base - timedelta(hours=5), True),
+                (base - timedelta(hours=4), False),
+                (base - timedelta(hours=3), True),
+            ]
+        )
+
+        cycle, run, rest = history.get_average_times()
+        for value in (cycle, run, rest):
             assert value is None or value >= 0
+        # The valid post-seam transitions still produce real positive averages.
+        assert run == 60
+        assert rest == 60
