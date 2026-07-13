@@ -201,8 +201,8 @@ In `sensor.py`, import the builder and call it inside `async_setup_entry`:
 ```python
 from .entities.new_domain import build_new_domain_sensors
 
-async def async_setup_entry(hass, entry, async_add_entities):
-    coordinator = hass.data[DOMAIN][entry.entry_id]
+async def async_setup_entry(hass, entry: HitachiYutakiConfigEntry, async_add_entities):
+    coordinator = entry.runtime_data
     entities = []
 
     # ... existing builders ...

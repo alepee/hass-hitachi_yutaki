@@ -14,7 +14,7 @@ No personal information is ever collected. All data is identified by a non-rever
 | Setting | Data | Frequency |
 |---------|------|-----------|
 | **Off** | Nothing | — |
-| **On** | Installation info (model, gateway type, configuration) + fine-grained metrics (temperatures, compressor frequency, power consumption) + daily aggregated stats + a one-time register snapshot | Metrics every 5 min, daily stats once per day, snapshot once after opt-in |
+| **On** | Installation info (model, gateway type, configuration) + fine-grained metrics (temperatures, compressor frequency, power consumption) + a one-time register snapshot | Metrics every 5 min; installation info re-sent once per day; snapshot once after opt-in |
 
 ## How to enable or disable telemetry
 

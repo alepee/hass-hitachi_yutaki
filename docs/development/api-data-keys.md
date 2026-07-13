@@ -102,6 +102,7 @@ class RegisterDefinition:
     serializer: Callable[[Any], Any] | None = None    # Python value -> raw value (for writes)
     write_address: int | None = None                  # Write address if different from read
     fallback: RegisterDefinition | None = None        # Fallback register if primary returns None
+    sentinel_values: frozenset[int] | None = None      # Deserialized values that mark the sensor as unavailable
 ```
 
 - `deserializer` — applied after reading the raw 16-bit register value.
@@ -156,8 +157,11 @@ Certain raw register values have special meaning:
 | `0xFF81` | -127 (signed) | Temperature sensor disconnected |
 | `0xFFBD` | -67 (signed) | DHW temperature sensor disconnected |
 
-Deserializers return `None` for sentinel values, which propagates as an
-unavailable entity state in Home Assistant.
+`0xFFFF` is neutralised inside the deserializer functions themselves (they
+return `None`). The `-127`/`-67` sentinels, by contrast, are matched against
+`RegisterDefinition.sentinel_values` in the read loop *after* deserialization
+and filtered out there. Either way the value propagates as an unavailable
+entity state in Home Assistant.
 
 ### Concrete Examples
 
@@ -167,13 +171,15 @@ Read-only register (ATW-MBS-02):
 "outdoor_temp": RegisterDefinition(1091, deserializer=convert_signed_16bit),
 ```
 
-Writable register with serializer (ATW-MBS-02):
+Writable register with separate read/write addresses (ATW-MBS-02):
 
 ```python
-"pool_target_temp": RegisterDefinition(
-    1029, deserializer=convert_from_tenths, serializer=lambda v: int(v * 10)
-),
+"pool_target_temp": RegisterDefinition(1082, write_address=1029),
 ```
+
+The value is stored as integer degrees, so no serializer is needed — no
+register in the codebase currently sets one; writes go through the
+`write_address` mechanism.
 
 Writable register with separate read/write addresses (HC-A(16/64)MB):
 

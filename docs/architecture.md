@@ -18,6 +18,8 @@ graph TD
     HA --> PF --> EL --> DL --> AL --> API
 ```
 
+> This chain shows the runtime call/wiring flow, **not** import-dependency direction. Import dependencies point the other way for the domain: adapters depend on the domain (they implement its ports), while the domain never imports from `adapters.*` (see [Strict Rules](#strict-rules)).
+
 ## Repository Structure
 
 ```
@@ -38,9 +40,10 @@ custom_components/hitachi_yutaki/
 |           +-- constants.py     # Thermal constants
 |
 |-- adapters/                    # Concrete implementations of domain ports
+|   |-- derived_metrics.py       # Orchestrator wiring COP/thermal/electrical services
 |   |-- calculators/             # Power calculation adapters
-|   |-- providers/               # Data providers (coordinator, entity state)
-|   +-- storage/                 # Storage implementations (in-memory)
+|   |-- providers/               # Data providers (coordinator, entity state, operation mode)
+|   +-- storage/                 # Storage implementations (in-memory, recorder rehydrate)
 |
 |-- entities/                    # Domain-driven entity organization
 |   |-- base/                    # Base classes for all entity types
@@ -53,10 +56,12 @@ custom_components/hitachi_yutaki/
 |   |-- control_unit/            # Main control unit entities
 |   |-- circuit/                 # Heating/cooling circuit entities (climate)
 |   |-- dhw/                     # Domestic Hot Water entities (water_heater)
-|   +-- pool/                    # Pool heating entities
+|   |-- pool/                    # Pool heating entities
+|   +-- telemetry/               # Anonymous telemetry status sensor
 |
 |-- api/                         # Modbus communication layer
-|   +-- modbus/registers/        # Register definitions (ATW-MBS-02)
+|   |-- modbus/registers/        # Register definitions (ATW-MBS-02, ATW-MBS-02 pre-2016, HC-A(16/64)MB)
+|   +-- config_providers/        # Per-gateway config + profile detection (ATW-MBS-02, HC-A(16/64)MB)
 |
 |-- profiles/                    # Heat pump model profiles (Yutaki S, S80, M, ...)
 |
@@ -79,7 +84,7 @@ The domain layer contains pure business logic. It is completely independent of H
 ### Structure
 
 - **`models/`** -- Pure data models: `COPInput`, `COPQuality`, `PowerMeasurement`, `ThermalPowerInput`, `ThermalEnergyResult`, `CompressorTimingResult`, `ElectricalPowerInput`.
-- **`ports/`** -- Interfaces defined as Python `Protocol` classes: `ThermalPowerCalculator`, `ElectricalPowerCalculator`, `DataProvider`, `StateProvider`, `Storage[T]`.
+- **`ports/`** -- Interfaces defining contracts: four `Protocol` classes (`ThermalPowerCalculator`, `ElectricalPowerCalculator`, `DataProvider`, `StateProvider`) plus the `Storage[T]` abstract base class (`abc.ABC`).
 - **`services/`** -- Business logic services listed below.
 
 ### Key Services
@@ -110,9 +115,10 @@ Adapters are the concrete implementations of the ports defined in the domain. Th
 
 ### Structure
 
+- **`derived_metrics.py`** -- `DerivedMetricsAdapter`, the central orchestrator wiring the COP, thermal, and electrical domain services together.
 - **`calculators/`** -- `ElectricalPowerCalculatorAdapter` (retrieves voltage/power from HA entities, delegates to `domain.services.electrical`), `thermal_power_calculator_wrapper` (adapts signature for `COPService`).
-- **`providers/`** -- `CoordinatorDataProvider` (implements `DataProvider`, reads from the coordinator cache), `EntityStateProvider` (implements `StateProvider`, reads HA entity states).
-- **`storage/`** -- `InMemoryStorage[T]` (implements `Storage[T]` using `collections.deque`).
+- **`providers/`** -- `CoordinatorDataProvider` (implements `DataProvider`, reads from the coordinator cache), `EntityStateProvider` (implements `StateProvider`, reads HA entity states), plus `providers/operation_mode.py`.
+- **`storage/`** -- `InMemoryStorage[T]` (implements `Storage[T]` using `collections.deque`), plus `storage/recorder_rehydrate.py`.
 
 ### Rules
 
@@ -140,6 +146,7 @@ Entities are organized by **business domain**, not by HA entity type. Each domai
 | `performance` | COP calculation sensors |
 | `thermal` | Thermal energy production sensors |
 | `power` | Electrical power consumption sensors |
+| `telemetry` | Anonymous telemetry status sensor |
 
 ### Builder Pattern
 
@@ -193,7 +200,7 @@ Platform files contain no business logic.
 
 **Location:** `api/`
 
-The API layer handles Modbus communication with the ATW-MBS-02 gateway. Register definitions live in `api/modbus/registers/`. The gateway exposes two register ranges:
+The API layer handles Modbus communication with the ATW-MBS-02 and HC-A(16/64)MB gateways. Register definitions live in `api/modbus/registers/` (`atw_mbs_02.py`, its pre-2016 variant `atw_mbs_02_pre2016.py`, and `hc_a_mb.py`); per-gateway config/detection lives in `api/config_providers/`. The gateway exposes two register ranges:
 
 - **CONTROL** (read/write) -- commands sent to the heat pump.
 - **STATUS** (read-only) -- actual state reported by the heat pump.
@@ -239,7 +246,7 @@ Coordinator poll ──→ TelemetryCollector (circular buffer)
                             │
                ┌────────────┼────────────┐
                ▼            ▼            ▼
-          MetricsBatch  DailyStats  RegisterSnapshot
+          MetricsBatch  InstallationInfo  RegisterSnapshot
                │            │            │
                ▼            ▼            ▼
           HttpTelemetryClient (gzip, retry, backoff)
@@ -257,7 +264,7 @@ Coordinator poll ──→ TelemetryCollector (circular buffer)
 **Key design decisions:**
 - Binary consent (Off / On) — stored in `entry.options`, changeable without reconfiguration
 - Collector runs at poll frequency, flush runs on a 5-min timer — decoupled
-- Daily stats accumulate in memory across flushes, sent once at day boundary (cleared only on success)
+- Installation info is re-sent once per UTC day boundary to keep the fleet dashboard's 90-day window populated — there is no in-memory daily-stats accumulator
 - One-time sends (installation info, register snapshot) are fire-and-forget (`async_create_task`) with `asyncio.Lock` + exponential backoff to avoid blocking the Modbus poll path
 - `thermal_power`, `electrical_power`, `cop_instant` are NULL — they require per-entity domain service state and can be recomputed server-side from raw data
 - Poll interval for time-based aggregations (compressor hours, energy kWh) is computed from actual point timestamps, not hardcoded

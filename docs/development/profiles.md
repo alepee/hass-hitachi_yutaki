@@ -54,8 +54,11 @@ See also: [Architecture](../architecture.md) | [API Layer & Data Keys](api-data-
        )
    ```
 
-4. The first profile whose `detect()` returns `True` wins. If detection is ambiguous,
-   the user is asked to select a model manually.
+4. Detection collects the list of **all** profiles whose `detect()` returns `True`. The
+   config flow then always presents a profile-selection dropdown listing every profile: the
+   first detected profile is pre-filled as the default (or no default if none matched), and
+   the user confirms or overrides it manually. The user is always asked, not only when
+   detection is ambiguous.
 
 ## Base Class
 
