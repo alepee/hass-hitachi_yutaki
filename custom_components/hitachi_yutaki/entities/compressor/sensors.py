@@ -77,6 +77,7 @@ def _build_compressor_sensor_descriptions(
                     "compressor_tg_gas_temp"
                 ),
                 entity_category=EntityCategory.DIAGNOSTIC,
+                condition=lambda c: c.profile.supports_extended_compressor_sensors,
             ),
             HitachiYutakiSensorEntityDescription(
                 key="compressor_ti_liquid_temp",
@@ -89,6 +90,7 @@ def _build_compressor_sensor_descriptions(
                     "compressor_ti_liquid_temp"
                 ),
                 entity_category=EntityCategory.DIAGNOSTIC,
+                condition=lambda c: c.profile.supports_extended_compressor_sensors,
             ),
             HitachiYutakiSensorEntityDescription(
                 key="compressor_td_discharge_temp",
@@ -125,6 +127,7 @@ def _build_compressor_sensor_descriptions(
                     "compressor_evi_indoor_expansion_valve_opening"
                 ),
                 entity_category=EntityCategory.DIAGNOSTIC,
+                condition=lambda c: c.profile.supports_extended_compressor_sensors,
             ),
             HitachiYutakiSensorEntityDescription(
                 key="compressor_evo_outdoor_expansion_valve_opening",
@@ -137,6 +140,7 @@ def _build_compressor_sensor_descriptions(
                     "compressor_evo_outdoor_expansion_valve_opening"
                 ),
                 entity_category=EntityCategory.DIAGNOSTIC,
+                condition=lambda c: c.profile.supports_extended_compressor_sensors,
             ),
             HitachiYutakiSensorEntityDescription(
                 key="compressor_cycle_time",

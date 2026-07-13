@@ -78,6 +78,26 @@ class YutampoR32Profile(HitachiHeatPumpProfile):
         return False
 
     @property
+    def supports_water_circuit(self) -> bool:
+        """Return False - DHW-only unit, no space-heating water circuit.
+
+        The ATW-MBS-02 gateway reports a constant 0 for water inlet/outlet,
+        flow, pump speed and heating thermal power/energy on a Yutampo R32
+        (confirmed across the telemetry fleet), so these entities are dropped.
+        """
+        return False
+
+    @property
+    def supports_extended_compressor_sensors(self) -> bool:
+        """Return False - compact compressor, reduced sensor package.
+
+        Gas temp (Tg), liquid temp (Ti) and expansion valve openings (EVI/EVO)
+        read a constant 0 on a Yutampo R32; only the core compressor sensors
+        (frequency, current, discharge, evaporator) carry real data.
+        """
+        return False
+
+    @property
     def entity_overrides(self) -> dict:
         """Return entity overrides for the profile.
 

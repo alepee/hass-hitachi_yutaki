@@ -50,9 +50,17 @@ class CompressorHistory:
             if last_state != is_running:
                 duration = (now - last_time).total_seconds() / 60  # Convert to minutes
 
+                # A negative duration means the incoming timestamp predates the
+                # last recorded one. This happens when Recorder-replayed states
+                # (local wall-clock) interleave with live ``datetime.now()``
+                # readings across a clock/DST shift. Such a value is physically
+                # impossible, so record the transition but skip the bogus
+                # duration to keep averages sane (issue #365).
+                is_valid_duration = duration >= 0
+
                 # Calculate times based on the state change
                 if is_running:  # Changing from off to on
-                    if len(states) >= 2:  # We have a complete cycle
+                    if is_valid_duration and len(states) >= 2:  # complete cycle
                         cycle_start = next(
                             (
                                 time for time, state in reversed(states[:-1]) if state
@@ -61,9 +69,11 @@ class CompressorHistory:
                         )
                         if cycle_start:
                             cycle_time = (now - cycle_start).total_seconds() / 60
-                            self._cycles.append(cycle_time)
-                    self._rest_times.append(duration)
-                else:  # Changing from on to off
+                            if cycle_time >= 0:
+                                self._cycles.append(cycle_time)
+                    if is_valid_duration:
+                        self._rest_times.append(duration)
+                elif is_valid_duration:  # Changing from on to off
                     self._run_times.append(duration)
 
                 # Add the new state

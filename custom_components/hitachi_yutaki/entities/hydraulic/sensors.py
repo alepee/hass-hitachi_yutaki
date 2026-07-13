@@ -41,6 +41,7 @@ def _build_hydraulic_sensor_descriptions() -> tuple[
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             value_fn=lambda coordinator: coordinator.data.get("water_inlet_temp"),
+            condition=lambda c: c.profile.supports_water_circuit,
         ),
         HitachiYutakiSensorEntityDescription(
             key="water_outlet_temp",
@@ -50,6 +51,7 @@ def _build_hydraulic_sensor_descriptions() -> tuple[
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             value_fn=lambda coordinator: coordinator.data.get("water_outlet_temp"),
+            condition=lambda c: c.profile.supports_water_circuit,
         ),
         HitachiYutakiSensorEntityDescription(
             key="water_outlet_2_temp",
@@ -59,7 +61,10 @@ def _build_hydraulic_sensor_descriptions() -> tuple[
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             value_fn=lambda coordinator: coordinator.data.get("water_outlet_2_temp"),
-            condition=lambda c: c.data.get("water_outlet_2_temp") is not None,
+            condition=lambda c: (
+                c.profile.supports_water_circuit
+                and c.data.get("water_outlet_2_temp") is not None
+            ),
         ),
         HitachiYutakiSensorEntityDescription(
             key="water_outlet_3_temp",
@@ -69,7 +74,10 @@ def _build_hydraulic_sensor_descriptions() -> tuple[
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             value_fn=lambda coordinator: coordinator.data.get("water_outlet_3_temp"),
-            condition=lambda c: c.data.get("water_outlet_3_temp") is not None,
+            condition=lambda c: (
+                c.profile.supports_water_circuit
+                and c.data.get("water_outlet_3_temp") is not None
+            ),
         ),
         HitachiYutakiSensorEntityDescription(
             key="water_target_temp",
@@ -79,6 +87,7 @@ def _build_hydraulic_sensor_descriptions() -> tuple[
             state_class=SensorStateClass.MEASUREMENT,
             native_unit_of_measurement=UnitOfTemperature.CELSIUS,
             value_fn=lambda coordinator: coordinator.data.get("water_target_temp"),
+            condition=lambda c: c.profile.supports_water_circuit,
         ),
         HitachiYutakiSensorEntityDescription(
             key="water_flow",
@@ -89,6 +98,7 @@ def _build_hydraulic_sensor_descriptions() -> tuple[
             native_unit_of_measurement=UnitOfVolumeFlowRate.CUBIC_METERS_PER_HOUR,
             value_fn=lambda coordinator: coordinator.data.get("water_flow"),
             entity_category=EntityCategory.DIAGNOSTIC,
+            condition=lambda c: c.profile.supports_water_circuit,
         ),
         HitachiYutakiSensorEntityDescription(
             key="pump_speed",
@@ -99,5 +109,6 @@ def _build_hydraulic_sensor_descriptions() -> tuple[
             native_unit_of_measurement=PERCENTAGE,
             value_fn=lambda coordinator: coordinator.data.get("pump_speed"),
             entity_category=EntityCategory.DIAGNOSTIC,
+            condition=lambda c: c.profile.supports_water_circuit,
         ),
     )
