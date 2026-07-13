@@ -25,17 +25,17 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Set up Node
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: "24"
 
       # Warm the incremental analyze with the most recent index from main.
       # The exact (sha-keyed) entry never hits, so the prefix restore-key wins.
       - name: Restore previous index
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: .gitnexus
           key: gitnexus-index-${{ github.sha }}
@@ -47,7 +47,7 @@ jobs:
 
       # Only runs if analyze succeeded, so a corrupt/partial index is never cached.
       - name: Save index to cache
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: .gitnexus
           key: gitnexus-index-${{ github.sha }}

@@ -8,10 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- CI/tooling: raised `requires-python` from `>=3.13` to `>=3.13.2`, which collapses a stale `uv.lock` resolution fork. Because `>=3.13` allowed 3.13.0/3.13.1, the resolver forked to an ancient `homeassistant 2024.1.5` (which we never support -- our floor is 2025.1.0) that pinned `orjson==3.9.9`; that sdist fails to build under recent `uv`, so any lockfile-regenerating dependency PR broke on the lint/test jobs. The lock is now single-version.
 - Yutampo R32: stop creating entities for hardware a DHW-only unit does not have. The ATW-MBS-02 gateway reports a constant `0` (not a sentinel) for the space-heating water circuit (`water_inlet/outlet/2/3/target_temp`, `water_flow`, `pump_speed`, pump 1/2/3), the heating thermal meters (`thermal_power_heating`, `thermal_energy_heating_daily/total`) and the extended compressor sensors (gas `Tg` / liquid `Ti` temperatures, indoor/outdoor expansion valve openings), so those readings could not be filtered by value and surfaced as permanently `unavailable`/`0` entities. These are now gated on two new profile capabilities — `supports_water_circuit` and `supports_extended_compressor_sensors` — both `False` for the Yutampo R32 (confirmed against the anonymized telemetry fleet). The core compressor sensors (frequency, current, discharge `Td`, evaporator `Te`) and the DHW entities are unaffected (#365).
 - Compressor timing: `Compressor rest time` (and run/cycle time) could report a negative value. When Recorder-replayed states (local wall-clock) interleaved with live `datetime.now()` readings across a clock/DST shift, an off→on transition could compute a negative duration and average it in. Negative durations are now discarded while the state transition is still recorded (#365).
 
 ### Changed
+- CI/tooling: Dependabot now ignores `zeroconf`, a transitive dependency pinned exactly by Home Assistant (`==0.148.0`); bumping it independently forces the resolver to backtrack HA and can never merge.
 - Docs: refreshed the HC-A(8/16/64)MB datasheet to the official PMML0351 rev.6 (04/2026) and corrected the outdoor-unit register addressing in `docs/gateway/hc-a-mb.md`. The outdoor block is keyed on the **outdoor unit refrigerant cycle** (`30000 + (Cycle × 100) + offset`), not the indoor `Modbus_Id` — the previous `5000 + (Modbus_Id × 200)` formula was wrong (groundwork for #353).
 
 ## [2.1.5] - 2026-06-30
