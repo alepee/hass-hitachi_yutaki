@@ -24,7 +24,6 @@ class HitachiYutakiSensorEntityDescription(SensorEntityDescription):
     native_unit_of_measurement: str | None = None
     value_fn: Callable[[HitachiYutakiDataCoordinator], StateType] | None = None
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
-    sensor_class: Literal["cop", "thermal", "timing"] | None = None
 ```
 
 Key fields across entity types:
@@ -32,11 +31,10 @@ Key fields across entity types:
 | Field | Purpose |
 |---|---|
 | `key` | Unique identifier within the domain. Used in unique ID and register lookup. |
-| `translation_key` | Maps to `strings.json` for localized names. |
+| `translation_key` | Maps to the entity translation keys in `translations/en.json` (and other locale files under `translations/`) for localized names. |
 | `value_fn` | Read callback (sensors, binary sensors). Receives the coordinator. |
 | `get_fn` / `set_fn` | Read/write callbacks (switches, numbers, selects). Receive the API client and an optional circuit ID. |
 | `condition` | Lambda that receives the coordinator; entity is skipped when it returns `False`. |
-| `sensor_class` | Dispatches to a specialized sensor subclass (`cop`, `thermal`, `timing`). |
 
 ## Builder Pattern
 
@@ -88,8 +86,6 @@ def _create_switches(
         ))
     return entities
 ```
-
-The sensor factory also dispatches to specialized subclasses via `sensor_class`.
 
 ## Conditional Creation
 
@@ -183,12 +179,13 @@ All base classes live under `entities/base/`.
 | `HitachiYutakiNumber` | `HitachiYutakiNumberEntityDescription` | `_create_numbers` | `base/number.py` |
 | `HitachiYutakiSelect` | `HitachiYutakiSelectEntityDescription` | `_create_selects` | `base/select.py` |
 | `HitachiYutakiButton` | `HitachiYutakiButtonEntityDescription` | `_create_buttons` | `base/button.py` |
-| `HitachiYutakiClimate` | (custom per domain) | (custom per domain) | `base/climate.py` |
-| `HitachiYutakiWaterHeater` | (custom per domain) | (custom per domain) | `base/water_heater.py` |
+| `HitachiYutakiClimate` | `HitachiYutakiClimateEntityDescription` | (none -- built directly) | `base/climate.py` |
+| `HitachiYutakiWaterHeater` | `HitachiYutakiWaterHeaterEntityDescription` | (none -- built directly) | `base/water_heater.py` |
 
-Sensor has specialized subclasses dispatched by `sensor_class`. Climate and
-water_heater do not use the generic description/factory pattern since they have
-domain-specific logic.
+The one specialized sensor subclass (telemetry) is instantiated directly by its own
+builder, not selected by any field. Climate and water_heater use description
+dataclasses but bypass the `_create_*` factory: their `build_*` functions return a
+single entity directly rather than filtering a description tuple.
 
 ## Quick Reference: Adding an Entity
 

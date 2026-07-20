@@ -1,8 +1,8 @@
 # Home Assistant Quality Scale -- Assessment
 
 **Date**: 2026-03-02
-**Version**: 2.0.1+
-**Branch**: dev
+**Version**: 2.1.5
+**Branch**: main
 **Reference**: https://developers.home-assistant.io/docs/core/integration-quality-scale/
 
 > **Note**: The Quality Scale is designed for core Home Assistant integrations.
@@ -34,18 +34,18 @@
 | `test-before-configure` | Validation connexion Modbus dans le config flow |
 | `test-before-setup` | `ConfigEntryNotReady` si connexion échoue au démarrage |
 | `unique-config-entry` | `unique_id` hardware via registres Modbus input |
-| `entity-unique-id` | Format `{entry_id}_{key}` sur toutes les entités |
-| `has-entity-name` | `has_entity_name = True` sur toutes les classes de base |
+| `entity-unique-id` | Format `{entry_id}_{key}`, avec segment `{register_prefix}` optionnel (`{entry_id}_{register_prefix}_{key}`) |
+| `has-entity-name` | `has_entity_name = True` sur toutes les classes de base sauf le switch (`HitachiYutakiSwitch`) |
 | `entity-event-setup` | Lifecycle HA respecté via CoordinatorEntity |
 | `dependency-transparency` | `requirements` déclaré dans manifest.json |
 | `common-modules` | Modules communs : `entities/base/`, `domain/services/`, `adapters/` |
-| `action-setup` | Service `set_room_temperature` enregistré dans `climate.py` |
+| `action-setup` | Exempté : service entité `set_room_temperature` via `platform.async_register_entity_service` (pas d'action au niveau intégration) |
 | `appropriate-polling` | DataUpdateCoordinator avec intervalle configurable |
 | `docs-high-level-description` | Présent dans README.md |
 | `docs-installation-instructions` | Présent dans README.md |
 | `docs-actions` | Service documenté dans services.yaml |
 | `brands` | Logo et icon dans `brand/` |
-| `config-flow-test-coverage` | 12 tests couvrant config flow + options flow (`tests/test_config_flow.py`) |
+| `config-flow-test-coverage` | 18 tests couvrant config flow + options flow (`tests/test_config_flow.py`) |
 | `runtime-data` | `ConfigEntry.runtime_data` avec type alias `HitachiYutakiConfigEntry` |
 | `docs-removal-instructions` | Section "Uninstall" dans README.md |
 
@@ -85,9 +85,9 @@
 | `entity-category` | `EntityCategory.DIAGNOSTIC` utilisé sur les entités avancées |
 | `entity-device-class` | `SensorDeviceClass.POWER`, `ENERGY`, `TEMPERATURE`, etc. |
 | `entity-disabled-by-default` | Entités avancées désactivées par défaut |
-| `entity-translations` | Traductions EN + FR complètes (translations/) |
+| `entity-translations` | Traductions EN, FR, NL, RO (translations/) |
 | `reconfiguration-flow` | Options flow en 4 étapes avec reload automatique |
-| `repair-issues` | Repair flows + issue registry (connexion, config manquante, desync) |
+| `repair-issues` | Repair flows (`missing_config`, `enable_telemetry`, `enable_energy_cost`) + issue `connection_error` |
 
 ### Règles non validées (14)
 

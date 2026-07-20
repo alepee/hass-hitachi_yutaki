@@ -1,6 +1,6 @@
 # ATW-MBS-02 — Modbus Gateway Register Map
 
-> Source: PMML0419A rev.1 — 05/2016
+> Source (per the datasheet, not code-verified): PMML0419A rev.1 — 05/2016
 > Product code: 7E549924
 
 ## Overview
@@ -144,7 +144,7 @@ The ATW-MBS-02 has two distinct register maps depending on the Yutaki hardware g
 | 1031 | 1030 | Control Eco offset | 1~10 | R/W |
 | 1032~1050 | 1031~1049 | (Reserved) | — | — |
 
-> **Thermostat availability (pre-2016):** the *enable* control is global — address 1029 ("Room Thermostat available", R/W) is a **single flag covering all circuits**, unlike the 2016 line-up which splits the enable into per-circuit registers 1010 / 1021. Per-circuit *availability* is still reported read-only via the System Configuration bitfield (reg 1075, bits 6/7 — see [System Configuration Bits (Before 2016)](#system-configuration-bits-before-2016)). The integration therefore models the writable enable as `circuit1_thermostat` only; there is no per-circuit thermostat *control* register, so no `circuit2_thermostat` on this map (see issue #318).
+> **Thermostat availability (pre-2016):** the *enable* control is global — address 1029 ("Room Thermostat available", R/W) is a **single flag covering all circuits**, unlike the 2016 line-up which splits the enable into per-circuit registers 1011 / 1022 (addresses 1010 / 1021). Per-circuit *availability* is still reported read-only via the System Configuration bitfield (reg 1075, bits 6/7 — see [System Configuration Bits (Before 2016)](#system-configuration-bits-before-2016)). The integration therefore models the writable enable as `circuit1_thermostat` only; there is no per-circuit thermostat *control* register, so no `circuit2_thermostat` on this map (see issue #318).
 
 ### Status Registers (R)
 
@@ -297,7 +297,7 @@ Register 1223 (address 1222):
 | 1021 | 1020 | Control Circuit 2: Cool ECO Offset Temperature (*2) | 1~10 | R/W |
 | 1022 | 1021 | Control Circuit 2: Thermostat Available (*7) | 0: Not Available, 1: Available | R/W |
 | 1023 | 1022 | Control Circuit 2: Thermostat Setting Temperature | 50~350 (5.0~35.0 °C) | R/W |
-| 1024 | 1023 | Control Circuit 2: Thermostat Room Temperature (*8) | 0~1000 (0.0~100.0 °C) | — |
+| 1024 | 1023 | Control Circuit 2: Thermostat Room Temperature (*8) | 0~1000 (0.0~100.0 °C) | R/W |
 | 1025 | 1024 | Control DHWT Run/Stop | 0: Stop, 1: Run | R/W |
 | 1026 | 1025 | Control DHWT Setting Temperature | 0~80 °C (*3) | R/W |
 | 1027 | 1026 | Control DHW Boost | 0: No request, 1: Request | R/W |

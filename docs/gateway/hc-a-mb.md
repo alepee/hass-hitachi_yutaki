@@ -113,7 +113,7 @@ Address = 5000 + (Modbus_Id × 200) + Offset
 ```
 
 Where:
-- **5000**: Base address (position 20000 also available for backward compatibility)
+- **5000**: Base address (the datasheet also lists position 20000 for backward compatibility; the integration only uses 5000)
 - **Modbus_Id**: Indoor unit address as configured by configuration software
 - **Offset**: Register offset within the unit's address block
 
@@ -397,7 +397,7 @@ Offset 140:
 | 9 | Wireless Setting C2 |
 | 10 | Wireless Room Temperature C1 |
 | 11 | Wireless Room Temperature C2 |
-| 12 | Slave Unit |
+| 12 | Slave Unit (per datasheet; not read by the integration) |
 
 ### System Status 2 Bits
 
@@ -471,7 +471,7 @@ Offset 145:
 
 Some state registers about outdoor unit have been added. Using these registers it is now possible to know the status of the refrigerant cycle. Some control registers have also been added.
 
-The outdoor unit block uses a **different** base from the indoor block, indexed by the **outdoor unit refrigerant cycle address** (not the indoor `Modbus_Id`): `30000 + (Cycle × 100) + Offset`, where `Cycle` is the outdoor unit cycle refrigerant. Multiple indoor units sharing one outdoor unit therefore read the same outdoor block (same cycle); independent systems on distinct cycles read distinct blocks (cycle 0 → 30000, cycle 1 → 30100, ...).
+The outdoor unit block uses a **different**, fixed base from the indoor block (not the indoor `Modbus_Id`): the integration computes outdoor addresses as `30000 + Offset`. The outdoor unit is shared across all indoor units on the same H-LINK bus. Note: the datasheet describes indexing by outdoor refrigerant cycle (`30000 + (Cycle × 100) + Offset`), but the current implementation hardcodes the base at 30000 and does not index by refrigerant cycle (effectively cycle 0 only).
 
 | Offset | Description | Values | R/W |
 |---|---|---|---|
@@ -505,8 +505,8 @@ The outdoor unit block uses a **different** base from the indoor block, indexed 
 | **Unit Mode (status)** | Direct value: 0=Cool, 1=Heat | Bitmask: B0=Cool/Heat, B1=Normal/Auto |
 | **Unit Mode (control)** | 0=Cool, 1=Heat, 2=Auto | 0=Cool, 1=Heat (no Auto in control) |
 | **Pool Target Temp** | Stored in tenths of °C (÷10) | Integer °C |
-| **OTC Cooling options** | 4 options (No, Points, Gradient, Fix) | 3 options (No, Points, Fix) — no Gradient |
-| **Compressor data** | Full set (8 primary registers) | Limited indoor unit block (3 registers) |
+| **OTC Cooling options** | 3 options (No, Points, Fix) | 3 options (No, Points, Fix) |
+| **Compressor data** | Full set (8 primary registers) | 8 registers (3 from indoor block + 5 from outdoor block) |
 | **Status bits** | 10 bits (0x0001~0x0200) | 13 bits (0x0001~0x1000) with 3 extra |
 | **Extra status bits** | — | Forced OFF (b10), DHW recirculation (b11), Solar Pump (b12) |
 | **Models supported** | 4 (S, S Combi, S80, M) | 7 (+ SC Lite, Yutampo, YCC) |
@@ -514,7 +514,7 @@ The outdoor unit block uses a **different** base from the indoor block, indexed 
 | **Extra controls** | — | Forced OFF, Space Heater Forced OFF |
 | **YCC support** | No | Yes (offsets 190~192) |
 | **Outdoor unit registers** | No | Yes (separate outdoor unit block) |
-| **System Config bits** | 12 bits | 13 bits (adds Slave Unit) |
+| **System Config bits** | 12 bits | 13 bits per datasheet (adds Slave Unit); the integration reads the same 12 masks as ATW-MBS-02 |
 
 ---
 

@@ -4,7 +4,7 @@ This is the primary onboarding guide for contributors to the Hitachi Yutaki Home
 
 ## Prerequisites
 
-- **Python 3.12+**
+- **Python 3.13+**
 - **[uv](https://docs.astral.sh/uv/)** -- Python package manager (used via Makefile)
 - **git**
 
@@ -48,16 +48,6 @@ http:
   server_port: 9125
 ```
 
-### Dev Container Alternative
-
-This repository includes a Dev Container configuration for a fully pre-configured environment:
-
-1. Install [Visual Studio Code](https://code.visualstudio.com/) and the [Dev Containers extension](https://marketplace.visualstudio.com/items?itemName=ms-vscode-remote.remote-containers).
-2. Open the repository in VS Code.
-3. When prompted to "Reopen in Container", click "Yes" (or press F1 and select "Dev Containers: Rebuild and Reopen in Container").
-
-The container ships with all dependencies, pre-commit hooks, and a ready-to-use HA development instance.
-
 ## Project Structure
 
 ```
@@ -72,20 +62,19 @@ hass-hitachi_yutaki/
 ├── tests/                 # Test suite (pytest)
 │   ├── domain/            # Domain layer tests (pure Python)
 │   └── profiles/          # Profile detection tests
-├── docs/                  # Developer documentation
-└── documentation/         # Architecture and investigation docs
+└── docs/                  # Developer documentation
 ```
 
 The codebase follows a hexagonal (ports and adapters) architecture. See [Architecture](../architecture.md) for a detailed breakdown of each layer and the design principles behind them.
 
 ## Make Targets
 
-Run `make help` to list all available targets. Here is the full reference:
+Run `make help` to list all available targets. Here is a reference of the most common ones:
 
 | Target | Description |
 |--------|-------------|
 | `make install` | Install all dependencies (dev included) |
-| `make setup` | Full project setup (deps + pre-commit hooks) |
+| `make setup` | Full project setup (deps + pre-commit hooks + system libs) |
 | `make upgrade-deps` | Upgrade all deps (HA version follows `pytest-homeassistant-custom-component`) |
 | `make lint` | Run ruff linter with auto-fix |
 | `make format` | Run ruff formatter |
@@ -119,7 +108,7 @@ Domain tests (`tests/domain/`) exercise the business logic in isolation and run 
 
 ## Code Quality
 
-Code style is enforced by **Ruff** (linting and formatting) with a Home Assistant-specific ruleset defined in `.ruff.toml`. Pre-commit hooks run Ruff automatically on every commit.
+Code style is enforced by **Ruff** (linting and formatting) with a Home Assistant-specific ruleset defined in `pyproject.toml` under `[tool.ruff]`. Pre-commit hooks run Ruff automatically on every commit.
 
 Before pushing, always run:
 

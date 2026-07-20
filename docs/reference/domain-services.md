@@ -260,7 +260,7 @@ graph TD
     TIM["Timing<br>Service"]
     ELE["Electrical<br>function"]
 
-    ENT(["entities/domain/<br>HA entity classes call services for values"])
+    ENT(["entities/&lt;business-domain&gt;/<br>HA entity classes call services for values"])
 
     PORTS --> TP & EP & ST
     TP --> ATC
