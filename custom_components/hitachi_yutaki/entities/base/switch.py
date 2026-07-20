@@ -20,9 +20,12 @@ class HitachiYutakiSwitchEntityDescription:
     """Describes a Hitachi Yutaki switch entity."""
 
     key: str
-    name: str
     get_fn: Callable[[Any, int | None], bool | None]
     set_fn: Callable[[Any, int | None, bool], bool]
+    # Either a hardcoded English name (legacy switches) or a translation_key
+    # that opts the entity into Home Assistant's localized naming.
+    name: str | None = None
+    translation_key: str | None = None
     icon: str | None = None
     entity_category: str | None = None
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
@@ -52,8 +55,14 @@ class HitachiYutakiSwitch(CoordinatorEntity, SwitchEntity):
         else:
             self._attr_unique_id = f"{entry_id}_{description.key}"
 
-        # Set name
-        self._attr_name = description.name
+        # Set name: a translation_key opts the entity into HA's localized
+        # naming (requires has_entity_name); otherwise fall back to the
+        # hardcoded English name used by the legacy switches.
+        if description.translation_key:
+            self._attr_has_entity_name = True
+            self._attr_translation_key = description.translation_key
+        else:
+            self._attr_name = description.name
 
         # Set icon
         if description.icon:

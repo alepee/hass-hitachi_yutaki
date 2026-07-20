@@ -38,7 +38,7 @@ def _build_control_unit_switch_descriptions() -> tuple[
         ),
         HitachiYutakiSwitchEntityDescription(
             key="eco_mode",
-            name="Eco Mode",
+            translation_key="eco_mode",
             icon="mdi:leaf",
             get_fn=lambda api, _: api.get_eco_mode(),
             set_fn=lambda api, _, enabled: api.set_eco_mode(enabled),
