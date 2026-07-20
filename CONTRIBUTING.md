@@ -24,7 +24,8 @@ For detailed setup instructions, see [Getting Started](docs/development/getting-
 2. Follow the [hexagonal architecture](docs/architecture.md)
 3. Run `make check && make test`
 4. Update `CHANGELOG.md` under `[Unreleased]` (see [Changelog](#changelog))
-5. Commit using [conventional commit](https://www.conventionalcommits.org/) format
+5. Update the affected documentation (see [Documentation](#documentation))
+6. Commit using [conventional commit](https://www.conventionalcommits.org/) format
 
 ## Pull Requests
 
@@ -54,6 +55,14 @@ Use the appropriate section: `Added`, `Changed`, `Deprecated`, `Removed`, `Fixed
 
 PRs that don't affect user-facing behavior (CI config, dev tooling) can use the `skip-changelog` label.
 
+## Documentation
+
+Documentation lives in [`docs/`](docs/), with the canonical agent/contributor guide in [AGENT.md](AGENT.md). A PR that changes behavior, architecture, registers, entities, or a public workflow **must** update the affected docs in the same PR — see the code-area → doc-file map in [AGENT.md](AGENT.md#keeping-documentation-in-sync). Verify statements against the code before relying on them; don't copy claims on trust.
+
+## Releases
+
+Releases follow a fixed flow (`make bump` → commit → push → GitHub release with tag). When drafting the release, use the [release template](docs/development/release-template.md) so the PR/commit title, the release title, and the description stay consistent with past releases.
+
 ## Translations
 
 - `en.json` is the source of truth -- edit it directly when adding new translatable strings
@@ -64,8 +73,8 @@ PRs that don't affect user-facing behavior (CI config, dev tooling) can use the 
 
 Code style is enforced automatically:
 
-- **Ruff** handles both linting and formatting (see `.ruff.toml`)
+- **Ruff** handles both linting and formatting (ruleset in `pyproject.toml` under `[tool.ruff]`)
 - **Pre-commit hooks** run ruff on every commit
-- See [CLAUDE.md](CLAUDE.md#code-quality-standards) for detailed conventions
+- See [AGENT.md](AGENT.md#code-quality-standards) for detailed conventions
 
 No manual formatting is needed -- just run `make check` before committing.

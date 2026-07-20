@@ -27,7 +27,7 @@ make scan SCAN_ARGS="--range full" > scan.txt     # save to file (progress on st
 | 20-32 | Network config | IP address octets (20=192, 21=168, 23=4), port (24=502), mask, gateway |
 | 34 | Scan interval | |
 | 38 | Connection status | `0xFFFF` = not connected |
-| 39 | Gateway type | `3` = ATW-MBS-02 |
+| 39 | Gateway type? | `3` observed for ATW-MBS-02 (scan observation only — not read by the integration; gateway detection uses the `unit_model` holding register instead) |
 | 40-46 | Device identifiers | Serial numbers, MAC-like values |
 | 50-63 | Extended network config | IP pairs (high/low words), alternate interfaces |
 | 70-72 | Protocol version | |
@@ -76,7 +76,7 @@ make scan SCAN_ARGS="--range full" > scan.txt     # save to file (progress on st
 | 1090 | `operation_state` | Yes | See state table below |
 | 1091 | `outdoor_temp` | Yes | Signed 16-bit |
 | 1092 | `water_inlet_temp` | Yes | Signed 16-bit |
-| 1093 | `water_outlet_temp` | Yes | Signed 16-bit |
+| 1093 | `water_outlet_temp` (fallback) | Yes | Signed 16-bit. Fallback only — the `water_outlet_temp` key primarily reads register 1200 (HP-level outlet, correct for all modes including DHW/pool) and falls back to 1093 only if 1200 is unavailable |
 | 1094 | `system_state` | Yes | 0=sync, 1=desync, 2=init |
 | 1095-1097 | **Unknown** | No | Consistently non-zero, possibly timing/counter |
 | 1098 | `power_consumption` | Yes | Watts |
@@ -86,7 +86,9 @@ make scan SCAN_ARGS="--range full" > scan.txt     # save to file (progress on st
 
 | Address | Register | Known | Notes |
 |---------|----------|-------|-------|
-| 1200-1205 | **Unknown** | No | Pre-compressor data. 1202-1205 often `0xFF81` (signed -127 = N/A) |
+| 1200 | `water_outlet_temp` | Yes | HP-level outlet (primary source for the `water_outlet_temp` key) |
+| 1201-1203 | **Unknown** | No | Pre-compressor data. Often `0xFF81` (signed -127 = N/A) |
+| 1204-1205 | `water_outlet_2_temp` / `water_outlet_3_temp` | Yes | -127 sentinel = N/A |
 | 1206 | `compressor_tg_gas_temp` | Yes | |
 | 1207 | `compressor_ti_liquid_temp` | Yes | |
 | 1208 | `compressor_td_discharge_temp` | Yes | |
@@ -102,7 +104,7 @@ make scan SCAN_ARGS="--range full" > scan.txt     # save to file (progress on st
 | 1221 | `pump_speed` | Yes | |
 | 1222 | `system_status` | Yes | **Key register** — bitmask, see below |
 | 1223 | `alarm_code` | Yes | |
-| 1224-1231 | Secondary compressor | Yes | S80 only (discharge, suction, pressure, freq, valve, current) |
+| 1224-1231 | Secondary compressor | Yes | S80 only: discharge temp, suction temp, discharge pressure, suction pressure, frequency, valve opening, current, retry code (1231) |
 
 ## HC-A(16/64)MB Register Map
 
@@ -112,9 +114,10 @@ Base address = `5000 + (unit_id * 200)`
 
 | Offset | Zone | Description |
 |--------|------|-------------|
-| 0-17 | Outdoor unit (section 5.3) | Compressor discharge, evaporator, current, frequency |
 | 50-86 | CONTROL (R/W) | Commands to heat pump |
-| 100-199 | STATUS (R) | Actual state readback |
+| 100-192 | STATUS (R) | Actual state readback (highest offset actually used is 175) |
+
+Outdoor-unit registers do **not** sit within the `5000 + unit_id*200` indoor base. They use a separate fixed base of **30000** (independent of `unit_id`): 30001 compressor discharge temp, 30002 evaporator temp, 30006 current, 30007 frequency, 30008 outdoor EVO valve.
 
 ### Key STATUS offsets
 
@@ -211,8 +214,8 @@ HC-A-MB extensions (bits 10-12):
 When scanning a new model or gateway, focus on:
 
 1. **Identity**: Input registers 0-12 (HW version, serial, firmware)
-2. **Gateway type**: Input register 39 (type code), holding 1218/offset 162 (unit_model)
+2. **Gateway type**: holding 1218/offset 162 (unit_model) — this is what the integration actually uses for detection. Input register 39 shows `3` in scans but is not read by the code.
 3. **System config**: Holding 1089/offset 140 — determines available features
 4. **Mirror zone**: 1050-1079 — undocumented STATUS readback of CONTROL zone
-5. **Unknown non-zero**: registers 1095-1099, 1200-1205, 1215 — candidates for new mappings
+5. **Unknown non-zero**: registers 1095-1097, 1099, 1201-1203, 1215 — candidates for new mappings (1098 = `power_consumption` and 1200/1204/1205 = water outlet temps are already mapped)
 6. **Full scan differences**: run `--range full`, diff against this reference to spot new registers

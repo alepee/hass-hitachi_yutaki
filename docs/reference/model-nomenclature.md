@@ -138,6 +138,7 @@ Monobloc system (single outdoor unit, no indoor unit). Reference pattern: `RASM-
 **Notes:**
 - There is **no** `RASM-*N1E` — the R32 transition changed `N` to `R`
 - `V` = single-phase, absent = three-phase
+- The "Before Line-up 2016" register map assignment for Gen 1 Yutaki M (`VNE`/`NE`) above is **per the datasheet only** and is not corroborated by the integration: pre-2016 model detection (register 1217) recognizes just Yutaki S (`0`) and S Combi (`1`) — there is no Yutaki M entry in the pre-2016 map. Confirm against the ATW-MBS-02 Section 5.2 datasheet.
 
 ## Controllers
 
@@ -170,6 +171,8 @@ When a user reports an issue, ask for the **indoor unit reference** (on the name
 - **N vs R confusion**: the refrigerant letter (N=R410A, R=R32) is often the key to distinguishing generations
 
 ## Sources
+
+The model prefixes, suffix-letter conventions, capacity ranges, and controller references in this document are drawn from the Hitachi IOM documentation linked below, **not** from the integration code — which detects only the numeric model family via register 1217 (`0` = S, `1` = S Combi, `2` = S80, `3` = M). Verify specifics against these sources.
 
 - [Yutaki S Combi Gen 1 IOM](https://ultimateair.co.uk/wp-content/uploads/2023/10/IOM_YUTAKI_S_COMBI.pdf) — `RWD-(2.0-6.0)NW(S)E-(200/260)S(-K)(-W)`
 - [Yutaki S Gen 2 IOM](https://documentation.hitachiaircon.com/glb/en/heating/rwm-n-r-1e-w) — `RWM-(2.0-10.0)(N/R)1E`

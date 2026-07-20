@@ -22,7 +22,10 @@ For patterns and conventions used to build these entities, see
 | Entity | Type | Description | Values |
 |--------|------|-------------|--------|
 | power | switch | Main power switch for the heat pump unit | on/off |
-| operation_mode | select | Operating mode of the heat pump (modes depend on configuration) | heat only, or heat/cool/auto |
+| operation_mode_heat | select | Operating mode (heating-only unit) | heat/auto |
+| operation_mode_full | select | Operating mode (heat/cool unit) | cool/heat/auto |
+
+Only one of these two selects is created per install (mutually exclusive): `operation_mode_heat` on heating-only units, `operation_mode_full` on units with a cooling circuit.
 
 ### Temperatures
 
@@ -63,27 +66,29 @@ For patterns and conventions used to build these entities, see
 
 | Entity | Type | Description | Unit | Category |
 |--------|------|-------------|------|----------|
-| power_consumption | sensor | Total electrical energy consumed by the unit | kWh | diagnostic |
+| electrical_power | sensor | Real-time electrical power drawn by the unit (always present) | kW | - |
+| power_consumption | sensor | Total electrical energy consumed by the unit | kWh | - |
+| electricity_cost | sensor | Cumulative electricity cost (only when an electricity price entity is configured) | currency | - |
 
 ### Thermal Energy
 
 | Entity | Type | Description | Unit | Category |
 |--------|------|-------------|------|----------|
-| thermal_power_heating | sensor | Real-time thermal heating power output | kW | diagnostic |
-| thermal_power_cooling | sensor | Real-time thermal cooling power output (cooling circuits only) | kW | diagnostic |
-| thermal_energy_heating_daily | sensor | Daily thermal heating energy (resets at midnight) | kWh | diagnostic |
-| thermal_energy_heating_total | sensor | Total cumulative thermal heating energy | kWh | diagnostic |
-| thermal_energy_cooling_daily | sensor | Daily thermal cooling energy (cooling circuits only) | kWh | diagnostic |
-| thermal_energy_cooling_total | sensor | Total cumulative thermal cooling energy (cooling circuits only) | kWh | diagnostic |
+| thermal_power_heating | sensor | Real-time thermal heating power output | kW | - |
+| thermal_power_cooling | sensor | Real-time thermal cooling power output (cooling circuits only) | kW | - |
+| thermal_energy_heating_daily | sensor | Daily thermal heating energy (resets at midnight) | kWh | - |
+| thermal_energy_heating_total | sensor | Total cumulative thermal heating energy | kWh | - |
+| thermal_energy_cooling_daily | sensor | Daily thermal cooling energy (cooling circuits only) | kWh | - |
+| thermal_energy_cooling_total | sensor | Total cumulative thermal cooling energy (cooling circuits only) | kWh | - |
 
 ### Performance (COP)
 
 | Entity | Type | Description | Category |
 |--------|------|-------------|----------|
-| cop_heating | sensor | Space heating COP | diagnostic |
-| cop_cooling | sensor | Space cooling COP (cooling circuits only) | diagnostic |
-| cop_dhw | sensor | Domestic hot water COP (if DHW configured) | diagnostic |
-| cop_pool | sensor | Pool heating COP (if pool configured) | diagnostic |
+| cop_heating | sensor | Space heating COP | - |
+| cop_cooling | sensor | Space cooling COP (cooling circuits only) | - |
+| cop_dhw | sensor | Domestic hot water COP (if DHW configured) | - |
+| cop_pool | sensor | Pool heating COP (if pool configured) | - |
 
 Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 `time_span_minutes`.
@@ -130,7 +135,9 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 | eco_mode | switch | Enable ECO mode (reduced temperatures) | on/off |
 | thermostat | switch | Enable Modbus thermostat function (if available) | on/off |
 
-### Configuration (disabled by default)
+### Configuration
+
+Only the two `max_flow_temp_*_otc` numbers and the two `otc_calculation_method_*` selects are disabled by default; `heat_eco_offset` and `cool_eco_offset` are enabled by default.
 
 | Entity | Type | Description | Values/Unit | Category |
 |--------|------|-------------|-------------|----------|
@@ -151,10 +158,10 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 
 | Entity | Type | Description | Values/Unit |
 |--------|------|-------------|-------------|
-| dhw | water_heater | Main DHW control entity | off/standard/high demand, 30–60°C |
+| dhw | water_heater | Main DHW control entity | off/heat_pump/high_demand (high_demand only when the dhw_high_demand register exists), 30–60°C |
 | boost | switch | Temporarily boost DHW production | on/off |
 | antilegionella | button | Manually start a high temperature anti-legionella cycle | - |
-| antilegionella_temp | number | Target temperature for anti-legionella treatment (disabled by default) | °C (60–80) |
+| antilegionella_temp | number | Target temperature for anti-legionella treatment (disabled by default) | °C (50–80) |
 | dhw_demand_mode | sensor | DHW demand mode configured in the heat pump (disabled by default) | standard/high_demand |
 | antilegionella_cycle | binary_sensor | Anti-legionella cycle is currently running | on/off |
 

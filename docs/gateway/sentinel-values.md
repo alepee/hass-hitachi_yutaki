@@ -4,7 +4,7 @@ The gateway layer is responsible for ensuring that only meaningful data reaches 
 
 ## 1. Sentinel Value Filtering
 
-Gateway devices return sentinel values when a sensor is physically unavailable. These are Modbus protocol conventions — the gateway filters them in `_read_register()` using `RegisterDefinition.sentinel_values` and returns `None` instead.
+Gateway devices return sentinel values when a sensor is physically unavailable. These are Modbus protocol conventions — the gateway detects them in `_read_register()` using `RegisterDefinition.sentinel_values` and returns an internal `_SENTINEL_FILTERED` marker. In `read_values()` that marker causes the corresponding key to be dropped (popped) from `self._data`, so no value is propagated.
 
 ### Known Sentinels
 
@@ -29,10 +29,14 @@ In `_read_register()`, after deserialization:
 
 ```python
 if value is not None and definition.sentinel_values and value in definition.sentinel_values:
-    return None
+    return self._SENTINEL_FILTERED
 ```
 
+The `_SENTINEL_FILTERED` marker is distinct from a plain `None`, and the distinction is load-bearing: a sentinel means the module is known-absent, so `read_values()` skips the fallback read and removes the key via `self._data.pop(name, None)`. A real `None` (Modbus read error or a 0xFFFF sensor-error value deserialized to `None`) still triggers the fallback read before the key is cleared.
+
 ### By Profile
+
+Sentinel values are declared statically once per register in the register map (not per profile), so a given register's sentinel applies regardless of the detected profile. The grouping below describes which sensors *tend* to be absent on each model; it does not reflect per-profile sentinel configuration in code.
 
 #### yutaki_s80 (Dual Compressor)
 
@@ -94,8 +98,8 @@ Modbus registers
     │
     ▼
 _read_register()
-    ├── 0xFFFF (sensor error) → None          [existing]
-    ├── sentinel (-127, -67)  → None          [sentinel filtering]
+    ├── 0xFFFF (sensor error) → None (may try fallback, then key removed)
+    ├── sentinel (-127, -67)  → _SENTINEL_FILTERED → key removed from self._data
     └── valid value           → deserialized
     │
     ▼
@@ -113,6 +117,6 @@ self._data (clean)
 
 ## References
 
-- Modbus ATW-MBS-02 datasheet: `docs/gateway/ATW-MBS-02_line_up_2016.pdf`
-- Investigation script: `scripts/investigate_telemetry_sentinels.py`
+- Modbus ATW-MBS-02 datasheet: `docs/gateway/datasheets/ATW-MBS-02_line_up_2016.pdf`
+- Investigation script: `scripts/investigate_telemetry_sentinels.py` (not present in the current checkout — may have been removed or renamed)
 - Sentinel values discovered during telemetry investigation (2026-04-02)

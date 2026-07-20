@@ -13,11 +13,11 @@ This directory contains the register maps and technical documentation for the Mo
 
 | Feature | ATW-MBS-02 | HC-A(16/64)MB |
 |---|---|---|
-| Max units | 1 Yutaki | Up to 64 indoor units |
+| Max units | 1 Yutaki | Up to 64 indoor units (gateway hardware); integration limits `unit_id` to 0–15 (16 units) |
 | Protocol | Modbus RTU + TCP | Modbus RTU + TCP |
 | Addressing | Fixed (1000–1231) | `5000 + (unit_id × 200) + offset` |
-| Register layout | Single range | CONTROL (50–86) + STATUS (100–192) |
-| Heat pump models | S, S Combi, S80, M, Yutampo R32 | S, SC, S80, M, SC Lite, Yutampo, YCC |
+| Register layout | Fixed absolute CONTROL (~1000–1049 write) + STATUS (~1050+ read) | CONTROL (50–86) + STATUS (100–192) |
+| Heat pump models | S, S Combi, S80, M, Yutampo R32 | S, S Combi, S80, M, SC Lite, Yutampo, YCC |
 | Outdoor unit data | No | Yes |
 | YCC support | No | Yes |
 
@@ -38,6 +38,7 @@ The original Hitachi PDF documentation is stored in the `datasheets/` subfolder:
 The integration's register map implementations are in:
 
 - `custom_components/hitachi_yutaki/api/modbus/registers/atw_mbs_02.py`
+- `custom_components/hitachi_yutaki/api/modbus/registers/atw_mbs_02_pre2016.py` (gen1 / pre-2016 ATW register map)
 - `custom_components/hitachi_yutaki/api/modbus/registers/hc_a_mb.py`
 
 These files define how the raw Modbus registers documented here are mapped to the integration's internal data model.
