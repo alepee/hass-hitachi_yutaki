@@ -1,4 +1,4 @@
-# AGENT.md — agent & contributor guide
+# AGENT.md: agent & contributor guide
 
 Canonical, tool-agnostic guidance for any AI coding agent (Claude Code, Codex, Cursor, Aider, …) or human contributor working in this repository. Tool-specific entrypoints (`CLAUDE.md`, editor configs) should defer to this file rather than duplicate it.
 
@@ -58,7 +58,7 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 ### Heat Pump Profiles
 - Auto-detected from Modbus data; a profile declares capabilities (DHW, pool, circuits, compressors, water circuit, extended compressor sensors) and temperature ranges.
 - Base class: `HitachiHeatPumpProfile` (`profiles/base.py`); models register in `profiles/__init__.py` (`PROFILES`).
-- Capability flags gate entity creation (via `condition` callbacks) — e.g. a DHW-only Yutampo R32 sets `supports_water_circuit=False` and `supports_extended_compressor_sensors=False`.
+- Capability flags gate entity creation (via `condition` callbacks), e.g. a DHW-only Yutampo R32 sets `supports_water_circuit=False` and `supports_extended_compressor_sensors=False`.
 
 ### COP Calculation
 - Coefficient of Performance monitoring using energy accumulation over time.
@@ -91,16 +91,16 @@ Follow the domain builder pattern. See [docs/development/adding-entities.md](doc
 Domain logic goes in `domain/services/`, adapter logic in `adapters/`. See [docs/reference/domain-services.md](docs/reference/domain-services.md). The domain layer must remain HA-agnostic.
 
 ### Modbus Register Access
-**Always read from STATUS registers** for sensor entities — CONTROL registers only reflect what was commanded, not the actual running state. Register definitions carry both a read (STATUS) address and a `write_address` (CONTROL). See [docs/development/api-data-keys.md](docs/development/api-data-keys.md).
+**Always read from STATUS registers** for sensor entities: CONTROL registers only reflect what was commanded, not the actual running state. Register definitions carry both a read (STATUS) address and a `write_address` (CONTROL). See [docs/development/api-data-keys.md](docs/development/api-data-keys.md).
 
 ### Circuit Climate Architecture
 - **Operating mode is global**: the `unit_mode` register (STATUS `1051` / CONTROL `1001` on the 2016 map) controls heat/cool/auto for **all** circuits at once.
-- **Circuit power is per-circuit**: `circuit1_power` (STATUS `1052` / CONTROL `1002`) and `circuit2_power` (STATUS `1064` / CONTROL `1013`) toggle each circuit independently. (Addresses differ on the pre-2016 map — reference the register keys, not raw numbers.)
+- **Circuit power is per-circuit**: `circuit1_power` (STATUS `1052` / CONTROL `1002`) and `circuit2_power` (STATUS `1064` / CONTROL `1013`) toggle each circuit independently. (Addresses differ on the pre-2016 map; reference the register keys, not raw numbers.)
 - **Single circuit active**: the climate entity exposes `off`/`heat`/`cool`/`auto` and controls both power and global mode.
 - **Two circuits active**: climate entities expose only `off`/`heat_cool` (power toggle); the global mode is controlled exclusively via the control-unit operating-mode select (`operation_mode_heat` or `operation_mode_full`, per `entities/control_unit/selects.py`) to avoid side-effects between circuits.
 
 ### When Modifying Telemetry
-- **Integration side**: models/collector/aggregator in `telemetry/`, wiring in `coordinator.py`, consent in `config_flow.py` + `repairs.py`.
+- **Integration side**: models/collector in `telemetry/`, wiring in `coordinator.py`, consent in `config_flow.py` + `repairs.py`.
 - **Backend side**: Cloudflare Worker in `backend/worker/src/`.
 - Fields must match across Python models (`to_dict()`) and the Worker validator (field whitelists).
 - Telemetry entities read from coordinator attributes (not `coordinator.data`).
@@ -133,10 +133,10 @@ All dependencies are declared in `pyproject.toml` (single source of truth).
 
 ## Operating Modes (preserved conventions)
 
-These workflows are stable — do not change them without explicit request. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor workflow.
+These workflows are stable; do not change them without explicit request. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full contributor workflow.
 
 ### Branch Strategy
-- **`main`**: single branch — all development and releases happen here.
+- **`main`**: single branch, all development and releases happen here.
 - **Feature branches**: created from `main`, named `feat/...`, `fix/...`, or `chore/...`.
 - **PRs to `main`**: squash-merged (one commit per PR).
 
@@ -147,8 +147,8 @@ These workflows are stable — do not change them without explicit request. See 
 
 ### Version Management
 Version lives in two files, kept in sync by `make bump`:
-- `manifest.json` → `"version"` — **source of truth** (read by HA core + HACS at runtime).
-- `pyproject.toml` → `version` — metadata only (build tools).
+- `manifest.json` → `"version"`: **source of truth** (read by HA core + HACS at runtime).
+- `pyproject.toml` → `version`: metadata only (build tools).
 
 Use `make bump [PART=minor|major]` to increment and update both files.
 
@@ -157,9 +157,9 @@ Release flow: `make bump` on `main` → commit → push → create a GitHub rele
 
 ## Keeping Documentation in Sync
 
-Documentation is part of the definition of done — treat it like tests. This replaces any external doc-sync tooling with a plain, tool-agnostic convention.
+Documentation is part of the definition of done: treat it like tests. This replaces any external doc-sync tooling with a plain, tool-agnostic convention.
 
-**Rule**: a PR that changes behavior, architecture, registers, entities, or a public workflow **must** update the affected docs in the same PR. Do not assume a doc is correct — verify statements against the code before relying on or copying them.
+**Rule**: a PR that changes behavior, architecture, registers, entities, or a public workflow **must** update the affected docs in the same PR. Do not assume a doc is correct; verify statements against the code before relying on or copying them.
 
 Code-area → doc-file map (update the right doc when you touch that area):
 
@@ -176,8 +176,8 @@ Code-area → doc-file map (update the right doc when you touch that area):
 The PR checklist ([.github/pull_request_template.md](.github/pull_request_template.md)) restates this so it is enforced at review time.
 
 ## Documentation Index
-- [Architecture](docs/architecture.md) — hexagonal layers, data flow, domain matrix.
-- [Development guides](docs/development/) — getting started, adding entities, registers/data keys, profiles, telemetry dataset.
-- [Reference](docs/reference/) — entity reference, entity patterns, domain services, quality scale, telemetry, model nomenclature.
-- [Gateway docs](docs/gateway/) — register maps, scan reference, sentinel values, datasheets.
+- [Architecture](docs/architecture.md): hexagonal layers, data flow, domain matrix.
+- [Development guides](docs/development/): getting started, adding entities, registers/data keys, profiles, telemetry dataset.
+- [Reference](docs/reference/): entity reference, entity patterns, domain services, quality scale, telemetry, model nomenclature.
+- [Gateway docs](docs/gateway/): register maps, scan reference, sentinel values, datasheets.
 - [Troubleshooting](docs/troubleshooting.md).

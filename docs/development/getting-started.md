@@ -4,7 +4,7 @@ This is the primary onboarding guide for contributors to the Hitachi Yutaki Home
 
 ## Prerequisites
 
-- **Python 3.13.2+**
+- **Python 3.13+**
 - **[uv](https://docs.astral.sh/uv/)** -- Python package manager (used via Makefile)
 - **git**
 

@@ -21,9 +21,9 @@ daily_stats/year=YYYY/month=MM/daily_<date>_<hash12>.json
 
 - `<hash12>` = first 12 chars of the SHA-256 instance hash.
 - **installations** carry `data.profile` (e.g. `yutampo_r32`, `yutaki_s`, `yutaki_s80`), `gateway_type`, `has_dhw/pool/cooling`, `max_circuits`.
-- **snapshots** carry a one-time `registers` dict (numeric register values incl. `system_config`) — the raw material for fixtures.
+- **snapshots** carry a one-time `registers` dict (numeric register values incl. `system_config`): the raw material for fixtures.
 
-## Access path A — Cloudflare REST API (only a Cloudflare API token)
+## Access path A: Cloudflare REST API (only a Cloudflare API token)
 
 Works with a Cloudflare API token (`cfut_…`) and the account id; no S3 access keys needed. Set them in the environment:
 
@@ -42,7 +42,7 @@ Workflow to find fixtures for a given model:
 2. Page `snapshots/`, match files whose filename ends with one of the 12-char hash prefixes.
 3. Download a matching snapshot for the full `registers` dict (incl. `system_config`).
 
-## Access path B — DuckDB + httpfs (R2 S3 credentials)
+## Access path B: DuckDB + httpfs (R2 S3 credentials)
 
 When R2 S3 access keys are available, query the archive directly with DuckDB (documented in `backend/README.md`):
 
@@ -63,10 +63,10 @@ Performance: globbing thousands of JSON files over `httpfs` is HTTP-HEAD-bound (
 
 ## Turning a snapshot into a fixture
 
-Trim a real snapshot to the fields a test needs, add a provenance `_comment`, and commit it under `tests/fixtures/`. The canonical example is [`tests/fixtures/yutampo_r32_atw_mbs_02_snapshot.json`](../../tests/fixtures/yutampo_r32_atw_mbs_02_snapshot.json), used by `tests/entities/test_yutampo_r32_entities.py` to replay a real DHW-only configuration (`system_config = 16`, phantom water/compressor registers reading a constant `0`).
+Trim a real snapshot to the fields a test needs, then feed those register values into a test. Tests in this repo build register data inline as Python dicts (see `tests/` for examples, e.g. the `system_config`-driven capability tests in `tests/test_coordinator_capability_flags.py`) rather than loading JSON fixtures, so a real snapshot is best used as the source of the numbers you hard-code, with a provenance comment noting it is real field data. A DHW-only Yutampo R32, for instance, reports `system_config = 16` with phantom water/compressor registers reading a constant `0` rather than a sentinel.
 
 Guidelines:
-- Keep the instance anonymous — omit the instance hash and exact timestamps.
+- Keep the instance anonymous: omit the instance hash and exact timestamps.
 - Keep only the registers the test asserts on (plus `system_config` and the `has_*` flags a builder needs).
 - Document the origin in a `_comment` key so future readers know it is real field data, not invented.
 - Prefer fixtures over mocks when the behavior depends on realistic register combinations (e.g. sensors that read `0` rather than a sentinel on a given model).
