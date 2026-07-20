@@ -187,10 +187,26 @@ class HitachiApiClient(ABC):
     def get_operation_state(self) -> str | None:
         """Get the deserialized unit operation state (e.g. heat_thermo_on)."""
 
+    @abstractmethod
+    def get_eco_mode(self) -> bool | None:
+        """Get the global ECO mode state (True=ECO, False=Comfort, None=unavailable)."""
+
+    @abstractmethod
+    def get_eco_offset(self) -> int | None:
+        """Get the global ECO offset value, shared by all circuits."""
+
     # Unit control - Setters
     @abstractmethod
     async def set_unit_power(self, enabled: bool) -> bool:
         """Enable/disable the main heat pump unit."""
+
+    @abstractmethod
+    async def set_eco_mode(self, enabled: bool) -> bool:
+        """Enable (ECO) or disable (Comfort) the global ECO mode."""
+
+    @abstractmethod
+    async def set_eco_offset(self, offset: int) -> bool:
+        """Write the global ECO offset (valid range 1~10)."""
 
     @abstractmethod
     async def set_unit_mode(self, mode) -> bool:

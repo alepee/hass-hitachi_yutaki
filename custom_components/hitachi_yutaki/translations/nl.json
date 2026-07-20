@@ -654,6 +654,9 @@
       "cool_eco_offset": {
         "name": "ECO-offset koeling"
       },
+      "eco_offset": {
+        "name": "ECO-offset"
+      },
       "current_temp": {
         "name": "Huidige temperatuur"
       },

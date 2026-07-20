@@ -3,8 +3,9 @@
 Based on PMML0419A Section 5.2 for Gen 1 Yutaki S and S Combi units.
 Key differences from Line-up 2016:
 - No Auto HVAC mode (only Cool/Heat)
-- No eco mode registers
-- No DHW boost/high demand
+- ECO mode is global (single Space mode toggle + single offset shared by all
+  circuits), not per-circuit
+- No DHW boost register ("DHW Mode" at addr 1028 exists but is unmapped)
 - Different register addresses for most registers
 - System config is 8-bit only (no wireless bits)
 """
@@ -121,6 +122,12 @@ REGISTER_CONTROL_UNIT = {
     "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
     "pump_speed": RegisterDefinition(1221),
     "power_consumption": RegisterDefinition(1098),
+    # Global eco mode register (addr 1027, same address for read and write).
+    # Write 1=ECO / 0=Comfort. Not present in 2016+ map.
+    "eco_mode": RegisterDefinition(1027, write_address=1027),
+    # Global eco offset register (addr 1090, write_address=1030).
+    # Write range 1~10, validated in set_eco_offset(). Not present in 2016+ map.
+    "eco_offset": RegisterDefinition(1090, write_address=1030),
 }
 
 REGISTER_PRIMARY_COMPRESSOR = {
@@ -244,7 +251,8 @@ ALL_REGISTERS = {
 }
 
 # Writable keys for Before Line-up 2016
-# Note: no eco_mode, eco_offset, dhw_boost, dhw_high_demand registers in before-2016
+# dhw_boost has no before-2016 register; "DHW Mode" (addr 1028, Standard/High
+# demand) exists in the doc but is not mapped yet, so dhw_high_demand stays out.
 WRITABLE_KEYS = {
     "unit_power",
     "unit_mode",
@@ -269,6 +277,8 @@ WRITABLE_KEYS = {
     "pool_target_temp",
     "dhw_antilegionella",
     "dhw_antilegionella_temp",
+    "eco_mode",
+    "eco_offset",
 }
 
 # In before-2016, system_state (addr 1083) is the H-LINK communication alarm:

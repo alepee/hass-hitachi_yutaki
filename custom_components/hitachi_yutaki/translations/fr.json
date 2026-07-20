@@ -654,6 +654,9 @@
       "cool_eco_offset": {
         "name": "Décalage ECO Refroidissement"
       },
+      "eco_offset": {
+        "name": "Décalage ECO"
+      },
       "current_temp": {
         "name": "Température Ambiante"
       },

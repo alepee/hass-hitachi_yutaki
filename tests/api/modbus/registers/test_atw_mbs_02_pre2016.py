@@ -1,5 +1,8 @@
 """Tests for the ATW-MBS-02 (Before Line-up 2016) register map."""
 
+from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
+    AtwMbs02RegisterMap,
+)
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
     AtwMbs02Pre2016RegisterMap,
     deserialize_unit_model_pre2016,
@@ -107,9 +110,7 @@ class TestPre2016RegisterMap:
         allowed_alias_pairs = {
             frozenset({"operation_state", "operation_state_code"}),
             frozenset({"dhw_antilegionella", "dhw_antilegionella_status"}),
-            frozenset(
-                {"dhw_antilegionella_temp", "dhw_antilegionella_temp_status"}
-            ),
+            frozenset({"dhw_antilegionella_temp", "dhw_antilegionella_temp_status"}),
         }
 
         by_address: dict[int, list[str]] = {}
@@ -148,6 +149,32 @@ class TestPre2016RegisterMap:
         """
         reg_map = AtwMbs02Pre2016RegisterMap()
         assert reg_map.all_registers["circuit1_thermostat"].address == 1029
+
+    def test_eco_mode_register(self):
+        """eco_mode register is present at addr 1027, writable (write_address=1027)."""
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        regs = reg_map.all_registers
+        assert "eco_mode" in regs, "eco_mode missing from all_registers"
+        assert regs["eco_mode"].address == 1027
+        assert regs["eco_mode"].write_address == 1027
+        assert "eco_mode" in reg_map.writable_keys
+
+    def test_eco_offset_register(self):
+        """eco_offset register is present at addr 1090, write_address=1030."""
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        regs = reg_map.all_registers
+        assert "eco_offset" in regs, "eco_offset missing from all_registers"
+        assert regs["eco_offset"].address == 1090
+        assert regs["eco_offset"].write_address == 1030
+
+    def test_eco_offset_is_writable(self):
+        """eco_offset IS in writable_keys (write_address=1030, range 1~10)."""
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        assert "eco_offset" in reg_map.writable_keys
+
+    def test_eco_offset_absent_from_2016_map(self):
+        """eco_offset must not appear in the 2016+ register map."""
+        assert "eco_offset" not in AtwMbs02RegisterMap().all_registers
 
 
 class TestPre2016UnitModelDeserializer:

@@ -36,4 +36,14 @@ def _build_control_unit_switch_descriptions() -> tuple[
             set_fn=lambda api, _, enabled: api.set_unit_power(enabled),
             icon="mdi:power",
         ),
+        HitachiYutakiSwitchEntityDescription(
+            key="eco_mode",
+            translation_key="eco_mode",
+            icon="mdi:leaf",
+            get_fn=lambda api, _: api.get_eco_mode(),
+            set_fn=lambda api, _, enabled: api.set_eco_mode(enabled),
+            condition=lambda coordinator: (
+                "eco_mode" in coordinator.api_client.register_map.all_registers
+            ),
+        ),
     )
