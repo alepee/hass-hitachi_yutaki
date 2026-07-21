@@ -29,6 +29,15 @@ from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
 _LOGGER = logging.getLogger(__name__)
 
+# HC-A(16/64)MB gateway unit table (#353). The gateway exposes, per H-LINK unit
+# id, a 4-register descriptor: [exist, outdoor_cycle, cycle+1/unit-no, modbus_id].
+# The table lives in input registers starting at 200, stride 4 per unit id.
+_UNIT_TABLE_BASE = 200
+_UNIT_TABLE_STRIDE = 4
+_UNIT_TABLE_CYCLE_OFFSET = 1
+# Sentinel written by the gateway for an empty/absent unit slot.
+_UNIT_TABLE_SENTINEL = 0xFF
+
 
 class ModbusApiClient(HitachiApiClient):
     """Modbus client for Hitachi heat pumps."""
@@ -182,6 +191,71 @@ class ModbusApiClient(HitachiApiClient):
         except (ModbusException, ConnectionError, OSError) as exc:
             _LOGGER.warning(
                 "Communication error reading input registers for unique_id: %s",
+                exc,
+            )
+            return None
+
+    async def async_get_outdoor_cycle(self, unit_id: int) -> int | None:
+        """Read the outdoor refrigerant cycle for a unit (HC-A(16/64)MB, #353).
+
+        The gateway unit table stores, per H-LINK unit id, the outdoor
+        refrigerant cycle that keys the unit's outdoor register block. Reads a
+        single input register (function code 04) at
+        ``200 + unit_id * 4 + 1``. The cycle is arbitrary and NOT equal to the
+        unit_id (e.g. units 0/1/2 may map to cycles 0/5/7).
+
+        Args:
+            unit_id: H-LINK unit id whose outdoor cycle should be read.
+
+        Returns:
+            The outdoor refrigerant cycle as an int, or None if the register
+            cannot be read or holds the 0xFF sentinel (no unit in that slot).
+
+        """
+        device_param = get_pymodbus_device_param()
+        address = (
+            _UNIT_TABLE_BASE + unit_id * _UNIT_TABLE_STRIDE + _UNIT_TABLE_CYCLE_OFFSET
+        )
+
+        try:
+            result = await self._hass.async_add_executor_job(
+                lambda: self._client.read_input_registers(
+                    address=address,
+                    count=1,
+                    **{device_param: self._slave},
+                )
+            )
+
+            if result.isError():
+                _LOGGER.warning(
+                    "Failed to read outdoor cycle for unit %d (register %d): %s",
+                    unit_id,
+                    address,
+                    result,
+                )
+                return None
+
+            if not result.registers:
+                _LOGGER.warning(
+                    "No register returned reading outdoor cycle for unit %d", unit_id
+                )
+                return None
+
+            cycle = result.registers[0]
+            if cycle == _UNIT_TABLE_SENTINEL:
+                _LOGGER.debug(
+                    "Outdoor cycle for unit %d is the 0xFF sentinel (no unit)",
+                    unit_id,
+                )
+                return None
+
+            _LOGGER.debug("Read outdoor cycle %d for unit %d", cycle, unit_id)
+            return int(cycle)
+
+        except (ModbusException, ConnectionError, OSError) as exc:
+            _LOGGER.warning(
+                "Communication error reading outdoor cycle for unit %d: %s",
+                unit_id,
                 exc,
             )
             return None

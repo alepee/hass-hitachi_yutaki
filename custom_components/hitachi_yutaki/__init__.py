@@ -214,6 +214,56 @@ async def _async_restore_energy_state(
                 _LOGGER.debug("Energy restore: %s — no valid state", key)
 
 
+async def _async_heal_outdoor_cycle(
+    hass: HomeAssistant, entry: HitachiYutakiConfigEntry
+) -> None:
+    """Detect and persist the outdoor refrigerant cycle for HC-A(16/64)MB (#353).
+
+    The outdoor register block is keyed on the outdoor refrigerant cycle (not
+    the unit_id); entries created before #353 never persisted it, so every unit
+    on a multi-system gateway read cycle-0's compressor data. Detect it once
+    from the gateway unit table and persist it so subsequent setups reuse it.
+    Best-effort: on read failure the persisted value (or the 0 default) applies.
+    """
+    if (
+        entry.data.get("gateway_type") != "modbus_hc_a_mb"
+        or "outdoor_cycle" in entry.data
+    ):
+        return
+
+    unit_id = entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
+    gateway_info = GATEWAY_INFO[entry.data["gateway_type"]]
+    detect_client = gateway_info.client_class(
+        hass,
+        name=entry.data[CONF_NAME],
+        host=entry.data[CONF_MODBUS_HOST],
+        port=entry.data[CONF_MODBUS_PORT],
+        slave=entry.data[CONF_MODBUS_DEVICE_ID],
+        register_map=create_register_map(
+            entry.data["gateway_type"],
+            unit_id,
+            gateway_variant=entry.data.get("gateway_variant"),
+        ),
+    )
+    try:
+        if await detect_client.connect():
+            cycle = await detect_client.async_get_outdoor_cycle(unit_id)
+            if cycle is not None:
+                hass.config_entries.async_update_entry(
+                    entry, data={**entry.data, "outdoor_cycle": cycle}
+                )
+                _LOGGER.info(
+                    "Detected outdoor refrigerant cycle %d for unit %d (#353)",
+                    cycle,
+                    unit_id,
+                )
+    except Exception as exc:  # noqa: BLE001 - detection is best-effort
+        _LOGGER.debug("Error detecting outdoor cycle (#353): %s", exc)
+    finally:
+        if detect_client.connected:
+            await detect_client.close()
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: HitachiYutakiConfigEntry
 ) -> bool:
@@ -261,6 +311,7 @@ async def async_setup_entry(
             entry.data["gateway_type"],
             entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
             gateway_variant=entry.data.get("gateway_variant"),
+            outdoor_cycle=entry.data.get("outdoor_cycle"),
         )
         temp_client = gateway_info.client_class(
             hass,
@@ -299,6 +350,11 @@ async def async_setup_entry(
 
         hass.config_entries.async_update_entry(entry, unique_id=unique_id)
 
+    # Self-heal the outdoor refrigerant cycle for HC-A(16/64)MB entries created
+    # before #353, so the reporter gets the fix on upgrade without re-adding the
+    # unit. See _async_heal_outdoor_cycle for details.
+    await _async_heal_outdoor_cycle(hass, entry)
+
     # Get gateway and profile from config entry
     # At this point, these should exist (checked above)
     gateway_type = entry.data["gateway_type"]
@@ -320,6 +376,7 @@ async def async_setup_entry(
         gateway_type,
         entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
         gateway_variant=entry.data.get("gateway_variant"),
+        outdoor_cycle=entry.data.get("outdoor_cycle"),
     )
     api_client = api_client_class(
         hass,

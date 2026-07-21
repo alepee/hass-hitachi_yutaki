@@ -314,6 +314,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             config["gateway_type"],
             config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
             gateway_variant=config.get("gateway_variant"),
+            outdoor_cycle=config.get("outdoor_cycle"),
         )
         api_client = api_client_class(
             self.hass,

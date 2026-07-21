@@ -172,6 +172,77 @@ async def test_async_get_unique_id_more_than_three_registers(api_client, mock_cl
     assert result == "3846-103-56"
 
 
+# --- Outdoor refrigerant cycle tests (#353) ---
+
+
+@pytest.mark.asyncio
+async def test_async_get_outdoor_cycle_success(api_client, mock_client):
+    """Reads the cycle from the unit table and returns it as an int."""
+    mock_result = MagicMock()
+    mock_result.isError.return_value = False
+    mock_result.registers = [7]
+    mock_client.read_input_registers.return_value = mock_result
+
+    result = await api_client.async_get_outdoor_cycle(2)
+
+    assert result == 7
+
+
+@pytest.mark.asyncio
+async def test_async_get_outdoor_cycle_address_computation(api_client, mock_client):
+    """The table register is read at 200 + unit_id * 4 + 1 (offset +1, not +2)."""
+    mock_result = MagicMock()
+    mock_result.isError.return_value = False
+    mock_result.registers = [5]
+    mock_client.read_input_registers.return_value = mock_result
+
+    await api_client.async_get_outdoor_cycle(1)
+
+    kwargs = mock_client.read_input_registers.call_args.kwargs
+    assert kwargs["address"] == 205  # 200 + 1 * 4 + 1
+    assert kwargs["count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_async_get_outdoor_cycle_sentinel_returns_none(api_client, mock_client):
+    """A 0xFF sentinel (no unit in the slot) yields None."""
+    mock_result = MagicMock()
+    mock_result.isError.return_value = False
+    mock_result.registers = [0xFF]
+    mock_client.read_input_registers.return_value = mock_result
+
+    assert await api_client.async_get_outdoor_cycle(3) is None
+
+
+@pytest.mark.asyncio
+async def test_async_get_outdoor_cycle_modbus_error(api_client, mock_client):
+    """A Modbus error result yields None."""
+    mock_result = MagicMock()
+    mock_result.isError.return_value = True
+    mock_client.read_input_registers.return_value = mock_result
+
+    assert await api_client.async_get_outdoor_cycle(0) is None
+
+
+@pytest.mark.asyncio
+async def test_async_get_outdoor_cycle_empty_registers(api_client, mock_client):
+    """An empty register list yields None."""
+    mock_result = MagicMock()
+    mock_result.isError.return_value = False
+    mock_result.registers = []
+    mock_client.read_input_registers.return_value = mock_result
+
+    assert await api_client.async_get_outdoor_cycle(0) is None
+
+
+@pytest.mark.asyncio
+async def test_async_get_outdoor_cycle_modbus_exception(api_client, mock_client):
+    """A ModbusException during the read yields None."""
+    mock_client.read_input_registers.side_effect = ModbusException("boom")
+
+    assert await api_client.async_get_outdoor_cycle(0) is None
+
+
 # --- Register fallback tests ---
 
 

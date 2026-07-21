@@ -254,10 +254,13 @@ def _compute_base(unit_id: int) -> int:
     return 5000 + (unit_id * 200)
 
 
-# Outdoor unit register block (section 5.3 of the HC-A(16/64)MB documentation).
-# This is a separate address range from the indoor unit block (section 5.2).
-# The outdoor unit is shared across indoor units and uses a fixed base address.
+# Outdoor unit register block (section 5.2.3 of the HC-A(16/64)MB datasheet,
+# PMML0351 rev.6). This is a separate address range from the indoor unit block
+# (section 5.2). Each outdoor refrigerant cycle owns a 100-register block keyed
+# on the cycle number (NOT the indoor unit_id): address = 30000 + cycle * 100.
+# The cycle is arbitrary and read from the gateway unit table (#353).
 _OUTDOOR_UNIT_BASE = 30000
+_OUTDOOR_CYCLE_STRIDE = 100
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -268,28 +271,41 @@ _OUTDOOR_UNIT_BASE = 30000
 class HcAMbRegisterMap(HitachiRegisterMap):
     """Register map for the HC-A(16/64)MB gateway.
 
-    All absolute addresses are computed at construction time from the unit_id.
+    All absolute addresses are computed at construction time from the unit_id
+    (indoor block) and the outdoor refrigerant cycle (outdoor block).
     """
 
-    def __init__(self, unit_id: int = 0) -> None:
-        """Initialize the register map for a given unit ID."""
+    def __init__(self, unit_id: int = 0, outdoor_cycle: int | None = None) -> None:
+        """Initialize the register map for a given unit ID and outdoor cycle.
+
+        Args:
+            unit_id: H-LINK indoor unit id; keys the indoor register block.
+            outdoor_cycle: Outdoor refrigerant cycle number; keys the outdoor
+                register block. Defaults to 0 (the shared/first block) when
+                unknown, preserving the pre-#353 behaviour.
+
+        """
         self._unit_id = unit_id
         self._base = _compute_base(unit_id)
+        self._outdoor_cycle = outdoor_cycle if outdoor_cycle is not None else 0
         self._build_registers()
 
     def _addr(self, offset: int) -> int:
         """Compute absolute address from indoor unit offset."""
         return self._base + offset
 
-    @staticmethod
-    def _outdoor_addr(offset: int) -> int:
-        """Compute absolute address for outdoor unit registers (section 5.3).
+    def _outdoor_addr(self, offset: int) -> int:
+        """Compute absolute address for outdoor unit registers (section 5.2.3).
 
-        Outdoor unit registers use a fixed base address (30000), independent
-        of the indoor unit_id. The outdoor unit is shared across all indoor
-        units on the same H-LINK bus.
+        The outdoor register block is keyed on the outdoor refrigerant cycle,
+        not the indoor unit_id: a gateway with several independent systems has
+        one 100-register block per cycle at 30000 + cycle * 100. The cycle is
+        arbitrary (e.g. cycles 0/5/7 for units 0/1/2) and detected from the
+        gateway unit table. It defaults to 0 when unknown (#353).
         """
-        return _OUTDOOR_UNIT_BASE + offset
+        return (
+            _OUTDOOR_UNIT_BASE + (self._outdoor_cycle * _OUTDOOR_CYCLE_STRIDE) + offset
+        )
 
     def _build_registers(self) -> None:
         """Build all register dictionaries with computed absolute addresses."""
@@ -493,9 +509,9 @@ class HcAMbRegisterMap(HitachiRegisterMap):
         # --- Primary Compressor (STATUS only) ---
         # Indoor unit registers (offsets 156-158, section 5.2) provide gas temp,
         # liquid temp, and indoor EVI valve — addressed from the indoor unit base.
-        # Outdoor unit registers (offsets 0-17, section 5.3) provide discharge temp,
-        # evaporator temp, frequency, current, and outdoor expansion valve —
-        # addressed from a separate fixed base (30000).
+        # Outdoor unit registers (offsets 0-17, section 5.2.3) provide discharge
+        # temp, evaporator temp, frequency, current, and outdoor expansion valve
+        # — addressed from a per-cycle base (30000 + outdoor_cycle * 100).
         self._register_primary_compressor: dict[str, RegisterDefinition] = {
             # Indoor unit registers (section 5.2, offsets 156-158)
             "compressor_tg_gas_temp": RegisterDefinition(

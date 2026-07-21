@@ -48,7 +48,7 @@ class TestAddressComputation:
         assert regs["unit_mode"].write_address == 5051
 
     def test_outdoor_register_addresses(self):
-        """Verify outdoor unit registers use fixed base 30000 (section 5.3)."""
+        """Outdoor registers default to base 30000 when no cycle is given (#353)."""
         rmap = HcAMbRegisterMap(unit_id=0)
         regs = rmap.all_registers
         assert regs["compressor_td_discharge_temp"].address == 30001
@@ -57,12 +57,41 @@ class TestAddressComputation:
         assert regs["compressor_frequency"].address == 30007
         assert regs["compressor_evo_outdoor_expansion_valve_opening"].address == 30008
 
-    def test_outdoor_register_addresses_independent_of_unit_id(self):
-        """Outdoor unit addresses must NOT shift with unit_id.
+    def test_outdoor_cycle_none_defaults_to_base(self):
+        """outdoor_cycle=None must resolve at base 30000 (preserve old behaviour)."""
+        rmap = HcAMbRegisterMap(unit_id=0, outdoor_cycle=None)
+        assert rmap.all_registers["compressor_current"].address == 30006
 
-        The outdoor unit block (section 5.3) is shared across all indoor units
-        and uses a fixed base address of 30000, unlike indoor unit registers
-        which shift by 200 per unit_id.
+    def test_outdoor_register_addresses_with_cycle(self):
+        """Outdoor registers shift by cycle * 100 (section 5.2.3, #353)."""
+        rmap = HcAMbRegisterMap(unit_id=1, outdoor_cycle=5)
+        regs = rmap.all_registers
+        assert regs["compressor_td_discharge_temp"].address == 30501
+        assert regs["compressor_te_evaporator_temp"].address == 30502
+        assert regs["compressor_current"].address == 30506
+        assert regs["compressor_frequency"].address == 30507
+        assert regs["compressor_evo_outdoor_expansion_valve_opening"].address == 30508
+
+    def test_outdoor_address_depends_on_cycle_not_unit_id(self):
+        """Outdoor addresses key on the cycle, never on the unit_id (#353).
+
+        The cycle is arbitrary: on a real gateway units 0/1/2 mapped to cycles
+        0/5/7, so ``unit_id * 100`` would be wrong. A cycle-0 unit_id-2 map
+        still resolves at base 30000, while a cycle-7 unit_id-0 map resolves at
+        30700.
+        """
+        rmap_unit2_cycle0 = HcAMbRegisterMap(unit_id=2, outdoor_cycle=0)
+        rmap_unit0_cycle7 = HcAMbRegisterMap(unit_id=0, outdoor_cycle=7)
+        assert rmap_unit2_cycle0.all_registers["compressor_current"].address == 30006
+        assert rmap_unit0_cycle7.all_registers["compressor_current"].address == 30706
+
+    def test_outdoor_register_addresses_independent_of_unit_id(self):
+        """Outdoor addresses must NOT shift with unit_id at the same cycle.
+
+        The outdoor block (section 5.2.3) is keyed on the outdoor refrigerant
+        cycle, not the indoor unit_id: two maps built with different unit_ids
+        but the same (default) cycle share the same outdoor addresses, unlike
+        indoor registers which shift by 200 per unit_id.
         """
         rmap_unit0 = HcAMbRegisterMap(unit_id=0)
         rmap_unit1 = HcAMbRegisterMap(unit_id=1)
@@ -78,6 +107,12 @@ class TestAddressComputation:
                 rmap_unit0.all_registers[key].address
                 == rmap_unit1.all_registers[key].address
             ), f"{key} address should not change with unit_id"
+
+    def test_indoor_block_unaffected_by_cycle(self):
+        """Indoor registers still scale with unit_id and ignore outdoor_cycle."""
+        rmap = HcAMbRegisterMap(unit_id=1, outdoor_cycle=5)
+        # outdoor_temp = 5000 + unit_id * 200 + 142
+        assert rmap.all_registers["outdoor_temp"].address == 5342
 
     def test_register_map_addresses_unit1(self):
         """Verify addresses shift correctly for unit_id=1."""
