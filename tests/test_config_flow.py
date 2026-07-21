@@ -479,7 +479,9 @@ async def test_validate_connection_duplicate_entry_abort(
         domain=DOMAIN,
         title="Existing",
         data={},
-        unique_id=f"{DOMAIN}_ABCD1234",
+        # unique_id now carries the per-unit H-LINK suffix (unit_id=0 default);
+        # the flow derives the same value, so the duplicate is still caught (#370).
+        unique_id=f"{DOMAIN}_ABCD1234_0",
     )
     existing_entry.add_to_hass(hass)
 
