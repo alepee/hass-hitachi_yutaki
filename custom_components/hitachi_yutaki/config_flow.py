@@ -343,16 +343,27 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         # Try to get hardware-based unique_id from Modbus input registers
                         hw_id = await api_client.async_get_unique_id()
 
+                        # The hardware identifier (input registers 0-2) is
+                        # gateway-wide: every unit sharing an HC-A(16/64)MB
+                        # gateway returns the same hw_id, so it must be
+                        # disambiguated by the per-unit H-LINK address. Without
+                        # this, a second unit on the same gateway (especially of
+                        # the same model) collides and is wrongly rejected as
+                        # "already configured" (#370). ATW-MBS-02 is single-unit,
+                        # where unit_id is always the default (0) and the suffix
+                        # is a harmless no-op.
+                        unit_id = config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
+
                         if hw_id:
                             # Use hardware identifier with domain prefix
-                            unique_id = f"{DOMAIN}_{hw_id}"
+                            unique_id = f"{DOMAIN}_{hw_id}_{unit_id}"
                             _LOGGER.info(
                                 "Gateway hardware identifier detected: %s",
                                 unique_id,
                             )
                         else:
                             # Fallback to IP+slave if Modbus read failed
-                            unique_id = f"{config[CONF_MODBUS_HOST]}_{config[CONF_MODBUS_DEVICE_ID]}"
+                            unique_id = f"{config[CONF_MODBUS_HOST]}_{config[CONF_MODBUS_DEVICE_ID]}_{unit_id}"
                             _LOGGER.warning(
                                 "Could not retrieve gateway hardware identifier. "
                                 "Using IP-based unique_id: %s. "
