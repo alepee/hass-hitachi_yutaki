@@ -2,17 +2,17 @@
 
 ## Gateway shows "Desynchronized" or "Not Ready"
 
-The integration displays a warning when the gateway reports no communication with the heat pump for more than 180 seconds. When this happens, register reads are paused because the data is not guaranteed to be fresh or correct — it could be stale values from before communication was lost, or initial gateway values (e.g., empty registers from startup).
+The integration displays a warning when the gateway reports a "not ready" state. This covers two cases: the "desynchronized" state, which the gateway reports when it has had no communication with the heat pump for more than 180 seconds, and the "initializing" state (data initialization at startup or after a power cycle), which is not tied to the 180 second window. When either state is reported, register reads are paused because the data is not guaranteed to be fresh or correct — it could be stale values from before communication was lost, or initial gateway values (e.g., empty registers from startup).
 
 **Possible causes:**
 
 ### Wrong H-LINK terminals
 
-The ATW-MBS-02 must be connected to the **H-LINK terminals (1-2)** on the heat pump PCB. Some PCBs also have Remote Controller terminals (3-4) that look similar but are not meant for the Modbus gateway. Connecting to the wrong pair causes a permanent communication alarm.
+The ATW-MBS-02 must be connected to the **H-LINK terminals** on the heat pump PCB. The H-LINK line is a non-polarity twisted pair (see [ATW-MBS-02 datasheet](gateway/atw-mbs-02.md)). Some PCBs also expose Remote Controller terminals that look similar but are not meant for the Modbus gateway. Connecting to the wrong pair causes a permanent communication alarm. Terminal numbering varies by unit, so refer to the Hitachi installation manual for your model to identify the correct H-LINK pair.
 
 **Symptoms:** the gateway is always reported as desynchronized, the scanner may detect the wrong gateway type, some register values appear shifted or incoherent.
 
-**Fix:** check the wiring on the indoor unit PCB and move the H-LINK cable to terminals 1-2.
+**Fix:** check the wiring on the indoor unit PCB and move the H-LINK cable to the H-LINK terminals per your unit's installation manual.
 
 ### Unsuitable H-LINK cable
 
