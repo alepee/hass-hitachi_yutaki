@@ -4,7 +4,17 @@ Follow this template when cutting a release so titles and descriptions stay cons
 
 ## Release flow (recap)
 
-`make bump [PART=minor|major]` on `main` → commit → push → create the GitHub release with the tag. See [AGENT.md](../../AGENT.md#release-process). `make bump` updates `manifest.json` (source of truth) and `pyproject.toml`, and moves the `[Unreleased]` CHANGELOG entries under the new version.
+`make bump [PART=patch|minor|major|beta]` on `main` → move the CHANGELOG entries → commit → push → create the GitHub release with the tag. See [AGENT.md](../../AGENT.md#release-process). `make bump` updates **only** `manifest.json` (source of truth) and `pyproject.toml`; moving the `[Unreleased]` CHANGELOG entries under a new dated `## [X.Y.Z] - YYYY-MM-DD` section is a **manual** step (leave `## [Unreleased]` in place, empty).
+
+Create the release with:
+
+```bash
+gh release create vX.Y.Z --target main --title "vX.Y.Z" [--prerelease] --notes-file <body.md>
+```
+
+### Pre-releases (beta)
+
+Pre-releases use a `-beta.N` tag and are published with `--prerelease`, so they stay off "Latest" and default HACS users are not offered them. `make bump PART=beta` appends `-beta.N` to the current `M.m.p`, so to start a new minor as a beta, chain `make bump PART=minor` then `make bump PART=beta` (e.g. `2.1.6` → `2.2.0` → `2.2.0-beta.1`). In the CHANGELOG, the dated section carries the full version incl. the suffix (`## [2.2.0-beta.1] - YYYY-MM-DD`). Testers enable it via HACS → the integration → ⋮ → Redownload → enable "Show beta versions".
 
 ## Bump commit / PR title
 
@@ -52,12 +62,20 @@ Scale the sections to the release size (a patch may only need intro + Installati
 
 <What was wrong and what the user will now observe.>
 
+## ⚠️ Upgrade note   <!-- only when the release needs a manual user action -->
+
+<Exact steps the user must take (e.g. delete orphaned entities, re-add a unit). Be specific: menu path, entity names, counts. State clearly what to KEEP vs remove. End with "New installations are unaffected." when true.>
+
+## 🔧 Under the Hood   <!-- optional: CI / tooling / docs / internal changes worth noting -->
+
+- <Internal change, with PR link.>
+
 ## 📦 Installation
 
-1. Update to `vX.Y.Z` via HACS
+1. Update to `vX.Y.Z` via HACS   <!-- pre-release: → ⋮ → Redownload, enable "Show beta versions", pick vX.Y.Z -->
 2. Restart Home Assistant
 
-<State migration needs explicitly: "No configuration changes or migration needed." or the required steps.>
+<State migration needs explicitly: "No configuration changes or migration needed." or the required steps (incl. any action from the Upgrade note).>
 
 ## 🐛 Bug Reports
 
@@ -75,4 +93,6 @@ If you encounter issues, please report with:
 
 - Write release notes from the **user's** perspective (observable behavior), not the implementation diff. The `CHANGELOG.md` entries are the raw material; the release body reframes them.
 - Reuse the exact section headers and emoji above so releases read consistently.
+- Include `## ⚠️ Upgrade note` **only** when the release requires a manual user action (e.g. deleting orphaned entities); put it right after Bug Fixes and restate the action in Installation.
+- For a pre-release, publish with `--prerelease` and leave the previous stable tagged as "Latest" (see [Pre-releases (beta)](#pre-releases-beta)).
 - Always end with the `Full Changelog` compare link against the previous tag.
