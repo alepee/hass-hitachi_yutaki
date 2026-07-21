@@ -459,6 +459,7 @@ async def async_setup_entry(
         has_dhw=persisted_has_dhw,
         has_pool=persisted_has_pool,
         supports_secondary_compressor=profile.supports_secondary_compressor,
+        supports_extended_compressor_sensors=profile.supports_extended_compressor_sensors,
     )
 
     # Initial poll. A transient gateway_not_ready (H-LINK still initializing
@@ -522,6 +523,9 @@ async def async_setup_entry(
 
     # Rehydrate compressor timing from Recorder history
     await coordinator.derived_metrics.async_rehydrate_timing()
+
+    # Restore refrigerant-anomaly detector state from its persisted Store
+    await coordinator.derived_metrics.async_restore_refrigerant()
 
     _LOGGER.info("Using Hitachi profile: %s", profile.name)
 
@@ -754,6 +758,10 @@ async def async_unload_entry(
 
         # Flush remaining telemetry data before closing
         await coordinator.async_flush_telemetry()
+
+        # Persist refrigerant detector state before closing
+        if coordinator.derived_metrics is not None:
+            await coordinator.derived_metrics.async_flush_refrigerant()
 
         # Close API connection
         if coordinator.api_client.connected:

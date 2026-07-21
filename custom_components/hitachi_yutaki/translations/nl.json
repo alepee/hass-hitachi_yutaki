@@ -530,6 +530,15 @@
           "on": "Aan"
         }
       },
+      "refrigerant_charge_status": {
+        "name": "Status koudemiddelvulling",
+        "state": {
+          "learning": "Leren",
+          "ok": "OK",
+          "watch": "Waakzaam",
+          "alert": "Alarm"
+        }
+      },
       "dhw_demand_mode": {
         "name": "SWW Vraagmodus",
         "state": {
@@ -639,6 +648,9 @@
     "button": {
       "antilegionella": {
         "name": "Anti-legionellacyclus starten"
+      },
+      "reset_refrigerant_baseline": {
+        "name": "Koudemiddel-referentie resetten"
       }
     },
     "number": {
@@ -725,6 +737,10 @@
     "connection_error": {
       "title": "Hitachi Gateway onbereikbaar",
       "description": "De integratie kon geen verbinding maken met de Hitachi Yutaki gateway. De entiteiten zijn niet beschikbaar totdat de verbinding is hersteld.\n\n**Om dit op te lossen:**\n1. Controleer of de gateway is ingeschakeld en verbonden met het netwerk.\n2. Controleer of het IP-adres en de poort in Home Assistant correct zijn geconfigureerd."
+    },
+    "refrigerant_charge_alert": {
+      "title": "Mogelijk verlies van koudemiddelvulling",
+      "description": "Al enkele dagen blijft de status van de koudemiddelvulling op **Alarm** staan: zowel de oververhitting bij aanzuiging als de opening van het expansieventiel zijn ten opzichte van de aangeleerde referentie gestegen, de klassieke signatuur van een langzaam koudemiddelverlies.\n\nDit is een **waarschuwing** op basis van continue monitoring van uw eigen bedrijfsgegevens. Het **vult** de verplichte periodieke lekdichtheidsinspectie door een gecertificeerd technicus **aan** en **vervangt** deze **niet**.\n\n**Wat te doen:**\n1. Volg de sensor voor de status van de koudemiddelvulling en de bijbehorende attributen de komende dagen.\n2. Overweeg een lekdichtheidscontrole in te plannen met uw installateur.\n3. Druk na het bijvullen van koudemiddel of onderhoud aan het expansieventiel op **Koudemiddel-referentie resetten** zodat een nieuwe referentie wordt aangeleerd.\n\nDe waarschuwing verdwijnt automatisch wanneer de metingen weer normaal zijn."
     },
     "initializing_warning": {
       "title": "Hitachi Gateway wordt geïnitialiseerd",

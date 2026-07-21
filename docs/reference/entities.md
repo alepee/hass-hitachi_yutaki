@@ -111,6 +111,8 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 | compressor_cycle_time | sensor | Average time between compressor starts | min | diagnostic |
 | compressor_runtime | sensor | Compressor runtime | min | diagnostic |
 | compressor_resttime | sensor | Compressor rest time | min | diagnostic |
+| refrigerant_charge_status | sensor (ENUM) | Slow-refrigerant-loss detection (learning/ok/watch/alert); advisory, complements the mandatory inspection. Extended-sensor profiles only. See [refrigerant monitoring](refrigerant-monitoring.md) | - | diagnostic |
+| reset_refrigerant_baseline | button | Reset the refrigerant detection baseline after a top-up or expansion-valve service. Extended-sensor profiles only | - | config |
 
 ## Secondary Compressor Device (S80 Model Only)
 

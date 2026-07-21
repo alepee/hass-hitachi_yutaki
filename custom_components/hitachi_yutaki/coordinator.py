@@ -30,6 +30,9 @@ from .const import (
     DOMAIN,
 )
 from .domain.services.defrost_guard import DefrostGuard
+from .domain.services.refrigerant import (
+    ALERT_PERSIST_DAYS as REFRIGERANT_ALERT_PERSIST_DAYS,
+)
 from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
     HttpTelemetryClient,
@@ -177,6 +180,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             # Enrich data with derived metrics (thermal power, COP, timing)
             if self.derived_metrics is not None:
                 self.derived_metrics.update(data)
+                self._update_refrigerant_issue()
 
             # If we reach here, connection is successful, so delete any connection error issue
             ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
@@ -365,3 +369,35 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     def has_pool(self) -> bool:
         """Return True if pool heating is configured in system_config."""
         return self.api_client.has_pool
+
+    def _refrigerant_issue_id(self) -> str:
+        """Return the repair-issue id for the refrigerant charge alert."""
+        return f"refrigerant_charge_alert_{self.config_entry.entry_id}"
+
+    def _update_refrigerant_issue(self) -> None:
+        """Raise or clear the refrigerant charge alert repair issue.
+
+        Self-clearing advisory (WARNING, non-fixable): raised once the alert has
+        persisted for several days, deleted as soon as the verdict recovers. It
+        complements and does not replace the mandatory F-Gas inspection.
+        """
+        status = getattr(self.derived_metrics, "refrigerant_status", None)
+        issue_id = self._refrigerant_issue_id()
+        if status is not None and status.alert_streak >= REFRIGERANT_ALERT_PERSIST_DAYS:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                is_persistent=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="refrigerant_charge_alert",
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+
+    async def async_reset_refrigerant_baseline(self) -> None:
+        """Reset the refrigerant detector baseline (after a top-up or service)."""
+        if self.derived_metrics is not None:
+            await self.derived_metrics.async_reset_refrigerant()
+        ir.async_delete_issue(self.hass, DOMAIN, self._refrigerant_issue_id())

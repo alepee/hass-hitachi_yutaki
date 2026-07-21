@@ -1,6 +1,7 @@
 """Domain services for Hitachi Yutaki."""
 
 from .cop import COPService, EnergyAccumulator
+from .refrigerant import RefrigerantMonitor
 from .thermal import ThermalEnergyAccumulator, ThermalPowerService
 from .timing import CompressorHistory, CompressorTimingService
 
@@ -16,6 +17,7 @@ COP_OPTIMAL_TIME_SPAN = 15  # minutes
 __all__ = [
     "COPService",
     "EnergyAccumulator",
+    "RefrigerantMonitor",
     "ThermalEnergyAccumulator",
     "ThermalPowerService",
     "CompressorHistory",

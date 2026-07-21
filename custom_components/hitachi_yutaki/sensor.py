@@ -18,7 +18,7 @@ from .const import (
 
 # Import builders from domain entities
 from .entities.circuit import build_circuit_sensors
-from .entities.compressor import build_compressor_sensors
+from .entities.compressor import build_compressor_sensors, build_refrigerant_sensors
 from .entities.control_unit import build_control_unit_sensors
 from .entities.dhw import build_dhw_sensors
 from .entities.gateway import build_gateway_sensors
@@ -97,6 +97,9 @@ async def async_setup_entry(
             device_type=DEVICE_SECONDARY_COMPRESSOR,
         )
     )
+
+    # Refrigerant-circuit anomaly diagnostic (gated on extended compressor sensors)
+    entities.extend(build_refrigerant_sensors(coordinator, entry.entry_id))
 
     # Performance sensors (COP)
     entities.extend(build_performance_sensors(coordinator, entry.entry_id))

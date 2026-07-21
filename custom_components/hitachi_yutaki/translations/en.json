@@ -530,6 +530,15 @@
           "on": "On"
         }
       },
+      "refrigerant_charge_status": {
+        "name": "Refrigerant Charge Status",
+        "state": {
+          "learning": "Learning",
+          "ok": "OK",
+          "watch": "Watch",
+          "alert": "Alert"
+        }
+      },
       "dhw_demand_mode": {
         "name": "DHW Demand Mode",
         "state": {
@@ -639,6 +648,9 @@
     "button": {
       "antilegionella": {
         "name": "Start Anti-legionella Cycle"
+      },
+      "reset_refrigerant_baseline": {
+        "name": "Reset Refrigerant Baseline"
       }
     },
     "number": {
@@ -725,6 +737,10 @@
     "connection_error": {
       "title": "Hitachi Gateway Unreachable",
       "description": "The integration could not connect to the Hitachi Yutaki gateway. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check if the gateway is powered on and connected to the network.\n2. Verify that the IP address and port configured in Home Assistant are correct."
+    },
+    "refrigerant_charge_alert": {
+      "title": "Possible Refrigerant Charge Loss",
+      "description": "For several days the Refrigerant Charge Status has stayed at **Alert**: suction superheat and the expansion-valve opening have both drifted up from the learned baseline, the classic signature of a slow refrigerant loss.\n\nThis is an **advisory** based on continuous monitoring of your own operating data. It **complements** and does **not** replace the mandatory periodic leak-tightness inspection by a certified technician.\n\n**What to do:**\n1. Watch the Refrigerant Charge Status sensor and its attributes over the next days.\n2. Consider scheduling a leak-tightness check with your installer.\n3. After any refrigerant top-up or expansion-valve service, press **Reset Refrigerant Baseline** so a new reference is learned.\n\nThe warning clears automatically when the readings return to normal."
     },
     "initializing_warning": {
       "title": "Hitachi Gateway Initializing",

@@ -530,6 +530,15 @@
           "on": "Activée"
         }
       },
+      "refrigerant_charge_status": {
+        "name": "État de la charge frigorigène",
+        "state": {
+          "learning": "Apprentissage",
+          "ok": "Normal",
+          "watch": "Surveillance",
+          "alert": "Alerte"
+        }
+      },
       "dhw_demand_mode": {
         "name": "Mode de demande ECS",
         "state": {
@@ -639,6 +648,9 @@
     "button": {
       "antilegionella": {
         "name": "Démarrer le cycle anti-légionelle"
+      },
+      "reset_refrigerant_baseline": {
+        "name": "Réinitialiser la référence frigorigène"
       }
     },
     "number": {
@@ -725,6 +737,10 @@
     "connection_error": {
       "title": "Passerelle Hitachi Inaccessible",
       "description": "L'intégration n'a pas pu se connecter à la passerelle Hitachi Yutaki. Les entités seront indisponibles jusqu'à ce que la connexion soit rétablie.\n\n**Pour résoudre ce problème :**\n1. Vérifiez si la passerelle est sous tension et connectée au réseau.\n2. Vérifiez que l'adresse IP et le port configurés dans Home Assistant sont corrects."
+    },
+    "refrigerant_charge_alert": {
+      "title": "Perte possible de charge frigorigène",
+      "description": "Depuis plusieurs jours, l'état de la charge frigorigène reste en **Alerte** : la surchauffe à l'aspiration et l'ouverture du détendeur ont toutes deux dérivé à la hausse par rapport à la référence apprise, la signature classique d'une fuite lente de frigorigène.\n\nIl s'agit d'un **avertissement** basé sur la surveillance continue de vos propres données de fonctionnement. Il **complète** et ne **remplace pas** le contrôle d'étanchéité périodique obligatoire par un technicien certifié.\n\n**Que faire :**\n1. Surveillez le capteur d'état de la charge frigorigène et ses attributs les jours suivants.\n2. Envisagez de programmer un contrôle d'étanchéité avec votre installateur.\n3. Après toute recharge de frigorigène ou intervention sur le détendeur, appuyez sur **Réinitialiser la référence frigorigène** pour réapprendre une référence.\n\nL'avertissement disparaît automatiquement lorsque les mesures reviennent à la normale."
     },
     "initializing_warning": {
       "title": "Passerelle Hitachi en cours d'initialisation",
