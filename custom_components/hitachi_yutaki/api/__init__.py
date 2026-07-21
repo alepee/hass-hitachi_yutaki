@@ -38,13 +38,18 @@ def create_register_map(
     gateway_type: str,
     unit_id: int = DEFAULT_UNIT_ID,
     gateway_variant: str | None = None,
+    outdoor_cycle: int | None = None,
 ) -> HitachiRegisterMap | None:
     """Create the appropriate register map for the gateway type and variant.
+
+    The ``outdoor_cycle`` argument only applies to the HC-A(16/64)MB gateway,
+    where the outdoor register block is keyed on the outdoor refrigerant cycle
+    (#353). It is ignored for other gateways.
 
     Returns None for ATW-MBS-02 gen2 (uses built-in default).
     """
     if gateway_type == "modbus_hc_a_mb":
-        return HcAMbRegisterMap(unit_id=unit_id)
+        return HcAMbRegisterMap(unit_id=unit_id, outdoor_cycle=outdoor_cycle)
 
     # Check for variant-specific register map
     variants = GATEWAY_VARIANTS.get(gateway_type)

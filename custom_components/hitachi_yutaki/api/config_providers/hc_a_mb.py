@@ -131,6 +131,11 @@ class HcAMbConfigProvider:
             decoded_data = api_client.decode_config(all_data)
             system_config = int(all_data.get("system_config") or 0)
 
+            # Detect the outdoor refrigerant cycle so the outdoor register block
+            # is addressed correctly on multi-system gateways (#353). The cycle
+            # is arbitrary and read from the gateway unit table, not unit_id.
+            outdoor_cycle = await api_client.async_get_outdoor_cycle(unit_id)
+
             _LOGGER.debug("HC-A-MB detecting profile with data: %s", decoded_data)
             detected_profiles = [
                 key for key, profile in PROFILES.items() if profile.detect(decoded_data)
@@ -154,6 +159,8 @@ class HcAMbConfigProvider:
             }
             if system_config:
                 config_data["system_config"] = system_config
+            if outdoor_cycle is not None:
+                config_data["outdoor_cycle"] = outdoor_cycle
 
             return StepOutcome(
                 config_data=config_data,
