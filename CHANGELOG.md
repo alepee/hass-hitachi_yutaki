@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.6] - 2026-07-21
+
 ### Added
 - ATW-MBS-02 (Before Line-up 2016): ECO mode support. Unlike the 2016+ line-up where ECO is controlled per circuit, pre-2016 units expose a single global "Space mode" toggle (address 1027, read/write on the same address) and a single global ECO offset (STATUS 1090 / CONTROL 1030, range 1~10) shared by all circuits. They surface as a new ECO Mode switch and Eco Offset number on the Control Unit device, created only when the active register map defines these registers (#253).
 
