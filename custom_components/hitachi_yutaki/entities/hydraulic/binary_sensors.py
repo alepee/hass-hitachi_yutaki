@@ -43,6 +43,7 @@ def _build_hydraulic_binary_sensor_descriptions() -> tuple[
             entity_category=EntityCategory.DIAGNOSTIC,
             value_fn=lambda coordinator: coordinator.api_client.is_pump1_running,
             entity_registry_enabled_default=False,
+            condition=lambda c: c.profile.supports_water_circuit,
         ),
         HitachiYutakiBinarySensorEntityDescription(
             key="pump2",
@@ -53,6 +54,7 @@ def _build_hydraulic_binary_sensor_descriptions() -> tuple[
             entity_category=EntityCategory.DIAGNOSTIC,
             value_fn=lambda coordinator: coordinator.api_client.is_pump2_running,
             entity_registry_enabled_default=False,
+            condition=lambda c: c.profile.supports_water_circuit,
         ),
         HitachiYutakiBinarySensorEntityDescription(
             key="pump3",
@@ -63,5 +65,6 @@ def _build_hydraulic_binary_sensor_descriptions() -> tuple[
             entity_category=EntityCategory.DIAGNOSTIC,
             value_fn=lambda coordinator: coordinator.api_client.is_pump3_running,
             entity_registry_enabled_default=False,
+            condition=lambda c: c.profile.supports_water_circuit,
         ),
     )

@@ -90,6 +90,7 @@ def _build_control_unit_binary_sensor_descriptions() -> tuple[
             entity_category=EntityCategory.DIAGNOSTIC,
             value_fn=lambda coordinator: coordinator.api_client.is_space_heater_active,
             entity_registry_enabled_default=False,
+            condition=lambda c: c.profile.supports_water_circuit,
         ),
         HitachiYutakiBinarySensorEntityDescription(
             key="smart_function",

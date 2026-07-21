@@ -38,13 +38,23 @@ class TestHydraulicSensorDescriptions:
         assert two2.condition is not None
         assert two3.condition is not None
 
-    def test_base_sensors_have_no_condition(self):
-        """Base hydraulic sensors (inlet, outlet, target) have no condition."""
+    def test_base_sensors_gated_on_water_circuit(self):
+        """Base hydraulic sensors are gated on the water-circuit capability.
+
+        DHW-only units (Yutampo) report a constant 0 for these registers, so
+        they are dropped via the profile flag rather than by value (issue #365).
+        """
         descriptions = _build_hydraulic_sensor_descriptions()
         base_keys = {"water_inlet_temp", "water_outlet_temp", "water_target_temp"}
+        with_circuit = MagicMock()
+        with_circuit.profile.supports_water_circuit = True
+        without_circuit = MagicMock()
+        without_circuit.profile.supports_water_circuit = False
         for desc in descriptions:
             if desc.key in base_keys:
-                assert desc.condition is None, f"{desc.key} should have no condition"
+                assert desc.condition is not None, f"{desc.key} should be gated"
+                assert desc.condition(with_circuit) is True
+                assert desc.condition(without_circuit) is False
 
 
 class TestHydraulicSensorConditionalVisibility:

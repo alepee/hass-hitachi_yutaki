@@ -33,8 +33,12 @@ def _build_thermal_sensor_descriptions(
     """Build thermal energy sensor descriptions."""
     has_cooling = coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
 
-    # New explicit heating sensors (always created)
-    sensors = [
+    sensors: list[HitachiYutakiSensorEntityDescription] = []
+
+    # Heating sensors: only for units with a space-heating water circuit.
+    # DHW-only units (Yutampo) report a constant 0 heating power/energy. Gated
+    # independently of the cooling block below so the two never couple.
+    heating_sensors: list[HitachiYutakiSensorEntityDescription] = [
         HitachiYutakiSensorEntityDescription(
             key="thermal_power_heating",
             translation_key="thermal_power_heating",
@@ -66,8 +70,10 @@ def _build_thermal_sensor_descriptions(
             value_fn=lambda c: c.data.get("thermal_energy_heating_total"),
         ),
     ]
+    if coordinator.profile.supports_water_circuit:
+        sensors += heating_sensors
 
-    # Cooling sensors (only if cooling circuit exists)
+    # Cooling sensors (only if a cooling circuit exists), gated independently.
     if has_cooling:
         sensors.extend(
             [

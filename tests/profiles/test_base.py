@@ -32,3 +32,23 @@ class TestProfileRegistry:
         """Test all profiles inherit from base class."""
         for profile_class in PROFILES.values():
             assert issubclass(profile_class, HitachiHeatPumpProfile)
+
+
+class TestCapabilityDefaults:
+    """Capability flags that gate entity creation (issue #365)."""
+
+    def test_full_heat_pump_defaults(self):
+        """Full heat pumps expose the water circuit and extended compressor."""
+        profile = YutakiSProfile()
+        assert profile.supports_water_circuit is True
+        assert profile.supports_extended_compressor_sensors is True
+
+    def test_yutampo_is_dhw_only(self):
+        """Yutampo R32 has no water circuit and a reduced compressor package."""
+        profile = YutampoR32Profile()
+        assert profile.supports_water_circuit is False
+        assert profile.supports_extended_compressor_sensors is False
+        # Existing DHW-only expectations still hold.
+        assert profile.max_circuits == 0
+        assert profile.supports_pool is False
+        assert profile.supports_boiler is False

@@ -100,6 +100,31 @@ class HitachiHeatPumpProfile(ABC):
         """Return maximum water outlet temperature in °C."""
         return 60
 
+    @property
+    def supports_water_circuit(self) -> bool:
+        """Return True if the unit has a hydraulic space-heating/cooling water circuit.
+
+        Full heat pumps circulate water through inlet/outlet sensors, a flow
+        meter and one or more circulation pumps, and produce space-heating
+        thermal energy. DHW-only units (e.g. Yutampo) have none of these: the
+        gateway reports a constant 0 for water inlet/outlet/flow/pump registers
+        and for heating thermal power/energy, so the corresponding entities are
+        meaningless and must not be created.
+        """
+        return True
+
+    @property
+    def supports_extended_compressor_sensors(self) -> bool:
+        """Return True if the compressor exposes its extended sensor package.
+
+        The extended package covers gas temperature (Tg), liquid temperature
+        (Ti) and the indoor/outdoor expansion valve openings (EVI/EVO).
+        Compact units (e.g. Yutampo) expose only the core compressor sensors
+        (frequency, current, discharge Td, evaporator Te) and report a constant
+        0 for the extended ones, so those entities must not be created.
+        """
+        return True
+
     # --- Special features ---
 
     @property
