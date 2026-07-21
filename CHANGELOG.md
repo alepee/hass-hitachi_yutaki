@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Docs: clarified that `electrical_power` and `power_consumption` are compressor-only estimates (`P ≈ U × I × cosφ`), not full-unit measurements. They exclude the electric backup/immersion heater, pumps, fan and standby loads, so they structurally under-report (notably on Yutampo/DHW-only setups); a configured **Power Sensor** takes priority and yields accurate readings. Fixed the misleading "Total electrical energy consumed by the unit" description in `docs/reference/entities.md` and documented the scope in `docs/reference/domain-services.md` (#373).
+
 ## [2.2.0-beta.1] - 2026-07-21
 
 ### Fixed

@@ -68,9 +68,19 @@ Only one of these two selects is created per install (mutually exclusive): `oper
 
 | Entity | Type | Description | Unit | Category |
 |--------|------|-------------|------|----------|
-| electrical_power | sensor | Real-time electrical power drawn by the unit (always present) | kW | - |
-| power_consumption | sensor | Total electrical energy consumed by the unit | kWh | - |
+| electrical_power | sensor | Real-time electrical power, estimated from compressor current (see note below) | kW | - |
+| power_consumption | sensor | Cumulative electrical energy, integrated from `electrical_power` (see note below) | kWh | - |
 | electricity_cost | sensor | Cumulative electricity cost (only when an electricity price entity is configured) | currency | - |
+
+> **Note:** unless a **Power Sensor** is configured, `electrical_power` and
+> `power_consumption` are **estimates** computed from the compressor running
+> current only (`P ≈ U × I × cosφ`). They do **not** include the electric
+> backup/immersion heater, circulation pumps, fan, or standby loads, so they
+> structurally under-report, especially on Yutampo/DHW-only setups where the
+> electric heater does much of the work. For accurate readings, wire a real
+> power meter to the optional **Power Sensor** option (config flow): a measured
+> value takes priority over the estimate for both these sensors and the COP
+> calculation.
 
 ### Thermal Energy
 
