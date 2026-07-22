@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0-beta.2] - 2026-07-22
+
+### Added
+- Refrigerant-circuit anomaly detection (first iteration): a continuous, local early-warning for a **slow refrigerant charge loss**, built from the compressor signals the integration already reads. A new diagnostic sensor `Refrigerant Charge Status` (`learning`/`ok`/`watch`/`alert`, on the Primary Compressor device) tracks the joint drift of suction superheat (`Tg − Te`) and the outdoor expansion-valve opening (`EVO`) against a per-installation baseline learned over ~2 weeks of heating; superheat (a regulated, season-robust quantity) is the primary signal and `EVO` is only compared at equivalent outdoor temperature to avoid weather-driven false alarms. A self-clearing repair issue is raised when the alert persists for several days, and a `Reset Refrigerant Baseline` button re-learns the reference after a refrigerant top-up or expansion-valve service. The baseline persists across restarts. Advisory only — it **complements** and does **not** replace the mandatory F-Gas leak-tightness inspection. Available on all profiles with extended compressor sensors (every model except the Yutampo R32). See [docs/reference/refrigerant-monitoring.md](docs/reference/refrigerant-monitoring.md) (#310).
+
 ### Changed
 - Docs: clarified that `electrical_power` and `power_consumption` are compressor-only estimates (`P ≈ U × I × cosφ`), not full-unit measurements. They exclude the electric backup/immersion heater, pumps, fan and standby loads, so they structurally under-report (notably on Yutampo/DHW-only setups); a configured **Power Sensor** takes priority and yields accurate readings. Fixed the misleading "Total electrical energy consumed by the unit" description in `docs/reference/entities.md` and documented the scope in `docs/reference/domain-services.md` (#373).
 

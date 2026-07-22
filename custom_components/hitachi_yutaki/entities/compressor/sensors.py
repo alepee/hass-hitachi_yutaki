@@ -4,7 +4,10 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from custom_components.hitachi_yutaki.const import DEVICE_TYPES
+from custom_components.hitachi_yutaki.const import (
+    DEVICE_PRIMARY_COMPRESSOR,
+    DEVICE_TYPES,
+)
 from homeassistant.components.sensor import SensorDeviceClass, SensorStateClass
 from homeassistant.const import (
     PERCENTAGE,
@@ -15,6 +18,12 @@ from homeassistant.const import (
 )
 from homeassistant.helpers.entity import EntityCategory
 
+from ...domain.services.refrigerant import (
+    STATUS_ALERT,
+    STATUS_LEARNING,
+    STATUS_OK,
+    STATUS_WATCH,
+)
 from ..base.sensor import (
     HitachiYutakiSensor,
     HitachiYutakiSensorEntityDescription,
@@ -294,3 +303,56 @@ def _build_compressor_sensor_descriptions(
                 value_fn=lambda c: c.data.get("secondary_compressor_resttime"),
             ),
         )
+
+
+def build_refrigerant_sensors(
+    coordinator: HitachiYutakiDataCoordinator,
+    entry_id: str,
+) -> list[HitachiYutakiSensor]:
+    """Build the refrigerant-circuit anomaly diagnostic sensor."""
+    descriptions = _build_refrigerant_sensor_descriptions()
+    return _create_sensors(
+        coordinator, entry_id, descriptions, DEVICE_PRIMARY_COMPRESSOR
+    )
+
+
+def _refrigerant_attributes(
+    coordinator: HitachiYutakiDataCoordinator,
+) -> dict[str, object] | None:
+    """Expose the detector's deltas and warm-up progress as attributes."""
+    if coordinator.data is None:
+        return None
+    return {
+        "superheat_delta": coordinator.data.get("refrigerant_charge_superheat_delta"),
+        "exv_delta": coordinator.data.get("refrigerant_charge_exv_delta"),
+        "evaporation_temp_delta": coordinator.data.get(
+            "refrigerant_charge_evaporation_temp_delta"
+        ),
+        "baseline_days": coordinator.data.get("refrigerant_charge_baseline_days"),
+        "valid_days": coordinator.data.get("refrigerant_charge_valid_days"),
+        "alert_streak": coordinator.data.get("refrigerant_charge_alert_streak"),
+    }
+
+
+def _build_refrigerant_sensor_descriptions() -> tuple[
+    HitachiYutakiSensorEntityDescription, ...
+]:
+    """Build refrigerant-circuit anomaly sensor descriptions."""
+    return (
+        HitachiYutakiSensorEntityDescription(
+            key="refrigerant_charge_status",
+            translation_key="refrigerant_charge_status",
+            description=(
+                "Continuous refrigerant-charge anomaly detection (superheat and "
+                "expansion-valve drift). Advisory only — complements the mandatory "
+                "leak-tightness inspection."
+            ),
+            device_class=SensorDeviceClass.ENUM,
+            options=[STATUS_LEARNING, STATUS_OK, STATUS_WATCH, STATUS_ALERT],
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:gauge-low",
+            condition=lambda c: c.profile.supports_extended_compressor_sensors,
+            value_fn=lambda c: c.data.get("refrigerant_charge_status"),
+            attributes_fn=_refrigerant_attributes,
+        ),
+    )

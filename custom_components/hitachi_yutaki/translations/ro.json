@@ -530,6 +530,15 @@
           "on": "Activat"
         }
       },
+      "refrigerant_charge_status": {
+        "name": "Stare încărcare agent frigorific",
+        "state": {
+          "learning": "Învățare",
+          "ok": "OK",
+          "watch": "Supraveghere",
+          "alert": "Alertă"
+        }
+      },
       "dhw_demand_mode": {
         "name": "Mod cerere ACM",
         "state": {
@@ -639,6 +648,9 @@
     "button": {
       "antilegionella": {
         "name": "Pornire ciclu anti-legionella"
+      },
+      "reset_refrigerant_baseline": {
+        "name": "Resetare referință agent frigorific"
       }
     },
     "number": {
@@ -725,6 +737,10 @@
     "connection_error": {
       "title": "Gateway Hitachi inaccesibil",
       "description": "Integrarea nu s-a putut conecta la gateway-ul Hitachi Yutaki. Entitățile nu vor fi disponibile până la restabilirea conexiunii.\n\n**Pentru a rezolva:**\n1. Verificați dacă gateway-ul este pornit și conectat la rețea.\n2. Verificați dacă adresa IP și portul configurate în Home Assistant sunt corecte."
+    },
+    "refrigerant_charge_alert": {
+      "title": "Posibilă pierdere a agentului frigorific",
+      "description": "De câteva zile, starea încărcării cu agent frigorific rămâne la **Alertă**: atât supraîncălzirea la aspirație, cât și deschiderea ventilului de expansiune au crescut față de referința învățată, semnătura clasică a unei pierderi lente de agent frigorific.\n\nAceasta este o **avertizare** bazată pe monitorizarea continuă a propriilor date de funcționare. Ea **completează** și **nu înlocuiește** inspecția periodică obligatorie de etanșeitate efectuată de un tehnician autorizat.\n\n**Ce trebuie făcut:**\n1. Urmăriți în zilele următoare senzorul de stare a încărcării cu agent frigorific și atributele sale.\n2. Luați în considerare programarea unei verificări de etanșeitate cu instalatorul dumneavoastră.\n3. După orice completare de agent frigorific sau intervenție la ventilul de expansiune, apăsați **Resetare referință agent frigorific** pentru a învăța o nouă referință.\n\nAvertizarea dispare automat când valorile revin la normal."
     },
     "initializing_warning": {
       "title": "Gateway Hitachi în curs de inițializare",

@@ -14,6 +14,8 @@ import logging
 import time
 from typing import Any
 
+from homeassistant.helpers.storage import Store
+
 from ..adapters.calculators.electrical import ElectricalPowerCalculatorAdapter
 from ..adapters.calculators.thermal import (
     thermal_power_calculator_cooling_wrapper,
@@ -36,6 +38,7 @@ from ..const import (
 )
 from ..domain.models.cop import COPInput
 from ..domain.models.operation import MODE_COOLING, MODE_DHW, MODE_HEATING, MODE_POOL
+from ..domain.models.refrigerant import RefrigerantInput, RefrigerantStatus
 from ..domain.services.cop import (
     COP_MEASUREMENTS_HISTORY_SIZE,
     COP_MEASUREMENTS_PERIOD,
@@ -43,12 +46,19 @@ from ..domain.services.cop import (
     EnergyAccumulator,
 )
 from ..domain.services.defrost_guard import DefrostGuard
+from ..domain.services.refrigerant import (
+    HISTORY_DAYS as REFRIGERANT_HISTORY_DAYS,
+    RefrigerantMonitor,
+)
 from ..domain.services.thermal import ThermalEnergyAccumulator, ThermalPowerService
 from ..domain.services.timing import CompressorHistory, CompressorTimingService
 
 _LOGGER = logging.getLogger(__name__)
 
 COMPRESSOR_HISTORY_SIZE = 100
+
+REFRIGERANT_STORE_VERSION = 1
+REFRIGERANT_SAVE_DELAY_S = 600  # debounce persisted writes (flush is daily)
 
 
 class DerivedMetricsAdapter:
@@ -63,6 +73,7 @@ class DerivedMetricsAdapter:
         has_dhw: bool = False,
         has_pool: bool = False,
         supports_secondary_compressor: bool = False,
+        supports_extended_compressor_sensors: bool = False,
     ) -> None:
         """Initialize the adapter with domain services."""
         self._hass = hass
@@ -112,6 +123,22 @@ class DerivedMetricsAdapter:
         self._last_energy_time: float | None = None
         self._accumulated_energy: float = 0.0  # kWh integrated from electrical_power
         self._electricity_cost: float = 0.0
+
+        # Refrigerant-circuit anomaly detection (extended-sensor profiles only)
+        self._refrigerant_monitor: RefrigerantMonitor | None = None
+        self._refrigerant_store: Store | None = None
+        self._refrigerant_status: RefrigerantStatus | None = None
+        if supports_extended_compressor_sensors:
+            self._refrigerant_monitor = RefrigerantMonitor(
+                InMemoryStorage(max_len=REFRIGERANT_HISTORY_DAYS)
+            )
+            entry_id = getattr(config_entry, "entry_id", None)
+            if hass is not None and entry_id:
+                self._refrigerant_store = Store(
+                    hass,
+                    REFRIGERANT_STORE_VERSION,
+                    f"{DOMAIN}_refrigerant_{entry_id}",
+                )
 
     def _make_cop_service(
         self, thermal_calculator: Any, expected_mode: str
@@ -166,6 +193,7 @@ class DerivedMetricsAdapter:
         self._update_cop(data)
         self._update_energy(data)
         self._update_timing(data)
+        self._update_refrigerant(data)
 
     def _get_temperature(
         self, data: dict[str, Any], config_key: str, fallback_key: str
@@ -514,6 +542,81 @@ class DerivedMetricsAdapter:
             data["secondary_compressor_cycle_time"] = sec_timing.cycle_time
             data["secondary_compressor_runtime"] = sec_timing.runtime
             data["secondary_compressor_resttime"] = sec_timing.resttime
+
+    def _update_refrigerant(self, data: dict[str, Any]) -> None:
+        """Feed the refrigerant monitor and inject its verdict into data."""
+        monitor = self._refrigerant_monitor
+        if monitor is None:
+            return
+
+        refrigerant_input = RefrigerantInput(
+            operation_mode=resolve_operation_mode(data.get("operation_state")),
+            compressor_frequency=data.get("compressor_frequency"),
+            gas_temp=data.get("compressor_tg_gas_temp"),
+            evaporator_temp=data.get("compressor_te_evaporator_temp"),
+            outdoor_expansion_valve=data.get(
+                "compressor_evo_outdoor_expansion_valve_opening"
+            ),
+            outdoor_temp=data.get("outdoor_temp"),
+            data_reliable=self.defrost_guard.is_data_reliable,
+        )
+
+        flushed = monitor.update(refrigerant_input)
+        status = monitor.get_status()
+        self._refrigerant_status = status
+
+        data["refrigerant_charge_status"] = status.status
+        data["refrigerant_charge_superheat_delta"] = status.superheat_delta
+        data["refrigerant_charge_exv_delta"] = status.exv_delta
+        data["refrigerant_charge_evaporation_temp_delta"] = (
+            status.evaporation_temp_delta
+        )
+        data["refrigerant_charge_baseline_days"] = (
+            status.baseline.days if status.baseline else None
+        )
+        data["refrigerant_charge_valid_days"] = status.valid_days
+        data["refrigerant_charge_alert_streak"] = status.alert_streak
+
+        # A daily flush changed the persisted state — schedule a debounced save.
+        if flushed and self._refrigerant_store is not None:
+            self._refrigerant_store.async_delay_save(
+                monitor.serialize, REFRIGERANT_SAVE_DELAY_S
+            )
+
+    @property
+    def refrigerant_status(self) -> RefrigerantStatus | None:
+        """Return the latest refrigerant verdict (None until first computed)."""
+        return self._refrigerant_status
+
+    async def async_restore_refrigerant(self) -> None:
+        """Load persisted refrigerant state from the Store into the monitor."""
+        if self._refrigerant_monitor is None or self._refrigerant_store is None:
+            return
+        try:
+            state = await self._refrigerant_store.async_load()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("Failed to load refrigerant state", exc_info=True)
+            return
+        if state:
+            self._refrigerant_monitor.restore(state)
+
+    async def async_reset_refrigerant(self) -> None:
+        """Clear the monitor and delete its persisted state."""
+        if self._refrigerant_monitor is not None:
+            self._refrigerant_monitor.reset()
+            self._refrigerant_status = None
+        if self._refrigerant_store is not None:
+            await self._refrigerant_store.async_remove()
+
+    async def async_flush_refrigerant(self) -> None:
+        """Persist the current refrigerant state immediately (e.g. on unload)."""
+        if (
+            self._refrigerant_monitor is not None
+            and self._refrigerant_store is not None
+        ):
+            await self._refrigerant_store.async_save(
+                self._refrigerant_monitor.serialize()
+            )
 
     async def async_rehydrate_timing(self) -> None:
         """Replay Recorder data to rebuild compressor timing history."""

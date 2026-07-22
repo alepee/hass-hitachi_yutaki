@@ -161,6 +161,52 @@ Historical states can be preloaded from the Recorder for continuity across resta
 
 ---
 
+## Refrigerant Anomaly Detection
+
+**File:** `domain/services/refrigerant.py`
+
+Continuously detects the early signature of a **slow refrigerant charge loss**. Advisory
+only — complements, does not replace, the mandatory F-Gas leak-tightness inspection. Full
+rationale and user-facing behaviour: [Refrigerant monitoring](refrigerant-monitoring.md).
+
+### Key class
+
+| Class | Role |
+|---|---|
+| `RefrigerantMonitor` | Gates and reduces per-poll signals into one robust daily aggregate, freezes a baseline, and classifies drift against it. |
+
+### Signals and superheat
+
+Suction superheat `SH = Tg − Te` (`compressor_tg_gas_temp` −
+`compressor_te_evaporator_temp`), outdoor expansion-valve opening `EVO`, evaporating
+temperature `Te` and outdoor temperature. Gated on `supports_extended_compressor_sensors`
+(needs `Tg`/`EVO`; excludes the Yutampo R32).
+
+### States
+
+| Level | Condition |
+|---|---|
+| `learning` | Fewer than `BASELINE_DAYS` (14) valid days — baseline not frozen |
+| `ok` | Baseline frozen, no significant drift |
+| `watch` | Superheat drift ≥ `SUPERHEAT_WATCH_K` from baseline |
+| `alert` | Superheat ≥ `SUPERHEAT_ALERT_K` **and** temperature-matched EVO ≥ `EVO_ALERT_PCT` |
+
+### Design notes
+
+- **Daily aggregation:** samples (gated on heating mode, defrost-guard reliability, a steady
+  frequency band, plausibility and a 60 s throttle) are reduced to one median-per-day
+  `DailyAggregate`, held in an injected `Storage[DailyAggregate]` bounded to `HISTORY_DAYS`.
+- **Seasonality:** superheat is a *regulated* quantity (robust to weather) and is the
+  primary signal; `EVO` is compared only across days within `TEMP_MATCH_K` of the baseline
+  outdoor temperature; `Te` is informational.
+- **Persistence:** `serialize()`/`restore()` round-trip the baseline, aggregates and alert
+  streak; the adapter persists them via a Home Assistant `Store`. `reset()` clears
+  everything (exposed as the reset button).
+- **Time:** like COP, uses `time()` for the throttle and accepts an optional `timestamp` for
+  replay/tests.
+
+---
+
 ## Electrical Power
 
 **File:** `domain/services/electrical.py`

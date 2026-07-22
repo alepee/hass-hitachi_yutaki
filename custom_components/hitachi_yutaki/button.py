@@ -8,6 +8,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import HitachiYutakiConfigEntry
 
 # Import builders from domain entities
+from .entities.compressor import build_refrigerant_buttons
 from .entities.dhw import build_dhw_buttons
 
 
@@ -24,5 +25,9 @@ async def async_setup_entry(
     # DHW buttons
     if coordinator.has_dhw():
         entities.extend(build_dhw_buttons(coordinator, entry.entry_id))
+
+    # Refrigerant detector reset button (extended-sensor profiles only)
+    if coordinator.profile.supports_extended_compressor_sensors:
+        entities.extend(build_refrigerant_buttons(coordinator, entry.entry_id))
 
     async_add_entities(entities)

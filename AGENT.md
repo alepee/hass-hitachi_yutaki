@@ -68,6 +68,12 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Separate tracking for heating and cooling (real-time power, daily energy, total energy).
 - **Defrost filtering** and **post-cycle lock** prevent measurement noise.
 
+### Refrigerant Anomaly Detection
+- Continuous, local early-warning for a **slow refrigerant charge loss** (`domain/services/refrigerant.py`, `RefrigerantMonitor`). Advisory only; complements, does not replace, the mandatory F-Gas inspection.
+- Tracks the joint drift of suction superheat (`Tg − Te`) and outdoor expansion-valve opening (`EVO`) against a per-installation baseline learned over ~2 weeks; superheat is the season-robust primary signal, `EVO` is compared only at equivalent outdoor temperature.
+- Surfaces `sensor.*_refrigerant_charge_status` (ENUM `learning`/`ok`/`watch`/`alert`), a `Reset Refrigerant Baseline` button, and a self-clearing repair issue on sustained alert. Baseline persists via a HA `Store`. Gated on `supports_extended_compressor_sensors` (excludes Yutampo R32).
+- See [docs/reference/refrigerant-monitoring.md](docs/reference/refrigerant-monitoring.md).
+
 ### Anonymous Telemetry
 - Binary consent (Off / On) stored in `entry.options["telemetry_level"]` (`CONF_TELEMETRY_LEVEL`, default `"off"`).
 - **Package** (`telemetry/`): models (three payloads: `InstallationInfo`, `MetricsBatch`, `RegisterSnapshot`), collector (circular buffer), anonymizer (SHA-256 hash, temperature/geolocation rounding), HTTP client (gzip + retry), noop client.
@@ -178,6 +184,6 @@ The PR checklist ([.github/pull_request_template.md](.github/pull_request_templa
 ## Documentation Index
 - [Architecture](docs/architecture.md): hexagonal layers, data flow, domain matrix.
 - [Development guides](docs/development/): getting started, adding entities, registers/data keys, profiles, telemetry dataset.
-- [Reference](docs/reference/): entity reference, entity patterns, domain services, quality scale, telemetry, model nomenclature.
+- [Reference](docs/reference/): entity reference, entity patterns, domain services, refrigerant monitoring, quality scale, telemetry, model nomenclature.
 - [Gateway docs](docs/gateway/): register maps, scan reference, sentinel values, datasheets.
 - [Troubleshooting](docs/troubleshooting.md).
