@@ -214,6 +214,14 @@ temperature `Te` and outdoor temperature. Gated on `supports_extended_compressor
 Estimates electrical power consumption from compressor current with a priority
 chain for input data.
 
+> **Scope:** when no measured power is available, the estimate covers the
+> **compressor only**. It does not account for the electric backup/immersion
+> heater, circulation pumps, fan, or standby loads, and assumes a fixed
+> `cos(phi) = 0.9` and default voltage. On Yutampo/DHW-only units, where the
+> electric heater carries much of the load, this can under-report by an order of
+> magnitude. A configured `measured_power` (Power Sensor option) bypasses the
+> estimate entirely (priority 1).
+
 ### Priority
 
 1. `measured_power` (direct kW reading, if available)
