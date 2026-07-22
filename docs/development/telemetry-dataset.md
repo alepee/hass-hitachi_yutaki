@@ -61,6 +61,8 @@ LIMIT 1;
 
 Performance: globbing thousands of JSON files over `httpfs` is HTTP-HEAD-bound (~10 files/s/thread). Acceptable for a single-day fleet scan or a single-instance multi-day scan; narrow the partition glob.
 
+For fleet-wide analyses (rather than single fixtures), reusable DuckDB-based scripts live in [backend/analysis/](../../backend/analysis/README.md): per-day metric extraction, per-model refrigerant profiles, and a detector replay for false-positive estimation. Credentials go in the gitignored `backend/.env.r2` (`R2_KEY_ID=` / `R2_SECRET=`).
+
 ## Turning a snapshot into a fixture
 
 Trim a real snapshot to the fields a test needs, then feed those register values into a test. Tests in this repo build register data inline as Python dicts (see `tests/` for examples, e.g. the `system_config`-driven capability tests in `tests/test_coordinator_capability_flags.py`) rather than loading JSON fixtures, so a real snapshot is best used as the source of the numbers you hard-code, with a provenance comment noting it is real field data. A DHW-only Yutampo R32, for instance, reports `system_config = 16` with phantom water/compressor registers reading a constant `0` rather than a sentinel.

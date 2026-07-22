@@ -38,6 +38,8 @@ GROUP BY 1
 ORDER BY points DESC;
 ```
 
+Ready-made analysis scripts built on this pattern (per-model refrigerant profiles, detector replay) live in [analysis/](analysis/README.md).
+
 ## Fleet dashboard (Grafana + Analytics Engine)
 
 Each `installation` payload is mirrored into the Workers Analytics Engine dataset
