@@ -386,6 +386,65 @@ class TestExactAlertStreak:
         assert monitor.get_status().alert_streak == 4
 
 
+class TestStaleness:
+    """Data-age annotation of a verdict frozen off heating season."""
+
+    def test_frozen_alert_is_annotated_stale(self) -> None:
+        """A sustained alert keeps its verdict and reports the data age."""
+        monitor = _new_monitor()
+        specs = _baseline_specs(BASELINE_DAYS)
+        specs += [
+            {"sh": 12.0, "te": -8.0, "evo": 65.0, "outdoor": 7.0} for _ in range(10)
+        ]
+        _feed_days(monitor, specs, start=date(2026, 1, 1))
+        # Last real day is BASELINE_DAYS + 10 - 1 days after the start.
+        last_day = date(2026, 1, 1) + timedelta(days=BASELINE_DAYS + 10 - 1)
+        assert monitor.get_status().status == STATUS_ALERT
+
+        # Months later, an off-mode poll advances the calendar without a sample.
+        later = datetime(2026, 6, 1, 12, 0, 0)
+        monitor.update(_make_input(mode="off"), timestamp=later)
+
+        status = monitor.get_status()
+        assert status.status == STATUS_ALERT
+        assert status.alert_streak >= refr.ALERT_PERSIST_DAYS
+        assert status.last_valid_day == last_day
+        assert status.days_since_valid_data == (later.date() - last_day).days
+
+    def test_fresh_monitor_has_no_staleness(self) -> None:
+        """With no aggregates yet, both staleness fields are None."""
+        status = _new_monitor().get_status()
+        assert status.last_valid_day is None
+        assert status.days_since_valid_data is None
+
+    def test_days_since_none_after_restore_without_update(self) -> None:
+        """Right after restore(), no current day is known, so age is None."""
+        source = _new_monitor()
+        _feed_days(source, _baseline_specs(BASELINE_DAYS), start=date(2026, 1, 1))
+        restored = _new_monitor()
+        restored.restore(source.serialize())
+
+        status = restored.get_status()
+        assert status.last_valid_day is not None
+        assert status.days_since_valid_data is None
+
+    def test_staleness_recomputed_after_restore_and_update(self) -> None:
+        """A dated update() after restore() recomputes the data age."""
+        source = _new_monitor()
+        _feed_days(source, _baseline_specs(BASELINE_DAYS), start=date(2026, 1, 1))
+        last_day = date(2026, 1, 1) + timedelta(days=BASELINE_DAYS - 1)
+
+        restored = _new_monitor()
+        restored.restore(source.serialize())
+
+        later = datetime(2026, 5, 1, 12, 0, 0)
+        restored.update(_make_input(mode="off"), timestamp=later)
+
+        status = restored.get_status()
+        assert status.last_valid_day == last_day
+        assert status.days_since_valid_data == (later.date() - last_day).days
+
+
 def test_multi_day_gap_adds_no_spurious_aggregate() -> None:
     """A multi-day offline gap produces no phantom day and does not corrupt state."""
     monitor = _new_monitor()

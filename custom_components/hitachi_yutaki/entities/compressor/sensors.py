@@ -331,6 +331,10 @@ def _refrigerant_attributes(
         "baseline_days": coordinator.data.get("refrigerant_charge_baseline_days"),
         "valid_days": coordinator.data.get("refrigerant_charge_valid_days"),
         "alert_streak": coordinator.data.get("refrigerant_charge_alert_streak"),
+        "last_valid_day": coordinator.data.get("refrigerant_charge_last_valid_day"),
+        "days_since_valid_data": coordinator.data.get(
+            "refrigerant_charge_days_since_valid_data"
+        ),
     }
 
 

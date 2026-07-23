@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Refrigerant charge alert: the repair issue is now fixable: confirming the circuit was serviced resets the detection baseline (same as the Reset Refrigerant Baseline button) (#384).
+
+### Fixed
+- Refrigerant charge status: an alert frozen at end of heating season is now annotated as stale (new `last_valid_day` / `days_since_valid_data` sensor attributes, dedicated issue text) instead of silently reporting months-old data (#384).
+
 ## [2.2.0-beta.2] - 2026-07-22
 
 ### Added

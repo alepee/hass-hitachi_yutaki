@@ -740,7 +740,27 @@
     },
     "refrigerant_charge_alert": {
       "title": "Mogelijk verlies van koudemiddelvulling",
-      "description": "Al enkele dagen blijft de status van de koudemiddelvulling op **Alarm** staan: zowel de oververhitting bij aanzuiging als de opening van het expansieventiel zijn ten opzichte van de aangeleerde referentie gestegen, de klassieke signatuur van een langzaam koudemiddelverlies.\n\nDit is een **waarschuwing** op basis van continue monitoring van uw eigen bedrijfsgegevens. Het **vult** de verplichte periodieke lekdichtheidsinspectie door een gecertificeerd technicus **aan** en **vervangt** deze **niet**.\n\n**Wat te doen:**\n1. Volg de sensor voor de status van de koudemiddelvulling en de bijbehorende attributen de komende dagen.\n2. Overweeg een lekdichtheidscontrole in te plannen met uw installateur.\n3. Druk na het bijvullen van koudemiddel of onderhoud aan het expansieventiel op **Koudemiddel-referentie resetten** zodat een nieuwe referentie wordt aangeleerd.\n\nDe waarschuwing verdwijnt automatisch wanneer de metingen weer normaal zijn."
+      "description": "Al enkele dagen blijft de status van de koudemiddelvulling op **Alarm** staan: zowel de oververhitting bij aanzuiging als de opening van het expansieventiel zijn ten opzichte van de aangeleerde referentie gestegen, de klassieke signatuur van een langzaam koudemiddelverlies.\n\nDit is een **waarschuwing** op basis van continue monitoring van uw eigen bedrijfsgegevens. Het **vult** de verplichte periodieke lekdichtheidsinspectie door een gecertificeerd technicus **aan** en **vervangt** deze **niet**.\n\n**Wat te doen:**\n1. Volg de sensor voor de status van de koudemiddelvulling en de bijbehorende attributen de komende dagen.\n2. Overweeg een lekdichtheidscontrole in te plannen met uw installateur.\n3. Druk na het bijvullen van koudemiddel of onderhoud aan het expansieventiel op **Koudemiddel-referentie resetten** zodat een nieuwe referentie wordt aangeleerd.\n\nDe waarschuwing verdwijnt automatisch wanneer de metingen weer normaal zijn. Als het circuit zojuist onderhouden of bijgevuld is, druk dan hieronder op **Herstellen** en bevestig: dit reset de referentie en wist het alarm.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Koudemiddelcircuit onderhouden?",
+            "description": "Bevestig alleen als een gecertificeerd technicus het koudemiddelcircuit heeft geïnspecteerd of onderhouden (lekcontrole, bijvullen, onderhoud aan het expansieventiel).\n\nDit reset de detectiereferentie: de detector keert terug naar **aanleren** en heeft ongeveer 2 weken verwarmingsbedrijf nodig om een nieuwe referentie aan te leren. Dit is dezelfde actie als de knop **Koudemiddel-referentie resetten**."
+          }
+        }
+      }
+    },
+    "refrigerant_charge_alert_stale": {
+      "title": "Mogelijk verlies van koudemiddelvulling",
+      "description": "Al enkele dagen blijft de status van de koudemiddelvulling op **Alarm** staan: zowel de oververhitting bij aanzuiging als de opening van het expansieventiel zijn ten opzichte van de aangeleerde referentie gestegen, de klassieke signatuur van een langzaam koudemiddelverlies.\n\nDit is een **waarschuwing** op basis van continue monitoring van uw eigen bedrijfsgegevens. Het **vult** de verplichte periodieke lekdichtheidsinspectie door een gecertificeerd technicus **aan** en **vervangt** deze **niet**.\n\n**Let op: dit oordeel is gebaseerd op verouderde gegevens.** De laatste dag met bruikbaar verwarmingsbedrijf was **{last_valid_day}**, {days_since_valid_data} dagen geleden, meestal omdat het stookseizoen is afgelopen. Een langzaam koudemiddelverlies herstelt zich niet vanzelf, dus dit alarm blijft bewust staan en verdwijnt pas wanneer het verwarmen hervat of wanneer u bevestigt dat het circuit is onderhouden.\n\n**Wat te doen:**\n1. Overweeg een lekdichtheidscontrole in te plannen met uw installateur vóór het volgende stookseizoen.\n2. Druk na het bijvullen van koudemiddel of onderhoud aan het expansieventiel hieronder op **Herstellen** en bevestig, of gebruik de knop **Koudemiddel-referentie resetten**, zodat een nieuwe referentie wordt aangeleerd.",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Koudemiddelcircuit onderhouden?",
+            "description": "Bevestig alleen als een gecertificeerd technicus het koudemiddelcircuit heeft geïnspecteerd of onderhouden (lekcontrole, bijvullen, onderhoud aan het expansieventiel).\n\nDit reset de detectiereferentie: de detector keert terug naar **aanleren** en heeft ongeveer 2 weken verwarmingsbedrijf nodig om een nieuwe referentie aan te leren. Dit is dezelfde actie als de knop **Koudemiddel-referentie resetten**."
+          }
+        }
+      }
     },
     "initializing_warning": {
       "title": "Hitachi Gateway wordt geïnitialiseerd",

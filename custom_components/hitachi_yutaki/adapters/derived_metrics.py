@@ -576,6 +576,10 @@ class DerivedMetricsAdapter:
         )
         data["refrigerant_charge_valid_days"] = status.valid_days
         data["refrigerant_charge_alert_streak"] = status.alert_streak
+        data["refrigerant_charge_last_valid_day"] = (
+            status.last_valid_day.isoformat() if status.last_valid_day else None
+        )
+        data["refrigerant_charge_days_since_valid_data"] = status.days_since_valid_data
 
         # A daily flush changed the persisted state — schedule a debounced save.
         if flushed and self._refrigerant_store is not None:

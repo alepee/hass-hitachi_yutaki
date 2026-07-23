@@ -64,6 +64,12 @@ EVO_ALERT_PCT = 15.0
 # Alert persistence before a repair issue is raised
 ALERT_PERSIST_DAYS = 3
 
+# Recent-window age beyond which the verdict is annotated as stale.
+# 7 = EVAL_DAYS: beyond that the recent window can no longer refresh
+# within its own span, and it is long enough not to flap on a few
+# mild shoulder-season days.
+STALE_AFTER_DAYS = 7
+
 # Status values (also the ENUM options of the diagnostic sensor)
 STATUS_LEARNING = "learning"
 STATUS_OK = "ok"
@@ -256,6 +262,18 @@ class RefrigerantMonitor:
         valid_days = len(aggregates)
         today_samples = len(self._superheats)
 
+        # Age of the most recent valid day, in calendar days. None until the
+        # first update() (e.g. right after restore()) sets self._current_day.
+        # The clock only advances through update() calls, so it stalls during
+        # a prolonged gateway outage (no polls); the target case, off-season
+        # with a healthy gateway, keeps polling and ages normally.
+        last_valid_day = aggregates[-1].day if aggregates else None
+        days_since = (
+            (self._current_day - last_valid_day).days
+            if last_valid_day is not None and self._current_day is not None
+            else None
+        )
+
         if self._baseline is None:
             return RefrigerantStatus(
                 status=STATUS_LEARNING,
@@ -266,6 +284,8 @@ class RefrigerantMonitor:
                 valid_days=valid_days,
                 today_samples=today_samples,
                 alert_streak=self._alert_streak,
+                last_valid_day=last_valid_day,
+                days_since_valid_data=days_since,
             )
 
         recent = aggregates[-EVAL_DAYS:]
@@ -279,6 +299,8 @@ class RefrigerantMonitor:
                 valid_days=valid_days,
                 today_samples=today_samples,
                 alert_streak=self._alert_streak,
+                last_valid_day=last_valid_day,
+                days_since_valid_data=days_since,
             )
 
         delta_superheat = median(a.superheat for a in recent) - self._baseline.superheat
@@ -316,6 +338,8 @@ class RefrigerantMonitor:
             valid_days=valid_days,
             today_samples=today_samples,
             alert_streak=self._alert_streak,
+            last_valid_day=last_valid_day,
+            days_since_valid_data=days_since,
         )
 
     def _should_sample(self, data: RefrigerantInput) -> bool:

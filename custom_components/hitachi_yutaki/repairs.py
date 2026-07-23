@@ -209,6 +209,38 @@ class EnergyCostRepairFlow(RepairsFlow):
         )
 
 
+class RefrigerantServicedRepairFlow(RepairsFlow):
+    """Confirm the refrigerant circuit was serviced; resets the detector baseline."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Redirect to the confirm step."""
+        return await self.async_step_confirm()
+
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the serviced-confirmation step, resetting the baseline."""
+        # Extract entry_id (format: "refrigerant_charge_alert_{entry_id}")
+        entry_id = self.issue_id.removeprefix("refrigerant_charge_alert_")
+
+        config_entries = self.hass.config_entries.async_entries(DOMAIN)
+        entry = next((e for e in config_entries if e.entry_id == entry_id), None)
+
+        if entry is None:
+            return self.async_abort(reason="entry_not_found")
+
+        if user_input is not None:
+            coordinator = entry.runtime_data
+            # The reset already deletes the repair issue; no config change, so
+            # no reload is needed (unlike the other repair flows).
+            await coordinator.async_reset_refrigerant_baseline()
+            return self.async_create_entry(data={})
+
+        return self.async_show_form(step_id="confirm", data_schema=vol.Schema({}))
+
+
 async def async_create_fix_flow(
     hass: HomeAssistant,
     issue_id: str,
@@ -219,4 +251,6 @@ async def async_create_fix_flow(
         return EnergyCostRepairFlow()
     if issue_id.startswith("enable_telemetry_"):
         return EnableTelemetryRepairFlow()
+    if issue_id.startswith("refrigerant_charge_alert_"):
+        return RefrigerantServicedRepairFlow()
     return MissingConfigRepairFlow()

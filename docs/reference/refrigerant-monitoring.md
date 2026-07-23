@@ -16,11 +16,13 @@ during a leak-tightness inspection, but sampled on every poll of your own instal
 |---|---|---|
 | `sensor.*_refrigerant_charge_status` | ENUM diagnostic | `learning` / `ok` / `watch` / `alert`, on the Primary Compressor device |
 | `button.*_reset_refrigerant_baseline` | button (config) | resets the learned baseline after a service/top-up |
-| repair issue `refrigerant_charge_alert_*` | self-clearing warning | raised when `alert` persists several days |
+| repair issue `refrigerant_charge_alert_*` | fixable warning | raised when `alert` persists several valid days; annotated as stale off-season, cleared in-season on recovery or by confirming a service |
 
 The sensor exposes attributes: `superheat_delta` (K), `exv_delta` (%, `null` when it cannot
 be compared at equivalent outdoor temperature), `evaporation_temp_delta` (K, informational),
-`baseline_days`, `valid_days`, `alert_streak`.
+`baseline_days`, `valid_days`, `alert_streak`, `last_valid_day` (ISO date of the most recent
+qualifying day, `null` before any) and `days_since_valid_data` (calendar age of that day,
+`null` until the first poll after a restart).
 
 Only profiles with `supports_extended_compressor_sensors` (i.e. all except the Yutampo R32)
 expose these, because the detector needs the gas temperature `Tg` and the outdoor expansion
@@ -67,8 +69,30 @@ baseline:
 | `watch` | Superheat has drifted up from the baseline. |
 | `alert` | Superheat **and** temperature-matched EVO opening have both drifted up — the classic slow-leak signature. |
 
-When `alert` persists for several days a self-clearing repair issue is raised. It disappears
-automatically when readings recover.
+When `alert` persists for several valid days a repair issue is raised. In season it clears
+automatically as soon as the readings recover. Note that `ALERT_PERSIST_DAYS` counts *valid*
+days (days with qualifying heating operation), not calendar days.
+
+### Off-season behaviour
+
+Off the heating season no day qualifies, so the recent window stops refreshing and the
+verdict, the alert streak and the repair issue **freeze on the last valid data**. This is
+intentional: a slow refrigerant loss does not repair itself over summer, so a real alert must
+not silently self-clear.
+
+To keep this honest rather than misleading, the data age is exposed:
+
+- the `last_valid_day` and `days_since_valid_data` sensor attributes report how old the
+  verdict is;
+- beyond `STALE_AFTER_DAYS` (7 calendar days) the repair issue switches to a dedicated
+  **stale** text that states the verdict is based on old data and why it is kept.
+
+The user has two equivalent exits, both resetting the baseline (detector back to `learning`):
+
+- the repair issue's **Fix** button, a "circuit was serviced" confirmation;
+- the **Reset Refrigerant Baseline** button.
+
+Only confirm/reset after a legitimate refrigerant top-up or expansion-valve service.
 
 ### Persistence and reset
 
@@ -94,5 +118,5 @@ keep alerting.
 
 All thresholds live at the top of `domain/services/refrigerant.py`
 (`BASELINE_DAYS`, `EVAL_DAYS`, `MIN_SAMPLES_PER_DAY`, `SUPERHEAT_WATCH_K`,
-`SUPERHEAT_ALERT_K`, `EVO_ALERT_PCT`, `TEMP_MATCH_K`, `ALERT_PERSIST_DAYS`, …) and are
-covered by `tests/domain/services/test_refrigerant.py`.
+`SUPERHEAT_ALERT_K`, `EVO_ALERT_PCT`, `TEMP_MATCH_K`, `ALERT_PERSIST_DAYS`,
+`STALE_AFTER_DAYS`, …) and are covered by `tests/domain/services/test_refrigerant.py`.
