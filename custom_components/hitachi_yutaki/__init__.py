@@ -467,6 +467,13 @@ async def async_setup_entry(
         supports_extended_compressor_sensors=profile.supports_extended_compressor_sensors,
     )
 
+    # Restore the refrigerant-anomaly detector state from its persisted Store
+    # BEFORE the first poll: that poll runs _update_refrigerant_issue(), which
+    # must see the persisted alert_streak. Restoring afterwards would delete an
+    # active refrigerant repair issue and publish a spurious `learning` status
+    # for one poll cycle on every Home Assistant restart.
+    await coordinator.derived_metrics.async_restore_refrigerant()
+
     # Initial poll. A transient gateway_not_ready (H-LINK still initializing
     # after a gateway power-cycle) must not fail setup of an already-configured
     # entry: log a warning and continue. Entities will go ``available`` on the
@@ -528,9 +535,6 @@ async def async_setup_entry(
 
     # Rehydrate compressor timing from Recorder history
     await coordinator.derived_metrics.async_rehydrate_timing()
-
-    # Restore refrigerant-anomaly detector state from its persisted Store
-    await coordinator.derived_metrics.async_restore_refrigerant()
 
     _LOGGER.info("Using Hitachi profile: %s", profile.name)
 

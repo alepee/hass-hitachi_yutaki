@@ -8,8 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Fixed
+- Refrigerant anomaly detection: hardened the persisted-state restore path. The detector state is now restored **before** the coordinator's first poll, so a Home Assistant restart no longer briefly flaps the `Refrigerant Charge Status` sensor to a spurious `learning` state: the persisted verdict (and its repair issue, when an alert is active) is re-established from the very first poll. A corrupt or malformed persisted snapshot no longer fails the integration setup: the payload is fully validated before any state is touched (restore is atomic), a warning is logged, and the detector restarts cleanly in `learning` mode (#383).
 - Coordinator: a crash in a post-fetch stage (derived-metrics enrichment, refrigerant repair-issue update, telemetry collection or `system_config` persistence) was misreported as a gateway `connection_error` repair issue and marked every entity unavailable, even though the Modbus poll had returned complete valid register data. Such failures are now logged with a full stack trace as integration bugs and the raw register data is returned: register-backed entities keep updating and no `connection_error` issue is raised (derived sensors may read `unknown` for the affected cycles). Real Modbus/communication failures keep the exact previous behavior: `connection_error` issue, `UpdateFailed`, and gateway-not-ready backoff (#386).
 - Removing the integration's config entry now cleans up everything it persisted: the refrigerant detector's baseline file (`.storage/hitachi_yutaki_refrigerant_<entry_id>`) and the per-entry repair issues (refrigerant charge alert, missing configuration, telemetry and energy-cost onboarding). Domain-wide issues (`connection_error`, gateway desync/initializing warnings) are also swept when the last entry is removed. Previously these were orphaned forever after deleting the entry (#385).
+>>>>>>> origin/main
 
 ## [2.2.0-beta.2] - 2026-07-22
 
