@@ -602,7 +602,14 @@ class DerivedMetricsAdapter:
             _LOGGER.debug("Failed to load refrigerant state", exc_info=True)
             return
         if state:
-            self._refrigerant_monitor.restore(state)
+            try:
+                self._refrigerant_monitor.restore(state)
+            except ValueError:
+                _LOGGER.warning(
+                    "Discarding corrupt refrigerant detector snapshot; "
+                    "the detector restarts in learning mode",
+                    exc_info=True,
+                )
 
     async def async_reset_refrigerant(self) -> None:
         """Clear the monitor and delete its persisted state."""

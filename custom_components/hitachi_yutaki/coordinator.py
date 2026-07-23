@@ -160,6 +160,33 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             self.system_config = data.get("system_config", 0)
 
+            # Poll succeeded: clear any connection error issue now, before
+            # the post-fetch stages, so an enrichment bug cannot keep it
+            # alive or re-create it.
+            ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
+
+        except UpdateFailed:
+            # Re-raise so the generic Exception handler below doesn't
+            # turn our intentional UpdateFailed into an HA issue.
+            raise
+
+        except Exception as exc:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                "connection_error",
+                is_fixable=False,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key="connection_error",
+            )
+            _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
+            raise UpdateFailed("Failed to communicate with device") from exc
+
+        # Post-fetch stages: bookkeeping and pure computation on registers
+        # already fetched. A failure here is a software bug, not a gateway
+        # communication error: log it with a stack trace and return the raw
+        # poll data so register-backed entities stay fresh (#386).
+        try:
             # Persist system_config in entry.data so COP services and device
             # capabilities can be initialised at next setup *before* any
             # refresh — survives reloads that hit gateway_not_ready (#308).
@@ -183,9 +210,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self.derived_metrics.update(data)
                 self._update_refrigerant_issue()
 
-            # If we reach here, connection is successful, so delete any connection error issue
-            ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
-
             # Telemetry: collect metrics from this poll cycle
             # (collector handles level=OFF internally)
             self.telemetry_collector.collect(data)
@@ -198,25 +222,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             # Fire-and-forget to avoid blocking the Modbus poll path
             if not self._installation_info_sent or not self._snapshot_sent:
                 self.hass.async_create_task(self._send_onetime_telemetry(data))
-
-            return data
-
-        except UpdateFailed:
-            # Re-raise so the generic Exception handler below doesn't
-            # turn our intentional UpdateFailed into an HA issue.
-            raise
-
-        except Exception as exc:
-            ir.async_create_issue(
-                self.hass,
-                DOMAIN,
-                "connection_error",
-                is_fixable=False,
-                severity=ir.IssueSeverity.ERROR,
-                translation_key="connection_error",
+        except Exception:
+            _LOGGER.exception(
+                "Post-fetch enrichment failed; returning raw poll data "
+                "(this is an integration bug, not a gateway problem)"
             )
-            _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
-            raise UpdateFailed("Failed to communicate with device") from exc
+
+        return data
 
     async def _send_onetime_telemetry(self, data: dict[str, Any]) -> None:
         """Send one-time telemetry (installation info + snapshot) with backoff."""

@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.hitachi_yutaki.api.base import ReadResult
+from custom_components.hitachi_yutaki.const import DOMAIN
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
 from custom_components.hitachi_yutaki.domain.models.refrigerant import RefrigerantStatus
 from custom_components.hitachi_yutaki.domain.services.refrigerant import (
@@ -180,6 +181,98 @@ async def test_gateway_not_ready_property_false_after_recovery(
 
         mock_api_client.read_values.return_value = ReadResult.SUCCESS
         await coordinator._async_update_data()
+
+    assert coordinator.gateway_not_ready is False
+
+
+# --- enrichment failure isolation (#386) ---
+
+
+@pytest.mark.asyncio
+async def test_enrichment_failure_returns_raw_data(
+    coordinator, mock_api_client, caplog
+):
+    """A derived-metrics crash must not masquerade as a gateway error."""
+    mock_api_client.read_value = AsyncMock(return_value=42)
+    coordinator.derived_metrics = MagicMock()
+    coordinator.derived_metrics.update.side_effect = KeyError("boom")
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        data = await coordinator._async_update_data()
+
+    assert data["is_available"] is True
+    assert data["system_state"] == 42
+    mock_ir.async_create_issue.assert_not_called()
+    mock_ir.async_delete_issue.assert_called_once_with(
+        coordinator.hass, DOMAIN, "connection_error"
+    )
+    assert "returning raw poll data" in caplog.text
+    assert "KeyError" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_refrigerant_issue_update_failure_returns_raw_data(
+    coordinator, mock_api_client
+):
+    """A crash in the refrigerant repair-issue update is not a gateway error."""
+    coordinator.derived_metrics = MagicMock()
+    with (
+        patch.object(
+            coordinator, "_update_refrigerant_issue", side_effect=ValueError("boom")
+        ),
+        patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir,
+    ):
+        data = await coordinator._async_update_data()
+
+    assert data["is_available"] is True
+    mock_ir.async_create_issue.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_telemetry_collect_failure_returns_raw_data(coordinator):
+    """A crash in telemetry collection is not a gateway error."""
+    coordinator.telemetry_collector = MagicMock()
+    coordinator.telemetry_collector.collect.side_effect = ValueError("boom")
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        data = await coordinator._async_update_data()
+
+    assert data["is_available"] is True
+    mock_ir.async_create_issue.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_modbus_read_values_failure_reports_connection_error(
+    coordinator, mock_api_client
+):
+    """A real Modbus failure keeps today's semantics: issue + UpdateFailed."""
+    mock_api_client.read_values = AsyncMock(side_effect=ConnectionError("dead link"))
+
+    with (
+        patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir,
+        pytest.raises(UpdateFailed, match="Failed to communicate"),
+    ):
+        await coordinator._async_update_data()
+
+    mock_ir.async_create_issue.assert_called_once()
+    assert mock_ir.async_create_issue.call_args.args[2] == "connection_error"
+    mock_ir.async_delete_issue.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_modbus_mid_poll_failure_reports_connection_error(
+    coordinator, mock_api_client
+):
+    """A per-key read failure (raw poll loop) is still a gateway error."""
+    mock_api_client.read_value = AsyncMock(side_effect=OSError("read failed"))
+
+    with (
+        patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir,
+        pytest.raises(UpdateFailed, match="Failed to communicate"),
+    ):
+        await coordinator._async_update_data()
+
+    mock_ir.async_create_issue.assert_called_once()
 
     assert coordinator.gateway_not_ready is False
 
