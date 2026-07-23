@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -10,6 +10,11 @@ import pytest
 from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.const import DOMAIN
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
+from custom_components.hitachi_yutaki.domain.models.refrigerant import RefrigerantStatus
+from custom_components.hitachi_yutaki.domain.services.refrigerant import (
+    ALERT_PERSIST_DAYS,
+    STALE_AFTER_DAYS,
+)
 from custom_components.hitachi_yutaki.telemetry import (
     NoopTelemetryClient,
     TelemetryCollector,
@@ -268,3 +273,84 @@ async def test_modbus_mid_poll_failure_reports_connection_error(
         await coordinator._async_update_data()
 
     mock_ir.async_create_issue.assert_called_once()
+
+    assert coordinator.gateway_not_ready is False
+
+
+def _refrigerant_status(
+    *,
+    alert_streak: int,
+    days_since_valid_data: int | None,
+    last_valid_day: date | None = date(2026, 1, 20),
+    status: str = "alert",
+) -> RefrigerantStatus:
+    """Build a minimal RefrigerantStatus for repair-issue tests."""
+    return RefrigerantStatus(
+        status=status,
+        superheat_delta=6.0,
+        exv_delta=20.0,
+        evaporation_temp_delta=-3.0,
+        baseline=None,
+        valid_days=21,
+        today_samples=0,
+        alert_streak=alert_streak,
+        last_valid_day=last_valid_day,
+        days_since_valid_data=days_since_valid_data,
+    )
+
+
+@pytest.mark.asyncio
+async def test_refrigerant_issue_created_fixable_when_fresh(coordinator):
+    """A sustained alert on fresh data raises a fixable, non-stale issue."""
+    coordinator.derived_metrics = MagicMock()
+    coordinator.derived_metrics.refrigerant_status = _refrigerant_status(
+        alert_streak=ALERT_PERSIST_DAYS,
+        days_since_valid_data=1,
+    )
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        coordinator._update_refrigerant_issue()
+
+    mock_ir.async_create_issue.assert_called_once()
+    kwargs = mock_ir.async_create_issue.call_args.kwargs
+    assert kwargs["is_fixable"] is True
+    assert kwargs["translation_key"] == "refrigerant_charge_alert"
+    mock_ir.async_delete_issue.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_refrigerant_issue_stale_variant_when_data_old(coordinator):
+    """A sustained alert on old data uses the stale text with str placeholders."""
+    coordinator.derived_metrics = MagicMock()
+    coordinator.derived_metrics.refrigerant_status = _refrigerant_status(
+        alert_streak=ALERT_PERSIST_DAYS,
+        days_since_valid_data=STALE_AFTER_DAYS + 30,
+        last_valid_day=date(2026, 1, 20),
+    )
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        coordinator._update_refrigerant_issue()
+
+    kwargs = mock_ir.async_create_issue.call_args.kwargs
+    assert kwargs["is_fixable"] is True
+    assert kwargs["translation_key"] == "refrigerant_charge_alert_stale"
+    placeholders = kwargs["translation_placeholders"]
+    assert placeholders["last_valid_day"] == "2026-01-20"
+    assert placeholders["days_since_valid_data"] == str(STALE_AFTER_DAYS + 30)
+    assert all(isinstance(v, str) for v in placeholders.values())
+
+
+@pytest.mark.asyncio
+async def test_refrigerant_issue_deleted_below_threshold(coordinator):
+    """A streak below the persistence threshold clears any issue."""
+    coordinator.derived_metrics = MagicMock()
+    coordinator.derived_metrics.refrigerant_status = _refrigerant_status(
+        alert_streak=ALERT_PERSIST_DAYS - 1,
+        days_since_valid_data=1,
+    )
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        coordinator._update_refrigerant_issue()
+
+    mock_ir.async_create_issue.assert_not_called()
+    mock_ir.async_delete_issue.assert_called_once()

@@ -740,7 +740,25 @@
     },
     "refrigerant_charge_alert": {
       "title": "Possible Refrigerant Charge Loss",
-      "description": "For several days the Refrigerant Charge Status has stayed at **Alert**: suction superheat and the expansion-valve opening have both drifted up from the learned baseline, the classic signature of a slow refrigerant loss.\n\nThis is an **advisory** based on continuous monitoring of your own operating data. It **complements** and does **not** replace the mandatory periodic leak-tightness inspection by a certified technician.\n\n**What to do:**\n1. Watch the Refrigerant Charge Status sensor and its attributes over the next days.\n2. Consider scheduling a leak-tightness check with your installer.\n3. After any refrigerant top-up or expansion-valve service, press **Reset Refrigerant Baseline** so a new reference is learned.\n\nThe warning clears automatically when the readings return to normal."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Refrigerant circuit serviced?",
+            "description": "For several days the Refrigerant Charge Status has stayed at **Alert**: suction superheat and the expansion-valve opening have both drifted up from the learned baseline, the classic signature of a slow refrigerant loss.\n\nThis is an **advisory** based on continuous monitoring of your own operating data. It **complements** and does **not** replace the mandatory periodic leak-tightness inspection by a certified technician. Consider scheduling a leak-tightness check with your installer. The warning clears automatically when readings recover.\n\nConfirm below only if a certified technician has inspected or serviced the refrigerant circuit (leak check, top-up, expansion-valve service). This resets the detection baseline: the detector returns to **learning** and needs about 2 weeks of heating operation to learn a new reference. This is the same action as the **Reset Refrigerant Baseline** button."
+          }
+        }
+      }
+    },
+    "refrigerant_charge_alert_stale": {
+      "title": "Possible Refrigerant Charge Loss",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Refrigerant circuit serviced?",
+            "description": "For several days the Refrigerant Charge Status has stayed at **Alert**: suction superheat and the expansion-valve opening have both drifted up from the learned baseline, the classic signature of a slow refrigerant loss.\n\n**Note: this verdict is based on stale data.** The last day with qualifying heating operation was **{last_valid_day}**, {days_since_valid_data} days ago, typically because the heating season has ended. A slow refrigerant loss does not repair itself, so this alert is kept on purpose and will not clear until heating resumes or you confirm the circuit was serviced. Consider scheduling a leak-tightness check with your installer before the next heating season.\n\nConfirm below only if a certified technician has inspected or serviced the refrigerant circuit (leak check, top-up, expansion-valve service). This resets the detection baseline: the detector returns to **learning** and needs about 2 weeks of heating operation to learn a new reference. This is the same action as the **Reset Refrigerant Baseline** button."
+          }
+        }
+      }
     },
     "initializing_warning": {
       "title": "Hitachi Gateway Initializing",

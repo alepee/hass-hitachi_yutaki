@@ -59,3 +59,5 @@ class RefrigerantStatus:
     valid_days: int
     today_samples: int
     alert_streak: int
+    last_valid_day: date | None = None
+    days_since_valid_data: int | None = None

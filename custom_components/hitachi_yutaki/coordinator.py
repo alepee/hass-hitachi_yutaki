@@ -32,6 +32,7 @@ from .const import (
 from .domain.services.defrost_guard import DefrostGuard
 from .domain.services.refrigerant import (
     ALERT_PERSIST_DAYS as REFRIGERANT_ALERT_PERSIST_DAYS,
+    STALE_AFTER_DAYS as REFRIGERANT_STALE_AFTER_DAYS,
 )
 from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
@@ -389,22 +390,45 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     def _update_refrigerant_issue(self) -> None:
         """Raise or clear the refrigerant charge alert repair issue.
 
-        Self-clearing advisory (WARNING, non-fixable): raised once the alert has
-        persisted for several days, deleted as soon as the verdict recovers. It
-        complements and does not replace the mandatory F-Gas inspection.
+        Fixable advisory (WARNING): raised once the alert has persisted for
+        several *valid* days, and cleared when the in-season verdict recovers or
+        the user confirms the circuit was serviced (the fix flow resets the
+        baseline). A frozen alert does NOT self-clear off-season, so its data age
+        is annotated: beyond ``REFRIGERANT_STALE_AFTER_DAYS`` calendar days the
+        issue switches to the dedicated stale text. It complements and does not
+        replace the mandatory F-Gas inspection.
         """
         status = getattr(self.derived_metrics, "refrigerant_status", None)
         issue_id = self._refrigerant_issue_id()
         if status is not None and status.alert_streak >= REFRIGERANT_ALERT_PERSIST_DAYS:
-            ir.async_create_issue(
-                self.hass,
-                DOMAIN,
-                issue_id,
-                is_fixable=False,
-                is_persistent=False,
-                severity=ir.IssueSeverity.WARNING,
-                translation_key="refrigerant_charge_alert",
+            days_since = status.days_since_valid_data
+            is_stale = (
+                days_since is not None and days_since > REFRIGERANT_STALE_AFTER_DAYS
             )
+            if is_stale:
+                ir.async_create_issue(
+                    self.hass,
+                    DOMAIN,
+                    issue_id,
+                    is_fixable=True,
+                    is_persistent=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="refrigerant_charge_alert_stale",
+                    translation_placeholders={
+                        "last_valid_day": str(status.last_valid_day),
+                        "days_since_valid_data": str(status.days_since_valid_data),
+                    },
+                )
+            else:
+                ir.async_create_issue(
+                    self.hass,
+                    DOMAIN,
+                    issue_id,
+                    is_fixable=True,
+                    is_persistent=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key="refrigerant_charge_alert",
+                )
         else:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 

@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import selector
+from homeassistant.helpers import issue_registry as ir, selector
 from homeassistant.helpers.issue_registry import async_delete_issue
 
 from .api import GATEWAY_INFO
@@ -209,6 +209,48 @@ class EnergyCostRepairFlow(RepairsFlow):
         )
 
 
+class RefrigerantServicedRepairFlow(RepairsFlow):
+    """Confirm the refrigerant circuit was serviced; resets the detector baseline."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Redirect to the confirm step."""
+        return await self.async_step_confirm()
+
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle the serviced-confirmation step, resetting the baseline."""
+        # Extract entry_id (format: "refrigerant_charge_alert_{entry_id}")
+        entry_id = self.issue_id.removeprefix("refrigerant_charge_alert_")
+
+        config_entries = self.hass.config_entries.async_entries(DOMAIN)
+        entry = next((e for e in config_entries if e.entry_id == entry_id), None)
+
+        if entry is None:
+            return self.async_abort(reason="entry_not_found")
+
+        if user_input is not None:
+            coordinator = entry.runtime_data
+            # The reset already deletes the repair issue; no config change, so
+            # no reload is needed (unlike the other repair flows).
+            await coordinator.async_reset_refrigerant_baseline()
+            return self.async_create_entry(data={})
+
+        # The stale variant carries {last_valid_day}/{days_since_valid_data} in
+        # its fix-flow description. Those are NOT auto-filled from the issue's
+        # translation_placeholders, so forward them to the form explicitly.
+        issue = ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=vol.Schema({}),
+            description_placeholders=(
+                issue.translation_placeholders if issue else None
+            ),
+        )
+
+
 async def async_create_fix_flow(
     hass: HomeAssistant,
     issue_id: str,
@@ -219,4 +261,6 @@ async def async_create_fix_flow(
         return EnergyCostRepairFlow()
     if issue_id.startswith("enable_telemetry_"):
         return EnableTelemetryRepairFlow()
+    if issue_id.startswith("refrigerant_charge_alert_"):
+        return RefrigerantServicedRepairFlow()
     return MissingConfigRepairFlow()

@@ -740,7 +740,25 @@
     },
     "refrigerant_charge_alert": {
       "title": "Perte possible de charge frigorigène",
-      "description": "Depuis plusieurs jours, l'état de la charge frigorigène reste en **Alerte** : la surchauffe à l'aspiration et l'ouverture du détendeur ont toutes deux dérivé à la hausse par rapport à la référence apprise, la signature classique d'une fuite lente de frigorigène.\n\nIl s'agit d'un **avertissement** basé sur la surveillance continue de vos propres données de fonctionnement. Il **complète** et ne **remplace pas** le contrôle d'étanchéité périodique obligatoire par un technicien certifié.\n\n**Que faire :**\n1. Surveillez le capteur d'état de la charge frigorigène et ses attributs les jours suivants.\n2. Envisagez de programmer un contrôle d'étanchéité avec votre installateur.\n3. Après toute recharge de frigorigène ou intervention sur le détendeur, appuyez sur **Réinitialiser la référence frigorigène** pour réapprendre une référence.\n\nL'avertissement disparaît automatiquement lorsque les mesures reviennent à la normale."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Circuit frigorigène entretenu ?",
+            "description": "Depuis plusieurs jours, l'état de la charge frigorigène reste en **Alerte** : la surchauffe à l'aspiration et l'ouverture du détendeur ont toutes deux dérivé à la hausse par rapport à la référence apprise, la signature classique d'une fuite lente de frigorigène.\n\nIl s'agit d'un **avertissement** basé sur la surveillance continue de vos propres données de fonctionnement. Il **complète** et ne **remplace pas** le contrôle d'étanchéité périodique obligatoire par un technicien certifié. Envisagez de programmer un contrôle d'étanchéité avec votre installateur. L'avertissement disparaît automatiquement lorsque les mesures reviennent à la normale.\n\nNe confirmez ci-dessous que si un technicien certifié a inspecté ou entretenu le circuit frigorigène (contrôle d'étanchéité, recharge, intervention sur le détendeur). Cela réinitialise la référence de détection : le détecteur repasse en **apprentissage** et a besoin d'environ 2 semaines de fonctionnement en chauffage pour apprendre une nouvelle référence. C'est la même action que le bouton **Réinitialiser la référence frigorigène**."
+          }
+        }
+      }
+    },
+    "refrigerant_charge_alert_stale": {
+      "title": "Perte possible de charge frigorigène",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Circuit frigorigène entretenu ?",
+            "description": "Depuis plusieurs jours, l'état de la charge frigorigène reste en **Alerte** : la surchauffe à l'aspiration et l'ouverture du détendeur ont toutes deux dérivé à la hausse par rapport à la référence apprise, la signature classique d'une fuite lente de frigorigène.\n\n**Remarque : ce verdict repose sur des données obsolètes.** Le dernier jour avec un fonctionnement en chauffage exploitable était le **{last_valid_day}**, il y a {days_since_valid_data} jours, généralement parce que la saison de chauffage est terminée. Une fuite lente de frigorigène ne se répare pas d'elle-même : cette alerte est donc maintenue volontairement et ne disparaîtra pas tant que le chauffage n'aura pas repris ou que vous n'aurez pas confirmé l'entretien du circuit. Envisagez de programmer un contrôle d'étanchéité avec votre installateur avant la prochaine saison de chauffage.\n\nNe confirmez ci-dessous que si un technicien certifié a inspecté ou entretenu le circuit frigorigène (contrôle d'étanchéité, recharge, intervention sur le détendeur). Cela réinitialise la référence de détection : le détecteur repasse en **apprentissage** et a besoin d'environ 2 semaines de fonctionnement en chauffage pour apprendre une nouvelle référence. C'est la même action que le bouton **Réinitialiser la référence frigorigène**."
+          }
+        }
+      }
     },
     "initializing_warning": {
       "title": "Passerelle Hitachi en cours d'initialisation",

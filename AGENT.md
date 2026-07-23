@@ -71,7 +71,7 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 ### Refrigerant Anomaly Detection
 - Continuous, local early-warning for a **slow refrigerant charge loss** (`domain/services/refrigerant.py`, `RefrigerantMonitor`). Advisory only; complements, does not replace, the mandatory F-Gas inspection.
 - Tracks the joint drift of suction superheat (`Tg − Te`) and outdoor expansion-valve opening (`EVO`) against a per-installation baseline learned over ~2 weeks; superheat is the season-robust primary signal, `EVO` is compared only at equivalent outdoor temperature.
-- Surfaces `sensor.*_refrigerant_charge_status` (ENUM `learning`/`ok`/`watch`/`alert`), a `Reset Refrigerant Baseline` button, and a self-clearing repair issue on sustained alert. Baseline persists via a HA `Store`. Gated on `supports_extended_compressor_sensors` (excludes Yutampo R32).
+- Surfaces `sensor.*_refrigerant_charge_status` (ENUM `learning`/`ok`/`watch`/`alert`), a `Reset Refrigerant Baseline` button, and a fixable repair issue on sustained alert. In season the issue clears on recovery; off-season a frozen alert does not self-clear (a slow loss does not repair itself), so it is annotated as stale (`last_valid_day`/`days_since_valid_data` attributes) and offers a "circuit was serviced" fix flow that resets the baseline. Baseline persists via a HA `Store`. Gated on `supports_extended_compressor_sensors` (excludes Yutampo R32).
 - See [docs/reference/refrigerant-monitoring.md](docs/reference/refrigerant-monitoring.md).
 
 ### Anonymous Telemetry
