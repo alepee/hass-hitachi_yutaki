@@ -78,6 +78,9 @@ After a **legitimate refrigerant top-up or expansion-valve service**, press **Re
 Refrigerant Baseline** so a fresh reference is learned; otherwise the stale baseline would
 keep alerting.
 
+The `Store` (`.storage/hitachi_yutaki_refrigerant_<entry_id>`) is deleted automatically when
+the config entry is removed (`async_remove_entry`), leaving no orphaned baseline behind.
+
 ## Limitations (expected)
 
 - **Warm-up:** needs ~2–3 weeks of heating operation before it can leave `learning`. Off
