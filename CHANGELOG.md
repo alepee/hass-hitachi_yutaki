@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Removing the integration's config entry now cleans up everything it persisted: the refrigerant detector's baseline file (`.storage/hitachi_yutaki_refrigerant_<entry_id>`) and the per-entry repair issues (refrigerant charge alert, missing configuration, telemetry and energy-cost onboarding). Domain-wide issues (`connection_error`, gateway desync/initializing warnings) are also swept when the last entry is removed. Previously these were orphaned forever after deleting the entry (#385).
+
 ## [2.2.0-beta.2] - 2026-07-22
 
 ### Added
