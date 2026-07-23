@@ -215,6 +215,8 @@ Data moves through the layers in a single direction during each polling cycle. T
 
 Modbus registers --> API client --> Coordinator cache --> Domain services --> Entity classes --> HA state machine
 
+Failure attribution follows the same boundary: only errors in the fetch path (connect, register reads) raise `UpdateFailed` and surface the `connection_error` repair issue; a failure in a post-fetch stage (derived-metrics enrichment, refrigerant issue update, telemetry collection) is logged as an integration bug with a stack trace and the raw register data is still returned, so register-backed entities remain available.
+
 ## Domain-to-Entity Matrix
 
 | Domain | Sensor | Binary Sensor | Switch | Number | Climate | Water Heater | Select | Button |
