@@ -78,6 +78,12 @@ After a **legitimate refrigerant top-up or expansion-valve service**, press **Re
 Refrigerant Baseline** so a fresh reference is learned; otherwise the stale baseline would
 keep alerting.
 
+The snapshot is restored **before** the first poll after a restart, so an established alert
+(and its repair issue) survives a Home Assistant restart without flapping to `learning` for
+one poll cycle. A corrupt snapshot is validated when it is loaded, discarded with a logged
+warning (the restore is atomic, so partial state can never be applied), and the detector
+restarts in `learning`.
+
 ## Limitations (expected)
 
 - **Warm-up:** needs ~2–3 weeks of heating operation before it can leave `learning`. Off

@@ -285,6 +285,70 @@ class TestPersistence:
         assert after.baseline.outdoor_temp == before.baseline.outdoor_temp
         assert after.baseline.days == before.baseline.days
 
+    @pytest.mark.parametrize(
+        "payload",
+        [
+            # baseline missing a required key
+            {"baseline": {"superheat": 5.0}, "alert_streak": 0, "aggregates": []},
+            # aggregate item missing keys
+            {"baseline": None, "aggregates": [{"day": "2026-01-01"}]},
+            # invalid ISO date in an otherwise complete aggregate dict
+            {
+                "baseline": None,
+                "aggregates": [
+                    {
+                        "day": "not-a-date",
+                        "superheat": 5.0,
+                        "evaporation_temp": -5.0,
+                        "exv": 40.0,
+                        "outdoor_temp": 7.0,
+                        "sample_count": 30,
+                    }
+                ],
+            },
+            # non-numeric value in an otherwise complete aggregate dict
+            {
+                "baseline": None,
+                "aggregates": [
+                    {
+                        "day": "2026-01-01",
+                        "superheat": "high",
+                        "evaporation_temp": -5.0,
+                        "exv": 40.0,
+                        "outdoor_temp": 7.0,
+                        "sample_count": 30,
+                    }
+                ],
+            },
+            # non-dict aggregate item
+            {"aggregates": ["bogus"]},
+        ],
+    )
+    def test_restore_malformed_payload_raises_and_preserves_state(
+        self, payload: dict
+    ) -> None:
+        """A malformed snapshot raises ValueError and mutates no state."""
+        monitor = _new_monitor()
+        _feed_days(monitor, _baseline_specs())
+        before = monitor.serialize()
+
+        with pytest.raises(ValueError):
+            monitor.restore(payload)
+
+        assert monitor.serialize() == before
+
+    def test_restore_malformed_payload_on_fresh_monitor_stays_empty(self) -> None:
+        """A malformed snapshot on a fresh monitor raises and leaves it empty."""
+        monitor = _new_monitor()
+
+        with pytest.raises(ValueError):
+            monitor.restore({"baseline": {"superheat": 5.0}})
+
+        status = monitor.get_status()
+        assert status.status == STATUS_LEARNING
+        assert status.valid_days == 0
+        assert status.alert_streak == 0
+
     def test_reset_clears_state(self) -> None:
         """Resetting drops the baseline and all aggregates."""
         monitor = _new_monitor()
@@ -366,6 +430,15 @@ class TestThresholdBoundaries:
         status = monitor.get_status()
         assert status.status == STATUS_ALERT
         assert status.exv_delta is not None
+
+    @pytest.mark.parametrize("freq", [refr.MIN_FREQUENCY, refr.MAX_FREQUENCY])
+    def test_frequency_band_edges_are_inclusive(self, freq: float) -> None:
+        """A sample exactly at MIN/MAX_FREQUENCY qualifies (inclusive bounds)."""
+        monitor = _new_monitor()
+        ts = datetime(2026, 1, 1, 12, 0, 0)
+        for _ in range(MIN_SAMPLES_PER_DAY):
+            monitor.update(_make_input(freq=freq), timestamp=ts)
+        assert monitor.get_status().today_samples == MIN_SAMPLES_PER_DAY
 
 
 class TestExactAlertStreak:

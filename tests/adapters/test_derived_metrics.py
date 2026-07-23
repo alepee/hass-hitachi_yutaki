@@ -1,6 +1,6 @@
 """Tests for DerivedMetricsAdapter."""
 
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
     DerivedMetricsAdapter,
@@ -34,6 +34,7 @@ def _make_adapter(
     has_dhw: bool = False,
     has_pool: bool = False,
     supports_secondary_compressor: bool = False,
+    supports_extended_compressor_sensors: bool = False,
 ) -> DerivedMetricsAdapter:
     """Create a minimal adapter for testing."""
     config_entry = MagicMock()
@@ -46,6 +47,7 @@ def _make_adapter(
         has_dhw=has_dhw,
         has_pool=has_pool,
         supports_secondary_compressor=supports_secondary_compressor,
+        supports_extended_compressor_sensors=supports_extended_compressor_sensors,
     )
 
 
@@ -510,3 +512,23 @@ class TestEnergyAndCost:
         adapter.update(data)
         expected = round((VOLTAGE_SINGLE_PHASE * (8.5 + 6.0) * POWER_FACTOR) / 1000, 3)
         assert data["electrical_power"] == expected
+
+
+class TestRestoreRefrigerantGuard:
+    """The restore path tolerates a corrupt persisted snapshot."""
+
+    async def test_corrupt_snapshot_is_discarded_without_raising(self):
+        """A malformed Store payload is discarded; the monitor stays empty."""
+        adapter = _make_adapter(supports_extended_compressor_sensors=True)
+        # The adapter has a monitor but no Store (hass is None in tests): inject a
+        # Store mock returning a structurally invalid snapshot.
+        store = MagicMock()
+        store.async_load = AsyncMock(return_value={"baseline": {"bogus": 1}})
+        adapter._refrigerant_store = store
+
+        # Must not raise even though restore() rejects the payload.
+        await adapter.async_restore_refrigerant()
+
+        status = adapter._refrigerant_monitor.get_status()
+        assert status.valid_days == 0
+        assert status.alert_streak == 0

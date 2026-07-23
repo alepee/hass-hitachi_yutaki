@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Refrigerant anomaly detection: hardened the persisted-state restore path. The detector state is now restored **before** the coordinator's first poll, so a Home Assistant restart no longer briefly flaps the `Refrigerant Charge Status` sensor to a spurious `learning` state: the persisted verdict (and its repair issue, when an alert is active) is re-established from the very first poll. A corrupt or malformed persisted snapshot no longer fails the integration setup: the payload is fully validated before any state is touched (restore is atomic), a warning is logged, and the detector restarts cleanly in `learning` mode (#383).
+
 ## [2.2.0-beta.2] - 2026-07-22
 
 ### Added

@@ -200,8 +200,10 @@ temperature `Te` and outdoor temperature. Gated on `supports_extended_compressor
   primary signal; `EVO` is compared only across days within `TEMP_MATCH_K` of the baseline
   outdoor temperature; `Te` is informational.
 - **Persistence:** `serialize()`/`restore()` round-trip the baseline, aggregates and alert
-  streak; the adapter persists them via a Home Assistant `Store`. `reset()` clears
-  everything (exposed as the reset button).
+  streak; the adapter persists them via a Home Assistant `Store`. `restore()` validates the
+  full payload before touching any state: a malformed snapshot raises `ValueError` and leaves
+  the monitor unchanged (atomic restore), so a corrupt `Store` file can never half-load.
+  `reset()` clears everything (exposed as the reset button).
 - **Time:** like COP, uses `time()` for the throttle and accepts an optional `timestamp` for
   replay/tests.
 

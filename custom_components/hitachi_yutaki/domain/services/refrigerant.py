@@ -170,39 +170,59 @@ class RefrigerantMonitor:
         }
 
     def restore(self, state: dict[str, Any] | None) -> None:
-        """Restore persistent state from a serialized snapshot."""
+        """Restore persistent state from a serialized snapshot.
+
+        The snapshot is validated in full *before* any state is mutated. A
+        malformed payload raises ``ValueError`` and leaves the monitor state
+        untouched, so a corrupt persisted file cannot half-load. Restoring a
+        well-formed snapshot onto any monitor is idempotent.
+        """
         if not state:
             return
 
-        # Full reset first, so restoring onto any monitor is idempotent.
+        # Parse phase: build every value into locals, mutating nothing. Explicit
+        # float()/int() coercion turns a wrong-typed value into an exception
+        # instead of silently storing a string inside a dataclass.
+        try:
+            raw_baseline = state.get("baseline")
+            new_baseline: RefrigerantBaseline | None = None
+            if raw_baseline:
+                new_baseline = RefrigerantBaseline(
+                    superheat=float(raw_baseline["superheat"]),
+                    evaporation_temp=float(raw_baseline["evaporation_temp"]),
+                    exv=float(raw_baseline["exv"]),
+                    outdoor_temp=float(raw_baseline["outdoor_temp"]),
+                    days=int(raw_baseline.get("days", BASELINE_DAYS)),
+                )
+
+            new_alert_streak = int(state.get("alert_streak", 0))
+
+            new_aggregates: list[DailyAggregate] = [
+                DailyAggregate(
+                    day=date.fromisoformat(item["day"]),
+                    superheat=float(item["superheat"]),
+                    evaporation_temp=float(item["evaporation_temp"]),
+                    exv=float(item["exv"]),
+                    outdoor_temp=float(item["outdoor_temp"]),
+                    sample_count=int(item["sample_count"]),
+                )
+                for item in state.get("aggregates", [])
+            ]
+        except (AttributeError, KeyError, TypeError, ValueError) as err:
+            raise ValueError("Malformed refrigerant snapshot") from err
+
+        # Commit phase (only reached on full success). Full reset first, so
+        # restoring onto any monitor stays idempotent.
         self._baseline = None
         self._current_day = None
         self._reset_day_buffers()
         while len(self._storage):
             self._storage.popleft()
 
-        baseline = state.get("baseline")
-        if baseline:
-            self._baseline = RefrigerantBaseline(
-                superheat=baseline["superheat"],
-                evaporation_temp=baseline["evaporation_temp"],
-                exv=baseline["exv"],
-                outdoor_temp=baseline["outdoor_temp"],
-                days=baseline.get("days", BASELINE_DAYS),
-            )
-        self._alert_streak = state.get("alert_streak", 0)
-
-        for item in state.get("aggregates", []):
-            self._storage.append(
-                DailyAggregate(
-                    day=date.fromisoformat(item["day"]),
-                    superheat=item["superheat"],
-                    evaporation_temp=item["evaporation_temp"],
-                    exv=item["exv"],
-                    outdoor_temp=item["outdoor_temp"],
-                    sample_count=item["sample_count"],
-                )
-            )
+        self._baseline = new_baseline
+        self._alert_streak = new_alert_streak
+        for aggregate in new_aggregates:
+            self._storage.append(aggregate)
 
     def reset(self) -> None:
         """Clear all state (used after a refrigerant top-up or EXV service)."""
