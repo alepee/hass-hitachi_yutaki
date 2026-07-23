@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant.components.repairs import RepairsFlow
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
-from homeassistant.helpers import selector
+from homeassistant.helpers import issue_registry as ir, selector
 from homeassistant.helpers.issue_registry import async_delete_issue
 
 from .api import GATEWAY_INFO
@@ -238,7 +238,17 @@ class RefrigerantServicedRepairFlow(RepairsFlow):
             await coordinator.async_reset_refrigerant_baseline()
             return self.async_create_entry(data={})
 
-        return self.async_show_form(step_id="confirm", data_schema=vol.Schema({}))
+        # The stale variant carries {last_valid_day}/{days_since_valid_data} in
+        # its fix-flow description. Those are NOT auto-filled from the issue's
+        # translation_placeholders, so forward them to the form explicitly.
+        issue = ir.async_get(self.hass).async_get_issue(DOMAIN, self.issue_id)
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=vol.Schema({}),
+            description_placeholders=(
+                issue.translation_placeholders if issue else None
+            ),
+        )
 
 
 async def async_create_fix_flow(

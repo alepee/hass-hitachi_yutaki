@@ -14,6 +14,7 @@ from custom_components.hitachi_yutaki.repairs import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.helpers import issue_registry as ir
 
 
 def _make_entry(*, entry_id: str = "test_entry_id") -> MockConfigEntry:
@@ -86,6 +87,33 @@ class TestRefrigerantServicedRepairFlow:
 
         assert result["type"] is FlowResultType.ABORT
         assert result["reason"] == "entry_not_found"
+
+    @pytest.mark.asyncio
+    async def test_confirm_forwards_stale_placeholders(
+        self, hass: HomeAssistant
+    ) -> None:
+        """Verify the stale issue's placeholders reach the confirm form."""
+        entry = _make_entry()
+        entry.add_to_hass(hass)
+
+        issue_id = f"refrigerant_charge_alert_{entry.entry_id}"
+        placeholders = {"last_valid_day": "2026-03-28", "days_since_valid_data": "117"}
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=True,
+            is_persistent=False,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="refrigerant_charge_alert_stale",
+            translation_placeholders=placeholders,
+        )
+
+        flow = await _init_flow(hass, issue_id)
+        result = await flow.async_step_confirm()
+
+        assert result["type"] is FlowResultType.FORM
+        assert result["description_placeholders"] == placeholders
 
     @pytest.mark.asyncio
     async def test_confirm_resets_baseline(self, hass: HomeAssistant) -> None:
