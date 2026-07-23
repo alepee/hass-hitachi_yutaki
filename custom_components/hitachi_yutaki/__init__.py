@@ -14,11 +14,16 @@ from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.event import async_track_time_interval
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
-from homeassistant.helpers.issue_registry import IssueSeverity, async_create_issue
+from homeassistant.helpers.issue_registry import (
+    IssueSeverity,
+    async_create_issue,
+    async_delete_issue,
+)
 from homeassistant.helpers.restore_state import async_get as async_get_restore_data
+from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 
-from .adapters.derived_metrics import DerivedMetricsAdapter
+from .adapters.derived_metrics import REFRIGERANT_STORE_VERSION, DerivedMetricsAdapter
 from .api import GATEWAY_INFO, create_register_map
 from .const import (
     CIRCUIT_MODE_COOLING,
@@ -775,3 +780,33 @@ async def async_unload_entry(
         _LOGGER.info("Hitachi Yutaki integration unloaded successfully")
 
     return unload_ok
+
+
+async def async_remove_entry(
+    hass: HomeAssistant, entry: HitachiYutakiConfigEntry
+) -> None:
+    """Clean up per-entry persistent artefacts when the entry is removed.
+
+    Called by HA after unload, once the entry is already gone from the
+    registry, so ``entry.runtime_data`` is unavailable here.
+    """
+    # Refrigerant detector Store (.storage/hitachi_yutaki_refrigerant_<entry_id>).
+    # Only extended-sensor profiles create it; async_remove is a no-op otherwise.
+    await Store(
+        hass, REFRIGERANT_STORE_VERSION, f"{DOMAIN}_refrigerant_{entry.entry_id}"
+    ).async_remove()
+
+    # Per-entry repair issues (async_delete_issue is idempotent).
+    for issue_id in (
+        f"missing_config_{entry.entry_id}",
+        f"enable_energy_cost_{entry.entry_id}",
+        f"enable_telemetry_{entry.entry_id}",
+        f"refrigerant_charge_alert_{entry.entry_id}",
+    ):
+        async_delete_issue(hass, DOMAIN, issue_id)
+
+    # Domain-global issues are shared across entries: sweep them only when the
+    # removed entry was the last one (it is already absent from the registry).
+    if not hass.config_entries.async_entries(DOMAIN):
+        for issue_id in ("connection_error", "desync_warning", "initializing_warning"):
+            async_delete_issue(hass, DOMAIN, issue_id)

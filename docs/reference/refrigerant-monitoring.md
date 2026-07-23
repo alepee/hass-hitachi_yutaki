@@ -84,6 +84,9 @@ one poll cycle. A corrupt snapshot is validated when it is loaded, discarded wit
 warning (the restore is atomic, so partial state can never be applied), and the detector
 restarts in `learning`.
 
+The `Store` (`.storage/hitachi_yutaki_refrigerant_<entry_id>`) is deleted automatically when
+the config entry is removed (`async_remove_entry`), leaving no orphaned baseline behind.
+
 ## Limitations (expected)
 
 - **Warm-up:** needs ~2–3 weeks of heating operation before it can leave `learning`. Off
