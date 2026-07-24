@@ -125,6 +125,31 @@ class HitachiHeatPumpProfile(ABC):
         """
         return True
 
+    @property
+    def gas_superheat_plausible_range(self) -> tuple[float, float]:
+        """Return the (min, max) plausibility bounds for gas-line superheat (K).
+
+        Gas-line superheat is ``Tg - Te`` where ``Tg`` is the THMg gas-pipe
+        thermistor (register 1206), not a suction sensor. In heating this is a
+        condensing-side lift of ~40-60 K, so the bounds are wide. A per-poll
+        sample outside this range is discarded before daily aggregation.
+
+        Provisional single fleet-wide range; re-evaluate per model after the
+        Jan-Feb 2027 winter re-run of ``backend/analysis/``.
+        """
+        return (-10.0, 80.0)
+
+    @property
+    def gas_superheat_observed_band(self) -> tuple[float, float] | None:
+        """Return the observed fleet band (min, max) of frozen-baseline superheat.
+
+        Diagnostic only: the adapter logs a warning when a freshly frozen baseline
+        falls outside it (profile misdetection, faulty sensor, or a multi-unit
+        HC-A(16/64)MB topology where Tg and Te/EVO describe different refrigerant
+        circuits). ``None`` when no reliable fleet data exists yet.
+        """
+        return None
+
     # --- Special features ---
 
     @property

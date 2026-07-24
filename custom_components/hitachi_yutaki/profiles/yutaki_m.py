@@ -64,3 +64,14 @@ class YutakiMProfile(HitachiHeatPumpProfile):
     def supports_boiler(self) -> bool:
         """Return True - backup boiler supported."""
         return True
+
+    @property
+    def gas_superheat_plausible_range(self) -> tuple[float, float]:
+        """Return the (min, max) gas-line superheat plausibility bounds (K).
+
+        Observed fleet figure: ~58.5 K (n=1-2, too few samples for a reliable
+        band, so no observed band is declared and the freeze-time warning stays
+        off for this model). Provisional single fleet-wide range; re-evaluate per
+        model after the Jan-Feb 2027 winter re-run of backend/analysis/.
+        """
+        return (-10.0, 80.0)

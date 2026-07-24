@@ -465,6 +465,8 @@ async def async_setup_entry(
         has_pool=persisted_has_pool,
         supports_secondary_compressor=profile.supports_secondary_compressor,
         supports_extended_compressor_sensors=profile.supports_extended_compressor_sensors,
+        superheat_plausible_range=profile.gas_superheat_plausible_range,
+        superheat_observed_band=profile.gas_superheat_observed_band,
     )
 
     # Restore the refrigerant-anomaly detector state from its persisted Store

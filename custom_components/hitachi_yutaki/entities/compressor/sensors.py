@@ -347,9 +347,9 @@ def _build_refrigerant_sensor_descriptions() -> tuple[
             key="refrigerant_charge_status",
             translation_key="refrigerant_charge_status",
             description=(
-                "Continuous refrigerant-charge anomaly detection (superheat and "
-                "expansion-valve drift). Advisory only — complements the mandatory "
-                "leak-tightness inspection."
+                "Continuous refrigerant-charge anomaly detection (gas-line "
+                "superheat and expansion-valve drift). Advisory only, complements "
+                "the mandatory leak-tightness inspection."
             ),
             device_class=SensorDeviceClass.ENUM,
             options=[STATUS_LEARNING, STATUS_OK, STATUS_WATCH, STATUS_ALERT],

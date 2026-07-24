@@ -52,3 +52,39 @@ class TestCapabilityDefaults:
         assert profile.max_circuits == 0
         assert profile.supports_pool is False
         assert profile.supports_boiler is False
+
+
+class TestGasSuperheatRange:
+    """Per-profile gas-line superheat plausibility range and observed band (#393)."""
+
+    def test_range_is_float_two_tuple_for_every_profile(self):
+        """Every profile returns (-10.0, 80.0) as a float 2-tuple with min < max."""
+        for profile_class in PROFILES.values():
+            rng = profile_class().gas_superheat_plausible_range
+            assert isinstance(rng, tuple)
+            assert len(rng) == 2
+            low, high = rng
+            assert isinstance(low, float)
+            assert isinstance(high, float)
+            assert low < high
+            assert rng == (-10.0, 80.0)
+
+    def test_observed_band_is_none_or_valid_two_tuple(self):
+        """The observed band is None or a 2-tuple with min <= max."""
+        for profile_class in PROFILES.values():
+            band = profile_class().gas_superheat_observed_band
+            if band is None:
+                continue
+            assert isinstance(band, tuple)
+            assert len(band) == 2
+            low, high = band
+            assert isinstance(low, float)
+            assert isinstance(high, float)
+            assert low <= high
+
+    def test_observed_band_spot_checks(self):
+        """Calibrated models declare their observed band; Yutaki M declares none."""
+        assert YutakiSProfile().gas_superheat_observed_band == (25.0, 51.0)
+        assert YutakiSCombiProfile().gas_superheat_observed_band == (39.0, 47.5)
+        assert YutakiS80Profile().gas_superheat_observed_band == (45.5, 50.5)
+        assert YutakiMProfile().gas_superheat_observed_band is None

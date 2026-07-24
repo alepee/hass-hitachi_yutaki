@@ -1,9 +1,13 @@
 """Tests for DerivedMetricsAdapter."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
     DerivedMetricsAdapter,
+)
+from custom_components.hitachi_yutaki.domain.models.refrigerant import (
+    RefrigerantBaseline,
 )
 from custom_components.hitachi_yutaki.domain.services.electrical import (
     POWER_FACTOR,
@@ -532,3 +536,67 @@ class TestRestoreRefrigerantGuard:
         status = adapter._refrigerant_monitor.get_status()
         assert status.valid_days == 0
         assert status.alert_streak == 0
+
+
+def _baseline(superheat: float) -> RefrigerantBaseline:
+    """Build a frozen baseline with the given gas-line superheat (K)."""
+    return RefrigerantBaseline(
+        superheat=superheat,
+        evaporation_temp=-5.0,
+        exv=40.0,
+        outdoor_temp=7.0,
+        days=14,
+    )
+
+
+class TestBaselineOffBandWarning:
+    """A frozen baseline outside the model's observed band logs a warning."""
+
+    def test_warns_when_baseline_outside_band(self, caplog):
+        """A superheat beyond the observed band triggers a diagnostic warning."""
+        adapter = DerivedMetricsAdapter(
+            hass=None,
+            config_entry=_make_config_entry(),
+            power_supply="single",
+            supports_extended_compressor_sensors=True,
+            superheat_plausible_range=(-10.0, 80.0),
+            superheat_observed_band=(25.0, 51.0),
+        )
+        with caplog.at_level(logging.WARNING):
+            adapter._warn_if_baseline_off_band(_baseline(60.0))
+        assert "outside the expected model band" in caplog.text
+
+    def test_no_warning_when_baseline_inside_band(self, caplog):
+        """A superheat inside the observed band logs nothing."""
+        adapter = DerivedMetricsAdapter(
+            hass=None,
+            config_entry=_make_config_entry(),
+            power_supply="single",
+            supports_extended_compressor_sensors=True,
+            superheat_plausible_range=(-10.0, 80.0),
+            superheat_observed_band=(25.0, 51.0),
+        )
+        with caplog.at_level(logging.WARNING):
+            adapter._warn_if_baseline_off_band(_baseline(44.0))
+        assert caplog.text == ""
+
+    def test_no_warning_when_band_is_none(self, caplog):
+        """With no observed band (e.g. Yutaki M), the check is disabled."""
+        adapter = DerivedMetricsAdapter(
+            hass=None,
+            config_entry=_make_config_entry(),
+            power_supply="single",
+            supports_extended_compressor_sensors=True,
+            superheat_plausible_range=(-10.0, 80.0),
+            superheat_observed_band=None,
+        )
+        with caplog.at_level(logging.WARNING):
+            adapter._warn_if_baseline_off_band(_baseline(200.0))
+        assert caplog.text == ""
+
+
+def _make_config_entry() -> MagicMock:
+    """Return a config-entry mock with empty data (no Store in tests)."""
+    config_entry = MagicMock()
+    config_entry.data = {}
+    return config_entry

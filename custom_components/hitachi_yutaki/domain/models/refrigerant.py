@@ -18,7 +18,7 @@ class RefrigerantInput:
 
     operation_mode: str | None
     compressor_frequency: float | None
-    gas_temp: float | None  # Tg, suction gas temperature (°C)
+    gas_temp: float | None  # Tg, gas-line (THMg) gas-pipe temperature (deg C)
     evaporator_temp: float | None  # Te, evaporating/saturation temperature (°C)
     outdoor_expansion_valve: float | None  # EVO opening (%)
     outdoor_temp: float | None  # outdoor ambient temperature (°C)
@@ -29,7 +29,7 @@ class DailyAggregate(NamedTuple):
     """Robust per-day summary of qualifying refrigerant samples."""
 
     day: date
-    superheat: float  # median suction superheat Tg - Te (K)
+    superheat: float  # median gas-line superheat Tg - Te (K)
     evaporation_temp: float  # median Te (°C)
     exv: float  # median EVO opening (%)
     outdoor_temp: float  # median outdoor ambient (°C)

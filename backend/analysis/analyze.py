@@ -17,7 +17,7 @@ INSTALLS = json.loads((HERE / "data" / "installations.json").read_text())
 
 MIN_FREQ, MAX_FREQ = 20.0, 150.0
 MIN_SAMPLES_PER_DAY = 30
-SH_CAP_DETECTOR = 40.0  # RefrigerantMonitor SUPERHEAT_MAX_K
+SH_CAP_DETECTOR = 40.0  # historical: SUPERHEAT_MAX_K removed; bounds now per-profile
 
 MODE_MAP = {
     "operation_state_heat_thermo_on": "heat",
