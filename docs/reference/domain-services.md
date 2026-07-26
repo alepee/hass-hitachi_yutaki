@@ -175,12 +175,14 @@ rationale and user-facing behaviour: [Refrigerant monitoring](refrigerant-monito
 |---|---|
 | `RefrigerantMonitor` | Gates and reduces per-poll signals into one robust daily aggregate, freezes a baseline, and classifies drift against it. |
 
-### Signals and superheat
+### Signals and gas-line superheat
 
-Suction superheat `SH = Tg − Te` (`compressor_tg_gas_temp` −
+Gas-line superheat `SH = Tg − Te` (THMg gas-pipe thermistor, register 1206; a ~40-60 K
+condensing-side lift in heating, not a suction superheat) (`compressor_tg_gas_temp` −
 `compressor_te_evaporator_temp`), outdoor expansion-valve opening `EVO`, evaporating
 temperature `Te` and outdoor temperature. Gated on `supports_extended_compressor_sensors`
-(needs `Tg`/`EVO`; excludes the Yutampo R32).
+(needs `Tg`/`EVO`; excludes the Yutampo R32). The `SH` plausibility bounds are supplied
+per-profile (`gas_superheat_plausible_range`).
 
 ### States
 

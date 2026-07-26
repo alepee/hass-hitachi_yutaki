@@ -59,7 +59,7 @@ def _make_input(
 
 def _new_monitor() -> RefrigerantMonitor:
     """Return a fresh monitor backed by a bounded in-memory storage."""
-    return RefrigerantMonitor(InMemoryStorage(max_len=HISTORY_DAYS))
+    return RefrigerantMonitor(InMemoryStorage(max_len=HISTORY_DAYS), (-10.0, 80.0))
 
 
 def _feed_days(
@@ -124,6 +124,31 @@ class TestSamplingGate:
         for _ in range(MIN_SAMPLES_PER_DAY):
             monitor.update(_make_input(), timestamp=ts)
         assert monitor.get_status().today_samples == MIN_SAMPLES_PER_DAY
+
+    def test_high_superheat_within_widened_range_accumulates(self) -> None:
+        """A 50 K sample (rejected under the old 40 K cap) now accumulates.
+
+        The gas-line superheat is a condensing-side lift of ~40-60 K in heating,
+        so the widened (-10, 80) range must keep such samples.
+        """
+        monitor = _new_monitor()
+        ts = datetime(2026, 1, 1, 12, 0, 0)
+        for _ in range(MIN_SAMPLES_PER_DAY):
+            monitor.update(_make_input(sh=50.0), timestamp=ts)
+        assert monitor.get_status().today_samples == MIN_SAMPLES_PER_DAY
+
+    def test_range_is_required(self) -> None:
+        """The plausibility range is a required constructor argument."""
+        with pytest.raises(TypeError):
+            RefrigerantMonitor(InMemoryStorage(max_len=HISTORY_DAYS))
+
+    def test_sample_outside_tight_range_is_rejected(self) -> None:
+        """A sample beyond the supplied range is discarded."""
+        monitor = RefrigerantMonitor(InMemoryStorage(max_len=HISTORY_DAYS), (0.0, 10.0))
+        ts = datetime(2026, 1, 1, 12, 0, 0)
+        for _ in range(MIN_SAMPLES_PER_DAY):
+            monitor.update(_make_input(sh=20.0), timestamp=ts)
+        assert monitor.get_status().today_samples == 0
 
 
 class TestDailyAggregation:

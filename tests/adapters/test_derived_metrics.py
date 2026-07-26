@@ -1,9 +1,14 @@
 """Tests for DerivedMetricsAdapter."""
 
+import logging
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
     DerivedMetricsAdapter,
+)
+from custom_components.hitachi_yutaki.domain.models.refrigerant import (
+    RefrigerantBaseline,
+    RefrigerantStatus,
 )
 from custom_components.hitachi_yutaki.domain.services.electrical import (
     POWER_FACTOR,
@@ -532,3 +537,165 @@ class TestRestoreRefrigerantGuard:
         status = adapter._refrigerant_monitor.get_status()
         assert status.valid_days == 0
         assert status.alert_streak == 0
+
+
+def _baseline(superheat: float) -> RefrigerantBaseline:
+    """Build a frozen baseline with the given gas-line superheat (K)."""
+    return RefrigerantBaseline(
+        superheat=superheat,
+        evaporation_temp=-5.0,
+        exv=40.0,
+        outdoor_temp=7.0,
+        days=14,
+    )
+
+
+class TestBaselineOffBandWarning:
+    """A frozen baseline outside the model's observed band logs a warning."""
+
+    def test_warns_when_baseline_outside_band(self, caplog):
+        """A superheat beyond the observed band triggers a diagnostic warning."""
+        adapter = DerivedMetricsAdapter(
+            hass=None,
+            config_entry=_make_config_entry(),
+            power_supply="single",
+            supports_extended_compressor_sensors=True,
+            superheat_plausible_range=(-10.0, 80.0),
+            superheat_observed_band=(25.0, 51.0),
+        )
+        with caplog.at_level(logging.WARNING):
+            adapter._warn_if_baseline_off_band(_baseline(60.0))
+        assert "outside the expected model band" in caplog.text
+
+    def test_no_warning_when_baseline_inside_band(self, caplog):
+        """A superheat inside the observed band logs nothing."""
+        adapter = DerivedMetricsAdapter(
+            hass=None,
+            config_entry=_make_config_entry(),
+            power_supply="single",
+            supports_extended_compressor_sensors=True,
+            superheat_plausible_range=(-10.0, 80.0),
+            superheat_observed_band=(25.0, 51.0),
+        )
+        with caplog.at_level(logging.WARNING):
+            adapter._warn_if_baseline_off_band(_baseline(44.0))
+        assert caplog.text == ""
+
+    def test_no_warning_when_band_is_none(self, caplog):
+        """With no observed band (e.g. Yutaki M), the check is disabled."""
+        adapter = DerivedMetricsAdapter(
+            hass=None,
+            config_entry=_make_config_entry(),
+            power_supply="single",
+            supports_extended_compressor_sensors=True,
+            superheat_plausible_range=(-10.0, 80.0),
+            superheat_observed_band=None,
+        )
+        with caplog.at_level(logging.WARNING):
+            adapter._warn_if_baseline_off_band(_baseline(200.0))
+        assert caplog.text == ""
+
+
+def _make_config_entry() -> MagicMock:
+    """Return a config-entry mock with empty data (no Store in tests)."""
+    config_entry = MagicMock()
+    config_entry.data = {}
+    return config_entry
+
+
+def _make_extended_adapter() -> DerivedMetricsAdapter:
+    """Build an extended-sensor adapter with the S profile bands."""
+    return DerivedMetricsAdapter(
+        hass=None,
+        config_entry=_make_config_entry(),
+        power_supply="single",
+        supports_extended_compressor_sensors=True,
+        superheat_plausible_range=(-10.0, 80.0),
+        superheat_observed_band=(25.0, 51.0),
+    )
+
+
+def _off_band_status() -> RefrigerantStatus:
+    """Return a verdict whose frozen baseline superheat (60 K) is off-band."""
+    return RefrigerantStatus(
+        status="ok",
+        superheat_delta=None,
+        exv_delta=None,
+        evaporation_temp_delta=None,
+        baseline=_baseline(60.0),
+        valid_days=14,
+        today_samples=0,
+        alert_streak=0,
+    )
+
+
+def _off_band_warnings(caplog) -> list:
+    """Return the captured off-band diagnostic warning records."""
+    return [
+        r for r in caplog.records if "outside the expected model band" in r.getMessage()
+    ]
+
+
+class TestBaselineSeenGuard:
+    """Pin the _refrigerant_baseline_seen guard through the real update path.
+
+    The pure band comparison is covered by TestBaselineOffBandWarning; these go
+    through _update_refrigerant / async_restore_refrigerant / async_reset_refrigerant
+    so a regression in the once-only / restore-silent / reset-re-arm wiring fails.
+    """
+
+    def test_warns_once_across_polls(self, caplog):
+        """An off-band baseline warns on the poll it appears, never again."""
+        adapter = _make_extended_adapter()
+        monitor = MagicMock()
+        monitor.update.return_value = False
+        monitor.get_status.return_value = _off_band_status()
+        adapter._refrigerant_monitor = monitor
+
+        with caplog.at_level(logging.WARNING):
+            adapter._update_refrigerant(_sample_data())
+            adapter._update_refrigerant(_sample_data())
+
+        assert len(_off_band_warnings(caplog)) == 1
+
+    async def test_restored_off_band_baseline_stays_silent(self, caplog):
+        """A baseline restored from persistence is not treated as just frozen."""
+        adapter = _make_extended_adapter()
+        state = {
+            "baseline": {
+                "superheat": 60.0,
+                "evaporation_temp": -5.0,
+                "exv": 40.0,
+                "outdoor_temp": 7.0,
+                "days": 14,
+            },
+            "alert_streak": 0,
+            "aggregates": [],
+        }
+        store = MagicMock()
+        store.async_load = AsyncMock(return_value=state)
+        adapter._refrigerant_store = store
+
+        await adapter.async_restore_refrigerant()
+        # The restore success path pre-seeds the guard.
+        assert adapter._refrigerant_baseline_seen is True
+
+        with caplog.at_level(logging.WARNING):
+            adapter._update_refrigerant(_sample_data())
+
+        assert _off_band_warnings(caplog) == []
+
+    async def test_reset_re_arms_the_guard(self, caplog):
+        """A reset re-arms the guard, so a freshly frozen off-band baseline warns again."""
+        adapter = _make_extended_adapter()
+        monitor = MagicMock()
+        monitor.update.return_value = False
+        monitor.get_status.return_value = _off_band_status()
+        adapter._refrigerant_monitor = monitor
+
+        with caplog.at_level(logging.WARNING):
+            adapter._update_refrigerant(_sample_data())  # warns once
+            await adapter.async_reset_refrigerant()  # re-arms
+            adapter._update_refrigerant(_sample_data())  # warns again
+
+        assert len(_off_band_warnings(caplog)) == 2

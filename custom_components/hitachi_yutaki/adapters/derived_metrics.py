@@ -38,7 +38,11 @@ from ..const import (
 )
 from ..domain.models.cop import COPInput
 from ..domain.models.operation import MODE_COOLING, MODE_DHW, MODE_HEATING, MODE_POOL
-from ..domain.models.refrigerant import RefrigerantInput, RefrigerantStatus
+from ..domain.models.refrigerant import (
+    RefrigerantBaseline,
+    RefrigerantInput,
+    RefrigerantStatus,
+)
 from ..domain.services.cop import (
     COP_MEASUREMENTS_HISTORY_SIZE,
     COP_MEASUREMENTS_PERIOD,
@@ -74,6 +78,8 @@ class DerivedMetricsAdapter:
         has_pool: bool = False,
         supports_secondary_compressor: bool = False,
         supports_extended_compressor_sensors: bool = False,
+        superheat_plausible_range: tuple[float, float] | None = None,
+        superheat_observed_band: tuple[float, float] | None = None,
     ) -> None:
         """Initialize the adapter with domain services."""
         self._hass = hass
@@ -128,9 +134,12 @@ class DerivedMetricsAdapter:
         self._refrigerant_monitor: RefrigerantMonitor | None = None
         self._refrigerant_store: Store | None = None
         self._refrigerant_status: RefrigerantStatus | None = None
+        self._refrigerant_observed_band = superheat_observed_band
+        self._refrigerant_baseline_seen = False
         if supports_extended_compressor_sensors:
             self._refrigerant_monitor = RefrigerantMonitor(
-                InMemoryStorage(max_len=REFRIGERANT_HISTORY_DAYS)
+                InMemoryStorage(max_len=REFRIGERANT_HISTORY_DAYS),
+                superheat_plausible_range or (-10.0, 80.0),
             )
             entry_id = getattr(config_entry, "entry_id", None)
             if hass is not None and entry_id:
@@ -565,6 +574,10 @@ class DerivedMetricsAdapter:
         status = monitor.get_status()
         self._refrigerant_status = status
 
+        if status.baseline is not None and not self._refrigerant_baseline_seen:
+            self._refrigerant_baseline_seen = True
+            self._warn_if_baseline_off_band(status.baseline)
+
         data["refrigerant_charge_status"] = status.status
         data["refrigerant_charge_superheat_delta"] = status.superheat_delta
         data["refrigerant_charge_exv_delta"] = status.exv_delta
@@ -585,6 +598,25 @@ class DerivedMetricsAdapter:
         if flushed and self._refrigerant_store is not None:
             self._refrigerant_store.async_delay_save(
                 monitor.serialize, REFRIGERANT_SAVE_DELAY_S
+            )
+
+    def _warn_if_baseline_off_band(self, baseline: RefrigerantBaseline) -> None:
+        """Log a diagnostic warning if a frozen baseline is outside its model band."""
+        band = self._refrigerant_observed_band
+        if band is None:
+            return
+        low, high = band
+        if not (low <= baseline.superheat <= high):
+            _LOGGER.warning(
+                "Refrigerant baseline gas-line superheat %.1f K is outside the "
+                "expected model band [%.1f, %.1f] K. This may indicate profile "
+                "misdetection, a faulty Tg/Te sensor, or a multi-unit HC-A(16/64)MB "
+                "topology where Tg (indoor block) and Te/EVO (per-cycle outdoor "
+                "block) describe different refrigerant circuits. Detection still "
+                "works (thresholds are relative to this baseline); diagnostic only.",
+                baseline.superheat,
+                low,
+                high,
             )
 
     @property
@@ -610,12 +642,19 @@ class DerivedMetricsAdapter:
                     "the detector restarts in learning mode",
                     exc_info=True,
                 )
+            else:
+                # A restored baseline is not "just frozen": pre-seed the flag so
+                # the freeze-time off-band check does not fire on it.
+                self._refrigerant_baseline_seen = (
+                    self._refrigerant_monitor.get_status().baseline is not None
+                )
 
     async def async_reset_refrigerant(self) -> None:
         """Clear the monitor and delete its persisted state."""
         if self._refrigerant_monitor is not None:
             self._refrigerant_monitor.reset()
             self._refrigerant_status = None
+            self._refrigerant_baseline_seen = False
         if self._refrigerant_store is not None:
             await self._refrigerant_store.async_remove()
 

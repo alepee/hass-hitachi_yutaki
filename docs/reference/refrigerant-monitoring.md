@@ -1,7 +1,8 @@
 # Refrigerant-circuit anomaly detection
 
-**Status:** iteration 1 (slow refrigerant loss).
-**Issue:** [#310](https://github.com/alepee/hass-hitachi_yutaki/issues/310).
+**Status:** iteration 2 (beta): per-profile gas-line superheat plausibility bounds.
+**Issue:** [#310](https://github.com/alepee/hass-hitachi_yutaki/issues/310),
+[#393](https://github.com/alepee/hass-hitachi_yutaki/issues/393).
 
 This feature continuously watches the refrigerant circuit for the early signature of a
 **slow refrigerant charge loss**, using the same physical quantities a technician samples
@@ -9,6 +10,12 @@ during a leak-tightness inspection, but sampled on every poll of your own instal
 
 > **It is advisory only.** It **complements** and does **not** replace the mandatory,
 > periodic F-Gas leak-tightness inspection by a certified technician.
+
+> **This detection is in test (beta).** It will likely stay so for at least 1 to 2 years.
+> Validating it needs cross-season fleet data (including winters) from a still-small fleet,
+> so the thresholds and plausibility bounds will be recalibrated as more data arrives
+> (see `backend/analysis/`, next winter re-run Jan-Feb 2027). Treat every verdict as an
+> early-warning hint, not a measurement of charge.
 
 ## What it surfaces
 
@@ -35,11 +42,21 @@ The detector lives in the domain layer (`domain/services/refrigerant.py`, class
 
 ### Signals
 
-- **Suction superheat** `SH = Tg − Te` (`compressor_tg_gas_temp` −
-  `compressor_te_evaporator_temp`).
+- **Gas-line superheat** `SH = Tg − Te` (`compressor_tg_gas_temp` −
+  `compressor_te_evaporator_temp`). `Tg` (register 1206) is the **THMg gas-pipe
+  thermistor**, not a suction sensor, so in heating this `SH` is a condensing-side lift of
+  ~40-60 K rather than a classic suction superheat. Detection compares drifts against the
+  learned per-installation baseline, so this labelling detail does not change the behaviour.
 - **Outdoor expansion-valve opening** `EVO`
   (`compressor_evo_outdoor_expansion_valve_opening`, 0–100 %).
 - **Evaporating temperature** `Te` and **outdoor temperature** for context.
+
+The per-poll plausibility bounds for `SH` are supplied by the active heat-pump profile
+(`gas_superheat_plausible_range`, all `(-10, 80)` K provisionally), so the profiles remain
+the single source of truth. When a freshly frozen baseline falls outside its model's
+observed fleet band (`gas_superheat_observed_band`), a diagnostic warning is logged; it does
+not affect detection and only flags a likely profile misdetection, a faulty sensor, or a
+multi-unit HC-A(16/64)MB topology where `Tg` and `Te`/`EVO` describe different circuits.
 
 ### Sampling gate
 
@@ -129,3 +146,9 @@ All thresholds live at the top of `domain/services/refrigerant.py`
 (`BASELINE_DAYS`, `EVAL_DAYS`, `MIN_SAMPLES_PER_DAY`, `SUPERHEAT_WATCH_K`,
 `SUPERHEAT_ALERT_K`, `EVO_ALERT_PCT`, `TEMP_MATCH_K`, `ALERT_PERSIST_DAYS`,
 `STALE_AFTER_DAYS`, …) and are covered by `tests/domain/services/test_refrigerant.py`.
+
+The gas-line superheat **plausibility range** is no longer a module constant: it lives
+per-profile as `gas_superheat_plausible_range` (all `(-10, 80)` K provisionally) and is
+injected into the monitor at construction. The companion `gas_superheat_observed_band`
+feeds the freeze-time off-band check. Both are declared in `profiles/` and will be
+recalibrated per model after the next winter re-run of `backend/analysis/`.

@@ -82,6 +82,21 @@ class YutakiS80Profile(HitachiHeatPumpProfile):
         return True
 
     @property
+    def gas_superheat_plausible_range(self) -> tuple[float, float]:
+        """Return the (min, max) gas-line superheat plausibility bounds (K).
+
+        Observed fleet band: ~48.8 K (45.5-50.5). Provisional single fleet-wide
+        range; re-evaluate per model after the Jan-Feb 2027 winter re-run of
+        backend/analysis/.
+        """
+        return (-10.0, 80.0)
+
+    @property
+    def gas_superheat_observed_band(self) -> tuple[float, float] | None:
+        """Return the observed fleet band of frozen-baseline gas-line superheat."""
+        return (45.5, 50.5)
+
+    @property
     def extra_register_keys(self) -> list[str]:
         """Return a list of extra register keys required by the profile."""
         return [

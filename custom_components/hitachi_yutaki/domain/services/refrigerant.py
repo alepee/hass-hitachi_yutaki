@@ -7,11 +7,16 @@ Pure business logic, isolated from Home Assistant. Mirrors the COP service:
 optional ``timestamp`` for replay/tests and ``time()`` for the sample-interval
 throttle. See ``docs/reference/refrigerant-monitoring.md`` for the rationale.
 
-Physical basis: a slow undercharge raises suction superheat ``SH = Tg - Te`` and
+Physical basis: ``Tg`` is the THMg gas-pipe thermistor, NOT a suction sensor, so
+``SH = Tg - Te`` in heating is a condensing-side lift of ~40-60 K, not a classic
+suction superheat. A slow undercharge still raises this gas-line superheat and
 drives the expansion valve (EVO) further open to compensate, while the
-evaporating temperature ``Te`` drifts down. Superheat is a *regulated* quantity,
-so it is robust to seasonal variation; EVO and Te are not, and are compared only
-at equivalent outdoor temperature (EVO) or reported for information (Te).
+evaporating temperature ``Te`` drifts down. The detector's thresholds are drifts
+measured relative to the learned per-installation baseline, so the earlier
+"suction superheat" mislabel never affected correctness: gas-line superheat is a
+*regulated* quantity, robust to seasonal variation; EVO and Te are not, and are
+compared only at equivalent outdoor temperature (EVO) or reported for
+information (Te).
 """
 
 from __future__ import annotations
@@ -36,9 +41,9 @@ SAMPLE_MIN_INTERVAL_S = 60  # at most one sample per minute (like COP)
 MIN_FREQUENCY = 20.0  # Hz — skip idle and very-low-load startup noise
 MAX_FREQUENCY = 150.0  # Hz — keep load roughly comparable
 
-# Plausibility bounds (a sample outside any bound is discarded)
-SUPERHEAT_MIN_K = -10.0
-SUPERHEAT_MAX_K = 40.0
+# Plausibility bounds (a sample outside any bound is discarded).
+# The gas-line superheat bounds are supplied per-installation by the active
+# profile (``gas_superheat_plausible_range``).
 EVO_MIN_PCT = 0.0
 EVO_MAX_PCT = 100.0  # datasheet range; also guards EVO's 0xFFFF (=65535) case
 EVAP_MIN_C = -60.0
@@ -86,9 +91,19 @@ class RefrigerantMonitor:
     in-memory buffer that is intentionally not persisted.
     """
 
-    def __init__(self, storage: Storage[DailyAggregate]) -> None:
-        """Initialize the monitor with a bounded daily-aggregate storage."""
+    def __init__(
+        self,
+        storage: Storage[DailyAggregate],
+        superheat_plausible_range: tuple[float, float],
+    ) -> None:
+        """Initialize the monitor with a bounded daily-aggregate storage.
+
+        ``superheat_plausible_range`` is the (min, max) gas-line superheat band
+        (K) supplied by the active profile; samples outside it are discarded.
+        Required so the profiles remain the single source of truth.
+        """
         self._storage = storage
+        self._superheat_min, self._superheat_max = superheat_plausible_range
         self._baseline: RefrigerantBaseline | None = None
         self._alert_streak = 0
 
@@ -127,7 +142,7 @@ class RefrigerantMonitor:
             return flushed
 
         superheat = data.gas_temp - data.evaporator_temp  # type: ignore[operator]
-        if not (SUPERHEAT_MIN_K <= superheat <= SUPERHEAT_MAX_K):
+        if not (self._superheat_min <= superheat <= self._superheat_max):
             return flushed
         if not (EVO_MIN_PCT <= data.outdoor_expansion_valve <= EVO_MAX_PCT):  # type: ignore[operator]
             return flushed
