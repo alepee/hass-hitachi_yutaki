@@ -7,16 +7,16 @@ Pure business logic, isolated from Home Assistant. Mirrors the COP service:
 optional ``timestamp`` for replay/tests and ``time()`` for the sample-interval
 throttle. See ``docs/reference/refrigerant-monitoring.md`` for the rationale.
 
-Physical basis: ``Tg`` is the THMg gas-pipe thermistor (register 1206), NOT a
-suction sensor, so ``SH = Tg - Te`` in heating is a condensing-side lift of
-~40-60 K, not a classic suction superheat. A slow undercharge still raises this
-gas-line superheat and drives the expansion valve (EVO) further open to
-compensate, while the evaporating temperature ``Te`` drifts down. The detector's
-thresholds are drifts measured relative to the learned per-installation baseline,
-so the earlier "suction superheat" mislabel never affected correctness: gas-line
-superheat is a *regulated* quantity, robust to seasonal variation; EVO and Te are
-not, and are compared only at equivalent outdoor temperature (EVO) or reported
-for information (Te).
+Physical basis: ``Tg`` is the THMg gas-pipe thermistor, NOT a suction sensor, so
+``SH = Tg - Te`` in heating is a condensing-side lift of ~40-60 K, not a classic
+suction superheat. A slow undercharge still raises this gas-line superheat and
+drives the expansion valve (EVO) further open to compensate, while the
+evaporating temperature ``Te`` drifts down. The detector's thresholds are drifts
+measured relative to the learned per-installation baseline, so the earlier
+"suction superheat" mislabel never affected correctness: gas-line superheat is a
+*regulated* quantity, robust to seasonal variation; EVO and Te are not, and are
+compared only at equivalent outdoor temperature (EVO) or reported for
+information (Te).
 """
 
 from __future__ import annotations
@@ -43,7 +43,7 @@ MAX_FREQUENCY = 150.0  # Hz — keep load roughly comparable
 
 # Plausibility bounds (a sample outside any bound is discarded).
 # The gas-line superheat bounds are supplied per-installation by the active
-# profile (``gas_superheat_plausible_range``); they are not a module constant.
+# profile (``gas_superheat_plausible_range``).
 EVO_MIN_PCT = 0.0
 EVO_MAX_PCT = 100.0  # datasheet range; also guards EVO's 0xFFFF (=65535) case
 EVAP_MIN_C = -60.0

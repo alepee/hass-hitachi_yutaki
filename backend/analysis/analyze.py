@@ -17,7 +17,10 @@ INSTALLS = json.loads((HERE / "data" / "installations.json").read_text())
 
 MIN_FREQ, MAX_FREQ = 20.0, 150.0
 MIN_SAMPLES_PER_DAY = 30
-SH_CAP_DETECTOR = 40.0  # historical: SUPERHEAT_MAX_K removed; bounds now per-profile
+# Old fixed plausibility cap, kept only to measure how many fleet samples it
+# would have rejected (the finding that motivated the per-profile range). Not a
+# detection parameter: the integration now sets bounds per profile.
+OLD_FIXED_SH_CAP = 40.0
 
 MODE_MAP = {
     "operation_state_heat_thermo_on": "heat",
@@ -75,7 +78,7 @@ def summarize(rows):
                 "outdoor": round(median(r[4] for r in drows), 1),
                 "freq": round(median(r[5] for r in drows)),
                 "pct_sh_gt40": round(
-                    100 * sum(s > SH_CAP_DETECTOR for s in shs) / len(shs)
+                    100 * sum(s > OLD_FIXED_SH_CAP for s in shs) / len(shs)
                 ),
             }
         )
