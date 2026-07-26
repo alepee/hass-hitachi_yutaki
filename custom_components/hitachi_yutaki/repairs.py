@@ -15,11 +15,15 @@ from homeassistant.helpers.issue_registry import async_delete_issue
 from .api import GATEWAY_INFO
 from .const import (
     CONF_ELECTRICITY_PRICE_ENTITY,
+    CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
+    DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
     DOMAIN,
 )
 from .profiles import PROFILES
+
+_REFRIGERANT_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/refrigerant-monitoring.md"
 
 
 class MissingConfigRepairFlow(RepairsFlow):
@@ -159,6 +163,63 @@ class EnableTelemetryRepairFlow(RepairsFlow):
         )
 
 
+class EnableRefrigerantDetectionRepairFlow(RepairsFlow):
+    """Onboarding flow to enable refrigerant charge detection on existing installs."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Redirect to the confirm step.
+
+        The FlowManager passes the init data dict as user_input to async_step_init,
+        so we must redirect to a separate step to show the actual form.
+        """
+        return await self.async_step_confirm()
+
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Show the advanced-features consent panel and store the choice."""
+        # Extract entry_id (format: "enable_refrigerant_detection_{entry_id}")
+        entry_id = self.issue_id.removeprefix("enable_refrigerant_detection_")
+
+        config_entries = self.hass.config_entries.async_entries(DOMAIN)
+        entry = next((e for e in config_entries if e.entry_id == entry_id), None)
+
+        if entry is None:
+            return self.async_abort(reason="entry_not_found")
+
+        if user_input is not None:
+            consent = user_input.get(
+                CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+            )
+            new_options = {**entry.options, CONF_REFRIGERANT_DETECTION: consent}
+            self.hass.config_entries.async_update_entry(entry, options=new_options)
+
+            async_delete_issue(self.hass, DOMAIN, self.issue_id)
+
+            # Reload to build (or tear down) the detector per the new choice.
+            await self.hass.config_entries.async_reload(entry.entry_id)
+
+            return self.async_create_entry(data={})
+
+        current = entry.options.get(
+            CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+        )
+
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_REFRIGERANT_DETECTION, default=current
+                    ): selector.BooleanSelector()
+                }
+            ),
+            description_placeholders={"learn_more_url": _REFRIGERANT_DOC_URL},
+        )
+
+
 class EnergyCostRepairFlow(RepairsFlow):
     """Handler for repair flow to configure electricity price sensor."""
 
@@ -261,6 +322,8 @@ async def async_create_fix_flow(
         return EnergyCostRepairFlow()
     if issue_id.startswith("enable_telemetry_"):
         return EnableTelemetryRepairFlow()
+    if issue_id.startswith("enable_refrigerant_detection_"):
+        return EnableRefrigerantDetectionRepairFlow()
     if issue_id.startswith("refrigerant_charge_alert_"):
         return RefrigerantServicedRepairFlow()
     return MissingConfigRepairFlow()

@@ -33,11 +33,12 @@ def _store_key(entry_id: str) -> str:
 
 
 def _create_per_entry_issues(hass: HomeAssistant, entry_id: str) -> list[str]:
-    """Create the four per-entry repair issues and return their ids."""
+    """Create the per-entry repair issues and return their ids."""
     issue_ids = [
         f"missing_config_{entry_id}",
         f"enable_energy_cost_{entry_id}",
         f"enable_telemetry_{entry_id}",
+        f"enable_refrigerant_detection_{entry_id}",
         f"refrigerant_charge_alert_{entry_id}",
     ]
     for issue_id in issue_ids:

@@ -80,6 +80,7 @@ class DerivedMetricsAdapter:
         supports_extended_compressor_sensors: bool = False,
         superheat_plausible_range: tuple[float, float] | None = None,
         superheat_observed_band: tuple[float, float] | None = None,
+        refrigerant_detection_enabled: bool = True,
     ) -> None:
         """Initialize the adapter with domain services."""
         self._hass = hass
@@ -136,7 +137,7 @@ class DerivedMetricsAdapter:
         self._refrigerant_status: RefrigerantStatus | None = None
         self._refrigerant_observed_band = superheat_observed_band
         self._refrigerant_baseline_seen = False
-        if supports_extended_compressor_sensors:
+        if supports_extended_compressor_sensors and refrigerant_detection_enabled:
             self._refrigerant_monitor = RefrigerantMonitor(
                 InMemoryStorage(max_len=REFRIGERANT_HISTORY_DAYS),
                 superheat_plausible_range or (-10.0, 80.0),

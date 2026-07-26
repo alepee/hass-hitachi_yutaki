@@ -12,6 +12,7 @@ from custom_components.hitachi_yutaki.const import (
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
     CONF_POWER_ENTITY,
+    CONF_REFRIGERANT_DETECTION,
     DEFAULT_DEVICE_ID,
     DEFAULT_HOST,
     DEFAULT_NAME,
@@ -395,12 +396,51 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
             result["flow_id"], POWER_INPUT
         )
 
+    # yutaki_s exposes extended compressor sensors, so the "Advanced features
+    # (beta)" panel (refrigerant consent) is the last step before entry creation.
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "advanced_features"
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {CONF_REFRIGERANT_DETECTION: True}
+    )
+
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["title"] == DEFAULT_NAME
     assert result["data"]["gateway_type"] == "modbus_atw_mbs_02"
     assert result["data"]["gateway_variant"] == "gen2"
     assert result["data"]["profile"] == "yutaki_s"
     assert result["data"]["power_supply"] == DEFAULT_POWER_SUPPLY
+    assert result["options"][CONF_REFRIGERANT_DETECTION] is True
+
+
+async def test_full_flow_skips_refrigerant_when_unsupported(
+    hass: HomeAssistant,
+) -> None:
+    """A profile without extended sensors (Yutampo R32) skips the consent step."""
+    mock_client = _mock_api_client()
+    mock_gw_info = _mock_gateway_info(mock_client)
+    mock_profs = _mock_profiles()
+
+    # Advance to the profile step, then select the DHW-only Yutampo R32.
+    result = await _advance_to_profile(hass, mock_client, mock_gw_info, mock_profs)
+    assert result["step_id"] == "profile"
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {"profile": "yutampo_r32"}
+    )
+    assert result["step_id"] == "power"
+
+    with (
+        patch(_PATCH_CF_GW_INFO, mock_gw_info),
+        patch(_PATCH_CF_CREATE_RM),
+    ):
+        result = await hass.config_entries.flow.async_configure(
+            result["flow_id"], POWER_INPUT
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["profile"] == "yutampo_r32"
+    assert result["options"][CONF_REFRIGERANT_DETECTION] is False
 
 
 async def test_validate_connection_system_initializing(
@@ -605,6 +645,12 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
         result["flow_id"],
         {"power_supply": "three"},
     )
+    # yutaki_s_combi exposes extended sensors: refrigerant consent step first.
+    assert result["step_id"] == "advanced_features"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_REFRIGERANT_DETECTION: True},
+    )
     assert result["step_id"] == "telemetry"
 
     # Step 5: telemetry
@@ -623,7 +669,9 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
     assert entry.data["gateway_variant"] == "gen1"
 
 
-async def _walk_options_flow_to_sensors(hass: HomeAssistant, entry: MockConfigEntry):
+async def _walk_options_flow_to_sensors(
+    hass: HomeAssistant, entry: MockConfigEntry, profile: str = "yutaki_s"
+):
     """Drive the options flow from init up to (and including) the sensors form.
 
     Returns the flow result whose step_id is "sensors", ready for the caller to
@@ -666,7 +714,7 @@ async def _walk_options_flow_to_sensors(hass: HomeAssistant, entry: MockConfigEn
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {"profile": "yutaki_s"},
+        {"profile": profile},
     )
     assert result["step_id"] == "sensors"
     return result
@@ -700,6 +748,11 @@ async def test_options_flow_clears_optional_sensor(hass: HomeAssistant) -> None:
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         {"power_supply": "single"},
+    )
+    assert result["step_id"] == "advanced_features"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_REFRIGERANT_DETECTION: False},
     )
     assert result["step_id"] == "telemetry"
 
@@ -746,6 +799,11 @@ async def test_options_flow_keeps_unset_optional_sensor_value(
             CONF_ENERGY_ENTITY: "sensor.new_energy",
         },
     )
+    assert result["step_id"] == "advanced_features"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_REFRIGERANT_DETECTION: False},
+    )
     assert result["step_id"] == "telemetry"
 
     with patch.object(hass.config_entries, "async_reload"):
@@ -788,6 +846,11 @@ async def test_options_flow_preserves_unrelated_data_when_clearing_sensor(
         result["flow_id"],
         {"power_supply": "single"},
     )
+    assert result["step_id"] == "advanced_features"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_REFRIGERANT_DETECTION: False},
+    )
     assert result["step_id"] == "telemetry"
 
     with patch.object(hass.config_entries, "async_reload"):
@@ -802,3 +865,81 @@ async def test_options_flow_preserves_unrelated_data_when_clearing_sensor(
     assert entry.data["gateway_variant"] == "gen1"
     assert entry.data["scan_interval"] == DEFAULT_SCAN_INTERVAL
     assert entry.data["profile"] == "yutaki_s"
+
+
+async def test_options_flow_skips_refrigerant_for_yutampo(
+    hass: HomeAssistant,
+) -> None:
+    """A Yutampo R32 entry walks sensors -> telemetry (no refrigerant step)."""
+    entry = MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title=DEFAULT_NAME,
+        data={
+            "gateway_type": "modbus_atw_mbs_02",
+            "gateway_variant": "gen2",
+            "name": DEFAULT_NAME,
+            CONF_MODBUS_HOST: DEFAULT_HOST,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
+            "profile": "yutampo_r32",
+            "power_supply": DEFAULT_POWER_SUPPLY,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    result = await _walk_options_flow_to_sensors(hass, entry, profile="yutampo_r32")
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"power_supply": "single"},
+    )
+    # Unsupported profile: refrigerant consent is skipped entirely.
+    assert result["step_id"] == "telemetry"
+
+
+async def test_options_flow_persists_refrigerant_consent(
+    hass: HomeAssistant,
+) -> None:
+    """Enabling consent lands in entry.options, never in entry.data."""
+    entry = MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title=DEFAULT_NAME,
+        data={
+            "gateway_type": "modbus_atw_mbs_02",
+            "gateway_variant": "gen2",
+            "name": DEFAULT_NAME,
+            CONF_MODBUS_HOST: DEFAULT_HOST,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
+            "profile": "yutaki_s",
+            "power_supply": DEFAULT_POWER_SUPPLY,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    result = await _walk_options_flow_to_sensors(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"power_supply": "single"},
+    )
+    assert result["step_id"] == "advanced_features"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_REFRIGERANT_DETECTION: True},
+    )
+    assert result["step_id"] == "telemetry"
+
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {"telemetry_level": "off"},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options[CONF_REFRIGERANT_DETECTION] is True
+    assert CONF_REFRIGERANT_DETECTION not in entry.data

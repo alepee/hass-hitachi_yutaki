@@ -26,12 +26,14 @@ from .const import (
     CONF_MODBUS_PORT,
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
+    CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
     CONF_UNIT_ID,
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
     DEFAULT_POWER_SUPPLY,
+    DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
     DEFAULT_UNIT_ID,
     DOMAIN,
@@ -39,6 +41,8 @@ from .const import (
 from .profiles import PROFILES
 
 _LOGGER = logging.getLogger(__name__)
+
+_REFRIGERANT_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/refrigerant-monitoring.md"
 
 # Editable optional external-sensor keys rendered by the options "sensors" step.
 # These are the only keys reconciled when a selector is cleared (see #323):
@@ -130,6 +134,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._current_step_index: int = 0
         self._step_context: dict[str, Any] = {}
         self.detected_profiles: list[str] = []
+        self._pending_config: dict[str, Any] = {}
 
     @staticmethod
     def is_matching(_, other_flow: dict) -> bool:
@@ -375,9 +380,21 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         await self.async_set_unique_id(unique_id)
                         self._abort_if_unique_id_configured()
 
+                        self._pending_config = config
+                        profile_cls = PROFILES.get(config.get("profile"))
+                        if (
+                            profile_cls is not None
+                            and profile_cls().supports_extended_compressor_sensors
+                        ):
+                            return await self.async_step_advanced_features()
                         return self.async_create_entry(
                             title=config[CONF_NAME],
                             data=config,
+                            options={
+                                CONF_REFRIGERANT_DETECTION: (
+                                    DEFAULT_REFRIGERANT_DETECTION
+                                )
+                            },
                         )
                     else:
                         errors["base"] = "invalid_slave"
@@ -397,6 +414,38 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    async def async_step_advanced_features(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Advanced features (beta) panel: refrigerant charge-loss detection consent.
+
+        Last step of the install flow, only reached for profiles that expose the
+        extended compressor sensors. The refrigerant detection toggle is the
+        first (currently only) feature in this panel.
+        """
+        if user_input is not None:
+            consent = user_input.get(
+                CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+            )
+            return self.async_create_entry(
+                title=self._pending_config[CONF_NAME],
+                data=self._pending_config,
+                options={CONF_REFRIGERANT_DETECTION: consent},
+            )
+
+        return self.async_show_form(
+            step_id="advanced_features",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_REFRIGERANT_DETECTION,
+                        default=DEFAULT_REFRIGERANT_DETECTION,
+                    ): selector.BooleanSelector()
+                }
+            ),
+            description_placeholders={"learn_more_url": _REFRIGERANT_DOC_URL},
+        )
+
 
 class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     """Handle options as a multi-step flow mirroring initial setup."""
@@ -411,6 +460,9 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         # Whether the "sensors" step was submitted, so cleared optional sensor
         # keys are only reconciled for flows that actually reached it (#323).
         self._sensors_submitted: bool = False
+        # Refrigerant consent collected by async_step_advanced_features, kept out
+        # of self._collected so it never leaks into entry.data (options-only).
+        self._refrigerant_detection: bool | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -558,7 +610,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         if user_input is not None:
             self._sensors_submitted = True
             self._collected.update(user_input)
-            return await self.async_step_telemetry()
+            return await self.async_step_advanced_features()
 
         data = self.config_entry.data
 
@@ -630,6 +682,44 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             },
         )
 
+    async def async_step_advanced_features(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Options step: advanced features (beta) panel, refrigerant consent.
+
+        Sits just before the telemetry step. Skipped for profiles without the
+        extended compressor sensors (e.g. Yutampo R32).
+        """
+        profile_key = self._collected.get(
+            "profile", self.config_entry.data.get("profile")
+        )
+        profile_cls = PROFILES.get(profile_key)
+        supported = (
+            profile_cls is not None
+            and profile_cls().supports_extended_compressor_sensors
+        )
+        if not supported:
+            return await self.async_step_telemetry()
+        if user_input is not None:
+            self._refrigerant_detection = user_input.get(
+                CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+            )
+            return await self.async_step_telemetry()
+        current = self.config_entry.options.get(
+            CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+        )
+        return self.async_show_form(
+            step_id="advanced_features",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_REFRIGERANT_DETECTION, default=current
+                    ): selector.BooleanSelector()
+                }
+            ),
+            description_placeholders={"learn_more_url": _REFRIGERANT_DOC_URL},
+        )
+
     async def async_step_telemetry(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
@@ -642,6 +732,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
                 ),
             }
+            if self._refrigerant_detection is not None:
+                new_options[CONF_REFRIGERANT_DETECTION] = self._refrigerant_detection
 
             # Merge: entry defaults < provider context < user-collected
             # Clean up internal keys (prefixed with _) from provider context
@@ -668,7 +760,11 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             self.hass.async_create_task(
                 self.hass.config_entries.async_reload(self.config_entry.entry_id)
             )
-            return self.async_create_entry(title="", data={})
+            # Return the options as the flow result so HA's OptionsFlowManager
+            # persists them: returning an empty dict here makes async_finish_flow
+            # overwrite entry.options with {}, wiping the telemetry and
+            # refrigerant consent just written above.
+            return self.async_create_entry(title="", data=new_options)
 
         current_level = self.config_entry.options.get(
             CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL

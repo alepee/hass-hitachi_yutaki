@@ -124,6 +124,13 @@
           "electricity_price_entity": "Een sensor die de huidige elektriciteitsprijs levert in uw valuta per kWh (bijv. 0,18 voor 0,18 {currency}/kWh). Schakelt de elektriciteitskostensensor in."
         }
       },
+      "advanced_features": {
+        "title": "Geavanceerde functies (bèta)",
+        "description": "🧪 Schakel experimentele vroegtijdige detectie in van een langzaam verlies van koudemiddelvulling, lokaal berekend op basis van de signalen van uw compressor.\n\n⚠️ Deze functie is in bèta en steunt momenteel op zeer weinig validatiegegevens. Ze wordt pas als stabiel beschouwd nadat ze een volledig winterstookseizoen lang is getoetst. Beschouw elke waarschuwing als een aanleiding om beter te kijken, niet als een diagnose: het kan een vals positief zijn. Bel GEEN technicus en maak geen kosten op basis van een waarschuwing alleen, controleer altijd eerst zelf. Ze is adviserend en vervangt niet de verplichte F-gas-lekdichtheidscontrole.\n\n🙏 Door anonieme telemetrie in te schakelen (volgende stap / integratie-opties) help je me de betrouwbaarheid van de detector over alle installaties te controleren en sneller een stabiele versie te bereiken.\n\nJe kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over koudemiddelbewaking]({learn_more_url})",
+        "data": {
+          "refrigerant_detection": "Bewaking van koudemiddelvulling inschakelen (bèta)"
+        }
+      },
       "repair": {
         "title": "Hitachi Yutaki Configuratie Herstellen",
         "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters. Selecteer de ontbrekende parameters om door te gaan.",
@@ -211,6 +218,13 @@
         },
         "data_description": {
           "electricity_price_entity": "Een sensor die de huidige elektriciteitsprijs levert in uw valuta per kWh (bijv. 0,18 voor 0,18 {currency}/kWh). Schakelt de elektriciteitskostensensor in."
+        }
+      },
+      "advanced_features": {
+        "title": "Geavanceerde functies (bèta)",
+        "description": "🧪 Schakel experimentele vroegtijdige detectie in van een langzaam verlies van koudemiddelvulling, lokaal berekend op basis van de signalen van uw compressor.\n\n⚠️ Deze functie is in bèta en steunt momenteel op zeer weinig validatiegegevens. Ze wordt pas als stabiel beschouwd nadat ze een volledig winterstookseizoen lang is getoetst. Beschouw elke waarschuwing als een aanleiding om beter te kijken, niet als een diagnose: het kan een vals positief zijn. Bel GEEN technicus en maak geen kosten op basis van een waarschuwing alleen, controleer altijd eerst zelf. Ze is adviserend en vervangt niet de verplichte F-gas-lekdichtheidscontrole.\n\n🙏 Door anonieme telemetrie in te schakelen (volgende stap / integratie-opties) help je me de betrouwbaarheid van de detector over alle installaties te controleren en sneller een stabiele versie te bereiken.\n\nJe kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over koudemiddelbewaking]({learn_more_url})",
+        "data": {
+          "refrigerant_detection": "Bewaking van koudemiddelvulling inschakelen (bèta)"
         }
       }
     },
@@ -794,6 +808,20 @@
             "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld. U kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over telemetrie]({learn_more_url})",
             "data": {
               "telemetry_level": "Anonieme telemetrie"
+            }
+          }
+        }
+      }
+    },
+    "enable_refrigerant_detection": {
+      "title": "Probeer koudemiddelbewaking (bèta)",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Geavanceerde functies (bèta)",
+            "description": "🧪 Schakel experimentele vroegtijdige detectie in van een langzaam verlies van koudemiddelvulling, lokaal berekend op basis van de signalen van uw compressor.\n\n⚠️ Deze functie is in bèta en steunt momenteel op zeer weinig validatiegegevens. Ze wordt pas als stabiel beschouwd nadat ze een volledig winterstookseizoen lang is getoetst. Beschouw elke waarschuwing als een aanleiding om beter te kijken, niet als een diagnose: het kan een vals positief zijn. Bel GEEN technicus en maak geen kosten op basis van een waarschuwing alleen, controleer altijd eerst zelf. Ze is adviserend en vervangt niet de verplichte F-gas-lekdichtheidscontrole.\n\n🙏 Door anonieme telemetrie in te schakelen (volgende stap / integratie-opties) help je me de betrouwbaarheid van de detector over alle installaties te controleren en sneller een stabiele versie te bereiken.\n\nJe kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over koudemiddelbewaking]({learn_more_url})",
+            "data": {
+              "refrigerant_detection": "Bewaking van koudemiddelvulling inschakelen (bèta)"
             }
           }
         }

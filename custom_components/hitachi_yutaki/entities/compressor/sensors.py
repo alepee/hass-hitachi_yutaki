@@ -355,7 +355,7 @@ def _build_refrigerant_sensor_descriptions() -> tuple[
             options=[STATUS_LEARNING, STATUS_OK, STATUS_WATCH, STATUS_ALERT],
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:gauge-low",
-            condition=lambda c: c.profile.supports_extended_compressor_sensors,
+            condition=lambda c: c.refrigerant_detection_active,
             value_fn=lambda c: c.data.get("refrigerant_charge_status"),
             attributes_fn=_refrigerant_attributes,
         ),

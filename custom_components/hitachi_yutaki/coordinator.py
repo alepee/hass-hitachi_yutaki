@@ -27,6 +27,8 @@ from .const import (
     CIRCUIT_MODES,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
+    CONF_REFRIGERANT_DETECTION,
+    DEFAULT_REFRIGERANT_DETECTION,
     DOMAIN,
 )
 from .domain.services.defrost_guard import DefrostGuard
@@ -106,6 +108,16 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         if self.derived_metrics is not None:
             return self.derived_metrics.defrost_guard
         return self._defrost_guard
+
+    @property
+    def refrigerant_detection_active(self) -> bool:
+        """True only when the profile exposes extended sensors AND the user opted in."""
+        return bool(
+            self.profile.supports_extended_compressor_sensors
+            and self.config_entry.options.get(
+                CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+            )
+        )
 
     @property
     def gateway_not_ready(self) -> bool:
@@ -398,6 +410,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         issue switches to the dedicated stale text. It complements and does not
         replace the mandatory F-Gas inspection.
         """
+        if not self.refrigerant_detection_active:
+            ir.async_delete_issue(self.hass, DOMAIN, self._refrigerant_issue_id())
+            return
+
         status = getattr(self.derived_metrics, "refrigerant_status", None)
         issue_id = self._refrigerant_issue_id()
         if status is not None and status.alert_streak >= REFRIGERANT_ALERT_PERSIST_DAYS:

@@ -40,6 +40,7 @@ def _make_adapter(
     has_pool: bool = False,
     supports_secondary_compressor: bool = False,
     supports_extended_compressor_sensors: bool = False,
+    refrigerant_detection_enabled: bool = True,
 ) -> DerivedMetricsAdapter:
     """Create a minimal adapter for testing."""
     config_entry = MagicMock()
@@ -53,6 +54,7 @@ def _make_adapter(
         has_pool=has_pool,
         supports_secondary_compressor=supports_secondary_compressor,
         supports_extended_compressor_sensors=supports_extended_compressor_sensors,
+        refrigerant_detection_enabled=refrigerant_detection_enabled,
     )
 
 
@@ -537,6 +539,32 @@ class TestRestoreRefrigerantGuard:
         status = adapter._refrigerant_monitor.get_status()
         assert status.valid_days == 0
         assert status.alert_streak == 0
+
+
+class TestRefrigerantDetectionGate:
+    """Consent gate: the monitor is only built when detection is enabled."""
+
+    def test_no_monitor_when_detection_disabled(self):
+        """Capability present but consent off: no monitor, no verdict."""
+        adapter = _make_adapter(
+            supports_extended_compressor_sensors=True,
+            refrigerant_detection_enabled=False,
+        )
+        assert adapter._refrigerant_monitor is None
+        assert adapter._refrigerant_store is None
+
+        adapter.update(_sample_data())
+
+        assert adapter.refrigerant_status is None
+        assert adapter._refrigerant_status is None
+
+    def test_monitor_built_when_detection_enabled(self):
+        """Capability present and consent on: monitor is built."""
+        adapter = _make_adapter(
+            supports_extended_compressor_sensors=True,
+            refrigerant_detection_enabled=True,
+        )
+        assert adapter._refrigerant_monitor is not None
 
 
 def _baseline(superheat: float) -> RefrigerantBaseline:

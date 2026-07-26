@@ -124,6 +124,13 @@
           "electricity_price_entity": "Un senzor care furnizează prețul curent al electricității în moneda dvs. per kWh (de ex. 0,18 pentru 0,18 {currency}/kWh). Activează senzorul de cost al electricității."
         }
       },
+      "advanced_features": {
+        "title": "Funcții avansate (beta)",
+        "description": "🧪 Activați detectarea experimentală timpurie a unei pierderi lente a încărcăturii de agent frigorific, calculată local pe baza semnalelor compresorului.\n\n⚠️ Această funcție este în beta și se bazează deocamdată pe foarte puține date de validare. Va fi considerată stabilă abia după ce va fi verificată pe parcursul unui întreg sezon de încălzire de iarnă. Tratați orice alertă ca pe un motiv de a verifica mai atent, nu ca pe un diagnostic: poate fi un fals pozitiv. NU chemați un tehnician și nu faceți cheltuieli doar pe baza unei alerte, verificați întotdeauna mai întâi. Are rol consultativ și nu înlocuiește inspecția obligatorie de etanșeitate F-Gaz.\n\n🙏 Activarea telemetriei anonime (pasul următor / opțiunile integrării) mă ajută să verific fiabilitatea detectorului pe întregul parc de instalații și să ajung mai repede la o versiune stabilă.\n\nPuteți modifica această opțiune oricând în opțiunile integrării.\n\n[Aflați mai multe despre monitorizarea agentului frigorific]({learn_more_url})",
+        "data": {
+          "refrigerant_detection": "Activați monitorizarea încărcăturii de agent frigorific (beta)"
+        }
+      },
       "repair": {
         "title": "Reparare configurație Hitachi Yutaki",
         "description": "Integrarea Hitachi Yutaki nu are parametrii de configurare necesari. Selectați parametrii lipsă pentru a continua.",
@@ -211,6 +218,13 @@
         },
         "data_description": {
           "electricity_price_entity": "Un senzor care furnizează prețul curent al electricității în moneda dvs. per kWh (de ex. 0,18 pentru 0,18 {currency}/kWh). Activează senzorul de cost al electricității."
+        }
+      },
+      "advanced_features": {
+        "title": "Funcții avansate (beta)",
+        "description": "🧪 Activați detectarea experimentală timpurie a unei pierderi lente a încărcăturii de agent frigorific, calculată local pe baza semnalelor compresorului.\n\n⚠️ Această funcție este în beta și se bazează deocamdată pe foarte puține date de validare. Va fi considerată stabilă abia după ce va fi verificată pe parcursul unui întreg sezon de încălzire de iarnă. Tratați orice alertă ca pe un motiv de a verifica mai atent, nu ca pe un diagnostic: poate fi un fals pozitiv. NU chemați un tehnician și nu faceți cheltuieli doar pe baza unei alerte, verificați întotdeauna mai întâi. Are rol consultativ și nu înlocuiește inspecția obligatorie de etanșeitate F-Gaz.\n\n🙏 Activarea telemetriei anonime (pasul următor / opțiunile integrării) mă ajută să verific fiabilitatea detectorului pe întregul parc de instalații și să ajung mai repede la o versiune stabilă.\n\nPuteți modifica această opțiune oricând în opțiunile integrării.\n\n[Aflați mai multe despre monitorizarea agentului frigorific]({learn_more_url})",
+        "data": {
+          "refrigerant_detection": "Activați monitorizarea încărcăturii de agent frigorific (beta)"
         }
       }
     },
@@ -794,6 +808,20 @@
             "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale. Puteți modifica aceasta oricând din opțiunile integrării.\n\n[Aflați mai multe despre telemetrie]({learn_more_url})",
             "data": {
               "telemetry_level": "Telemetrie anonimă"
+            }
+          }
+        }
+      }
+    },
+    "enable_refrigerant_detection": {
+      "title": "Încercați monitorizarea încărcăturii de agent frigorific (beta)",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Funcții avansate (beta)",
+            "description": "🧪 Activați detectarea experimentală timpurie a unei pierderi lente a încărcăturii de agent frigorific, calculată local pe baza semnalelor compresorului.\n\n⚠️ Această funcție este în beta și se bazează deocamdată pe foarte puține date de validare. Va fi considerată stabilă abia după ce va fi verificată pe parcursul unui întreg sezon de încălzire de iarnă. Tratați orice alertă ca pe un motiv de a verifica mai atent, nu ca pe un diagnostic: poate fi un fals pozitiv. NU chemați un tehnician și nu faceți cheltuieli doar pe baza unei alerte, verificați întotdeauna mai întâi. Are rol consultativ și nu înlocuiește inspecția obligatorie de etanșeitate F-Gaz.\n\n🙏 Activarea telemetriei anonime (pasul următor / opțiunile integrării) mă ajută să verific fiabilitatea detectorului pe întregul parc de instalații și să ajung mai repede la o versiune stabilă.\n\nPuteți modifica această opțiune oricând în opțiunile integrării.\n\n[Aflați mai multe despre monitorizarea agentului frigorific]({learn_more_url})",
+            "data": {
+              "refrigerant_detection": "Activați monitorizarea încărcăturii de agent frigorific (beta)"
             }
           }
         }
