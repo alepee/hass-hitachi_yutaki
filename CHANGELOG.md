@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0-beta.3] - 2026-07-26
+
 ### Changed
 - Refrigerant charge detection (beta) is now opt-in and off by default. It lives in a new "Advanced features (beta)" panel (its first toggle) shown as the last step of setup and in the integration Options (the cog), and existing installations get a one-time onboarding notification ("Try refrigerant charge monitoring (beta)") whose fix flow enables it. The panel is only offered on profiles with the extended compressor sensors (never the Yutampo R32). The consent text strongly cautions that the feature is experimental, rests on very little validation data, and will only be considered stable after a full winter heating season: any alert is a hint to look closer, not a diagnosis (it can be a false positive), so do not call a technician or pay for a service on an alert alone, always double-check first. It also invites enabling anonymous telemetry so the detector's reliability can be validated across the fleet. The detector, its `Refrigerant Charge Status` sensor, the `Reset Refrigerant Baseline` button and the repair issue now run only when both the heat-pump profile exposes the extended compressor sensors and you have consented (#393).
 - Refrigerant charge alert: the repair issue is now fixable: confirming the circuit was serviced resets the detection baseline (same as the Reset Refrigerant Baseline button) (#384).
