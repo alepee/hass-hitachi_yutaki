@@ -124,6 +124,13 @@
           "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh). Enables the electricity cost sensor."
         }
       },
+      "advanced_features": {
+        "title": "Advanced features (beta)",
+        "description": "🧪 Enable experimental early detection of a slow refrigerant charge loss, computed locally from your compressor signals.\n\n⚠️ This feature is in beta and currently rests on very little validation data. It will only be considered stable after it has been checked across a full winter heating season. Treat any alert as a hint to look closer, not as a diagnosis: it can be a false positive. Do NOT call a technician or pay for a service on the strength of an alert alone, always double-check first. It is advisory and does not replace the mandatory F-Gas leak-tightness inspection.\n\n🙏 Turning on anonymous telemetry (next step / integration options) helps me check the detector's reliability across the whole fleet and reach a stable release sooner.\n\nYou can change this at any time in the integration options.\n\n[Learn more about refrigerant monitoring]({learn_more_url})",
+        "data": {
+          "refrigerant_detection": "Enable refrigerant charge monitoring (beta)"
+        }
+      },
       "repair": {
         "title": "Repair Hitachi Yutaki Configuration",
         "description": "Your Hitachi Yutaki integration is missing required configuration parameters. Please select the missing parameters to continue.",
@@ -211,6 +218,13 @@
         },
         "data_description": {
           "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh). Enables the electricity cost sensor."
+        }
+      },
+      "advanced_features": {
+        "title": "Advanced features (beta)",
+        "description": "🧪 Enable experimental early detection of a slow refrigerant charge loss, computed locally from your compressor signals.\n\n⚠️ This feature is in beta and currently rests on very little validation data. It will only be considered stable after it has been checked across a full winter heating season. Treat any alert as a hint to look closer, not as a diagnosis: it can be a false positive. Do NOT call a technician or pay for a service on the strength of an alert alone, always double-check first. It is advisory and does not replace the mandatory F-Gas leak-tightness inspection.\n\n🙏 Turning on anonymous telemetry (next step / integration options) helps me check the detector's reliability across the whole fleet and reach a stable release sooner.\n\nYou can change this at any time in the integration options.\n\n[Learn more about refrigerant monitoring]({learn_more_url})",
+        "data": {
+          "refrigerant_detection": "Enable refrigerant charge monitoring (beta)"
         }
       }
     },
@@ -777,6 +791,20 @@
             "description": "I develop and test on a single heat pump model. For all others, I'm working blind — your anonymous data helps me build realistic tests, catch regressions, and develop new features. No personal information is ever collected. You can change this at any time in the integration options.\n\n[Learn more about telemetry]({learn_more_url})",
             "data": {
               "telemetry_level": "Anonymous telemetry"
+            }
+          }
+        }
+      }
+    },
+    "enable_refrigerant_detection": {
+      "title": "Try refrigerant charge monitoring (beta)",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Advanced features (beta)",
+            "description": "🧪 Enable experimental early detection of a slow refrigerant charge loss, computed locally from your compressor signals.\n\n⚠️ This feature is in beta and currently rests on very little validation data. It will only be considered stable after it has been checked across a full winter heating season. Treat any alert as a hint to look closer, not as a diagnosis: it can be a false positive. Do NOT call a technician or pay for a service on the strength of an alert alone, always double-check first. It is advisory and does not replace the mandatory F-Gas leak-tightness inspection.\n\n🙏 Turning on anonymous telemetry (next step / integration options) helps me check the detector's reliability across the whole fleet and reach a stable release sooner.\n\nYou can change this at any time in the integration options.\n\n[Learn more about refrigerant monitoring]({learn_more_url})",
+            "data": {
+              "refrigerant_detection": "Enable refrigerant charge monitoring (beta)"
             }
           }
         }

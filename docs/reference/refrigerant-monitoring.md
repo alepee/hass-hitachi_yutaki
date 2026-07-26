@@ -17,6 +17,36 @@ during a leak-tightness inspection, but sampled on every poll of your own instal
 > (see `backend/analysis/`, next winter re-run Jan-Feb 2027). Treat every verdict as an
 > early-warning hint, not a measurement of charge.
 
+## Opt-in and consent (beta)
+
+This detection is **opt-in and off by default** (`CONF_REFRIGERANT_DETECTION`,
+default `False`). The toggle lives in an **"Advanced features (beta)"** panel whose
+first (currently only) feature is the refrigerant detection. Because it is beta,
+nothing runs until you explicitly enable it:
+
+- **During setup (install)**: on a profile that exposes the extended compressor
+  sensors, the "Advanced features (beta)" panel is the last step before the entry is
+  created. Leave the toggle off to keep everything disabled.
+- **Later, via the integration Options** (the cog on the integration entry): the same
+  panel lets you turn it on or off at any time, just before the telemetry step.
+- **For existing installations**: an onboarding repair issue ("Try refrigerant charge
+  monitoring (beta)") invites you to enable it. Its fix flow shows the same panel and
+  writes your choice. It is created only on capable profiles and only until you have
+  made a choice.
+
+The panel is only offered on profiles with extended compressor sensors (so **never on
+the Yutampo R32**, which cannot report the required signals). When the toggle is off,
+the detector is not built, no baseline `Store` is created or restored, and none of its
+entities (the `Refrigerant Charge Status` sensor, the `Reset Refrigerant Baseline`
+button) or its repair issue exist.
+
+The feature is beta and currently rests on very little validation data. It will only
+be considered stable after a full winter heating season of cross-season validation, so
+its verdicts may be unreliable until then. **Treat any alert as a hint to look closer,
+not a diagnosis**: it can be a false positive, so double-check before calling a
+technician or paying for a service. Enabling [anonymous telemetry](telemetry.md) helps
+validate the detector across the whole fleet and reach a stable release sooner.
+
 ## What it surfaces
 
 | Entity | Type | Notes |

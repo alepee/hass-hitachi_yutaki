@@ -26,8 +26,8 @@ async def async_setup_entry(
     if coordinator.has_dhw():
         entities.extend(build_dhw_buttons(coordinator, entry.entry_id))
 
-    # Refrigerant detector reset button (extended-sensor profiles only)
-    if coordinator.profile.supports_extended_compressor_sensors:
+    # Refrigerant detector reset button (extended-sensor profiles, opt-in only)
+    if coordinator.refrigerant_detection_active:
         entities.extend(build_refrigerant_buttons(coordinator, entry.entry_id))
 
     async_add_entities(entities)

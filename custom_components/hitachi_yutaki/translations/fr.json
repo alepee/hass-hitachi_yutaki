@@ -124,6 +124,13 @@
           "electricity_price_entity": "Un capteur fournissant le prix actuel de l'électricité dans votre devise par kWh (ex. 0.18 pour 0,18 {currency}/kWh). Active le capteur de coût d'électricité."
         }
       },
+      "advanced_features": {
+        "title": "Fonctionnalités avancées (bêta)",
+        "description": "🧪 Activez la détection expérimentale d'une perte lente de charge de fluide frigorigène, calculée localement à partir des signaux du compresseur.\n\n⚠️ Cette fonctionnalité est en bêta et repose pour l'instant sur très peu de données de validation. Elle ne sera considérée comme stable qu'après avoir été éprouvée sur une saison de chauffe hivernale complète. Considérez toute alerte comme une invitation à regarder de plus près, pas comme un diagnostic : il peut s'agir d'un faux positif. N'appelez pas un professionnel et n'engagez aucune dépense sur la seule foi d'une alerte, vérifiez toujours par vous-même d'abord. Cette détection est indicative et ne remplace pas le contrôle d'étanchéité F-Gas obligatoire.\n\n🙏 Activer la télémétrie anonyme (étape suivante / options de l'intégration) m'aide à vérifier la fiabilité du détecteur sur l'ensemble du parc et à parvenir plus vite à une version stable.\n\nVous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la surveillance du fluide frigorigène]({learn_more_url})",
+        "data": {
+          "refrigerant_detection": "Activer la surveillance de la charge de fluide frigorigène (bêta)"
+        }
+      },
       "repair": {
         "title": "Réparation de la Configuration Hitachi Yutaki",
         "description": "Votre intégration Hitachi Yutaki manque de paramètres de configuration requis. Veuillez sélectionner les paramètres manquants pour continuer.",
@@ -211,6 +218,13 @@
         },
         "data_description": {
           "electricity_price_entity": "Un capteur fournissant le prix actuel de l'électricité dans votre devise par kWh (ex. 0.18 pour 0,18 {currency}/kWh). Active le capteur de coût d'électricité."
+        }
+      },
+      "advanced_features": {
+        "title": "Fonctionnalités avancées (bêta)",
+        "description": "🧪 Activez la détection expérimentale d'une perte lente de charge de fluide frigorigène, calculée localement à partir des signaux du compresseur.\n\n⚠️ Cette fonctionnalité est en bêta et repose pour l'instant sur très peu de données de validation. Elle ne sera considérée comme stable qu'après avoir été éprouvée sur une saison de chauffe hivernale complète. Considérez toute alerte comme une invitation à regarder de plus près, pas comme un diagnostic : il peut s'agir d'un faux positif. N'appelez pas un professionnel et n'engagez aucune dépense sur la seule foi d'une alerte, vérifiez toujours par vous-même d'abord. Cette détection est indicative et ne remplace pas le contrôle d'étanchéité F-Gas obligatoire.\n\n🙏 Activer la télémétrie anonyme (étape suivante / options de l'intégration) m'aide à vérifier la fiabilité du détecteur sur l'ensemble du parc et à parvenir plus vite à une version stable.\n\nVous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la surveillance du fluide frigorigène]({learn_more_url})",
+        "data": {
+          "refrigerant_detection": "Activer la surveillance de la charge de fluide frigorigène (bêta)"
         }
       }
     },
@@ -794,6 +808,20 @@
             "description": "Je développe et teste sur un seul modèle de PAC. Pour tous les autres, je travaille à l'aveugle — vos données anonymes m'aident à construire des tests réalistes, détecter les régressions et développer de nouvelles fonctionnalités. Aucune information personnelle n'est collectée. Vous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la télémétrie]({learn_more_url})",
             "data": {
               "telemetry_level": "Télémétrie anonyme"
+            }
+          }
+        }
+      }
+    },
+    "enable_refrigerant_detection": {
+      "title": "Essayer la surveillance de la charge de fluide frigorigène (bêta)",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Fonctionnalités avancées (bêta)",
+            "description": "🧪 Activez la détection expérimentale d'une perte lente de charge de fluide frigorigène, calculée localement à partir des signaux du compresseur.\n\n⚠️ Cette fonctionnalité est en bêta et repose pour l'instant sur très peu de données de validation. Elle ne sera considérée comme stable qu'après avoir été éprouvée sur une saison de chauffe hivernale complète. Considérez toute alerte comme une invitation à regarder de plus près, pas comme un diagnostic : il peut s'agir d'un faux positif. N'appelez pas un professionnel et n'engagez aucune dépense sur la seule foi d'une alerte, vérifiez toujours par vous-même d'abord. Cette détection est indicative et ne remplace pas le contrôle d'étanchéité F-Gas obligatoire.\n\n🙏 Activer la télémétrie anonyme (étape suivante / options de l'intégration) m'aide à vérifier la fiabilité du détecteur sur l'ensemble du parc et à parvenir plus vite à une version stable.\n\nVous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la surveillance du fluide frigorigène]({learn_more_url})",
+            "data": {
+              "refrigerant_detection": "Activer la surveillance de la charge de fluide frigorigène (bêta)"
             }
           }
         }

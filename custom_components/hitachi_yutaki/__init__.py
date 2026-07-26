@@ -35,10 +35,12 @@ from .const import (
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
     CONF_POWER_SUPPLY,
+    CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
     CONF_UNIT_ID,
     DEFAULT_DEVICE_ID,
     DEFAULT_POWER_SUPPLY,
+    DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
     DEFAULT_UNIT_ID,
     DEVICE_CIRCUIT_1,
@@ -455,6 +457,10 @@ async def async_setup_entry(
         "pool": persisted_has_pool,
     }
 
+    refrigerant_detection_enabled = entry.options.get(
+        CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+    )
+
     # Create derived metrics adapter (enriches data with thermal power, COP, etc.)
     coordinator.derived_metrics = DerivedMetricsAdapter(
         hass=hass,
@@ -467,6 +473,7 @@ async def async_setup_entry(
         supports_extended_compressor_sensors=profile.supports_extended_compressor_sensors,
         superheat_plausible_range=profile.gas_superheat_plausible_range,
         superheat_observed_band=profile.gas_superheat_observed_band,
+        refrigerant_detection_enabled=refrigerant_detection_enabled,
     )
 
     # Restore the refrigerant-anomaly detector state from its persisted Store
@@ -668,6 +675,24 @@ async def async_setup_entry(
             translation_key="enable_telemetry",
         )
 
+    # Refrigerant detection onboarding: invite existing users on capable profiles
+    # to opt into the beta detector. Never shown on profiles without the extended
+    # compressor sensors (e.g. Yutampo R32), which cannot run the detector.
+    if (
+        profile.supports_extended_compressor_sensors
+        and CONF_REFRIGERANT_DETECTION not in entry.options
+    ):
+        async_create_issue(
+            hass,
+            DOMAIN,
+            f"enable_refrigerant_detection_{entry.entry_id}",
+            is_fixable=True,
+            is_persistent=True,
+            severity=IssueSeverity.WARNING,
+            issue_domain=DOMAIN,
+            translation_key="enable_refrigerant_detection",
+        )
+
     # Set up telemetry flush timer (every 5 min)
     if telemetry_level != TelemetryLevel.OFF:
         flush_interval = timedelta(minutes=5)
@@ -803,6 +828,7 @@ async def async_remove_entry(
         f"missing_config_{entry.entry_id}",
         f"enable_energy_cost_{entry.entry_id}",
         f"enable_telemetry_{entry.entry_id}",
+        f"enable_refrigerant_detection_{entry.entry_id}",
         f"refrigerant_charge_alert_{entry.entry_id}",
     ):
         async_delete_issue(hass, DOMAIN, issue_id)

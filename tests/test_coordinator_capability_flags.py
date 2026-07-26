@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.hitachi_yutaki.api.base import ReadResult
+from custom_components.hitachi_yutaki.const import CONF_REFRIGERANT_DETECTION
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
 from custom_components.hitachi_yutaki.telemetry import (
     NoopTelemetryClient,
@@ -135,3 +136,20 @@ def test_coordinator_defaults_system_config_to_zero():
     """Entries without persisted system_config (existing installs) default to 0."""
     coord, _, _ = _make_coordinator({}, system_config_value=0)
     assert coord.system_config == 0
+
+
+@pytest.mark.parametrize(
+    ("capability", "consent", "expected"),
+    [
+        (True, True, True),
+        (True, False, False),
+        (False, True, False),
+        (False, False, False),
+    ],
+)
+def test_refrigerant_detection_active(capability, consent, expected):
+    """refrigerant_detection_active is True only with both capability and consent."""
+    coord, _, entry = _make_coordinator({}, system_config_value=0)
+    coord.profile.supports_extended_compressor_sensors = capability
+    entry.options = {CONF_REFRIGERANT_DETECTION: consent}
+    assert coord.refrigerant_detection_active is expected
