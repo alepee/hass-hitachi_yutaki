@@ -62,6 +62,13 @@ export class ValidationError extends Error {
   }
 }
 
+/** A validated payload plus the protocol facts the caller needs. */
+export interface ValidationResult {
+  payload: TelemetryPayload;
+  /** True when the client sent device_hash itself (selects the key layout). */
+  hasExplicitDeviceHash: boolean;
+}
+
 /** Strip object to only whitelisted keys. */
 function whitelist(
   obj: Record<string, unknown>,
@@ -80,7 +87,7 @@ function whitelist(
 export function validate(
   raw: string,
   instanceHashHeader: string | null,
-): TelemetryPayload {
+): ValidationResult {
   if (raw.length > MAX_PAYLOAD_SIZE) {
     throw new ValidationError("Payload too large", 413);
   }
@@ -107,6 +114,19 @@ export function validate(
     throw new ValidationError("instance_hash mismatch with X-Instance-Hash header");
   }
 
+  // Per-unit identity (#395). Optional: legacy clients never send it, and
+  // fall back to the instance identity so their behaviour is unchanged.
+  let deviceHash = instanceHash;
+  let hasExplicitDeviceHash = false;
+  if (payload.device_hash !== undefined) {
+    const dh = String(payload.device_hash);
+    if (!INSTANCE_HASH_RE.test(dh)) {
+      throw new ValidationError("Invalid device_hash (expected SHA-256 hex)");
+    }
+    deviceHash = dh;
+    hasExplicitDeviceHash = true;
+  }
+
   const type = payload.type;
   if (typeof type !== "string") {
     throw new ValidationError('Missing or invalid "type" field');
@@ -114,13 +134,13 @@ export function validate(
 
   switch (type) {
     case "installation":
-      return validateInstallation(payload, instanceHash);
+      return { payload: validateInstallation(payload, instanceHash, deviceHash), hasExplicitDeviceHash };
     case "metrics":
-      return validateMetrics(payload, instanceHash);
+      return { payload: validateMetrics(payload, instanceHash, deviceHash), hasExplicitDeviceHash };
     case "daily_stats":
-      return validateDailyStats(payload, instanceHash);
+      return { payload: validateDailyStats(payload, instanceHash, deviceHash), hasExplicitDeviceHash };
     case "snapshot":
-      return validateSnapshot(payload, instanceHash);
+      return { payload: validateSnapshot(payload, instanceHash, deviceHash), hasExplicitDeviceHash };
     default:
       throw new ValidationError(`Unknown payload type: ${type}`);
   }
@@ -129,6 +149,7 @@ export function validate(
 function validateInstallation(
   payload: Record<string, unknown>,
   instanceHash: string,
+  deviceHash: string,
 ): InstallationPayload {
   const data = payload.data;
   if (typeof data !== "object" || data === null || Array.isArray(data)) {
@@ -141,6 +162,7 @@ function validateInstallation(
   return {
     type: "installation",
     instance_hash: instanceHash,
+    device_hash: deviceHash,
     data: whitelist(d, INSTALLATION_FIELDS) as InstallationPayload["data"],
   };
 }
@@ -148,6 +170,7 @@ function validateInstallation(
 function validateMetrics(
   payload: Record<string, unknown>,
   instanceHash: string,
+  deviceHash: string,
 ): MetricsPayload {
   const points = payload.points;
   if (!Array.isArray(points) || points.length === 0) {
@@ -186,6 +209,7 @@ function validateMetrics(
   return {
     type: "metrics",
     instance_hash: instanceHash,
+    device_hash: deviceHash,
     points: sanitized,
   };
 }
@@ -193,6 +217,7 @@ function validateMetrics(
 function validateDailyStats(
   payload: Record<string, unknown>,
   instanceHash: string,
+  deviceHash: string,
 ): DailyStatsPayload {
   if (typeof payload.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(payload.date)) {
     throw new ValidationError("daily_stats: date must be YYYY-MM-DD");
@@ -204,6 +229,7 @@ function validateDailyStats(
   return {
     type: "daily_stats",
     instance_hash: instanceHash,
+    device_hash: deviceHash,
     date: payload.date,
     data: whitelist(data as Record<string, unknown>, DAILY_STATS_FIELDS) as DailyStatsPayload["data"],
   };
@@ -212,6 +238,7 @@ function validateDailyStats(
 function validateSnapshot(
   payload: Record<string, unknown>,
   instanceHash: string,
+  deviceHash: string,
 ): SnapshotPayload {
   if (typeof payload.profile !== "string" || typeof payload.gateway_type !== "string") {
     throw new ValidationError("snapshot: profile and gateway_type are required");
@@ -230,6 +257,7 @@ function validateSnapshot(
   return {
     type: "snapshot",
     instance_hash: instanceHash,
+    device_hash: deviceHash,
     profile: payload.profile as string,
     gateway_type: payload.gateway_type as string,
     registers: sanitized,

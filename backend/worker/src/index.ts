@@ -45,7 +45,7 @@ export default {
 
       // Validate and sanitize
       const instanceHashHeader = request.headers.get("x-instance-hash");
-      const payload = validate(body, instanceHashHeader);
+      const { payload } = validate(body, instanceHashHeader);
 
       // Rate limit (per instance_hash + payload type). Read-only check here;
       // the slot is only committed (markRateLimit) after a successful archive

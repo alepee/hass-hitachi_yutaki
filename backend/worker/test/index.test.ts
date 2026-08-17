@@ -60,6 +60,16 @@ function metricsPayload() {
   };
 }
 
+const DEVICE = "c".repeat(64);
+
+function installationPayload() {
+  return {
+    type: "installation",
+    instance_hash: HASH,
+    data: { profile: "yutaki_s80", gateway_type: "modbus_atw_mbs_02" },
+  };
+}
+
 let fakeCache: ReturnType<typeof createFakeCache>;
 
 beforeEach(() => {
@@ -106,5 +116,51 @@ describe("fetch handler — rate limit + archive (#324)", () => {
     expect(res.status).toBe(429);
     expect(res.headers.get("Retry-After")).toBe("60");
     expect(bucket.put).not.toHaveBeenCalled();
+  });
+});
+
+describe("device_hash validation (#395)", () => {
+  it("accepts a payload without device_hash (legacy client)", async () => {
+    const bucket = createFakeBucket();
+    const res = await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
+    expect(res.status).toBe(202);
+  });
+
+  it("accepts a valid device_hash", async () => {
+    const bucket = createFakeBucket();
+    const res = await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: DEVICE }),
+      makeEnv(bucket),
+    );
+    expect(res.status).toBe(202);
+  });
+
+  it("rejects a malformed device_hash with 400", async () => {
+    const bucket = createFakeBucket();
+    const res = await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: "not-a-hash" }),
+      makeEnv(bucket),
+    );
+    expect(res.status).toBe(400);
+    expect(await res.text()).toContain("device_hash");
+  });
+
+  it("archives device_hash without leaking the internal flag", async () => {
+    const bucket = createFakeBucket();
+    await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: DEVICE }),
+      makeEnv(bucket),
+    );
+    const archived = JSON.parse(bucket.put.mock.calls[0][1] as string);
+    expect(archived.device_hash).toBe(DEVICE);
+    expect(archived).not.toHaveProperty("hasExplicitDeviceHash");
+    expect(archived).not.toHaveProperty("has_explicit_device_hash");
+  });
+
+  it("falls back to the instance identity for a legacy payload", async () => {
+    const bucket = createFakeBucket();
+    await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
+    const archived = JSON.parse(bucket.put.mock.calls[0][1] as string);
+    expect(archived.device_hash).toBe(HASH);
   });
 });
