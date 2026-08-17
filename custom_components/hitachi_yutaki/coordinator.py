@@ -329,7 +329,11 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self._installation_info_sent = True
                 self._installation_sent_date = datetime.now(tz=UTC).date()
         except Exception:
-            _LOGGER.debug("Failed to send telemetry installation info", exc_info=True)
+            _LOGGER.debug(
+                "[%s] Failed to send telemetry installation info",
+                self.config_entry.title,
+                exc_info=True,
+            )
 
     async def _send_register_snapshot(self, data: dict[str, Any]) -> None:
         """Send a one-time register snapshot."""
@@ -359,9 +363,15 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             success = await self.telemetry_client.send_snapshot(snapshot)
             if success:
                 self._snapshot_sent = True
-                _LOGGER.debug("Telemetry: register snapshot sent")
+                _LOGGER.debug(
+                    "[%s] Telemetry: register snapshot sent", self.config_entry.title
+                )
         except Exception:
-            _LOGGER.debug("Failed to send register snapshot", exc_info=True)
+            _LOGGER.debug(
+                "[%s] Failed to send register snapshot",
+                self.config_entry.title,
+                exc_info=True,
+            )
 
     async def async_flush_telemetry(self) -> None:
         """Flush telemetry buffer and send data."""
