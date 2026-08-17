@@ -6,6 +6,7 @@ import asyncio
 from datetime import UTC, datetime
 import gzip
 import json
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
@@ -26,12 +27,14 @@ def _make_client(
     session: aiohttp.ClientSession | None = None,
     instance_hash: str = "abc123",
     endpoint: str = "https://test.example.com/v1/ingest",
+    label: str = "",
 ) -> HttpTelemetryClient:
     """Create a client with optional mock session."""
     return HttpTelemetryClient(
         session=session or MagicMock(spec=aiohttp.ClientSession),
         instance_hash=instance_hash,
         endpoint=endpoint,
+        label=label,
     )
 
 
@@ -274,3 +277,36 @@ class TestHttpClientErrors:
 
         assert result is True
         assert session.post.call_count == 2
+
+
+class TestDiagnosability:
+    """Failures must name their cause and their config entry (#395)."""
+
+    async def test_429_is_logged_at_warning(self, caplog):
+        """A 429 must be visible: it was DEBUG, which made #395 undiagnosable."""
+        client = _make_client(
+            _mock_session(_mock_response(429, "Rate limit exceeded")), label="PAC 1"
+        )
+        with caplog.at_level(logging.DEBUG):
+            assert await client.send_installation(_make_installation()) is False
+        rejections = [r for r in caplog.records if "Telemetry rejected" in r.message]
+        assert len(rejections) == 1
+        assert rejections[0].levelno == logging.WARNING
+        assert "429" in caplog.text
+
+    async def test_log_line_carries_the_entry_label(self, caplog):
+        """Multi-gateway installs must be able to tell their entries apart."""
+        client = _make_client(
+            _mock_session(_mock_response(429, "Rate limit exceeded")), label="ECS 2"
+        )
+        with caplog.at_level(logging.WARNING):
+            await client.send_installation(_make_installation())
+        assert "[ECS 2]" in caplog.text
+
+    async def test_label_is_optional(self, caplog):
+        """Without a label the message has no stray prefix."""
+        client = _make_client(_mock_session(_mock_response(400, "Bad payload")))
+        with caplog.at_level(logging.WARNING):
+            await client.send_installation(_make_installation())
+        assert "[]" not in caplog.text
+        assert "Telemetry rejected (HTTP 400)" in caplog.text

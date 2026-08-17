@@ -33,11 +33,17 @@ class HttpTelemetryClient:
         session: aiohttp.ClientSession,
         instance_hash: str,
         endpoint: str = TELEMETRY_ENDPOINT,
+        label: str = "",
     ) -> None:
-        """Initialize the HTTP telemetry client."""
+        """Initialize the HTTP telemetry client.
+
+        `label` is the config entry title. It prefixes every log line so a
+        multi-gateway installation can tell which entry failed (#395).
+        """
         self._session = session
         self._instance_hash = instance_hash
         self._endpoint = endpoint
+        self._prefix = f"[{label}] " if label else ""
 
     async def send_installation(self, info: InstallationInfo) -> bool:
         """Send installation info payload."""
@@ -75,11 +81,14 @@ class HttpTelemetryClient:
                     if 200 <= resp.status < 300:
                         return True
 
-                    # Client errors (4xx) are not retryable
+                    # Client errors (4xx) are not retryable. All are logged at
+                    # WARNING, including 429: with per-unit identities a rate
+                    # limit means something is genuinely wrong, and hiding it
+                    # at DEBUG is what made #395 undiagnosable for the reporter.
                     if 400 <= resp.status < 500:
-                        log = _LOGGER.debug if resp.status == 429 else _LOGGER.warning
-                        log(
-                            "Telemetry rejected (HTTP %s): %s",
+                        _LOGGER.warning(
+                            "%sTelemetry rejected (HTTP %s): %s",
+                            self._prefix,
                             resp.status,
                             await resp.text(),
                         )
@@ -87,7 +96,8 @@ class HttpTelemetryClient:
 
                     # Server errors (5xx) — retry
                     _LOGGER.debug(
-                        "Telemetry server error (HTTP %s), attempt %d/%d",
+                        "%sTelemetry server error (HTTP %s), attempt %d/%d",
+                        self._prefix,
                         resp.status,
                         attempt + 1,
                         MAX_RETRIES,
@@ -95,13 +105,15 @@ class HttpTelemetryClient:
 
             except TimeoutError:
                 _LOGGER.debug(
-                    "Telemetry request timed out, attempt %d/%d",
+                    "%sTelemetry request timed out, attempt %d/%d",
+                    self._prefix,
                     attempt + 1,
                     MAX_RETRIES,
                 )
             except aiohttp.ClientError as err:
                 _LOGGER.debug(
-                    "Telemetry request failed (%s), attempt %d/%d",
+                    "%sTelemetry request failed (%s), attempt %d/%d",
+                    self._prefix,
                     err,
                     attempt + 1,
                     MAX_RETRIES,
@@ -111,5 +123,7 @@ class HttpTelemetryClient:
             if attempt < MAX_RETRIES - 1:
                 await asyncio.sleep(RETRY_DELAYS[attempt])
 
-        _LOGGER.warning("Telemetry send failed after %d attempts", MAX_RETRIES)
+        _LOGGER.warning(
+            "%sTelemetry send failed after %d attempts", self._prefix, MAX_RETRIES
+        )
         return False

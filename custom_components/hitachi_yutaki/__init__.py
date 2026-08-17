@@ -422,7 +422,9 @@ async def async_setup_entry(
 
     if telemetry_level != TelemetryLevel.OFF:
         session = async_get_clientsession(hass)
-        coordinator.telemetry_client = HttpTelemetryClient(session, instance_hash)
+        coordinator.telemetry_client = HttpTelemetryClient(
+            session, instance_hash, label=entry.title
+        )
     else:
         coordinator.telemetry_client = NoopTelemetryClient()
 

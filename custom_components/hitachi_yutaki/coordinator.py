@@ -383,10 +383,17 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self.telemetry_last_send = datetime.now(tz=UTC)
             else:
                 self.telemetry_send_failures += 1
-                _LOGGER.warning("Telemetry flush: send returned failure")
+                _LOGGER.warning(
+                    "[%s] Telemetry flush: send returned failure",
+                    self.config_entry.title,
+                )
         except Exception:
             self.telemetry_send_failures += 1
-            _LOGGER.warning("Telemetry flush failed", exc_info=True)
+            _LOGGER.warning(
+                "[%s] Telemetry flush failed",
+                self.config_entry.title,
+                exc_info=True,
+            )
 
     def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
         """Return True if circuit is configured in system_config."""
