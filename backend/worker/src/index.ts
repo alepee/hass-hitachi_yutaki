@@ -47,10 +47,10 @@ export default {
       const instanceHashHeader = request.headers.get("x-instance-hash");
       const { payload } = validate(body, instanceHashHeader);
 
-      // Rate limit (per instance_hash + payload type). Read-only check here;
+      // Rate limit (per device_hash + payload type). Read-only check here;
       // the slot is only committed (markRateLimit) after a successful archive
       // so a transient R2 outage never burns the window (#324).
-      if (await isRateLimited(payload.instance_hash, payload.type)) {
+      if (await isRateLimited(payload.device_hash, payload.type)) {
         throw new RateLimitError(WINDOW_SECONDS);
       }
 
@@ -77,7 +77,7 @@ export default {
       // to R2). Failing to mark only widens the window by one extra accepted
       // request — the documented tradeoff.
       try {
-        await markRateLimit(payload.instance_hash, payload.type);
+        await markRateLimit(payload.device_hash, payload.type);
       } catch (err) {
         console.warn("markRateLimit failed (archive already durable):", err);
       }

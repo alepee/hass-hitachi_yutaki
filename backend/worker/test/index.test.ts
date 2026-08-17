@@ -164,3 +164,43 @@ describe("device_hash validation (#395)", () => {
     expect(archived.device_hash).toBe(HASH);
   });
 });
+
+describe("per-unit rate limiting (#395)", () => {
+  it("lets two units of one instance send within the same window", async () => {
+    const env = makeEnv(createFakeBucket());
+    const deviceB = "d".repeat(64);
+
+    const first = await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: DEVICE }),
+      env,
+    );
+    const second = await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: deviceB }),
+      env,
+    );
+
+    expect(first.status).toBe(202);
+    expect(second.status).toBe(202);
+  });
+
+  it("still rate limits a single unit", async () => {
+    const env = makeEnv(createFakeBucket());
+
+    await worker.fetch(makeRequest({ ...metricsPayload(), device_hash: DEVICE }), env);
+    const second = await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: DEVICE }),
+      env,
+    );
+
+    expect(second.status).toBe(429);
+  });
+
+  it("still rate limits a legacy client against itself", async () => {
+    const env = makeEnv(createFakeBucket());
+
+    await worker.fetch(makeRequest(metricsPayload()), env);
+    const second = await worker.fetch(makeRequest(metricsPayload()), env);
+
+    expect(second.status).toBe(429);
+  });
+});

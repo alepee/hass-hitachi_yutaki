@@ -1,6 +1,12 @@
 /**
- * Per-instance-hash + payload-type rate limiting using Cloudflare Cache API.
- * Limit: 1 request per minute per (instance_hash, payload_type).
+ * Per-device-hash + payload-type rate limiting using Cloudflare Cache API.
+ * Limit: 1 request per minute per (device_hash, payload_type).
+ *
+ * device_hash identifies a single heat-pump unit. Before #395 the key was the
+ * instance hash, shared by every config entry on one HA instance, so a
+ * multi-gateway installation rejected all but one flush per cycle forever.
+ * Legacy clients send no device_hash and fall back to the instance hash, so
+ * their cache key is byte-identical to what it was.
  *
  * Uses the Cache API instead of KV to avoid KV operation limits
  * (free tier: 1,000 writes/day — exceeded with just 5 users).
@@ -17,7 +23,7 @@
  *      durable R2 write has succeeded, so a transient R2 outage (502) never
  *      burns the slot — the client's retry within the window is accepted
  *      instead of being rejected with 429 (which previously caused guaranteed
- *      data loss for that (instance_hash, type)).
+ *      data loss for that (device_hash, type)).
  *
  * Tradeoff: because the marker is committed after the archive, two
  * near-simultaneous requests can both pass `isRateLimited()` and both archive
@@ -38,21 +44,21 @@ export class RateLimitError extends Error {
   }
 }
 
-/** Build the per-(instance, type) cache key. */
-function cacheKeyFor(instanceHash: string, payloadType: string): string {
-  return `${CACHE_KEY_PREFIX}${instanceHash}/${payloadType}`;
+/** Build the per-(device, type) cache key. */
+function cacheKeyFor(deviceHash: string, payloadType: string): string {
+  return `${CACHE_KEY_PREFIX}${deviceHash}/${payloadType}`;
 }
 
 /**
- * Read-only check: is this (instance_hash, payload_type) currently within the
+ * Read-only check: is this (device_hash, payload_type) currently within the
  * rate-limit window? Does NOT write to the cache. Run before archiving.
  */
 export async function isRateLimited(
-  instanceHash: string,
+  deviceHash: string,
   payloadType: string,
 ): Promise<boolean> {
   const cache = caches.default;
-  const cached = await cache.match(cacheKeyFor(instanceHash, payloadType));
+  const cached = await cache.match(cacheKeyFor(deviceHash, payloadType));
   return cached !== undefined;
 }
 
@@ -62,12 +68,12 @@ export async function isRateLimited(
  * consumes the slot.
  */
 export async function markRateLimit(
-  instanceHash: string,
+  deviceHash: string,
   payloadType: string,
 ): Promise<void> {
   const cache = caches.default;
   await cache.put(
-    cacheKeyFor(instanceHash, payloadType),
+    cacheKeyFor(deviceHash, payloadType),
     new Response(null, {
       headers: { "Cache-Control": `max-age=${WINDOW_SECONDS}` },
     }),
