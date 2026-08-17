@@ -18,14 +18,19 @@ function createFakeCache() {
   };
 }
 
-/** Fake R2 bucket; `put` can be configured to throw to simulate an outage. */
-function createFakeBucket(opts: { fail?: boolean } = {}) {
+/** Fake R2 bucket; `put`/`delete` can be configured to throw to simulate an outage. */
+function createFakeBucket(opts: { fail?: boolean; deleteFails?: boolean } = {}) {
   return {
     put: vi.fn(async () => {
       if (opts.fail) {
         throw new Error("R2 unavailable");
       }
       return {} as R2Object;
+    }),
+    delete: vi.fn(async () => {
+      if (opts.deleteFails) {
+        throw new Error("R2 delete unavailable");
+      }
     }),
   };
 }
@@ -202,5 +207,75 @@ describe("per-unit rate limiting (#395)", () => {
     const second = await worker.fetch(makeRequest(metricsPayload()), env);
 
     expect(second.status).toBe(429);
+  });
+});
+
+const LEGACY_INSTALL_KEY = `installations/install_${HASH.slice(0, 12)}.json`;
+
+describe("R2 key layout (#395)", () => {
+  it("keeps the legacy layout for a payload without device_hash", async () => {
+    const bucket = createFakeBucket();
+    await worker.fetch(makeRequest(installationPayload()), makeEnv(bucket));
+    expect(bucket.put.mock.calls[0][0]).toBe(LEGACY_INSTALL_KEY);
+  });
+
+  it("adds the device component when device_hash is explicit", async () => {
+    const bucket = createFakeBucket();
+    await worker.fetch(
+      makeRequest({ ...installationPayload(), device_hash: DEVICE }),
+      makeEnv(bucket),
+    );
+    expect(bucket.put.mock.calls[0][0]).toBe(
+      `installations/install_${HASH.slice(0, 12)}_${DEVICE.slice(0, 12)}.json`,
+    );
+  });
+
+  it("separates two units of one instance in the metrics archive", async () => {
+    const bucket = createFakeBucket();
+    const env = makeEnv(bucket);
+    await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: DEVICE }),
+      env,
+    );
+    await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: "d".repeat(64) }),
+      env,
+    );
+
+    const [keyA, keyB] = bucket.put.mock.calls.map((c) => c[0] as string);
+    expect(keyA).not.toBe(keyB);
+  });
+
+  it("sweeps the stale legacy installation object", async () => {
+    const bucket = createFakeBucket();
+    await worker.fetch(
+      makeRequest({ ...installationPayload(), device_hash: DEVICE }),
+      makeEnv(bucket),
+    );
+    expect(bucket.delete).toHaveBeenCalledWith(LEGACY_INSTALL_KEY);
+  });
+
+  it("does not sweep for a legacy payload", async () => {
+    const bucket = createFakeBucket();
+    await worker.fetch(makeRequest(installationPayload()), makeEnv(bucket));
+    expect(bucket.delete).not.toHaveBeenCalled();
+  });
+
+  it("does not sweep for a metrics payload", async () => {
+    const bucket = createFakeBucket();
+    await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: DEVICE }),
+      makeEnv(bucket),
+    );
+    expect(bucket.delete).not.toHaveBeenCalled();
+  });
+
+  it("still returns 202 when the sweep fails", async () => {
+    const bucket = createFakeBucket({ deleteFails: true });
+    const res = await worker.fetch(
+      makeRequest({ ...installationPayload(), device_hash: DEVICE }),
+      makeEnv(bucket),
+    );
+    expect(res.status).toBe(202);
   });
 });
