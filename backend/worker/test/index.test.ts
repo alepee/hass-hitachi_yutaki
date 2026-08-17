@@ -49,6 +49,16 @@ function makeEnv(bucket: ReturnType<typeof createFakeBucket>): Env {
   };
 }
 
+/** Like makeEnv, but hands back the AE fake so its writes can be asserted. */
+function makeEnvWithAE(bucket: ReturnType<typeof createFakeBucket>) {
+  const ae = createFakeAE();
+  const env = {
+    ARCHIVE: bucket as unknown as R2Bucket,
+    AE: ae as unknown as AnalyticsEngineDataset,
+  } satisfies Env;
+  return { env, ae };
+}
+
 function makeRequest(body: object): Request {
   return new Request("https://telemetry.internal/v1/ingest", {
     method: "POST",
@@ -277,5 +287,37 @@ describe("R2 key layout (#395)", () => {
       makeEnv(bucket),
     );
     expect(res.status).toBe(202);
+  });
+});
+
+describe("WAE fleet dashboard (#395)", () => {
+  it("keeps instance_hash as the index and blob1", async () => {
+    const { env, ae } = makeEnvWithAE(createFakeBucket());
+    await worker.fetch(
+      makeRequest({ ...installationPayload(), device_hash: DEVICE }),
+      env,
+    );
+    const point = ae.writeDataPoint.mock.calls[0][0];
+    expect(point.indexes).toEqual([HASH]);
+    expect(point.blobs[0]).toBe(HASH);
+  });
+
+  it("appends device_hash after climate_zone without shifting blobs", async () => {
+    const { env, ae } = makeEnvWithAE(createFakeBucket());
+    await worker.fetch(
+      makeRequest({ ...installationPayload(), device_hash: DEVICE }),
+      env,
+    );
+    const point = ae.writeDataPoint.mock.calls[0][0];
+    expect(point.blobs).toHaveLength(8);
+    expect(point.blobs[1]).toBe("yutaki_s80");
+    expect(point.blobs[7]).toBe(DEVICE);
+  });
+
+  it("falls back to instance_hash for a legacy payload", async () => {
+    const { env, ae } = makeEnvWithAE(createFakeBucket());
+    await worker.fetch(makeRequest(installationPayload()), env);
+    const point = ae.writeDataPoint.mock.calls[0][0];
+    expect(point.blobs[7]).toBe(HASH);
   });
 });

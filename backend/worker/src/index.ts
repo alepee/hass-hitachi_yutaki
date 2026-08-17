@@ -108,6 +108,10 @@ export default {
               d.integration_version ?? "",
               d.ha_version ?? "",
               d.climate_zone ?? "",
+              // Appended, never inserted: WAE blobs are positional and the
+              // Grafana dashboard is not versioned in this repo, so shifting
+              // blob1-blob7 would silently break every existing query (#395).
+              payload.device_hash,
             ],
             doubles: [
               d.has_dhw ? 1 : 0,
