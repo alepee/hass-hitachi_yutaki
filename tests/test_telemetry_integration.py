@@ -70,6 +70,7 @@ def _make_coordinator(
     )
     coordinator._telemetry_meta = {
         "instance_hash": "a" * 64,
+        "device_hash": "b" * 64,
         "profile": "yutaki_s80",
         "gateway_type": "modbus_atw_mbs_02",
         "ha_version": "2025.3.1",
@@ -313,7 +314,10 @@ class TestLevelSwap:
         coordinator.telemetry_collector = TelemetryCollector(level=TelemetryLevel.ON)
         coordinator.telemetry_client = AsyncMock()
         coordinator.telemetry_client.send_metrics = AsyncMock(return_value=True)
-        coordinator._telemetry_meta = {"instance_hash": "b" * 64}
+        coordinator._telemetry_meta = {
+            "instance_hash": "b" * 64,
+            "device_hash": "c" * 64,
+        }
 
         data = _sample_data()
         coordinator.telemetry_collector.collect(data)

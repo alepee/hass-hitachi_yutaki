@@ -64,7 +64,7 @@ from .telemetry import (
     TelemetryCollector,
     TelemetryLevel,
 )
-from .telemetry.anonymizer import hash_instance_id
+from .telemetry.anonymizer import hash_device_id, hash_instance_id
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -334,7 +334,10 @@ async def async_setup_entry(
             if await temp_client.connect():
                 hw_id = await temp_client.async_get_unique_id()
                 if hw_id:
-                    unique_id = f"{DOMAIN}_{hw_id}"
+                    unique_id = (
+                        f"{DOMAIN}_{hw_id}_"
+                        f"{entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)}"
+                    )
                     _LOGGER.info(
                         "Added hardware-based unique_id to existing config entry: %s",
                         unique_id,
@@ -411,6 +414,10 @@ async def async_setup_entry(
     # Always inject telemetry dependencies (noop when OFF)
     instance_id = await async_get_instance_id(hass)
     instance_hash = hash_instance_id(instance_id)
+    # Per-unit identity. entry.unique_id is guaranteed non-None here: the
+    # back-fill above runs before this point. Keyed on the hardware identifier
+    # so deleting and re-adding an entry preserves the unit's fleet history.
+    device_hash = hash_device_id(instance_id, entry.unique_id)
     integration = await async_get_integration(hass, DOMAIN)
 
     if telemetry_level != TelemetryLevel.OFF:
@@ -424,6 +431,7 @@ async def async_setup_entry(
     )
     coordinator._telemetry_meta = {
         "instance_hash": instance_hash,
+        "device_hash": device_hash,
         "profile": profile_key,
         "gateway_type": gateway_type,
         "ha_version": HA_VERSION,

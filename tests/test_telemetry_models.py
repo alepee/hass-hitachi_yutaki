@@ -31,6 +31,7 @@ class TestInstallationInfo:
         """Create an InstallationInfo with sensible defaults and optional overrides."""
         defaults = {
             "instance_hash": "abc123",
+            "device_hash": "b" * 64,
             "profile": "yutaki_s80",
             "gateway_type": "modbus_atw_mbs_02",
             "ha_version": "2025.3.1",
@@ -73,13 +74,62 @@ class TestInstallationInfo:
         assert "instance_hash" not in d["data"]
 
 
+class TestDeviceHashInPayloads:
+    """Every payload type carries both identities (#395)."""
+
+    def test_installation_emits_both_hashes(self):
+        """Installation payload carries instance_hash and device_hash."""
+        info = InstallationInfo(
+            instance_hash="a" * 64,
+            device_hash="b" * 64,
+            profile="yutaki_s80",
+            gateway_type="modbus_atw_mbs_02",
+            ha_version="2026.8.0",
+            integration_version="2.2.0",
+            power_supply="single",
+            has_dhw=True,
+            has_pool=False,
+            has_cooling=True,
+            max_circuits=2,
+            has_secondary_compressor=True,
+        )
+        payload = info.to_dict()
+        assert payload["instance_hash"] == "a" * 64
+        assert payload["device_hash"] == "b" * 64
+
+    def test_metrics_emits_both_hashes(self):
+        """Metrics batch carries instance_hash and device_hash."""
+        payload = MetricsBatch(
+            instance_hash="a" * 64,
+            device_hash="b" * 64,
+            points=[{"time": datetime(2026, 8, 15, tzinfo=UTC), "outdoor_temp": 5.0}],
+        ).to_dict()
+        assert payload["instance_hash"] == "a" * 64
+        assert payload["device_hash"] == "b" * 64
+
+    def test_snapshot_emits_both_hashes(self):
+        """Register snapshot carries instance_hash and device_hash."""
+        payload = RegisterSnapshot(
+            instance_hash="a" * 64,
+            device_hash="b" * 64,
+            time=datetime(2026, 8, 15, tzinfo=UTC),
+            profile="yutaki_s80",
+            gateway_type="modbus_atw_mbs_02",
+            registers={"outdoor_temp": 5.0},
+        ).to_dict()
+        assert payload["instance_hash"] == "a" * 64
+        assert payload["device_hash"] == "b" * 64
+
+
 class TestMetricsBatch:
     """Tests for MetricsBatch dataclass."""
 
     def test_to_dict_basic(self):
         """Verify batch serializes dict points correctly."""
         point = {"time": "2026-03-31T12:00:00+00:00", "outdoor_temp": 5.5}
-        batch = MetricsBatch(instance_hash="abc123", points=[point])
+        batch = MetricsBatch(
+            instance_hash="abc123", device_hash="b" * 64, points=[point]
+        )
         result = batch.to_dict()
         assert result["type"] == "metrics"
         assert result["instance_hash"] == "abc123"
@@ -89,13 +139,13 @@ class TestMetricsBatch:
     def test_to_dict_converts_datetime(self):
         """Verify datetime objects in points are converted to ISO strings."""
         point = {"time": datetime(2026, 3, 31, 12, 0, tzinfo=UTC), "outdoor_temp": 5.5}
-        batch = MetricsBatch(instance_hash="abc", points=[point])
+        batch = MetricsBatch(instance_hash="abc", device_hash="b" * 64, points=[point])
         result = batch.to_dict()
         assert isinstance(result["points"][0]["time"], str)
 
     def test_empty_batch(self):
         """Verify an empty batch serializes with an empty points list."""
-        batch = MetricsBatch(instance_hash="abc")
+        batch = MetricsBatch(instance_hash="abc", device_hash="b" * 64)
         result = batch.to_dict()
         assert result["points"] == []
 
@@ -107,6 +157,7 @@ class TestRegisterSnapshot:
         """Verify snapshot serializes with type, profile, and register data."""
         snapshot = RegisterSnapshot(
             instance_hash="abc123",
+            device_hash="b" * 64,
             time=datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC),
             profile="yutaki_s80",
             gateway_type="modbus_atw_mbs_02",

@@ -307,6 +307,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         info = InstallationInfo(
             instance_hash=meta["instance_hash"],
+            device_hash=meta["device_hash"],
             profile=meta["profile"],
             gateway_type=meta["gateway_type"],
             ha_version=meta["ha_version"],
@@ -347,6 +348,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         snapshot = RegisterSnapshot(
             instance_hash=meta["instance_hash"],
+            device_hash=meta["device_hash"],
             time=datetime.now(tz=UTC),
             profile=meta["profile"],
             gateway_type=meta["gateway_type"],
@@ -368,10 +370,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             return
 
         instance_hash = self._telemetry_meta["instance_hash"]
+        device_hash = self._telemetry_meta["device_hash"]
 
         try:
             anonymized = [anonymize_point(p) for p in points]
-            batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
+            batch = MetricsBatch(
+                instance_hash=instance_hash, device_hash=device_hash, points=anonymized
+            )
             success = await self.telemetry_client.send_metrics(batch)
 
             if success:

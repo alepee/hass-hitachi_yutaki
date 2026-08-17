@@ -57,6 +57,7 @@ def _make_installation() -> InstallationInfo:
     """Create a sample InstallationInfo."""
     return InstallationInfo(
         instance_hash="abc123",
+        device_hash="b" * 64,
         profile="yutaki_s80",
         gateway_type="modbus_atw_mbs_02",
         ha_version="2025.3.1",
@@ -94,6 +95,7 @@ class TestHttpClientSuccess:
 
         batch = MetricsBatch(
             instance_hash="abc123",
+            device_hash="b" * 64,
             points=[{"time": datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC)}],
         )
         result = await client.send_metrics(batch)
@@ -108,6 +110,7 @@ class TestHttpClientSuccess:
 
         snapshot = RegisterSnapshot(
             instance_hash="abc123",
+            device_hash="b" * 64,
             time=datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC),
             profile="yutaki_s80",
             gateway_type="modbus_atw_mbs_02",

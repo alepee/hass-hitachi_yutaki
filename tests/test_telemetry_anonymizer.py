@@ -2,6 +2,7 @@
 
 from custom_components.hitachi_yutaki.telemetry.anonymizer import (
     anonymize_point,
+    hash_device_id,
     hash_instance_id,
     round_temperature,
 )
@@ -32,6 +33,43 @@ class TestHashInstanceId:
         """Hash does not contain the original input."""
         h = hash_instance_id("my-secret-id")
         assert "my-secret-id" not in h
+
+
+class TestHashDeviceId:
+    """Tests for per-config-entry device hashing."""
+
+    def test_returns_lowercase_sha256_hex(self):
+        """Device hash is a 64-char lowercase hex digest."""
+        result = hash_device_id("instance-abc", "hitachi_yutaki_ABC123_1")
+        assert len(result) == 64
+        assert result == result.lower()
+        assert all(c in "0123456789abcdef" for c in result)
+
+    def test_is_stable(self):
+        """Same inputs always produce the same hash."""
+        a = hash_device_id("instance-abc", "hitachi_yutaki_ABC123_1")
+        b = hash_device_id("instance-abc", "hitachi_yutaki_ABC123_1")
+        assert a == b
+
+    def test_differs_per_entry_on_same_instance(self):
+        """Two entries of one HA instance get distinct identities.
+
+        This is the whole point of #395: instance_hash was shared, so all
+        entries collided on the server-side rate limit.
+        """
+        a = hash_device_id("instance-abc", "hitachi_yutaki_ABC123_1")
+        b = hash_device_id("instance-abc", "hitachi_yutaki_ABC123_2")
+        assert a != b
+
+    def test_differs_across_instances_for_same_hardware(self):
+        """Salting with instance_id keeps two households uncorrelatable."""
+        a = hash_device_id("instance-abc", "hitachi_yutaki_ABC123_1")
+        b = hash_device_id("instance-xyz", "hitachi_yutaki_ABC123_1")
+        assert a != b
+
+    def test_never_equals_the_instance_hash(self):
+        """Device and instance identities are always distinct values."""
+        assert hash_device_id("instance-abc", "u1") != hash_instance_id("instance-abc")
 
 
 class TestRoundTemperature:

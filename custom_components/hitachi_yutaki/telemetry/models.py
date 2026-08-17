@@ -23,6 +23,7 @@ class InstallationInfo:
     """
 
     instance_hash: str
+    device_hash: str
     profile: str
     gateway_type: str
     ha_version: str
@@ -60,6 +61,7 @@ class InstallationInfo:
         return {
             "type": "installation",
             "instance_hash": self.instance_hash,
+            "device_hash": self.device_hash,
             "data": data,
         }
 
@@ -69,6 +71,7 @@ class MetricsBatch:
     """A batch of metric data points for a single instance."""
 
     instance_hash: str
+    device_hash: str
     points: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -82,6 +85,7 @@ class MetricsBatch:
         return {
             "type": "metrics",
             "instance_hash": self.instance_hash,
+            "device_hash": self.device_hash,
             "points": serialized_points,
         }
 
@@ -91,6 +95,7 @@ class RegisterSnapshot:
     """Raw Modbus register snapshot for test fixture generation (ON level)."""
 
     instance_hash: str
+    device_hash: str
     time: datetime
     profile: str
     gateway_type: str
@@ -101,6 +106,7 @@ class RegisterSnapshot:
         return {
             "type": "snapshot",
             "instance_hash": self.instance_hash,
+            "device_hash": self.device_hash,
             "time": self.time.isoformat(),
             "profile": self.profile,
             "gateway_type": self.gateway_type,
