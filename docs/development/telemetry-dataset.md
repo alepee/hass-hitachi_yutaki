@@ -13,13 +13,14 @@ This guide is for agents and maintainers building such a dataset. See [../refere
 Payloads are stored as individual JSON files, Hive-partitioned by date (`backend/worker/src/archive.ts`):
 
 ```
-installations/install_<hash12>.json
+installations/install_<instance12>_<device12>.json   (clients >= this release)
+installations/install_<instance12>.json              (legacy, swept on first new send)
 snapshots/year=YYYY/month=MM/day=DD/snap_<ts>_<hash12>.json
 metrics/year=YYYY/month=MM/day=DD/batch_<ts>_<hash12>.json
 daily_stats/year=YYYY/month=MM/daily_<date>_<hash12>.json
 ```
 
-- `<hash12>` = first 12 chars of the SHA-256 instance hash.
+- `<hash12>` = first 12 chars of the SHA-256 instance hash (legacy layout), or `<instance12>_<device12>` (first 12 chars of the instance hash, then of the device hash) once a client sends `device_hash`.
 - **installations** carry `data.profile` (e.g. `yutampo_r32`, `yutaki_s`, `yutaki_s80`), `gateway_type`, `has_dhw/pool/cooling`, `max_circuits`.
 - **snapshots** carry a one-time `registers` dict (numeric register values incl. `system_config`): the raw material for fixtures.
 
@@ -41,6 +42,8 @@ Workflow to find fixtures for a given model:
 1. Page `installations/`, download each, keep those whose `data.profile` matches the target model → collect their instance hashes.
 2. Page `snapshots/`, match files whose filename ends with one of the 12-char hash prefixes.
 3. Download a matching snapshot for the full `registers` dict (incl. `system_config`).
+
+New objects carry `<instance12>_<device12>` in their filename instead of a bare `<instance12>`. A prefix match on `<instance12>` alone still finds every unit of a household (matches step 2's substring check unchanged); appending `_<device12>` narrows the match to one specific unit. The same applies when matching `metrics/` batch filenames against a collected hash.
 
 ## Access path B: DuckDB + httpfs (R2 S3 credentials)
 

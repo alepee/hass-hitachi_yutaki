@@ -4,7 +4,7 @@
  * POST /v1/ingest
  *   - Accepts gzipped or plain JSON
  *   - Validates and sanitizes payload (field whitelist)
- *   - Rate limits per instance_hash (1 req/min via Cache API)
+ *   - Rate limits per device_hash (1 req/min via Cache API)
  *   - R2 (permanent JSON archive, partitioned Hive-style) — sole archive, all types
  *   - Analytics Engine (dataset hitachi_installations) — installation payloads only, for the fleet dashboard
  *   - Returns 202 Accepted on success, 502 Bad Gateway if R2 is unavailable

@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Telemetry on installations with more than one Hitachi gateway: every config entry
+  shared a single `instance_hash` derived from the Home Assistant instance, so the
+  ingestion endpoint's rate limit (1 request per 60s per identity) rejected all but
+  one flush per 5-minute cycle, permanently. Each entry now sends its own
+  `device_hash`, derived from the gateway hardware identifier, so the rate limit,
+  the R2 archive keys and the fleet dashboard address a heat-pump unit rather than a
+  household. Two silent archive defects are fixed with it: installation payloads from
+  different units no longer overwrite each other, and two entries flushing in the same
+  second no longer collide on the same metrics object name. Failed sends now re-queue
+  their buffered points instead of dropping them (bounded to 30 minutes), and every
+  telemetry log line carries the config entry name, with rate-limit rejections raised
+  from DEBUG to WARNING so the cause is visible. Single-gateway installations are
+  unaffected and their fleet history is continuous (#395).
+
 ## [2.2.0-beta.3] - 2026-07-26
 
 ### Changed
