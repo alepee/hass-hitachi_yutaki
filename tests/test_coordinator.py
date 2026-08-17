@@ -66,6 +66,7 @@ def coordinator(mock_hass, mock_api_client, mock_profile):
     coord.telemetry_client = NoopTelemetryClient()
     coord._telemetry_meta = {
         "instance_hash": "test",
+        "device_hash": "test",
         "profile": "test",
         "gateway_type": "test",
         "ha_version": "test",
@@ -354,3 +355,32 @@ async def test_refrigerant_issue_deleted_below_threshold(coordinator):
 
     mock_ir.async_create_issue.assert_not_called()
     mock_ir.async_delete_issue.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_failed_flush_requeues_points(coordinator):
+    """A rejected batch stays in the buffer for the next cycle (#395)."""
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.return_value = False
+
+    await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 1
+    assert coordinator.telemetry_send_failures == 1
+
+
+@pytest.mark.asyncio
+async def test_successful_flush_does_not_requeue(coordinator):
+    """A delivered batch is discarded, not resent."""
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.return_value = True
+
+    await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 0

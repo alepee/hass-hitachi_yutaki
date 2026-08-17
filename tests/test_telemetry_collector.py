@@ -1,8 +1,11 @@
 """Tests for telemetry collector (dict-based)."""
 
-from datetime import UTC
+from datetime import UTC, datetime, timedelta
 
-from custom_components.hitachi_yutaki.telemetry.collector import TelemetryCollector
+from custom_components.hitachi_yutaki.telemetry.collector import (
+    MAX_POINT_AGE,
+    TelemetryCollector,
+)
 from custom_components.hitachi_yutaki.telemetry.models import TelemetryLevel
 
 
@@ -121,3 +124,70 @@ class TestCollectorBuffer:
         points = collector.flush()
         assert points[0]["outdoor_temp"] == 2.0
         assert points[2]["outdoor_temp"] == 4.0
+
+
+class TestRequeue:
+    """Failed sends put their points back (#395)."""
+
+    def test_requeued_points_are_returned_by_the_next_flush(self):
+        """A failed batch is not lost."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(_sample_data())
+        points = collector.flush()
+        assert collector.buffer_size == 0
+
+        collector.requeue(points)
+        assert collector.buffer_size == 1
+        assert collector.flush() == points
+
+    def test_requeued_points_come_before_newer_ones(self):
+        """Chronological order is preserved across a failed send."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(_sample_data(outdoor_temp=1.0))
+        failed = collector.flush()
+        collector.collect(_sample_data(outdoor_temp=2.0))
+
+        collector.requeue(failed)
+        result = collector.flush()
+        assert [p["outdoor_temp"] for p in result] == [1.0, 2.0]
+
+    def test_stale_points_are_dropped(self):
+        """Points older than MAX_POINT_AGE have no analytical value.
+
+        This is also the guard that stops a broken installation from
+        replaying garbage forever: when a gateway loses its unit every
+        register reads 0xFFFF, and those points are collected as valid.
+        """
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        stale = dict(_sample_data())
+        stale["time"] = datetime.now(tz=UTC) - MAX_POINT_AGE - timedelta(seconds=1)
+        fresh = dict(_sample_data())
+        fresh["time"] = datetime.now(tz=UTC)
+
+        collector.requeue([stale, fresh])
+        assert collector.buffer_size == 1
+        assert collector.flush() == [fresh]
+
+    def test_overflow_keeps_the_newest_points(self):
+        """Regression guard: deque.extendleft evicts the NEWEST points.
+
+        appendleft/extendleft on a bounded deque drop from the right, which
+        is the opposite of what is wanted here, so requeue must rebuild the
+        buffer explicitly.
+        """
+        collector = TelemetryCollector(TelemetryLevel.ON, buffer_max_size=3)
+        for i in range(3):
+            collector.collect(_sample_data(outdoor_temp=float(i)))
+
+        old = [{**_sample_data(outdoor_temp=-1.0), "time": datetime.now(tz=UTC)}]
+        collector.requeue(old)
+
+        assert collector.buffer_size == 3
+        assert [p["outdoor_temp"] for p in collector.flush()] == [0.0, 1.0, 2.0]
+
+    def test_requeue_of_an_empty_list_is_a_noop(self):
+        """Nothing to put back, nothing changes."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect(_sample_data())
+        collector.requeue([])
+        assert collector.buffer_size == 1

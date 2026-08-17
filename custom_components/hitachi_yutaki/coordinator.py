@@ -383,12 +383,14 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self.telemetry_last_send = datetime.now(tz=UTC)
             else:
                 self.telemetry_send_failures += 1
+                self.telemetry_collector.requeue(points)
                 _LOGGER.warning(
                     "[%s] Telemetry flush: send returned failure",
                     self.config_entry.title,
                 )
         except Exception:
             self.telemetry_send_failures += 1
+            self.telemetry_collector.requeue(points)
             _LOGGER.warning(
                 "[%s] Telemetry flush failed",
                 self.config_entry.title,
