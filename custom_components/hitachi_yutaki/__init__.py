@@ -348,10 +348,16 @@ async def async_setup_entry(
             if temp_client.connected:
                 await temp_client.close()
 
-        # Fallback to IP+slave if hardware ID unavailable
+        # Fallback to IP+slave+unit if hardware ID unavailable. The unit id is
+        # part of it, exactly as in the config flow: without it, every entry of
+        # a multi-unit HC-A(16/64)MB gateway would back-fill to the same value,
+        # hence to the same telemetry device_hash (#395). The back-fill only
+        # runs while unique_id is None, so a collision here never self-heals.
         if unique_id is None:
             unique_id = (
-                f"{entry.data[CONF_MODBUS_HOST]}_{entry.data[CONF_MODBUS_DEVICE_ID]}"
+                f"{entry.data[CONF_MODBUS_HOST]}_"
+                f"{entry.data[CONF_MODBUS_DEVICE_ID]}_"
+                f"{entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)}"
             )
             _LOGGER.warning(
                 "Could not retrieve hardware identifier, using IP-based unique_id: %s",
@@ -414,9 +420,13 @@ async def async_setup_entry(
     # Always inject telemetry dependencies (noop when OFF)
     instance_id = await async_get_instance_id(hass)
     instance_hash = hash_instance_id(instance_id)
-    # Per-unit identity. entry.unique_id is guaranteed non-None here: the
-    # back-fill above runs before this point. Keyed on the hardware identifier
-    # so deleting and re-adding an entry preserves the unit's fleet history.
+    # Per-unit identity, keyed on the hardware identifier so deleting and
+    # re-adding an entry preserves the unit's fleet history. entry.unique_id is
+    # non-None here because the back-fill above always sets one, but the
+    # invariant is asserted rather than assumed: a None would hash the literal
+    # string "None" and silently give every entry the same identity again.
+    if entry.unique_id is None:
+        raise ValueError("Config entry has no unique_id after back-fill")
     device_hash = hash_device_id(instance_id, entry.unique_id)
     integration = await async_get_integration(hass, DOMAIN)
 

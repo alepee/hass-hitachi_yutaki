@@ -17,10 +17,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   household. Two silent archive defects are fixed with it: installation payloads from
   different units no longer overwrite each other, and two entries flushing in the same
   second no longer collide on the same metrics object name. Failed sends now re-queue
-  their buffered points instead of dropping them (bounded to 30 minutes), and every
-  telemetry log line carries the config entry name, with rate-limit rejections raised
-  from DEBUG to WARNING so the cause is visible. Single-gateway installations are
-  unaffected and their fleet history is continuous (#395).
+  their buffered points instead of dropping them (bounded to 30 minutes and to 80
+  points per request, so a backlog drains over several cycles instead of growing into
+  a request the endpoint refuses; a batch refused as too large is dropped rather than
+  retried indefinitely), and every telemetry log line carries the config entry name,
+  with rate-limit rejections raised from DEBUG to WARNING so the cause is visible.
+  Legacy installations whose config entry never got a hardware identifier now include
+  the unit id in their fallback identifier, so several units behind one
+  HC-A(16/64)MB gateway no longer collapse into a single identity. Single-gateway
+  installations are unaffected and their fleet history is continuous (#395).
 
 ## [2.2.0-beta.3] - 2026-07-26
 
