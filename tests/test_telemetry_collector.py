@@ -1,12 +1,20 @@
 """Tests for telemetry collector (dict-based)."""
 
 from datetime import UTC, datetime, timedelta
+import json
+from pathlib import Path
 
 from custom_components.hitachi_yutaki.telemetry.collector import (
+    MAX_FLUSH_POINTS,
     MAX_POINT_AGE,
     TelemetryCollector,
 )
-from custom_components.hitachi_yutaki.telemetry.models import TelemetryLevel
+from custom_components.hitachi_yutaki.telemetry.models import (
+    MetricsBatch,
+    TelemetryLevel,
+)
+
+_FIXTURE = Path(__file__).parent / "fixtures" / "yutampo_r32_atw_mbs_02_snapshot.json"
 
 
 def _sample_data(**overrides) -> dict:
@@ -191,3 +199,85 @@ class TestRequeue:
         collector.collect(_sample_data())
         collector.requeue([])
         assert collector.buffer_size == 1
+
+
+class TestFlushCap:
+    """A flush is bounded in size, so a backlog cannot outgrow the endpoint.
+
+    The ingestion endpoint rejects a decompressed body over 256 KB with HTTP
+    413. Re-queueing (#395) means a failed cycle adds its points back, so
+    without a cap the batch grows until every send is rejected and telemetry
+    never recovers.
+    """
+
+    def test_flush_returns_at_most_max_flush_points(self):
+        """A full buffer is drained in capped slices, oldest first."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        total = MAX_FLUSH_POINTS + 25
+        for i in range(total):
+            collector.collect(_sample_data(outdoor_temp=float(i)))
+
+        first = collector.flush()
+        assert len(first) == MAX_FLUSH_POINTS
+        assert [p["outdoor_temp"] for p in first] == [
+            float(i) for i in range(MAX_FLUSH_POINTS)
+        ]
+
+        # The remainder stays buffered, nothing is lost.
+        assert collector.buffer_size == total - MAX_FLUSH_POINTS
+        second = collector.flush()
+        assert [p["outdoor_temp"] for p in second] == [
+            float(i) for i in range(MAX_FLUSH_POINTS, total)
+        ]
+        assert collector.buffer_size == 0
+
+    def test_flush_below_the_cap_returns_everything(self):
+        """The cap does not change the normal small-batch behaviour."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        for _ in range(3):
+            collector.collect(_sample_data())
+        assert len(collector.flush()) == 3
+        assert collector.buffer_size == 0
+
+    def test_repeated_failures_cannot_grow_the_batch(self):
+        """Simulated failure loop: every batch stays at or under the cap.
+
+        Each cycle collects a poll's worth of points and re-queues the batch
+        the "send" rejected, which is exactly the shape of a sustained outage.
+        """
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        sizes = []
+        for _ in range(10):
+            for _ in range(60):  # one 5-minute cycle at the default 5s poll
+                collector.collect(_sample_data())
+            batch = collector.flush()
+            sizes.append(len(batch))
+            collector.requeue(batch)  # the send failed
+
+        assert max(sizes) <= MAX_FLUSH_POINTS
+
+    def test_worst_case_batch_stays_under_the_ingestion_limit(self):
+        """A full-cap batch of real field data must fit in one request.
+
+        MAX_PAYLOAD_SIZE in backend/worker/src/validator.ts is 256 KB of
+        decompressed body; over it the Worker answers HTTP 413. The register
+        values come from a real anonymized Yutampo R32 snapshot, so this pins
+        the client cap against the actual server limit.
+        """
+        max_payload_size = 256 * 1024  # source: backend/worker/src/validator.ts
+        registers = json.loads(_FIXTURE.read_text())["registers"]
+
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        for _ in range(MAX_FLUSH_POINTS + 10):
+            collector.collect({"is_available": True, **registers})
+
+        batch = MetricsBatch(
+            instance_hash="a" * 64, device_hash="b" * 64, points=collector.flush()
+        )
+        size = len(json.dumps(batch.to_dict()).encode())
+
+        assert len(batch.points) == MAX_FLUSH_POINTS
+        assert size < max_payload_size / 2, (
+            f"a {MAX_FLUSH_POINTS}-point batch serializes to {size} bytes, "
+            f"too close to the {max_payload_size}-byte ingestion limit"
+        )

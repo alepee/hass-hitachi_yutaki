@@ -14,6 +14,28 @@ class TelemetryLevel(Enum):
     ON = "on"
 
 
+class SendResult(Enum):
+    """Outcome of one telemetry send, as the caller needs to see it.
+
+    A plain bool cannot say *why* a send failed, and the difference matters for
+    buffered metrics: a transient failure should be retried, but a batch the
+    endpoint refused for being too large must be dropped. Retrying it would
+    re-queue points that grow the next batch, so every following flush is
+    rejected too and telemetry never recovers (#395).
+
+    Truthiness follows success, so callers that only care whether the payload
+    landed can keep testing the result directly.
+    """
+
+    SUCCESS = "success"
+    FAILED = "failed"
+    PAYLOAD_TOO_LARGE = "payload_too_large"
+
+    def __bool__(self) -> bool:
+        """Return True only for SUCCESS."""
+        return self is SendResult.SUCCESS
+
+
 @dataclass(frozen=True)
 class InstallationInfo:
     """Anonymous installation snapshot sent daily.

@@ -6,6 +6,7 @@ from .models import (
     InstallationInfo,
     MetricsBatch,
     RegisterSnapshot,
+    SendResult,
     TelemetryLevel,
 )
 from .noop_client import NoopTelemetryClient
@@ -16,6 +17,7 @@ __all__ = [
     "MetricsBatch",
     "NoopTelemetryClient",
     "RegisterSnapshot",
+    "SendResult",
     "TelemetryCollector",
     "TelemetryLevel",
 ]

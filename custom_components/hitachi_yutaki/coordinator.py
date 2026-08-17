@@ -43,6 +43,7 @@ from .telemetry import (
     MetricsBatch,
     NoopTelemetryClient,
     RegisterSnapshot,
+    SendResult,
     TelemetryCollector,
 )
 from .telemetry.anonymizer import (
@@ -387,10 +388,21 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             batch = MetricsBatch(
                 instance_hash=instance_hash, device_hash=device_hash, points=anonymized
             )
-            success = await self.telemetry_client.send_metrics(batch)
+            result = await self.telemetry_client.send_metrics(batch)
 
-            if success:
+            if result:
                 self.telemetry_last_send = datetime.now(tz=UTC)
+            elif result is SendResult.PAYLOAD_TOO_LARGE:
+                # The batch itself is unacceptable, so re-queueing it would
+                # grow the next one and pin telemetry on a permanent rejection.
+                # Drop the points instead (#395).
+                self.telemetry_send_failures += 1
+                _LOGGER.warning(
+                    "[%s] Telemetry flush: batch of %d points rejected as too "
+                    "large, dropping it",
+                    self.config_entry.title,
+                    len(points),
+                )
             else:
                 self.telemetry_send_failures += 1
                 self.telemetry_collector.requeue(points)

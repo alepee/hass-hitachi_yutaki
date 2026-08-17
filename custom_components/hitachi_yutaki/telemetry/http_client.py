@@ -11,7 +11,7 @@ from typing import Any
 import aiohttp
 
 from ..const import TELEMETRY_ENDPOINT
-from .models import InstallationInfo, MetricsBatch, RegisterSnapshot
+from .models import InstallationInfo, MetricsBatch, RegisterSnapshot, SendResult
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -20,12 +20,17 @@ MAX_RETRIES = 3
 RETRY_DELAYS = (5, 15, 45)  # seconds between retries
 REQUEST_TIMEOUT = 10  # seconds
 
+# HTTP status meaning "the decompressed body exceeds the endpoint's limit".
+# The batch itself is the problem, so the caller must drop it rather than
+# retry it (#395).
+_HTTP_PAYLOAD_TOO_LARGE = 413
+
 
 class HttpTelemetryClient:
     """Sends telemetry data as gzipped JSON to the ingestion endpoint.
 
     Retries with exponential backoff on transient failures.
-    Never raises — logs warnings and returns False on error.
+    Never raises: logs warnings and returns a non-success SendResult on error.
     """
 
     def __init__(
@@ -45,22 +50,22 @@ class HttpTelemetryClient:
         self._endpoint = endpoint
         self._prefix = f"[{label}] " if label else ""
 
-    async def send_installation(self, info: InstallationInfo) -> bool:
+    async def send_installation(self, info: InstallationInfo) -> SendResult:
         """Send installation info payload."""
         return await self._send(info.to_dict())
 
-    async def send_metrics(self, batch: MetricsBatch) -> bool:
+    async def send_metrics(self, batch: MetricsBatch) -> SendResult:
         """Send a metrics batch payload."""
         return await self._send(batch.to_dict())
 
-    async def send_snapshot(self, snapshot: RegisterSnapshot) -> bool:
+    async def send_snapshot(self, snapshot: RegisterSnapshot) -> SendResult:
         """Send a register snapshot payload."""
         return await self._send(snapshot.to_dict())
 
-    async def _send(self, payload: dict[str, Any]) -> bool:
+    async def _send(self, payload: dict[str, Any]) -> SendResult:
         """Send a JSON payload with gzip compression and retry logic.
 
-        Returns True on 2xx, False on any error.
+        Returns SUCCESS on 2xx, PAYLOAD_TOO_LARGE on 413, FAILED otherwise.
         """
         body = gzip.compress(json.dumps(payload).encode())
         headers = {
@@ -79,7 +84,7 @@ class HttpTelemetryClient:
                     timeout=timeout,
                 ) as resp:
                     if 200 <= resp.status < 300:
-                        return True
+                        return SendResult.SUCCESS
 
                     # Client errors (4xx) are not retryable. All are logged at
                     # WARNING, including 429: with per-unit identities a rate
@@ -92,7 +97,9 @@ class HttpTelemetryClient:
                             resp.status,
                             await resp.text(),
                         )
-                        return False
+                        if resp.status == _HTTP_PAYLOAD_TOO_LARGE:
+                            return SendResult.PAYLOAD_TOO_LARGE
+                        return SendResult.FAILED
 
                     # Server errors (5xx) — retry
                     _LOGGER.debug(
@@ -126,4 +133,4 @@ class HttpTelemetryClient:
         _LOGGER.warning(
             "%sTelemetry send failed after %d attempts", self._prefix, MAX_RETRIES
         )
-        return False
+        return SendResult.FAILED

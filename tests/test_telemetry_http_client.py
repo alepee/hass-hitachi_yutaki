@@ -20,6 +20,7 @@ from custom_components.hitachi_yutaki.telemetry.models import (
     InstallationInfo,
     MetricsBatch,
     RegisterSnapshot,
+    SendResult,
 )
 
 
@@ -86,7 +87,7 @@ class TestHttpClientSuccess:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is True
+        assert result is SendResult.SUCCESS
         session.post.assert_called_once()
 
     @pytest.mark.asyncio
@@ -102,7 +103,7 @@ class TestHttpClientSuccess:
             points=[{"time": datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC)}],
         )
         result = await client.send_metrics(batch)
-        assert result is True
+        assert result is SendResult.SUCCESS
 
     @pytest.mark.asyncio
     async def test_send_snapshot_success(self):
@@ -120,7 +121,7 @@ class TestHttpClientSuccess:
             registers={"outdoor_temp": 55},
         )
         result = await client.send_snapshot(snapshot)
-        assert result is True
+        assert result is SendResult.SUCCESS
 
     @pytest.mark.asyncio
     async def test_200_is_success(self):
@@ -130,7 +131,7 @@ class TestHttpClientSuccess:
         client = _make_client(session=session)
 
         result = await client.send_installation(_make_installation())
-        assert result is True
+        assert result is SendResult.SUCCESS
 
 
 class TestHttpClientPayload:
@@ -196,8 +197,25 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is False
+        assert result is SendResult.FAILED
         # Should NOT retry on 4xx — called only once
+        assert session.post.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_413_is_reported_as_payload_too_large(self):
+        """A 413 is a verdict on the batch, not a transient failure (#395).
+
+        The caller needs the distinction to drop the points instead of
+        re-queueing them into an ever-larger, permanently rejected batch.
+        """
+        resp = _mock_response(413, "payload too large")
+        session = _mock_session(resp)
+        client = _make_client(session=session)
+
+        result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.PAYLOAD_TOO_LARGE
+        assert not result
         assert session.post.call_count == 1
 
     @pytest.mark.asyncio
@@ -212,7 +230,7 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is False
+        assert result is SendResult.FAILED
         assert session.post.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
@@ -230,7 +248,7 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is False
+        assert result is SendResult.FAILED
         assert session.post.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
@@ -250,7 +268,7 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is False
+        assert result is SendResult.FAILED
         assert session.post.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
@@ -275,7 +293,7 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is True
+        assert result is SendResult.SUCCESS
         assert session.post.call_count == 2
 
 
@@ -288,7 +306,10 @@ class TestDiagnosability:
             _mock_session(_mock_response(429, "Rate limit exceeded")), label="PAC 1"
         )
         with caplog.at_level(logging.DEBUG):
-            assert await client.send_installation(_make_installation()) is False
+            assert (
+                await client.send_installation(_make_installation())
+                is SendResult.FAILED
+            )
         rejections = [r for r in caplog.records if "Telemetry rejected" in r.message]
         assert len(rejections) == 1
         assert rejections[0].levelno == logging.WARNING

@@ -19,6 +19,13 @@ DEFAULT_BUFFER_MAX_SIZE = 360
 # installation can keep replaying failed sends (#395).
 MAX_POINT_AGE = timedelta(minutes=30)
 
+# Maximum points sent in one flush. Bounds the request body so a backlog can
+# never outgrow the ingestion endpoint's payload limit, which the client
+# cannot see. Above the ~60 points a 5-minute cycle produces at the default
+# 5s poll, so a backlog still drains, and far enough under the limit to hold
+# even on the widest profile (#395).
+MAX_FLUSH_POINTS = 80
+
 # Keys to exclude from telemetry (internal coordinator flags)
 _EXCLUDED_KEYS = frozenset({"is_available"})
 
@@ -68,10 +75,19 @@ class TelemetryCollector:
         self._buffer.append(point)
 
     def flush(self) -> list[dict[str, Any]]:
-        """Return all buffered dicts and clear the buffer."""
-        points = list(self._buffer)
-        self._buffer.clear()
-        return points
+        """Return the oldest buffered dicts, at most MAX_FLUSH_POINTS of them.
+
+        Points beyond the cap stay buffered and go out on the next flush, so a
+        backlog drains over several cycles instead of growing into a single
+        request the ingestion endpoint rejects as too large (#395). Nothing is
+        dropped here: what is not returned is still buffered, in order.
+        """
+        if len(self._buffer) <= MAX_FLUSH_POINTS:
+            points = list(self._buffer)
+            self._buffer.clear()
+            return points
+
+        return [self._buffer.popleft() for _ in range(MAX_FLUSH_POINTS)]
 
     def requeue(self, points: list[dict[str, Any]]) -> None:
         """Put previously flushed points back at the front of the buffer.
@@ -81,7 +97,7 @@ class TelemetryCollector:
         MAX_POINT_AGE are dropped, and on overflow the newest points win.
 
         The explicit rebuild is deliberate. `deque.extendleft` on a bounded
-        deque evicts from the right, i.e. the newest points — the opposite of
+        deque evicts from the right, i.e. the newest points, the opposite of
         the intended policy.
         """
         if not points:
@@ -94,4 +110,8 @@ class TelemetryCollector:
 
         maxlen = self._buffer.maxlen
         merged = kept + list(self._buffer)
-        self._buffer = deque(merged[-maxlen:] if maxlen else merged, maxlen=maxlen)
+        # `is not None`, not truthiness: -0 == 0, so merged[-0:] would return
+        # the whole list and silently make a maxlen=0 buffer unbounded.
+        self._buffer = deque(
+            merged[-maxlen:] if maxlen is not None else merged, maxlen=maxlen
+        )

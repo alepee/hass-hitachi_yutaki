@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .models import InstallationInfo, MetricsBatch, RegisterSnapshot
+from .models import InstallationInfo, MetricsBatch, RegisterSnapshot, SendResult
 
 
 class NoopTelemetryClient:
@@ -12,14 +12,14 @@ class NoopTelemetryClient:
     immediately. Zero overhead when telemetry is Off.
     """
 
-    async def send_installation(self, info: InstallationInfo) -> bool:
+    async def send_installation(self, info: InstallationInfo) -> SendResult:
         """No-op: accept and discard installation info."""
-        return True
+        return SendResult.SUCCESS
 
-    async def send_metrics(self, batch: MetricsBatch) -> bool:
+    async def send_metrics(self, batch: MetricsBatch) -> SendResult:
         """No-op: accept and discard metrics batch."""
-        return True
+        return SendResult.SUCCESS
 
-    async def send_snapshot(self, snapshot: RegisterSnapshot) -> bool:
+    async def send_snapshot(self, snapshot: RegisterSnapshot) -> SendResult:
         """No-op: accept and discard register snapshot."""
-        return True
+        return SendResult.SUCCESS
