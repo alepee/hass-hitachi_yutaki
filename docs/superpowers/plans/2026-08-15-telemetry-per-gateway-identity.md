@@ -12,10 +12,10 @@
 
 ## Global Constraints
 
-- **Work in a dedicated git worktree.** The shared checkout at `/Users/alepee/Documents/Perso/homeassistant/integrations/hass-hitachi_yutaki` is on `fix/power-entity-ignored-when-current-zero` and holds another session's uncommitted changes (`adapters/derived_metrics.py`, `profiles/yutampo_r32.py`, `tests/adapters/test_derived_metrics.py`, `CHANGELOG.md`, `docs/reference/domain-services.md`, `docs/gateway/hc-a-mb.md`). Never commit, stage, or switch branches **in that directory** — it would capture or displace work that is not ours. A worktree created from `main` is a separate directory and leaves those changes untouched, so there is no need to wait for that work to land.
+- **Work in a dedicated git worktree.** The shared checkout at `/Users/alepee/Documents/Perso/homeassistant/integrations/hass-hitachi_yutaki` is on `fix/power-entity-ignored-when-current-zero` and holds another session's uncommitted changes (`adapters/derived_metrics.py`, `profiles/yutampo_r32.py`, `tests/adapters/test_derived_metrics.py`, `CHANGELOG.md`, `docs/reference/domain-services.md`, `docs/gateway/hc-a-mb.md`). Never commit, stage, or switch branches **in that directory**: it would capture or displace work that is not ours. A worktree created from `main` is a separate directory and leaves those changes untouched, so there is no need to wait for that work to land.
 - **Expect one merge conflict.** That other branch also edits `CHANGELOG.md` and `docs/reference/domain-services.md`, which Task 8 touches. Whichever PR merges second resolves it. This is a normal conflict, not a reason to reorder the work.
 - Branch name: `fix/395-telemetry-per-gateway-identity`.
-- **Domain layer purity does not apply here** — `telemetry/` is an infrastructure package, not `domain/`. It may use stdlib and `aiohttp`, but still must not import `homeassistant.*` (only `coordinator.py` and `__init__.py` may).
+- **Domain layer purity does not apply here**: `telemetry/` is an infrastructure package, not `domain/`. It may use stdlib and `aiohttp`, but still must not import `homeassistant.*` (only `coordinator.py` and `__init__.py` may).
 - Type hints required on every function signature; docstrings required on every public function and class (`AGENT.md`, Code Quality Standards).
 - Import aliases must follow `[tool.ruff.lint.flake8-import-conventions.extend-aliases]` in `pyproject.toml`.
 - No `Co-Authored-By:` trailers in commit messages. Conventional-commit style (`fix:`, `feat:`, `test:`, `docs:`).
@@ -39,7 +39,7 @@
 - Consumes: nothing (first task).
 - Produces:
   - `hash_device_id(instance_id: str, unique_id: str) -> str` in `telemetry/anonymizer.py`
-  - `InstallationInfo.device_hash`, `MetricsBatch.device_hash`, `RegisterSnapshot.device_hash` — all `str`, all declared immediately after `instance_hash`, all emitted by `to_dict()` under the key `"device_hash"`.
+  - `InstallationInfo.device_hash`, `MetricsBatch.device_hash`, `RegisterSnapshot.device_hash`: all `str`, all declared immediately after `instance_hash`, all emitted by `to_dict()` under the key `"device_hash"`.
   - `coordinator._telemetry_meta["device_hash"]: str`
 
 - [ ] **Step 1: Write the failing tests for the hash helper**
@@ -254,7 +254,7 @@ In `custom_components/hitachi_yutaki/coordinator.py`, add `device_hash=meta["dev
 
 - `_send_installation_info`, line 309
 - `_send_register_snapshot`, line 349
-- `async_flush_telemetry`, line 374 — this one reads from a local, so add alongside it:
+- `async_flush_telemetry`, line 374 (this one reads from a local, so add alongside it:
 
 ```python
 instance_hash = self._telemetry_meta["instance_hash"]
@@ -272,9 +272,9 @@ Expected: PASS.
 
 Existing tests construct these dataclasses positionally or by keyword and will fail with `TypeError: missing required positional argument: 'device_hash'`. Add `device_hash="b" * 64` to every construction. Known sites, to be re-checked with `rg -n 'InstallationInfo\(|MetricsBatch\(|RegisterSnapshot\(' tests/`:
 
-- `tests/test_telemetry_http_client.py:56` — the `_make_installation()` helper. Task 2 depends on this one.
-- `tests/test_telemetry_models.py` — the existing `_make_info()` helper and its siblings.
-- `tests/test_telemetry_anonymizer.py` — `anonymize_installation_info` fixtures.
+- `tests/test_telemetry_http_client.py:56`: the `_make_installation()` helper. Task 2 depends on this one.
+- `tests/test_telemetry_models.py`: the existing `_make_info()` helper and its siblings.
+- `tests/test_telemetry_anonymizer.py`: `anonymize_installation_info` fixtures.
 - `tests/test_telemetry_integration.py`, `tests/test_coordinator_installation_resend.py`.
 
 - [ ] **Step 12: Commit**
@@ -301,7 +301,7 @@ git commit -m "feat: derive a per-config-entry device_hash for telemetry"
 
 **Interfaces:**
 - Consumes: nothing from Task 1.
-- Produces: `HttpTelemetryClient(session, instance_hash, endpoint=TELEMETRY_ENDPOINT, label="")` — `label` is the config entry title, prefixed onto every log line as `"[<label>] "`.
+- Produces: `HttpTelemetryClient(session, instance_hash, endpoint=TELEMETRY_ENDPOINT, label="")`, where `label` is the config entry title, prefixed onto every log line as `"[<label>] "`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -364,7 +364,7 @@ Add `import logging` to the file's imports. `caplog.at_level(logging.DEBUG)` in 
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_telemetry_http_client.py -v`
-Expected: FAIL — `TypeError: __init__() got an unexpected keyword argument 'label'`, and the 429 assertion fails because the branch logs at DEBUG.
+Expected: FAIL, `TypeError: __init__() got an unexpected keyword argument 'label'`, and the 429 assertion fails because the branch logs at DEBUG.
 
 - [ ] **Step 3: Add the label and raise the 429 severity**
 
@@ -406,7 +406,7 @@ Replace the 4xx branch (lines 78-86) with:
                         return False
 ```
 
-Prefix the remaining log calls in the file the same way — the three DEBUG branches (server error, timeout, client error) and the final `"Telemetry send failed after %d attempts"` warning, each gaining `self._prefix` as its first `%s` argument.
+Prefix the remaining log calls in the file the same way: the three DEBUG branches (server error, timeout, client error) and the final `"Telemetry send failed after %d attempts"` warning, each gaining `self._prefix` as its first `%s` argument.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
@@ -574,7 +574,7 @@ Add the method after `flush`:
         MAX_POINT_AGE are dropped, and on overflow the newest points win.
 
         The explicit rebuild is deliberate. `deque.extendleft` on a bounded
-        deque evicts from the right, i.e. the newest points — the opposite of
+        deque evicts from the right, i.e. the newest points, the opposite of
         the intended policy.
         """
         if not points:
@@ -630,7 +630,7 @@ async def test_successful_flush_does_not_requeue(coordinator):
 - [ ] **Step 6: Run the tests to verify they fail**
 
 Run: `uv run pytest tests/test_coordinator.py -k requeue -v`
-Expected: FAIL — `buffer_size` is 0, because the points were dropped.
+Expected: FAIL, `buffer_size` is 0, because the points were dropped.
 
 - [ ] **Step 7: Re-queue on both failure paths**
 
@@ -684,7 +684,7 @@ git commit -m "fix: re-queue telemetry points when a send fails"
 **Interfaces:**
 - Consumes: the payload shape produced by Task 1 (`device_hash` as a top-level string key).
 - Produces:
-  - `BasePayload.device_hash: string` — always populated; equals `instance_hash` for legacy payloads.
+  - `BasePayload.device_hash: string`: always populated; equals `instance_hash` for legacy payloads.
   - `ValidationResult { payload: TelemetryPayload; hasExplicitDeviceHash: boolean }`
   - `validate(raw: string, instanceHashHeader: string | null): ValidationResult`
 
@@ -761,7 +761,7 @@ describe("device_hash validation (#395)", () => {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cd backend/worker && npx vitest run`
-Expected: FAIL — the malformed-hash case returns 202 instead of 400, and `archived.device_hash` is `undefined`.
+Expected: FAIL, the malformed-hash case returns 202 instead of 400, and `archived.device_hash` is `undefined`.
 
 - [ ] **Step 3: Add the field to the payload types**
 
@@ -844,7 +844,7 @@ git commit -m "feat(worker): accept an optional per-unit device_hash"
 
 **Interfaces:**
 - Consumes: `payload.device_hash` from Task 4.
-- Produces: `isRateLimited(deviceHash: string, payloadType: string): Promise<boolean>` and `markRateLimit(deviceHash: string, payloadType: string): Promise<void>` — same signatures as today, keyed on the device identity.
+- Produces: `isRateLimited(deviceHash: string, payloadType: string): Promise<boolean>` and `markRateLimit(deviceHash: string, payloadType: string): Promise<void>`, same signatures as today, keyed on the device identity.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -897,7 +897,7 @@ The file's existing `beforeEach` already reinstalls a fresh `createFakeCache` on
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cd backend/worker && npx vitest run`
-Expected: FAIL — the first test gets 429 on the second request, because the key is still the shared instance hash.
+Expected: FAIL, the first test gets 429 on the second request, because the key is still the shared instance hash.
 
 - [ ] **Step 3: Key the limiter on the device identity**
 
@@ -959,7 +959,7 @@ git commit -m "fix(worker): rate limit per heat-pump unit, not per HA instance"
 
 - [ ] **Step 1: Write the failing tests**
 
-`createFakeBucket` needs a `delete` spy — extend it in place:
+`createFakeBucket` needs a `delete` spy, so extend it in place:
 
 ```ts
 function createFakeBucket(opts: { fail?: boolean; deleteFails?: boolean } = {}) {
@@ -1056,7 +1056,7 @@ describe("R2 key layout (#395)", () => {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cd backend/worker && npx vitest run`
-Expected: FAIL — the device-component and sweep cases fail; the two legacy cases already pass.
+Expected: FAIL, the device-component and sweep cases fail; the two legacy cases already pass.
 
 - [ ] **Step 3: Implement the key layout and the sweep**
 
@@ -1243,7 +1243,7 @@ describe("WAE fleet dashboard (#395)", () => {
 - [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `cd backend/worker && npx vitest run`
-Expected: FAIL — `point.blobs` has length 7 and `blobs[7]` is `undefined`.
+Expected: FAIL, `point.blobs` has length 7 and `blobs[7]` is `undefined`.
 
 - [ ] **Step 3: Append the blob**
 
@@ -1265,7 +1265,7 @@ In `backend/worker/src/index.ts`, add one entry at the **end** of the `blobs` ar
             ],
 ```
 
-Leave `indexes: [payload.instance_hash]` untouched — that is what keeps the historical series continuous.
+Leave `indexes: [payload.instance_hash]` untouched: that is what keeps the historical series continuous.
 
 - [ ] **Step 4: Run the tests to verify they pass**
 
