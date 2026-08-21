@@ -2,13 +2,13 @@
  * R2 archive — writes JSON payloads as individual files (single sink).
  * Hive-style partitioning for DuckDB/Parquet compatibility.
  *
- * File layout — legacy (no explicit device_hash, <hash> = instance only):
+ * File layout, legacy (no explicit device_hash, <hash> = instance only):
  *   metrics/year=2026/month=03/day=13/batch_<ts>_<hash>.json
  *   snapshots/year=2026/month=03/day=13/snap_<ts>_<hash>.json
  *   daily_stats/year=2026/month=03/daily_<date>_<hash>.json
  *   installations/install_<hash>.json
  *
- * File layout — with an explicit device_hash (<hash> = <instance>_<device>):
+ * File layout, with an explicit device_hash (<hash> = <instance>_<device>):
  *   metrics/year=2026/month=03/day=13/batch_<ts>_<instance>_<device>.json
  *   snapshots/year=2026/month=03/day=13/snap_<ts>_<instance>_<device>.json
  *   daily_stats/year=2026/month=03/daily_<date>_<instance>_<device>.json

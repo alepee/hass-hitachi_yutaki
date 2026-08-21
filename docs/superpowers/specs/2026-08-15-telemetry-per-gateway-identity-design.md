@@ -300,6 +300,60 @@ one reason: **re-queueing must not extend the lifetime of such points**. The
 30-minute age bound in Component 3 is what guarantees it: a broken install
 cannot fill its buffer with garbage that evicts later valid points.
 
+## Cloudflare cost profile
+
+This change increases backend consumption, structurally and permanently, in
+proportion to the number of gateways per installation. That is the direct price
+of the fix and is worth stating plainly rather than discovering on a bill.
+
+**What multiplies.** Before, a household with N config entries produced 1
+accepted write plus N-1 rejections per flush cycle. A 429 is cheap: the Worker
+rejects it before touching R2, on a read-only Cache API probe. After, the same
+household produces N accepted writes. So for the multi-gateway segment:
+
+| Resource | Before | After |
+|---|---|---|
+| R2 Class A operations (PUT) per cycle | 1 | N |
+| R2 objects accumulated | 1 per cycle | N per cycle |
+| WAE datapoints from the daily `installation` re-send | 1 per day | N per day |
+| Worker requests | N (1 archived, N-1 rejected early) | N (all archived) |
+
+Worker *request* count does not change, because the flush cadence is untouched.
+What changes is how many of those requests reach R2 and WAE.
+
+**What this buys.** The N-1 rejected writes were not saving anything useful:
+under a shared identity the surviving write overwrote its peers at the same
+`installations/` key, so a multi-gateway household was already paying for one
+write whose content was indeterminate. The old cost was lower and the data was
+unusable.
+
+**What went down.** The client now bounds a single flush to
+`MAX_FLUSH_POINTS` points, so a request body is capped around 88 KB where a
+re-queue backlog could previously have reached 394 KB. That lowers peak Worker
+CPU spent on gzip decompression and caps individual R2 object size.
+
+**Thresholds to watch.** The free-tier limit that already bit once is
+documented in `backend/worker/src/rate-limiter.ts`: KV was abandoned for the
+Cache API because the free tier's 1,000 writes/day was exceeded at five users.
+The Cache API has no per-operation quota, so rate limiting itself does not
+scale with the fleet. The quantities that now do are R2 Class A operations and
+WAE datapoints written.
+
+**Second-order effect on analysis, not on billing.** More objects for the same
+information makes fleet scans slower. `docs/development/telemetry-dataset.md`
+already records that globbing JSON over `httpfs` is HTTP-HEAD-bound at roughly
+10 files/s/thread, and a multi-gateway household now contributes N objects per
+cycle instead of 1. Narrow the partition glob accordingly, or filter on
+`device_hash` to target one unit.
+
+**If it needs reining in.** The flush interval is the lever: it is a single
+`timedelta(minutes=5)` in `__init__.py`, and the 360-point buffer covers 30
+minutes at a 5s poll, so raising the interval to 10 or 15 minutes divides R2
+writes by 2 or 3 without losing points. The cost is coarser time resolution for
+fixture building and for validating the refrigerant detector. Not done here:
+the decision was to ship, document the multiplier, and observe the real
+Cloudflare metrics before trading away resolution.
+
 ## Documentation to update
 
 Per the code-area → doc-file map in `AGENT.md`:
