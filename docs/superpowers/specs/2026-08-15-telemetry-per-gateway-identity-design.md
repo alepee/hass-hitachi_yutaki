@@ -219,7 +219,9 @@ Two bounds, both required:
 
   ```python
   merged = kept_requeued + list(self._buffer)
-  self._buffer = deque(merged[-self._buffer.maxlen:], maxlen=self._buffer.maxlen)
+  maxlen = self._buffer.maxlen
+  merged = merged[-maxlen:] if maxlen is not None else merged
+  self._buffer = deque(merged, maxlen=maxlen)
   ```
 
 Re-queueing on its own turns a transient outage into a permanent one, so two
@@ -328,9 +330,14 @@ write whose content was indeterminate. The old cost was lower and the data was
 unusable.
 
 **What went down.** The client now bounds a single flush to
-`MAX_FLUSH_POINTS` points, so a request body is capped around 88 KB where a
-re-queue backlog could previously have reached 394 KB. That lowers peak Worker
-CPU spent on gzip decompression and caps individual R2 object size.
+`MAX_FLUSH_POINTS` points, where a re-queue backlog could previously have
+reached 360 points and 394 KB. At the cap the body is about 88 KB on the
+narrowest profile (Yutampo R32, 41 keys/point) and about 187 KB on the widest
+real one (ATW-MBS-02, 72 keys plus derived), so the fleet worst case sits 27%
+under the Worker's 256 KB limit. Break-even is roughly 98 keys per point: a
+future profile wider than that would exceed the limit at the current cap. That
+lowers peak Worker CPU spent on gzip decompression and caps individual R2
+object size.
 
 **Thresholds to watch.** The free-tier limit that already bit once is
 documented in `backend/worker/src/rate-limiter.ts`: KV was abandoned for the
@@ -347,12 +354,19 @@ cycle instead of 1. Narrow the partition glob accordingly, or filter on
 `device_hash` to target one unit.
 
 **If it needs reining in.** The flush interval is the lever: it is a single
-`timedelta(minutes=5)` in `__init__.py`, and the 360-point buffer covers 30
-minutes at a 5s poll, so raising the interval to 10 or 15 minutes divides R2
-writes by 2 or 3 without losing points. The cost is coarser time resolution for
-fixture building and for validating the refrigerant detector. Not done here:
-the decision was to ship, document the multiplier, and observe the real
-Cloudflare metrics before trading away resolution.
+`timedelta(minutes=5)` in `__init__.py`, and raising it to 10 or 15 minutes
+divides R2 writes by 2 or 3. It cannot be raised on its own, though:
+`MAX_FLUSH_POINTS` is 80 while a 10-minute cycle collects 120 points at the
+default 5s poll, so the surplus is evicted by the buffer cap. Measured over 30
+cycles that is 26% of points dropped at 10 minutes and 50% at 15. Raising the
+interval therefore requires raising the cap in step, which walks back toward
+the payload limit the cap exists to respect: at 15 minutes a 180-point batch is
+about 420 KB on the widest profile, well over 256 KB. So the real lever is the
+interval and the cap together, and past roughly 10 minutes the Worker's payload
+limit has to move too. The other cost is coarser time resolution for fixture
+building and for validating the refrigerant detector. Not done here: the
+decision was to ship, document the multiplier, and observe the real Cloudflare
+metrics before trading away resolution.
 
 ## Documentation to update
 
