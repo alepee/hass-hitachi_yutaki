@@ -38,6 +38,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the rate-limit window that very attempt had armed, and the points were re-queued
   and sent again on the next cycle. Such a rejection is now recognised for what it
   is and the batch is not re-queued (#395).
+- Telemetry requests are now bounded in bytes rather than in points. A point carries
+  one field per register plus the derived metrics, so its size depends on the
+  heat-pump profile: 80 points measure about 90 KB on the narrowest profile but
+  about 233 KB on the widest, against a 256 KB limit at the endpoint. A wide
+  installation that had one failed send could therefore build a batch the endpoint
+  refuses, losing those points. A batch is now filled up to a serialized budget, so
+  a wide profile sends fewer points per request instead of an oversized body (#395).
+- The telemetry buffer now holds the same 30 minutes at any poll cadence. Its size
+  was a fixed number of points, which meant 30 minutes at the default 5-second poll
+  but six hours at a 60-second one, while re-queued points were discarded after 30
+  minutes either way (#395).
 
 ## [2.2.0-beta.3] - 2026-07-26
 

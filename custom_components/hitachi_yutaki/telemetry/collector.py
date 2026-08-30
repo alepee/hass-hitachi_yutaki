@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import deque
 from datetime import UTC, datetime, timedelta
+import json
 import logging
 from math import ceil
 from typing import Any
@@ -12,7 +13,9 @@ from .models import TelemetryLevel
 
 _LOGGER = logging.getLogger(__name__)
 
-# Default buffer size: 360 points = 30 minutes at 5s poll interval
+# Default buffer size: 360 points = 30 minutes at 5s poll interval. Prefer
+# compute_buffer_max_size, which expresses the same 30-minute window at any
+# poll cadence; this constant is the value it yields for the default poll.
 DEFAULT_BUFFER_MAX_SIZE = 360
 
 # Re-queued points older than this are dropped. Matches the buffer's natural
@@ -27,12 +30,34 @@ MAX_POINT_AGE = timedelta(minutes=30)
 # even on the widest profile (#395).
 MAX_FLUSH_POINTS = 80
 
+# Serialized budget for one request body, well under the endpoint's 256 KB
+# decompressed limit. A point count cannot bound bytes on its own: a point
+# carries one field per register plus the derived metrics, so the widest
+# profiles reach roughly 3 KB per point against roughly 1.1 KB on the
+# narrowest, and 80 of them measure about 233 KB. The margin the point cap
+# alone leaves is therefore a property of the profile, not of the cap (#395).
+MAX_FLUSH_BYTES = 180 * 1024
+
 # One warning per this many silently evicted points, so a saturated buffer is
 # visible in the log without flooding it.
 _OVERFLOW_LOG_EVERY = 100
 
 # Keys to exclude from telemetry (internal coordinator flags)
 _EXCLUDED_KEYS = frozenset({"is_available"})
+
+
+def compute_buffer_max_size(scan_interval: timedelta, stride: int = 1) -> int:
+    """Return how many points hold MAX_POINT_AGE at this collection cadence.
+
+    The buffer window and the re-queue age cutoff must say the same thing.
+    A fixed point count does not: 360 points is 30 minutes at the default 5s
+    poll but six hours at a 60s one, while requeue discards anything older
+    than MAX_POINT_AGE either way.
+    """
+    interval = scan_interval.total_seconds() * max(1, stride)
+    if interval <= 0:
+        return DEFAULT_BUFFER_MAX_SIZE
+    return max(1, ceil(MAX_POINT_AGE.total_seconds() / interval))
 
 
 def compute_collect_stride(scan_interval: timedelta, flush_interval: timedelta) -> int:
@@ -130,19 +155,45 @@ class TelemetryCollector:
         self._buffer.append(point)
 
     def flush(self) -> list[dict[str, Any]]:
-        """Return the oldest buffered dicts, at most MAX_FLUSH_POINTS of them.
+        """Return the oldest buffered dicts, bounded by size and by count.
 
-        Points beyond the cap stay buffered and go out on the next flush, so a
-        backlog drains over several cycles instead of growing into a single
+        Points beyond the bound stay buffered and go out on the next flush, so
+        a backlog drains over several cycles instead of growing into a single
         request the ingestion endpoint rejects as too large (#395). Nothing is
         dropped here: what is not returned is still buffered, in order.
+
+        The binding bound is MAX_FLUSH_BYTES, measured on the oldest point, so
+        a wide profile sends fewer points rather than an oversized body.
+        MAX_FLUSH_POINTS stays as an upper bound for narrow profiles, whose
+        points are small enough that the byte budget would allow far more than
+        a cycle ever produces.
         """
-        if len(self._buffer) <= MAX_FLUSH_POINTS:
+        if not self._buffer:
+            return []
+
+        limit = min(MAX_FLUSH_POINTS, self._points_within_budget())
+        if len(self._buffer) <= limit:
             points = list(self._buffer)
             self._buffer.clear()
             return points
 
-        return [self._buffer.popleft() for _ in range(MAX_FLUSH_POINTS)]
+        return [self._buffer.popleft() for _ in range(limit)]
+
+    def _points_within_budget(self) -> int:
+        """Return how many points of the current width fit in MAX_FLUSH_BYTES.
+
+        The oldest point stands for the batch: every point of one installation
+        carries the same register keys, so their sizes differ only by the
+        width of the values. Measured before anonymization, which only rounds
+        values and can therefore shorten them, never lengthen them.
+        """
+        try:
+            size = len(json.dumps(self._buffer[0], default=str).encode())
+        except (TypeError, ValueError):  # pragma: no cover - defensive
+            return MAX_FLUSH_POINTS
+        if size <= 0:
+            return MAX_FLUSH_POINTS
+        return max(1, MAX_FLUSH_BYTES // size)
 
     def requeue(self, points: list[dict[str, Any]]) -> None:
         """Put previously flushed points back at the front of the buffer.

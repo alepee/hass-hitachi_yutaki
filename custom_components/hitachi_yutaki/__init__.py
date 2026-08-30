@@ -69,7 +69,7 @@ from .telemetry import (
     TelemetryLevel,
 )
 from .telemetry.anonymizer import hash_device_id, hash_instance_id
-from .telemetry.collector import compute_collect_stride
+from .telemetry.collector import compute_buffer_max_size, compute_collect_stride
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -289,9 +289,8 @@ def _build_telemetry_collector(
     outruns the flush cap the buffer saturates and evicts points silently, so
     collection is thinned at the source instead (#395).
     """
-    stride = compute_collect_stride(
-        timedelta(seconds=entry.data[CONF_SCAN_INTERVAL]), TELEMETRY_FLUSH_INTERVAL
-    )
+    scan_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
+    stride = compute_collect_stride(scan_interval, TELEMETRY_FLUSH_INTERVAL)
     if stride > 1:
         _LOGGER.info(
             "Telemetry collects 1 poll out of %d: a %ss scan interval produces "
@@ -300,7 +299,11 @@ def _build_telemetry_collector(
             entry.data[CONF_SCAN_INTERVAL],
             TELEMETRY_FLUSH_INTERVAL,
         )
-    return TelemetryCollector(level=telemetry_level, collect_stride=stride)
+    return TelemetryCollector(
+        level=telemetry_level,
+        buffer_max_size=compute_buffer_max_size(scan_interval, stride),
+        collect_stride=stride,
+    )
 
 
 async def async_setup_entry(
@@ -841,8 +844,18 @@ async def async_unload_entry(
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator = entry.runtime_data
 
-        # Flush remaining telemetry data before closing
+        # Flush remaining telemetry data before closing. One request only:
+        # the endpoint accepts one per minute per unit, so draining a deeper
+        # backlog here would be rejected anyway. Say what is being discarded
+        # rather than let it vanish with the coordinator (#395).
         await coordinator.async_flush_telemetry()
+        stranded = coordinator.telemetry_collector.buffer_size
+        if stranded:
+            _LOGGER.info(
+                "[%s] %d buffered telemetry point(s) discarded on unload",
+                entry.title,
+                stranded,
+            )
 
         # Persist refrigerant detector state before closing
         if coordinator.derived_metrics is not None:

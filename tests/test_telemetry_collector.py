@@ -5,10 +5,14 @@ import json
 import logging
 from pathlib import Path
 
+import pytest
+
 from custom_components.hitachi_yutaki.telemetry.collector import (
+    MAX_FLUSH_BYTES,
     MAX_FLUSH_POINTS,
     MAX_POINT_AGE,
     TelemetryCollector,
+    compute_buffer_max_size,
     compute_collect_stride,
 )
 from custom_components.hitachi_yutaki.telemetry.models import (
@@ -258,13 +262,15 @@ class TestFlushCap:
 
         assert max(sizes) <= MAX_FLUSH_POINTS
 
-    def test_worst_case_batch_stays_under_the_ingestion_limit(self):
-        """A full-cap batch of real field data must fit in one request.
+    def test_narrowest_profile_batch_stays_well_under_the_limit(self):
+        """Real field data on the narrowest profile, as a sanity check.
 
         MAX_PAYLOAD_SIZE in backend/worker/src/validator.ts is 256 KB of
         decompressed body; over it the Worker answers HTTP 413. The register
-        values come from a real anonymized Yutampo R32 snapshot, so this pins
-        the client cap against the actual server limit.
+        values come from a real anonymized Yutampo R32 snapshot, which is the
+        *narrowest* profile in the repo at 41 keys. It is therefore not a
+        worst case, and the point count alone never was the binding bound:
+        TestFlushByteBudget carries that invariant.
         """
         max_payload_size = 256 * 1024  # source: backend/worker/src/validator.ts
         registers = json.loads(_FIXTURE.read_text())["registers"]
@@ -401,3 +407,100 @@ class TestOverflowIsVisible:
 
         assert collector.points_dropped == 0
         assert caplog.text == ""
+
+
+class TestFlushByteBudget:
+    """A request body is bounded in bytes, not only in points (#395).
+
+    A point carries one field per register plus the derived metrics, so its
+    size is a property of the heat-pump profile: about 1.1 KB on the narrowest
+    profile in the repo and about 3 KB on the widest register map. A fixed
+    point count therefore leaves a margin that varies with the profile, and 80
+    points of the widest measure roughly 233 KB against the endpoint's 256 KB.
+    The byte budget is what makes the bound hold on any profile.
+    """
+
+    @staticmethod
+    def _point(keys: int) -> dict:
+        """Build a point of a given width with realistic value sizes."""
+        return {f"register_key_number_{i:03d}": 1234.5 for i in range(keys)}
+
+    @pytest.mark.parametrize("keys_per_point", [41, 95, 200, 500])
+    def test_a_flush_never_exceeds_the_ingestion_limit(self, keys_per_point):
+        """The invariant, across widths well beyond any current profile.
+
+        Today's widest register map is around 95 register keys plus roughly 25
+        derived metrics. The parametrization runs past that on purpose: the
+        bound must hold for profiles this repo does not have yet.
+        """
+        max_payload_size = 256 * 1024  # backend/worker/src/validator.ts
+        collector = TelemetryCollector(TelemetryLevel.ON, buffer_max_size=1000)
+        for _ in range(500):
+            collector.collect({"is_available": True, **self._point(keys_per_point)})
+
+        batch = MetricsBatch(
+            instance_hash="a" * 64, device_hash="b" * 64, points=collector.flush()
+        )
+        size = len(json.dumps(batch.to_dict()).encode())
+
+        assert size < max_payload_size, (
+            f"{len(batch.points)} points of {keys_per_point} keys serialize to "
+            f"{size} bytes, over the {max_payload_size}-byte ingestion limit"
+        )
+
+    def test_a_wide_profile_sends_fewer_points(self):
+        """The byte budget, not the point count, is what binds on a wide one."""
+        collector = TelemetryCollector(TelemetryLevel.ON, buffer_max_size=1000)
+        for _ in range(500):
+            collector.collect({"is_available": True, **self._point(95)})
+
+        assert len(collector.flush()) < MAX_FLUSH_POINTS
+
+    def test_a_narrow_profile_is_still_bound_by_the_point_cap(self):
+        """Small points must not let a single request carry hundreds of them."""
+        collector = TelemetryCollector(TelemetryLevel.ON, buffer_max_size=1000)
+        for _ in range(500):
+            collector.collect({"is_available": True, **self._point(10)})
+
+        assert len(collector.flush()) == MAX_FLUSH_POINTS
+
+    def test_an_oversized_point_still_goes_out_alone(self):
+        """A point bigger than the whole budget must not block the buffer."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        collector.collect({"is_available": True, "blob": "x" * (MAX_FLUSH_BYTES + 1)})
+        collector.collect({"is_available": True, "blob": "y"})
+
+        assert len(collector.flush()) == 1
+        assert collector.buffer_size == 1
+
+    def test_an_empty_buffer_flushes_nothing(self):
+        """No point to measure, no request."""
+        assert TelemetryCollector(TelemetryLevel.ON).flush() == []
+
+
+class TestBufferWindow:
+    """The buffer window and the age cutoff must express the same rule (#395)."""
+
+    def test_default_poll_keeps_the_documented_size(self):
+        """5s poll: 30 minutes is the 360 points the constant documents."""
+        assert compute_buffer_max_size(timedelta(seconds=5)) == 360
+
+    def test_slow_poll_holds_the_same_duration_not_the_same_count(self):
+        """60s poll: 360 points would be six hours, requeue drops after 30 min."""
+        assert compute_buffer_max_size(timedelta(seconds=60)) == 30
+
+    def test_stride_is_taken_into_account(self):
+        """What matters is the collected cadence, not the poll cadence."""
+        assert compute_buffer_max_size(timedelta(seconds=1), stride=4) == 450
+
+    def test_window_always_covers_several_flush_cycles(self):
+        """MAX_POINT_AGE is 30 min against a 5 min flush, so at least six."""
+        for seconds in (1, 2, 5, 15, 30, 60, 300):
+            interval = timedelta(seconds=seconds)
+            stride = compute_collect_stride(interval, timedelta(minutes=5))
+            per_cycle = (300 / seconds) / stride
+            assert compute_buffer_max_size(interval, stride) >= per_cycle * 6
+
+    def test_degenerate_interval_falls_back_to_the_default(self):
+        """A zero interval must not divide by zero."""
+        assert compute_buffer_max_size(timedelta(0)) == 360
