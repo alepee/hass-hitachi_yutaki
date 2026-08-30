@@ -4,13 +4,13 @@
  * POST /v1/ingest
  *   - Accepts gzipped or plain JSON
  *   - Validates and sanitizes payload (field whitelist)
- *   - Rate limits per instance_hash (1 req/min via Cache API)
+ *   - Rate limits per device_hash (1 req/min via Cache API)
  *   - R2 (permanent JSON archive, partitioned Hive-style) — sole archive, all types
  *   - Analytics Engine (dataset hitachi_installations) — installation payloads only, for the fleet dashboard
  *   - Returns 202 Accepted on success, 502 Bad Gateway if R2 is unavailable
  */
 
-import { archiveToR2 } from "./archive";
+import { archiveToR2, sweepLegacyInstallation } from "./archive";
 import { classifyClimateZone } from "./climate";
 import {
   RateLimitError,
@@ -85,12 +85,12 @@ export default {
 
       // Validate and sanitize
       const instanceHashHeader = request.headers.get("x-instance-hash");
-      const payload = validate(body, instanceHashHeader);
+      const { payload, hasExplicitDeviceHash } = validate(body, instanceHashHeader);
 
-      // Rate limit (per instance_hash + payload type). Read-only check here;
+      // Rate limit (per device_hash + payload type). Read-only check here;
       // the slot is only committed (markRateLimit) after a successful archive
       // so a transient R2 outage never burns the window (#324).
-      if (await isRateLimited(payload.instance_hash, payload.type)) {
+      if (await isRateLimited(payload.device_hash, payload.type)) {
         throw new RateLimitError(WINDOW_SECONDS);
       }
 
@@ -103,7 +103,7 @@ export default {
       }
 
       try {
-        await archiveToR2(env.ARCHIVE, payload);
+        await archiveToR2(env.ARCHIVE, payload, hasExplicitDeviceHash);
       } catch (err) {
         console.error("R2 archive failed:", err);
         return new Response("R2 archive unavailable", { status: 502 });
@@ -117,9 +117,19 @@ export default {
       // to R2). Failing to mark only widens the window by one extra accepted
       // request — the documented tradeoff.
       try {
-        await markRateLimit(payload.instance_hash, payload.type);
+        await markRateLimit(payload.device_hash, payload.type);
       } catch (err) {
         console.warn("markRateLimit failed (archive already durable):", err);
+      }
+
+      // Retire the pre-#395 instance-keyed installation object, which this
+      // client will never write to again. Best-effort, like markRateLimit.
+      if (payload.type === "installation" && hasExplicitDeviceHash) {
+        try {
+          await sweepLegacyInstallation(env.ARCHIVE, payload.instance_hash);
+        } catch (err) {
+          console.warn("sweepLegacyInstallation failed:", err);
+        }
       }
 
       // Mirror installation payloads into Analytics Engine for the fleet
@@ -138,6 +148,10 @@ export default {
               d.integration_version ?? "",
               d.ha_version ?? "",
               d.climate_zone ?? "",
+              // Appended, never inserted: WAE blobs are positional and the
+              // Grafana dashboard is not versioned in this repo, so shifting
+              // blob1-blob7 would silently break every existing query (#395).
+              payload.device_hash,
             ],
             doubles: [
               d.has_dhw ? 1 : 0,

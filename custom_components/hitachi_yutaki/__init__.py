@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import suppress
 from datetime import datetime, timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME, __version__ as HA_VERSION
+from homeassistant.const import (
+    CONF_NAME,
+    CONF_SCAN_INTERVAL,
+    __version__ as HA_VERSION,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
@@ -64,9 +69,20 @@ from .telemetry import (
     TelemetryCollector,
     TelemetryLevel,
 )
-from .telemetry.anonymizer import hash_instance_id
+from .telemetry.anonymizer import hash_device_id, hash_instance_id
+from .telemetry.collector import compute_buffer_max_size, compute_collect_stride
 
 _LOGGER = logging.getLogger(__name__)
+
+# How often buffered telemetry points are sent. Paired with the poll interval
+# it also fixes how many points a cycle produces, hence the collect stride.
+TELEMETRY_FLUSH_INTERVAL = timedelta(minutes=5)
+
+# Ceiling on the final flush at unload. The client retries three times with
+# backoff, so an unreachable endpoint would otherwise hold up a Home Assistant
+# shutdown for the better part of a minute for anonymous, best-effort data.
+# Sized for one attempt: past that the points are discarded anyway (#395).
+UNLOAD_FLUSH_TIMEOUT = 12
 
 type HitachiYutakiConfigEntry = ConfigEntry[HitachiYutakiDataCoordinator]
 
@@ -271,6 +287,32 @@ async def _async_heal_outdoor_cycle(
             await detect_client.close()
 
 
+def _build_telemetry_collector(
+    entry: HitachiYutakiConfigEntry, telemetry_level: TelemetryLevel
+) -> TelemetryCollector:
+    """Create the collector, decimated to what a flush cycle can send.
+
+    The scan interval is a user setting with no lower bound. When the poll
+    outruns the flush cap the buffer saturates and evicts points silently, so
+    collection is thinned at the source instead (#395).
+    """
+    scan_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
+    stride = compute_collect_stride(scan_interval, TELEMETRY_FLUSH_INTERVAL)
+    if stride > 1:
+        _LOGGER.info(
+            "Telemetry collects 1 poll out of %d: a %ss scan interval produces "
+            "more points than a %s flush can send",
+            stride,
+            entry.data[CONF_SCAN_INTERVAL],
+            TELEMETRY_FLUSH_INTERVAL,
+        )
+    return TelemetryCollector(
+        level=telemetry_level,
+        buffer_max_size=compute_buffer_max_size(scan_interval, stride),
+        collect_stride=stride,
+    )
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: HitachiYutakiConfigEntry
 ) -> bool:
@@ -334,7 +376,10 @@ async def async_setup_entry(
             if await temp_client.connect():
                 hw_id = await temp_client.async_get_unique_id()
                 if hw_id:
-                    unique_id = f"{DOMAIN}_{hw_id}"
+                    unique_id = (
+                        f"{DOMAIN}_{hw_id}_"
+                        f"{entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)}"
+                    )
                     _LOGGER.info(
                         "Added hardware-based unique_id to existing config entry: %s",
                         unique_id,
@@ -345,10 +390,16 @@ async def async_setup_entry(
             if temp_client.connected:
                 await temp_client.close()
 
-        # Fallback to IP+slave if hardware ID unavailable
+        # Fallback to IP+slave+unit if hardware ID unavailable. The unit id is
+        # part of it, exactly as in the config flow: without it, every entry of
+        # a multi-unit HC-A(16/64)MB gateway would back-fill to the same value,
+        # hence to the same telemetry device_hash (#395). The back-fill only
+        # runs while unique_id is None, so a collision here never self-heals.
         if unique_id is None:
             unique_id = (
-                f"{entry.data[CONF_MODBUS_HOST]}_{entry.data[CONF_MODBUS_DEVICE_ID]}"
+                f"{entry.data[CONF_MODBUS_HOST]}_"
+                f"{entry.data[CONF_MODBUS_DEVICE_ID]}_"
+                f"{entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)}"
             )
             _LOGGER.warning(
                 "Could not retrieve hardware identifier, using IP-based unique_id: %s",
@@ -411,19 +462,28 @@ async def async_setup_entry(
     # Always inject telemetry dependencies (noop when OFF)
     instance_id = await async_get_instance_id(hass)
     instance_hash = hash_instance_id(instance_id)
+    # Per-unit identity, keyed on the hardware identifier so deleting and
+    # re-adding an entry preserves the unit's fleet history. entry.unique_id is
+    # non-None here because the back-fill above always sets one, but the
+    # invariant is asserted rather than assumed: a None would hash the literal
+    # string "None" and silently give every entry the same identity again.
+    if entry.unique_id is None:
+        raise ValueError("Config entry has no unique_id after back-fill")
+    device_hash = hash_device_id(instance_id, entry.unique_id)
     integration = await async_get_integration(hass, DOMAIN)
 
     if telemetry_level != TelemetryLevel.OFF:
         session = async_get_clientsession(hass)
-        coordinator.telemetry_client = HttpTelemetryClient(session, instance_hash)
+        coordinator.telemetry_client = HttpTelemetryClient(
+            session, instance_hash, label=entry.title
+        )
     else:
         coordinator.telemetry_client = NoopTelemetryClient()
 
-    coordinator.telemetry_collector = TelemetryCollector(
-        level=telemetry_level,
-    )
+    coordinator.telemetry_collector = _build_telemetry_collector(entry, telemetry_level)
     coordinator._telemetry_meta = {
         "instance_hash": instance_hash,
+        "device_hash": device_hash,
         "profile": profile_key,
         "gateway_type": gateway_type,
         "ha_version": HA_VERSION,
@@ -693,15 +753,14 @@ async def async_setup_entry(
             translation_key="enable_refrigerant_detection",
         )
 
-    # Set up telemetry flush timer (every 5 min)
+    # Set up telemetry flush timer
     if telemetry_level != TelemetryLevel.OFF:
-        flush_interval = timedelta(minutes=5)
 
         async def _telemetry_flush(_now: datetime) -> None:
             await coordinator.async_flush_telemetry()
 
         entry.async_on_unload(
-            async_track_time_interval(hass, _telemetry_flush, flush_interval)
+            async_track_time_interval(hass, _telemetry_flush, TELEMETRY_FLUSH_INTERVAL)
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -792,8 +851,27 @@ async def async_unload_entry(
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator = entry.runtime_data
 
-        # Flush remaining telemetry data before closing
-        await coordinator.async_flush_telemetry()
+        # Flush remaining telemetry data before closing. One request only:
+        # the endpoint accepts one per minute per unit, so draining a deeper
+        # backlog here would be rejected anyway. Bounded, so an unreachable
+        # endpoint cannot stall the shutdown. Say what is being discarded
+        # rather than let it vanish with the coordinator (#395).
+        try:
+            async with asyncio.timeout(UNLOAD_FLUSH_TIMEOUT):
+                await coordinator.async_flush_telemetry()
+        except TimeoutError:
+            _LOGGER.info(
+                "[%s] Telemetry flush on unload timed out after %ds",
+                entry.title,
+                UNLOAD_FLUSH_TIMEOUT,
+            )
+        stranded = coordinator.telemetry_collector.buffer_size
+        if stranded:
+            _LOGGER.info(
+                "[%s] %d buffered telemetry point(s) discarded on unload",
+                entry.title,
+                stranded,
+            )
 
         # Persist refrigerant detector state before closing
         if coordinator.derived_metrics is not None:

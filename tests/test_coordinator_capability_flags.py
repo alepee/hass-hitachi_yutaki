@@ -65,6 +65,7 @@ def _make_coordinator(initial_entry_data: dict, system_config_value: int):
     coord.telemetry_client = NoopTelemetryClient()
     coord._telemetry_meta = {
         "instance_hash": "test",
+        "device_hash": "test",
         "profile": "test",
         "gateway_type": "test",
         "ha_version": "test",

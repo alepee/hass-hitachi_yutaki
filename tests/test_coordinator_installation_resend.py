@@ -34,6 +34,7 @@ def coordinator():
     coord.telemetry_client = NoopTelemetryClient()
     coord._telemetry_meta = {
         "instance_hash": "0" * 64,
+        "device_hash": "1" * 64,
         "profile": "yutaki_s",
         "gateway_type": "modbus_atw_mbs_02",
         "ha_version": "2026.5.0",

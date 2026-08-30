@@ -14,6 +14,16 @@ def hash_instance_id(instance_id: str) -> str:
     return hashlib.sha256(instance_id.encode()).hexdigest()
 
 
+def hash_device_id(instance_id: str, unique_id: str) -> str:
+    """Hash an (HA instance, config entry) pair with SHA-256 (non-reversible).
+
+    Identifies a single heat-pump unit rather than a household. Salting with
+    the instance id keeps the value uncorrelatable across HA instances, so two
+    users behind the same gateway hardware cannot be linked (#395).
+    """
+    return hashlib.sha256(f"{instance_id}:{unique_id}".encode()).hexdigest()
+
+
 def round_temperature(value: float | None, precision: float = 0.5) -> float | None:
     """Round a temperature to the nearest increment (default 0.5°C).
 

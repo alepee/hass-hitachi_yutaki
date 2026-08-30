@@ -43,6 +43,7 @@ from .telemetry import (
     MetricsBatch,
     NoopTelemetryClient,
     RegisterSnapshot,
+    SendResult,
     TelemetryCollector,
 )
 from .telemetry.anonymizer import (
@@ -307,6 +308,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         info = InstallationInfo(
             instance_hash=meta["instance_hash"],
+            device_hash=meta["device_hash"],
             profile=meta["profile"],
             gateway_type=meta["gateway_type"],
             ha_version=meta["ha_version"],
@@ -328,7 +330,11 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self._installation_info_sent = True
                 self._installation_sent_date = datetime.now(tz=UTC).date()
         except Exception:
-            _LOGGER.debug("Failed to send telemetry installation info", exc_info=True)
+            _LOGGER.debug(
+                "[%s] Failed to send telemetry installation info",
+                self.config_entry.title,
+                exc_info=True,
+            )
 
     async def _send_register_snapshot(self, data: dict[str, Any]) -> None:
         """Send a one-time register snapshot."""
@@ -347,6 +353,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         snapshot = RegisterSnapshot(
             instance_hash=meta["instance_hash"],
+            device_hash=meta["device_hash"],
             time=datetime.now(tz=UTC),
             profile=meta["profile"],
             gateway_type=meta["gateway_type"],
@@ -357,9 +364,15 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             success = await self.telemetry_client.send_snapshot(snapshot)
             if success:
                 self._snapshot_sent = True
-                _LOGGER.debug("Telemetry: register snapshot sent")
+                _LOGGER.debug(
+                    "[%s] Telemetry: register snapshot sent", self.config_entry.title
+                )
         except Exception:
-            _LOGGER.debug("Failed to send register snapshot", exc_info=True)
+            _LOGGER.debug(
+                "[%s] Failed to send register snapshot",
+                self.config_entry.title,
+                exc_info=True,
+            )
 
     async def async_flush_telemetry(self) -> None:
         """Flush telemetry buffer and send data."""
@@ -368,20 +381,67 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             return
 
         instance_hash = self._telemetry_meta["instance_hash"]
+        device_hash = self._telemetry_meta["device_hash"]
 
+        # Decided in the branches below, acted on once in `finally`. Re-queueing
+        # inline would run twice if anything after it raised, and would be
+        # skipped entirely on cancellation.
+        requeue_needed = False
         try:
             anonymized = [anonymize_point(p) for p in points]
-            batch = MetricsBatch(instance_hash=instance_hash, points=anonymized)
-            success = await self.telemetry_client.send_metrics(batch)
+            batch = MetricsBatch(
+                instance_hash=instance_hash, device_hash=device_hash, points=anonymized
+            )
+            result = await self.telemetry_client.send_metrics(batch)
 
-            if success:
+            if result:
                 self.telemetry_last_send = datetime.now(tz=UTC)
+            elif result is SendResult.PROBABLY_DELIVERED:
+                # The endpoint rate-limited a retry of an attempt whose answer
+                # we never saw, which means that attempt was archived. Keeping
+                # the points would write them a second time (#395).
+                _LOGGER.info(
+                    "[%s] Telemetry flush: batch of %d points already accepted "
+                    "by the endpoint, not re-queued",
+                    self.config_entry.title,
+                    len(points),
+                )
+            elif result is SendResult.PAYLOAD_TOO_LARGE:
+                # The batch itself is unacceptable, so re-queueing it would
+                # grow the next one and pin telemetry on a permanent rejection.
+                # Drop the points instead (#395).
+                self.telemetry_send_failures += 1
+                _LOGGER.warning(
+                    "[%s] Telemetry flush: batch of %d points rejected as too "
+                    "large, dropping it",
+                    self.config_entry.title,
+                    len(points),
+                )
             else:
                 self.telemetry_send_failures += 1
-                _LOGGER.warning("Telemetry flush: send returned failure")
+                requeue_needed = True
+                _LOGGER.warning(
+                    "[%s] Telemetry flush: send returned failure",
+                    self.config_entry.title,
+                )
+        except asyncio.CancelledError:
+            # Home Assistant shutting down mid-send, typically while the client
+            # waits between retries. CancelledError derives from BaseException,
+            # so `except Exception` lets the already-flushed points vanish
+            # instead of putting them back for the unload flush (#395).
+            requeue_needed = True
+            raise
         except Exception:
             self.telemetry_send_failures += 1
-            _LOGGER.warning("Telemetry flush failed", exc_info=True)
+            requeue_needed = True
+            _LOGGER.warning(
+                "[%s] Telemetry flush failed",
+                self.config_entry.title,
+                exc_info=True,
+            )
+        finally:
+            if requeue_needed:
+                self.telemetry_collector.requeue(points)
 
     def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
         """Return True if circuit is configured in system_config."""

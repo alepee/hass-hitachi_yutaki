@@ -8,6 +8,8 @@ export interface Env {
 export interface BasePayload {
   type: string;
   instance_hash: string;
+  /** Per-unit identity (#395). Equals instance_hash for legacy clients. */
+  device_hash: string;
 }
 
 /** Installation info payload. */

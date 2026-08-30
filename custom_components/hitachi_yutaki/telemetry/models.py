@@ -14,6 +14,33 @@ class TelemetryLevel(Enum):
     ON = "on"
 
 
+class SendResult(Enum):
+    """Outcome of one telemetry send, as the caller needs to see it.
+
+    A plain bool cannot say *why* a send failed, and the difference matters for
+    buffered metrics: a transient failure should be retried, but a batch the
+    endpoint refused for being too large must be dropped. Retrying it would
+    re-queue points that grow the next batch, so every following flush is
+    rejected too and telemetry never recovers (#395).
+
+    The same reasoning applies to a batch the endpoint has almost certainly
+    already stored: re-queueing it archives the points twice (#395).
+
+    Truthiness follows success, so callers that only care whether the payload
+    landed can keep testing the result directly. PROBABLY_DELIVERED is
+    deliberately falsy: the evidence is strong but the 2xx was never seen.
+    """
+
+    SUCCESS = "success"
+    FAILED = "failed"
+    PAYLOAD_TOO_LARGE = "payload_too_large"
+    PROBABLY_DELIVERED = "probably_delivered"
+
+    def __bool__(self) -> bool:
+        """Return True only for SUCCESS."""
+        return self is SendResult.SUCCESS
+
+
 @dataclass(frozen=True)
 class InstallationInfo:
     """Anonymous installation snapshot sent daily.
@@ -23,6 +50,7 @@ class InstallationInfo:
     """
 
     instance_hash: str
+    device_hash: str
     profile: str
     gateway_type: str
     ha_version: str
@@ -60,6 +88,7 @@ class InstallationInfo:
         return {
             "type": "installation",
             "instance_hash": self.instance_hash,
+            "device_hash": self.device_hash,
             "data": data,
         }
 
@@ -69,6 +98,7 @@ class MetricsBatch:
     """A batch of metric data points for a single instance."""
 
     instance_hash: str
+    device_hash: str
     points: list[dict] = field(default_factory=list)
 
     def to_dict(self) -> dict:
@@ -82,6 +112,7 @@ class MetricsBatch:
         return {
             "type": "metrics",
             "instance_hash": self.instance_hash,
+            "device_hash": self.device_hash,
             "points": serialized_points,
         }
 
@@ -91,6 +122,7 @@ class RegisterSnapshot:
     """Raw Modbus register snapshot for test fixture generation (ON level)."""
 
     instance_hash: str
+    device_hash: str
     time: datetime
     profile: str
     gateway_type: str
@@ -101,6 +133,7 @@ class RegisterSnapshot:
         return {
             "type": "snapshot",
             "instance_hash": self.instance_hash,
+            "device_hash": self.device_hash,
             "time": self.time.isoformat(),
             "profile": self.profile,
             "gateway_type": self.gateway_type,

@@ -13,14 +13,15 @@ This guide is for agents and maintainers building such a dataset. See [../refere
 Payloads are stored as individual JSON files, Hive-partitioned by date (`backend/worker/src/archive.ts`):
 
 ```
-installations/install_<hash12>.json
+installations/install_<instance12>_<device12>.json   (clients >= this release)
+installations/install_<instance12>.json              (legacy, swept on first new send)
 snapshots/year=YYYY/month=MM/day=DD/snap_<ts>_<rand>_<hash12>.json
 metrics/year=YYYY/month=MM/day=DD/batch_<ts>_<rand>_<hash12>.json
 daily_stats/year=YYYY/month=MM/daily_<date>_<hash12>.json
 ```
 
-- `<hash12>` = first 12 chars of the SHA-256 instance hash. It is always the last component of the name, so matching an object to an installation stays an ends-with on that hash.
-- `<rand>` = 8 random hex characters. The timestamp has one-second resolution, so without it two batches from one instance in the same second landed on the same key and the second write replaced the first. Objects written before this was added have no `<rand>` component, which changes nothing for a match on the hash.
+- `<hash12>` = first 12 chars of the SHA-256 instance hash (legacy layout), or `<instance12>_<device12>` (first 12 chars of the instance hash, then of the device hash) once a client sends `device_hash`. It is always the last component of the name, so matching an object to an installation stays a match on the tail.
+- `<rand>` = 8 random hex characters. The timestamp has one-second resolution, so without it two batches from one unit in the same second landed on the same key and the second write replaced the first. Objects written before this was added have no `<rand>` component, which changes nothing for a match on the hash.
 - **installations** carry `data.profile` (e.g. `yutampo_r32`, `yutaki_s`, `yutaki_s80`), `gateway_type`, `has_dhw/pool/cooling`, `max_circuits`.
 - **snapshots** carry a one-time `registers` dict (numeric register values incl. `system_config`): the raw material for fixtures.
 
@@ -39,9 +40,13 @@ export CF_ACCOUNT=…        # Cloudflare account id
 - Header: `Authorization: Bearer $CF_TOKEN`.
 
 Workflow to find fixtures for a given model:
-1. Page `installations/`, download each, keep those whose `data.profile` matches the target model → collect their instance hashes.
-2. Page `snapshots/`, match files whose filename ends with one of the 12-char hash prefixes.
+1. Page `installations/`, download each, keep those whose `data.profile` matches the target model → collect their instance and device hashes (the object body carries both, and so does its `customMetadata`).
+2. Page `snapshots/`, match files whose filename **contains** one of the 12-char hashes. Use a substring match, not an ends-with one: a snapshot from an upgraded client is named `snap_<ts>_<rand>_<instance12>_<device12>.json`, so its name ends with the *device* hash and an ends-with match on the instance hash finds nothing.
 3. Download a matching snapshot for the full `registers` dict (incl. `system_config`).
+
+Object names come in two shapes. Objects written before #395, and those from a client that has not upgraded yet, carry a bare `<instance12>`. Newer ones carry `<instance12>_<device12>`. A substring match on `<instance12>` therefore finds every unit of a household in both shapes, while a substring match on `<instance12>_<device12>` narrows it to one specific heat-pump unit. The same applies to `metrics/` batch filenames.
+
+Note that the archived body of a payload from a client that has not upgraded carries a `device_hash` equal to its `instance_hash`, since the Worker falls back to the instance identity when the field is absent. Counting distinct `device_hash` values over the archive therefore under-counts the units of a household that has not upgraded, exactly as `count(distinct blob8)` does on the Analytics Engine side.
 
 ## Access path B: DuckDB + httpfs (R2 S3 credentials)
 

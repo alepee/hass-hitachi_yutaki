@@ -6,19 +6,24 @@ import asyncio
 from datetime import UTC, datetime
 import gzip
 import json
+import logging
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
 
+from custom_components.hitachi_yutaki import UNLOAD_FLUSH_TIMEOUT
 from custom_components.hitachi_yutaki.telemetry.http_client import (
     MAX_RETRIES,
+    REQUEST_TIMEOUT,
+    RETRY_DELAYS,
     HttpTelemetryClient,
 )
 from custom_components.hitachi_yutaki.telemetry.models import (
     InstallationInfo,
     MetricsBatch,
     RegisterSnapshot,
+    SendResult,
 )
 
 
@@ -26,12 +31,14 @@ def _make_client(
     session: aiohttp.ClientSession | None = None,
     instance_hash: str = "abc123",
     endpoint: str = "https://test.example.com/v1/ingest",
+    label: str = "",
 ) -> HttpTelemetryClient:
     """Create a client with optional mock session."""
     return HttpTelemetryClient(
         session=session or MagicMock(spec=aiohttp.ClientSession),
         instance_hash=instance_hash,
         endpoint=endpoint,
+        label=label,
     )
 
 
@@ -57,6 +64,7 @@ def _make_installation() -> InstallationInfo:
     """Create a sample InstallationInfo."""
     return InstallationInfo(
         instance_hash="abc123",
+        device_hash="b" * 64,
         profile="yutaki_s80",
         gateway_type="modbus_atw_mbs_02",
         ha_version="2025.3.1",
@@ -82,7 +90,7 @@ class TestHttpClientSuccess:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is True
+        assert result is SendResult.SUCCESS
         session.post.assert_called_once()
 
     @pytest.mark.asyncio
@@ -94,10 +102,11 @@ class TestHttpClientSuccess:
 
         batch = MetricsBatch(
             instance_hash="abc123",
+            device_hash="b" * 64,
             points=[{"time": datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC)}],
         )
         result = await client.send_metrics(batch)
-        assert result is True
+        assert result is SendResult.SUCCESS
 
     @pytest.mark.asyncio
     async def test_send_snapshot_success(self):
@@ -108,13 +117,14 @@ class TestHttpClientSuccess:
 
         snapshot = RegisterSnapshot(
             instance_hash="abc123",
+            device_hash="b" * 64,
             time=datetime(2025, 3, 6, 20, 0, 0, tzinfo=UTC),
             profile="yutaki_s80",
             gateway_type="modbus_atw_mbs_02",
             registers={"outdoor_temp": 55},
         )
         result = await client.send_snapshot(snapshot)
-        assert result is True
+        assert result is SendResult.SUCCESS
 
     @pytest.mark.asyncio
     async def test_200_is_success(self):
@@ -124,7 +134,7 @@ class TestHttpClientSuccess:
         client = _make_client(session=session)
 
         result = await client.send_installation(_make_installation())
-        assert result is True
+        assert result is SendResult.SUCCESS
 
 
 class TestHttpClientPayload:
@@ -190,8 +200,25 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is False
+        assert result is SendResult.FAILED
         # Should NOT retry on 4xx — called only once
+        assert session.post.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_413_is_reported_as_payload_too_large(self):
+        """A 413 is a verdict on the batch, not a transient failure (#395).
+
+        The caller needs the distinction to drop the points instead of
+        re-queueing them into an ever-larger, permanently rejected batch.
+        """
+        resp = _mock_response(413, "payload too large")
+        session = _mock_session(resp)
+        client = _make_client(session=session)
+
+        result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.PAYLOAD_TOO_LARGE
+        assert not result
         assert session.post.call_count == 1
 
     @pytest.mark.asyncio
@@ -206,7 +233,7 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is False
+        assert result is SendResult.FAILED
         assert session.post.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
@@ -224,7 +251,7 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is False
+        assert result is SendResult.FAILED
         assert session.post.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
@@ -244,7 +271,7 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is False
+        assert result is SendResult.FAILED
         assert session.post.call_count == MAX_RETRIES
 
     @pytest.mark.asyncio
@@ -269,5 +296,203 @@ class TestHttpClientErrors:
 
         result = await client.send_installation(_make_installation())
 
-        assert result is True
+        assert result is SendResult.SUCCESS
         assert session.post.call_count == 2
+
+
+class TestDiagnosability:
+    """Failures must name their cause and their config entry (#395)."""
+
+    async def test_429_is_logged_at_warning(self, caplog):
+        """A 429 must be visible: it was DEBUG, which made #395 undiagnosable."""
+        client = _make_client(
+            _mock_session(_mock_response(429, "Rate limit exceeded")), label="PAC 1"
+        )
+        with caplog.at_level(logging.DEBUG):
+            assert (
+                await client.send_installation(_make_installation())
+                is SendResult.FAILED
+            )
+        rejections = [r for r in caplog.records if "Telemetry rejected" in r.message]
+        assert len(rejections) == 1
+        assert rejections[0].levelno == logging.WARNING
+        assert "429" in caplog.text
+
+    async def test_log_line_carries_the_entry_label(self, caplog):
+        """Multi-gateway installs must be able to tell their entries apart."""
+        client = _make_client(
+            _mock_session(_mock_response(429, "Rate limit exceeded")), label="ECS 2"
+        )
+        with caplog.at_level(logging.WARNING):
+            await client.send_installation(_make_installation())
+        assert "[ECS 2]" in caplog.text
+
+    async def test_label_is_optional(self, caplog):
+        """Without a label the message has no stray prefix."""
+        client = _make_client(_mock_session(_mock_response(400, "Bad payload")))
+        with caplog.at_level(logging.WARNING):
+            await client.send_installation(_make_installation())
+        assert "[]" not in caplog.text
+        assert "Telemetry rejected (HTTP 400)" in caplog.text
+
+
+class TestSelfInflictedRateLimit:
+    """A 429 we provoked ourselves is not a delivery failure (#395).
+
+    The endpoint commits its rate-limit slot only once the payload is durably
+    archived, and the window is shorter than the flush cycle. So a 429 that
+    follows an attempt of ours whose response never arrived proves that same
+    attempt landed. Reporting FAILED there makes the caller re-queue points
+    the archive already holds, and they get written a second time.
+    """
+
+    @pytest.mark.asyncio
+    @patch(
+        "custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0)
+    )
+    async def test_timeout_then_429_reports_probably_delivered(self):
+        """The classic race: the 202 is lost, the retry hits our own window."""
+        session = MagicMock(spec=aiohttp.ClientSession)
+        ctx = AsyncMock()
+        ctx.__aenter__ = AsyncMock(
+            side_effect=[TimeoutError(), _mock_response(429, "Rate limit exceeded")]
+        )
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        session.post = MagicMock(return_value=ctx)
+        client = _make_client(session=session)
+
+        result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.PROBABLY_DELIVERED
+        assert session.post.call_count == 2
+
+    @pytest.mark.asyncio
+    @patch(
+        "custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0)
+    )
+    async def test_connection_error_then_429_reports_probably_delivered(self):
+        """A dropped connection leaves the same doubt as a timeout."""
+        session = MagicMock(spec=aiohttp.ClientSession)
+        ctx = AsyncMock()
+        ctx.__aenter__ = AsyncMock(
+            side_effect=[
+                aiohttp.ClientError("connection reset"),
+                _mock_response(429, "Rate limit exceeded"),
+            ]
+        )
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        session.post = MagicMock(return_value=ctx)
+        client = _make_client(session=session)
+
+        result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.PROBABLY_DELIVERED
+
+    @pytest.mark.asyncio
+    async def test_a_first_attempt_429_still_fails(self):
+        """Without an unanswered attempt of ours, a 429 means what it says."""
+        client = _make_client(_mock_session(_mock_response(429, "Rate limited")))
+
+        result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.FAILED
+
+    @pytest.mark.asyncio
+    @patch(
+        "custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0)
+    )
+    async def test_server_error_then_429_still_fails(self):
+        """A 502 is an observed rejection: nothing was archived, so retry."""
+        session = MagicMock(spec=aiohttp.ClientSession)
+        ctx = AsyncMock()
+        ctx.__aenter__ = AsyncMock(
+            side_effect=[
+                _mock_response(502, "R2 archive unavailable"),
+                _mock_response(429, "Rate limit exceeded"),
+            ]
+        )
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        session.post = MagicMock(return_value=ctx)
+        client = _make_client(session=session)
+
+        result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.FAILED
+
+    @pytest.mark.asyncio
+    @patch(
+        "custom_components.hitachi_yutaki.telemetry.http_client.RETRY_DELAYS", (0, 0, 0)
+    )
+    async def test_timeout_then_413_is_still_payload_too_large(self):
+        """The size verdict outranks the doubt about the earlier attempt."""
+        session = MagicMock(spec=aiohttp.ClientSession)
+        ctx = AsyncMock()
+        ctx.__aenter__ = AsyncMock(
+            side_effect=[TimeoutError(), _mock_response(413, "payload too large")]
+        )
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        session.post = MagicMock(return_value=ctx)
+        client = _make_client(session=session)
+
+        result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.PAYLOAD_TOO_LARGE
+
+    def test_probably_delivered_is_falsy(self):
+        """Strong evidence is not a confirmed 2xx."""
+        assert not SendResult.PROBABLY_DELIVERED
+
+
+class TestStatusOutranksTheBody:
+    """Reading the body must never change the verdict (#395).
+
+    The body is only used for a log line. A connection dropped after the
+    status line would otherwise turn a 413 into a generic transient failure,
+    and the caller would re-queue a batch the endpoint refuses again.
+    """
+
+    @pytest.mark.asyncio
+    async def test_413_survives_an_unreadable_body(self):
+        """The status says drop the batch, whatever the body does."""
+        resp = _mock_response(413, "payload too large")
+        resp.text = AsyncMock(side_effect=aiohttp.ClientError("connection reset"))
+        client = _make_client(_mock_session(resp))
+
+        result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.PAYLOAD_TOO_LARGE
+
+    @pytest.mark.asyncio
+    async def test_an_unreadable_body_is_logged_as_unavailable(self, caplog):
+        """The log line still names the status, which is the diagnostic value."""
+        resp = _mock_response(400, "bad request")
+        resp.text = AsyncMock(side_effect=TimeoutError)
+        client = _make_client(_mock_session(resp), label="PAC 1")
+
+        with caplog.at_level(logging.WARNING):
+            result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.FAILED
+        assert "400" in caplog.text
+        assert "<body unavailable>" in caplog.text
+
+
+class TestShutdownBudget:
+    """The unload flush must not hold up a Home Assistant shutdown (#395)."""
+
+    def test_unload_timeout_cuts_the_retry_budget(self):
+        """Three attempts with backoff would stall the shutdown for ~50s.
+
+        The unload flush is bounded to roughly one attempt instead. Pinned
+        here so raising MAX_RETRIES or the delays cannot silently restore a
+        minute-long shutdown.
+        """
+        full_budget = MAX_RETRIES * REQUEST_TIMEOUT + sum(
+            RETRY_DELAYS[: MAX_RETRIES - 1]
+        )
+
+        assert UNLOAD_FLUSH_TIMEOUT >= REQUEST_TIMEOUT, "one attempt must fit"
+        assert full_budget / 2 > UNLOAD_FLUSH_TIMEOUT, (
+            f"unload may stall the shutdown for {UNLOAD_FLUSH_TIMEOUT}s against a "
+            f"{full_budget}s full retry budget"
+        )

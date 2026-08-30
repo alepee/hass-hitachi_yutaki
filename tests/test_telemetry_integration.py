@@ -16,6 +16,7 @@ from custom_components.hitachi_yutaki.telemetry.models import (
     InstallationInfo,
     MetricsBatch,
     RegisterSnapshot,
+    SendResult,
 )
 from custom_components.hitachi_yutaki.telemetry.noop_client import NoopTelemetryClient
 
@@ -70,6 +71,7 @@ def _make_coordinator(
     )
     coordinator._telemetry_meta = {
         "instance_hash": "a" * 64,
+        "device_hash": "b" * 64,
         "profile": "yutaki_s80",
         "gateway_type": "modbus_atw_mbs_02",
         "ha_version": "2025.3.1",
@@ -79,8 +81,12 @@ def _make_coordinator(
 
     if telemetry_level != TelemetryLevel.OFF:
         coordinator.telemetry_client = AsyncMock()
-        coordinator.telemetry_client.send_installation = AsyncMock(return_value=True)
-        coordinator.telemetry_client.send_metrics = AsyncMock(return_value=True)
+        coordinator.telemetry_client.send_installation = AsyncMock(
+            return_value=SendResult.SUCCESS
+        )
+        coordinator.telemetry_client.send_metrics = AsyncMock(
+            return_value=SendResult.SUCCESS
+        )
     else:
         coordinator.telemetry_client = NoopTelemetryClient()
 
@@ -241,7 +247,9 @@ class TestSendTracking:
     async def test_failed_send_increments_failures(self):
         """Failed flush increments telemetry_send_failures."""
         coordinator = _make_coordinator()
-        coordinator.telemetry_client.send_metrics = AsyncMock(return_value=False)
+        coordinator.telemetry_client.send_metrics = AsyncMock(
+            return_value=SendResult.FAILED
+        )
         data = _sample_data()
 
         coordinator.telemetry_collector.collect(data)
@@ -267,6 +275,72 @@ class TestSendTracking:
         await coordinator.async_flush_telemetry()
 
         assert coordinator.telemetry_send_failures == 1
+
+
+class TestFailureHandling:
+    """What happens to the points of a failed flush (#395)."""
+
+    @pytest.mark.asyncio
+    async def test_payload_too_large_drops_the_batch(self):
+        """A 413 means the batch is unacceptable, so it must not come back.
+
+        Re-queueing it would grow the next batch and every following send
+        would be rejected too, killing telemetry until a reload.
+        """
+        coordinator = _make_coordinator()
+        coordinator.telemetry_client.send_metrics = AsyncMock(
+            return_value=SendResult.PAYLOAD_TOO_LARGE
+        )
+        for _ in range(5):
+            coordinator.telemetry_collector.collect(_sample_data())
+
+        await coordinator.async_flush_telemetry()
+
+        assert coordinator.telemetry_send_failures == 1
+        assert coordinator.telemetry_collector.buffer_size == 0
+
+        # The next cycle must not resend the rejected points.
+        coordinator.telemetry_client.send_metrics.reset_mock()
+        await coordinator.async_flush_telemetry()
+        coordinator.telemetry_client.send_metrics.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_other_failures_still_requeue(self):
+        """Guard B must not regress the re-queue behaviour it narrows."""
+        coordinator = _make_coordinator()
+        coordinator.telemetry_client.send_metrics = AsyncMock(
+            return_value=SendResult.FAILED
+        )
+        for _ in range(5):
+            coordinator.telemetry_collector.collect(_sample_data())
+
+        await coordinator.async_flush_telemetry()
+
+        assert coordinator.telemetry_collector.buffer_size == 5
+
+        # And they go out on the next, successful cycle.
+        coordinator.telemetry_client.send_metrics = AsyncMock(
+            return_value=SendResult.SUCCESS
+        )
+        await coordinator.async_flush_telemetry()
+        batch = coordinator.telemetry_client.send_metrics.call_args[0][0]
+        assert len(batch.points) == 5
+        assert coordinator.telemetry_collector.buffer_size == 0
+
+    @pytest.mark.asyncio
+    async def test_exception_requeues_the_points(self):
+        """The except branch must put the points back, not lose them."""
+        coordinator = _make_coordinator()
+        coordinator.telemetry_client.send_metrics = AsyncMock(
+            side_effect=Exception("network error")
+        )
+        for _ in range(3):
+            coordinator.telemetry_collector.collect(_sample_data())
+
+        await coordinator.async_flush_telemetry()
+
+        assert coordinator.telemetry_send_failures == 1
+        assert coordinator.telemetry_collector.buffer_size == 3
 
 
 class TestBufferOverflow:
@@ -313,7 +387,10 @@ class TestLevelSwap:
         coordinator.telemetry_collector = TelemetryCollector(level=TelemetryLevel.ON)
         coordinator.telemetry_client = AsyncMock()
         coordinator.telemetry_client.send_metrics = AsyncMock(return_value=True)
-        coordinator._telemetry_meta = {"instance_hash": "b" * 64}
+        coordinator._telemetry_meta = {
+            "instance_hash": "b" * 64,
+            "device_hash": "c" * 64,
+        }
 
         data = _sample_data()
         coordinator.telemetry_collector.collect(data)
@@ -397,3 +474,68 @@ class TestRegisterSnapshot:
         await coordinator._send_register_snapshot(data)
 
         assert not coordinator._snapshot_sent
+
+
+class TestPerDeviceIdentityInPayloads:
+    """Every outgoing payload must carry the per-unit identity (#395).
+
+    The coordinator's meta dict holding the right value is not the property
+    that matters: what fixes #395 is `device_hash` reaching the wire on all
+    three payload types, distinct from the household-wide `instance_hash`.
+    Asserting the meta dict alone leaves the whole suite green when the
+    coordinator sends `instance_hash` in the `device_hash` field, which is
+    exactly the bug.
+    """
+
+    @pytest.mark.asyncio
+    async def test_metrics_batch_carries_the_device_hash(self):
+        """A flushed batch identifies the unit, not the household."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
+        coordinator.telemetry_collector.collect(_sample_data())
+
+        await coordinator.async_flush_telemetry()
+
+        batch = coordinator.telemetry_client.send_metrics.call_args[0][0]
+        assert batch.device_hash == "b" * 64
+        assert batch.device_hash != batch.instance_hash
+
+    @pytest.mark.asyncio
+    async def test_installation_info_carries_the_device_hash(self):
+        """The installation payload identifies the unit, not the household."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
+
+        await coordinator._send_installation_info()
+
+        info = coordinator.telemetry_client.send_installation.call_args[0][0]
+        assert info.device_hash == "b" * 64
+        assert info.device_hash != info.instance_hash
+
+    @pytest.mark.asyncio
+    async def test_register_snapshot_carries_the_device_hash(self):
+        """The snapshot payload identifies the unit, not the household."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
+
+        await coordinator._send_register_snapshot(_sample_data())
+
+        snapshot = coordinator.telemetry_client.send_snapshot.call_args[0][0]
+        assert snapshot.device_hash == "b" * 64
+        assert snapshot.device_hash != snapshot.instance_hash
+
+    @pytest.mark.asyncio
+    async def test_serialized_payloads_carry_the_device_hash(self):
+        """The field survives to_dict(), which is what the endpoint reads."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
+        coordinator.telemetry_collector.collect(_sample_data())
+
+        await coordinator.async_flush_telemetry()
+        await coordinator._send_installation_info()
+        await coordinator._send_register_snapshot(_sample_data())
+
+        for mock in (
+            coordinator.telemetry_client.send_metrics,
+            coordinator.telemetry_client.send_installation,
+            coordinator.telemetry_client.send_snapshot,
+        ):
+            payload = mock.call_args[0][0].to_dict()
+            assert payload["device_hash"] == "b" * 64
+            assert payload["device_hash"] != payload["instance_hash"]

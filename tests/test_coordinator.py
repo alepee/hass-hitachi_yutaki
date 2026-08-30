@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -17,6 +18,7 @@ from custom_components.hitachi_yutaki.domain.services.refrigerant import (
 )
 from custom_components.hitachi_yutaki.telemetry import (
     NoopTelemetryClient,
+    SendResult,
     TelemetryCollector,
     TelemetryLevel,
 )
@@ -66,6 +68,7 @@ def coordinator(mock_hass, mock_api_client, mock_profile):
     coord.telemetry_client = NoopTelemetryClient()
     coord._telemetry_meta = {
         "instance_hash": "test",
+        "device_hash": "test",
         "profile": "test",
         "gateway_type": "test",
         "ha_version": "test",
@@ -354,3 +357,84 @@ async def test_refrigerant_issue_deleted_below_threshold(coordinator):
 
     mock_ir.async_create_issue.assert_not_called()
     mock_ir.async_delete_issue.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_failed_flush_requeues_points(coordinator):
+    """A rejected batch stays in the buffer for the next cycle (#395)."""
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.return_value = SendResult.FAILED
+
+    await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 1
+    assert coordinator.telemetry_send_failures == 1
+
+
+@pytest.mark.asyncio
+async def test_successful_flush_does_not_requeue(coordinator):
+    """A delivered batch is discarded, not resent."""
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.return_value = SendResult.SUCCESS
+
+    await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 0
+
+
+@pytest.mark.asyncio
+async def test_probably_delivered_flush_does_not_requeue(coordinator):
+    """A batch the endpoint already archived must not be sent twice (#395)."""
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.return_value = (
+        SendResult.PROBABLY_DELIVERED
+    )
+
+    await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 0
+    assert coordinator.telemetry_send_failures == 0
+
+
+@pytest.mark.asyncio
+async def test_cancelled_flush_requeues_points(coordinator):
+    """A shutdown mid-send must not swallow the batch (#395).
+
+    CancelledError derives from BaseException, so the `except Exception`
+    handler never sees it and the points already popped from the buffer would
+    be lost instead of waiting for the unload flush.
+    """
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.side_effect = asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 1
+
+
+@pytest.mark.asyncio
+async def test_a_failed_flush_requeues_its_points_only_once(coordinator):
+    """The re-queue happens in one place, whatever the failure path."""
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.side_effect = RuntimeError("boom")
+
+    await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 1
+    assert coordinator.telemetry_send_failures == 1

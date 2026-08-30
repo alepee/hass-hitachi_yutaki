@@ -7,6 +7,61 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Telemetry on installations with more than one Hitachi gateway: every config entry
+  shared a single `instance_hash` derived from the Home Assistant instance, so the
+  ingestion endpoint's rate limit (1 request per 60s per identity) rejected all but
+  one flush per 5-minute cycle, permanently. Each entry now sends its own
+  `device_hash`, derived from the gateway hardware identifier, so the rate limit,
+  the R2 archive keys and the fleet dashboard address a heat-pump unit rather than a
+  household. Two silent archive defects are fixed with it: installation payloads from
+  different units no longer overwrite each other, and two entries flushing in the same
+  second no longer collide on the same metrics object name. Failed sends now re-queue
+  their buffered points instead of dropping them (bounded to 30 minutes and to 80
+  points per request, so a backlog drains over several cycles instead of growing into
+  a request the endpoint refuses; a batch refused as too large is dropped rather than
+  retried indefinitely), and every telemetry log line carries the config entry name,
+  with rate-limit rejections raised from DEBUG to WARNING so the cause is visible.
+  Legacy installations whose config entry never got a hardware identifier now include
+  the unit id in their fallback identifier, so several units behind one
+  HC-A(16/64)MB gateway no longer collapse into a single identity. Single-gateway
+  installations are unaffected and their fleet history is continuous (#395).
+- Telemetry no longer loses points on installations polling faster than about 3.75
+  seconds. A flush carries at most 80 points, so a faster poll produced more per
+  5-minute cycle than one request could take and the buffer silently discarded the
+  surplus forever. Collection is now thinned to one poll out of N so a cycle never
+  outruns what a flush can send, and any point a full buffer still evicts is counted
+  and logged instead of vanishing. The default 5-second interval, and anything
+  slower, collects every poll exactly as before (#395).
+- Telemetry no longer archives the same points twice after a lost response. When a
+  send timed out on a batch the endpoint had in fact stored, the immediate retry hit
+  the rate-limit window that very attempt had armed, and the points were re-queued
+  and sent again on the next cycle. Such a rejection is now recognised for what it
+  is and the batch is not re-queued (#395).
+- Telemetry requests are now bounded in bytes rather than in points. A point carries
+  one field per register plus the derived metrics, so its size depends on the
+  heat-pump profile: 80 points measure about 90 KB on the narrowest profile but
+  about 233 KB on the widest, against a 256 KB limit at the endpoint. A wide
+  installation that had one failed send could therefore build a batch the endpoint
+  refuses, losing those points. A batch is now filled up to a serialized budget, so
+  a wide profile sends fewer points per request instead of an oversized body (#395).
+- The telemetry buffer now holds the same 30 minutes at any poll cadence. Its size
+  was a fixed number of points, which meant 30 minutes at the default 5-second poll
+  but six hours at a 60-second one, while re-queued points were discarded after 30
+  minutes either way (#395).
+- Buffered telemetry points are no longer lost when Home Assistant shuts down while
+  a send is in flight. The cancellation that shutdown raises does not derive from
+  `Exception`, so the points already taken out of the buffer were dropped instead of
+  being put back for the final flush (#395).
+- Unloading or reloading the integration no longer waits on an unreachable telemetry
+  endpoint. The final flush retried three times with backoff, holding up a Home
+  Assistant shutdown for the better part of a minute for anonymous, best-effort data;
+  it is now bounded to about one attempt (#395).
+- A batch rejected as too large is now dropped even when the connection breaks before
+  the error body can be read. The read failure was previously mistaken for a
+  transient error, so the batch was re-queued and rejected again on every cycle
+  (#395).
+
 ## [2.2.0-beta.3] - 2026-07-26
 
 ### Changed
