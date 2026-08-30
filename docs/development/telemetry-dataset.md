@@ -41,7 +41,7 @@ export CF_ACCOUNT=…        # Cloudflare account id
 
 Workflow to find fixtures for a given model:
 1. Page `installations/`, download each, keep those whose `data.profile` matches the target model → collect their instance and device hashes (the object body carries both, and so does its `customMetadata`).
-2. Page `snapshots/`, match files whose filename **contains** one of the 12-char hashes. Use a substring match, not an ends-with one: a snapshot from an upgraded client is named `snap_<ts>_<instance12>_<device12>.json`, so its name ends with the *device* hash and an ends-with match on the instance hash finds nothing.
+2. Page `snapshots/`, match files whose filename **contains** one of the 12-char hashes. Use a substring match, not an ends-with one: a snapshot from an upgraded client is named `snap_<ts>_<rand>_<instance12>_<device12>.json`, so its name ends with the *device* hash and an ends-with match on the instance hash finds nothing.
 3. Download a matching snapshot for the full `registers` dict (incl. `system_config`).
 
 Object names come in two shapes. Objects written before #395, and those from a client that has not upgraded yet, carry a bare `<instance12>`. Newer ones carry `<instance12>_<device12>`. A substring match on `<instance12>` therefore finds every unit of a household in both shapes, while a substring match on `<instance12>_<device12>` narrows it to one specific heat-pump unit. The same applies to `metrics/` batch filenames.
