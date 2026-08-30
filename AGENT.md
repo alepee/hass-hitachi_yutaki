@@ -111,7 +111,7 @@ Domain logic goes in `domain/services/`, adapter logic in `adapters/`. See [docs
 - **Backend side**: Cloudflare Worker in `backend/worker/src/`.
 - Fields must match across Python models (`to_dict()`) and the Worker validator (field whitelists).
 - Telemetry entities read from coordinator attributes (not `coordinator.data`).
-- Deploy Worker changes with `cd backend/worker && npx wrangler deploy`.
+- Deploy Worker changes with `make worker-deploy`, which runs the Worker suite first and refuses to deploy unless `CLOUDFLARE_ACCOUNT_ID` names the target account (set it in the gitignored `backend/worker/.env`). Calling `npx wrangler deploy` directly risks deploying to whichever account the local OAuth token belongs to.
 
 ### Entity Migration
 - `entity_migration.py` handles `unique_id` migrations; it runs automatically during integration setup.

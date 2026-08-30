@@ -77,11 +77,25 @@ function metricsPayload() {
 
 const DEVICE = "c".repeat(64);
 
-function installationPayload() {
+function installationPayload(data: Record<string, unknown> = {}) {
   return {
     type: "installation",
     instance_hash: HASH,
-    data: { profile: "yutaki_s80", gateway_type: "modbus_atw_mbs_02" },
+    data: {
+      profile: "yutaki_s80",
+      gateway_type: "modbus_atw_mbs_02",
+      ha_version: "2026.8.0",
+      integration_version: "2.2.0",
+      power_supply: "single",
+      has_dhw: true,
+      has_pool: false,
+      has_cooling: true,
+      max_circuits: 2,
+      has_secondary_compressor: true,
+      latitude: 48.5,
+      longitude: 2.5,
+      ...data,
+    },
   };
 }
 
@@ -323,22 +337,6 @@ describe("WAE fleet dashboard (#395)", () => {
 });
 
 describe("contracts the integration client depends on (#395)", () => {
-  it("answers 413, not 400, when the body exceeds the payload limit", async () => {
-    // The client drops a batch on 413 and re-queues it on any other 4xx. A
-    // Worker that answered 400 here would make every oversized batch cycle
-    // through the buffer instead of being discarded.
-    const bucket = createFakeBucket();
-    const oversized = {
-      ...metricsPayload(),
-      points: [{ time: "2026-03-13T12:00:00Z", blob: "x".repeat(300 * 1024) }],
-    };
-
-    const res = await worker.fetch(makeRequest(oversized), makeEnv(bucket));
-
-    expect(res.status).toBe(413);
-    expect(bucket.put).not.toHaveBeenCalled();
-  });
-
   it("keeps the legacy rate-limit cache key byte-identical", async () => {
     // A client without device_hash must land on the exact key it used before
     // #395. A changed prefix or layout would reset every in-flight window on
@@ -377,5 +375,231 @@ describe("contracts the integration client depends on (#395)", () => {
 
     expect(res.status).toBe(502);
     expect(bucket.delete).not.toHaveBeenCalled();
+  });
+});
+
+/** The key the bucket was asked to write, from the first `put` call. */
+function writtenKey(bucket: ReturnType<typeof createFakeBucket>): string {
+  return bucket.put.mock.calls[0][0] as unknown as string;
+}
+
+describe("hardening (#414)", () => {
+  describe("a batch is never archived under a NaN partition", () => {
+    it("falls back to ingestion time when the first point's time is unparseable", async () => {
+      const bucket = createFakeBucket();
+      const payload = {
+        ...metricsPayload(),
+        points: [{ time: "not-a-date", outdoor_temp: 5 }],
+      };
+
+      const res = await worker.fetch(makeRequest(payload), makeEnv(bucket));
+
+      // Accepted, because the payload itself is usable data.
+      expect(res.status).toBe(202);
+      expect(writtenKey(bucket)).not.toContain("NaN");
+      expect(writtenKey(bucket)).toMatch(
+        /^metrics\/year=\d{4}\/month=\d{2}\/day=\d{2}\//,
+      );
+    });
+
+    it("still partitions on the point's own date when it is valid", async () => {
+      const bucket = createFakeBucket();
+
+      await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
+
+      expect(writtenKey(bucket)).toContain("metrics/year=2026/month=03/day=13/");
+    });
+  });
+
+  describe("an oversized body is refused while reading, not after", () => {
+    it("answers 413 on a body past the limit", async () => {
+      const bucket = createFakeBucket();
+      const payload = {
+        ...metricsPayload(),
+        points: [{ time: "2026-03-13T12:00:00Z", blob: "x".repeat(300 * 1024) }],
+      };
+
+      const res = await worker.fetch(makeRequest(payload), makeEnv(bucket));
+
+      expect(res.status).toBe(413);
+      expect(bucket.put).not.toHaveBeenCalled();
+    });
+
+    it("stops pulling from the stream instead of buffering it whole", async () => {
+      // The point of the fix: a small gzip payload expanding to gigabytes must
+      // not be materialised before anything rejects it. Counting how much of
+      // the body the Worker actually pulls is what separates "refused while
+      // reading" from "refused after buffering", which a status assertion
+      // alone cannot tell apart.
+      const CHUNK = 64 * 1024;
+      let pulled = 0;
+      const endless = new ReadableStream<Uint8Array>({
+        pull(controller) {
+          pulled += CHUNK;
+          if (pulled > 64 * 1024 * 1024) {
+            controller.close();
+            return;
+          }
+          controller.enqueue(new Uint8Array(CHUNK).fill(120));
+        },
+      });
+      const request = new Request("https://telemetry.internal/v1/ingest", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-instance-hash": HASH },
+        body: endless,
+        duplex: "half",
+      } as RequestInit);
+
+      const res = await worker.fetch(request, makeEnv(createFakeBucket()));
+
+      expect(res.status).toBe(413);
+      // A handful of chunks past the 256 KB limit, not 64 MB of them.
+      expect(pulled).toBeLessThan(1024 * 1024);
+    });
+
+    it("accepts a body just under the limit", async () => {
+      const bucket = createFakeBucket();
+      const payload = {
+        ...metricsPayload(),
+        points: [{ time: "2026-03-13T12:00:00Z", blob: "x".repeat(200 * 1024) }],
+      };
+
+      const res = await worker.fetch(makeRequest(payload), makeEnv(bucket));
+
+      expect(res.status).toBe(202);
+    });
+  });
+
+  describe("installation fields of the wrong type are dropped, not archived", () => {
+    it("drops a non-numeric latitude and still accepts the payload", async () => {
+      const bucket = createFakeBucket();
+
+      const res = await worker.fetch(
+        makeRequest(installationPayload({ latitude: "fifty" })),
+        makeEnv(bucket),
+      );
+
+      expect(res.status).toBe(202);
+      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      expect(archived.data.latitude).toBeUndefined();
+      expect(archived.data.profile).toBe("yutaki_s80");
+    });
+
+    it("keeps the Analytics Engine write alive when a field is malformed", async () => {
+      // The AE catch is silent by design, so a throw there means an install
+      // that exists in R2 and nowhere on the dashboard.
+      const bucket = createFakeBucket();
+      const { env, ae } = makeEnvWithAE(bucket);
+
+      await worker.fetch(
+        makeRequest(installationPayload({ max_circuits: "two" })),
+        env,
+      );
+
+      expect(ae.writeDataPoint).toHaveBeenCalledTimes(1);
+      const written = ae.writeDataPoint.mock.calls[0][0];
+      expect(written.doubles.every((d: unknown) => typeof d === "number")).toBe(true);
+    });
+
+    it("drops a NaN where a number is expected", async () => {
+      const bucket = createFakeBucket();
+
+      await worker.fetch(
+        makeRequest(installationPayload({ longitude: Number.NaN })),
+        makeEnv(bucket),
+      );
+
+      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      expect(archived.data.longitude).toBeUndefined();
+    });
+  });
+
+  describe("two batches in the same second no longer overwrite each other", () => {
+    it("gives two identical payloads two distinct object names", async () => {
+      const first = createFakeBucket();
+      const second = createFakeBucket();
+
+      await worker.fetch(makeRequest(metricsPayload()), makeEnv(first));
+      // A second colo would not see the first request's rate-limit marker.
+      fakeCache.store.clear();
+      await worker.fetch(makeRequest(metricsPayload()), makeEnv(second));
+
+      expect(writtenKey(first)).not.toBe(writtenKey(second));
+    });
+
+    it("keeps the instance hash at the end of the name", async () => {
+      // Matching an object to an installation is documented as an ends-with on
+      // the 12-char hash, so the random component goes before it.
+      const bucket = createFakeBucket();
+
+      await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
+
+      expect(writtenKey(bucket).endsWith(`_${HASH.slice(0, 12)}.json`)).toBe(true);
+    });
+
+    it("leaves the installation object name stable", async () => {
+      // That one is a current-state document: overwriting it is the point.
+      const bucket = createFakeBucket();
+
+      await worker.fetch(makeRequest(installationPayload()), makeEnv(bucket));
+
+      expect(writtenKey(bucket)).toBe(`installations/install_${HASH.slice(0, 12)}.json`);
+    });
+  });
+
+  describe("clients in the field keep working unchanged", () => {
+    it("accepts the exact payload shape the released integration sends", async () => {
+      const bucket = createFakeBucket();
+      const { env, ae } = makeEnvWithAE(bucket);
+
+      const install = await worker.fetch(makeRequest(installationPayload()), env);
+      fakeCache.store.clear();
+      const metrics = await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
+
+      expect(install.status).toBe(202);
+      expect(metrics.status).toBe(202);
+      expect(ae.writeDataPoint).toHaveBeenCalledTimes(1);
+      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      expect(archived.data).toMatchObject({
+        profile: "yutaki_s80",
+        gateway_type: "modbus_atw_mbs_02",
+        latitude: 48.5,
+        longitude: 2.5,
+        max_circuits: 2,
+        has_dhw: true,
+      });
+    });
+
+    it("accepts a gzipped body, which is how the integration sends", async () => {
+      const bucket = createFakeBucket();
+      const json = JSON.stringify(metricsPayload());
+      const gzipped = new Response(
+        new Blob([json]).stream().pipeThrough(new CompressionStream("gzip")),
+      );
+      const request = new Request("https://telemetry.internal/v1/ingest", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "content-encoding": "gzip",
+          "x-instance-hash": HASH,
+        },
+        body: await gzipped.arrayBuffer(),
+      });
+
+      const res = await worker.fetch(request, makeEnv(bucket));
+
+      expect(res.status).toBe(202);
+    });
+
+    it("still omits an absent optional field rather than inventing one", async () => {
+      const bucket = createFakeBucket();
+      const payload = installationPayload();
+      delete (payload.data as Record<string, unknown>).latitude;
+
+      await worker.fetch(makeRequest(payload), makeEnv(bucket));
+
+      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      expect("latitude" in archived.data).toBe(false);
+    });
   });
 });
