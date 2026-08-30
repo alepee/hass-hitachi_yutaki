@@ -169,3 +169,71 @@ class TestRegisterSnapshot:
         assert d["profile"] == "yutaki_s80"
         assert d["registers"]["outdoor_temp"] == 55
         assert d["time"] == "2025-03-06T20:00:00+00:00"
+
+
+class TestOldWorkerCompatibility:
+    """A new client must stay safe against an un-upgraded Worker (#395).
+
+    The two sides deploy independently. An old Worker validates by copying
+    known fields into a fresh object, so a `device_hash` at the *top level* is
+    dropped and the payload is accepted under the legacy identity. Nested
+    inside `data`, or inside each metrics point, it would be stripped by the
+    same whitelist or rejected by the point type check, and the compatibility
+    claim would quietly stop holding. Presence tests alone do not catch a move,
+    so placement is what is pinned here.
+    """
+
+    def _payloads(self) -> dict[str, dict]:
+        now = datetime.now(tz=UTC)
+        return {
+            "installation": InstallationInfo(
+                instance_hash="a" * 64,
+                device_hash="b" * 64,
+                profile="yutaki_s80",
+                gateway_type="modbus_atw_mbs_02",
+                ha_version="2026.8.0",
+                integration_version="2.2.0",
+                power_supply="single",
+                has_dhw=True,
+                has_pool=False,
+                has_cooling=True,
+                max_circuits=2,
+                has_secondary_compressor=True,
+            ).to_dict(),
+            "metrics": MetricsBatch(
+                instance_hash="a" * 64,
+                device_hash="b" * 64,
+                points=[{"time": now, "outdoor_temp": 5.0}],
+            ).to_dict(),
+            "snapshot": RegisterSnapshot(
+                instance_hash="a" * 64,
+                device_hash="b" * 64,
+                time=now,
+                profile="yutaki_s80",
+                gateway_type="modbus_atw_mbs_02",
+                registers={"outdoor_temp": 5},
+            ).to_dict(),
+        }
+
+    def test_device_hash_sits_beside_instance_hash(self):
+        """Top level, exactly where the legacy field lives."""
+        for name, payload in self._payloads().items():
+            assert payload["device_hash"] == "b" * 64, name
+            assert payload["instance_hash"] == "a" * 64, name
+
+    def test_device_hash_is_not_nested_in_the_installation_data(self):
+        """An old Worker's whitelist would strip it and change nothing else."""
+        assert "device_hash" not in self._payloads()["installation"]["data"]
+
+    def test_device_hash_is_not_repeated_in_each_metrics_point(self):
+        """A point carrying it would bloat the batch and hit the point checks."""
+        for point in self._payloads()["metrics"]["points"]:
+            assert "device_hash" not in point
+
+    def test_dropping_device_hash_leaves_a_valid_legacy_payload(self):
+        """What an old Worker sees must be exactly the pre-#395 shape."""
+        for name, payload in self._payloads().items():
+            legacy = {k: v for k, v in payload.items() if k != "device_hash"}
+            assert legacy["type"] == name
+            assert legacy["instance_hash"] == "a" * 64
+            assert "device_hash" not in legacy

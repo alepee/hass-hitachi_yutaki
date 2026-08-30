@@ -210,7 +210,22 @@ class TelemetryCollector:
             return
 
         cutoff = datetime.now(tz=UTC) - MAX_POINT_AGE
-        kept = [p for p in points if p.get("time") is not None and p["time"] >= cutoff]
+        # `isinstance`, not `is not None`: a point whose time was serialized on
+        # the way out comes back as a string, and comparing it to a datetime
+        # raises. A point whose age cannot be judged is dropped rather than
+        # replayed forever, which is what the age cutoff exists to prevent.
+        kept = []
+        undatable = 0
+        for p in points:
+            when = p.get("time")
+            if not isinstance(when, datetime):
+                undatable += 1
+            elif when >= cutoff:
+                kept.append(p)
+        if undatable:
+            _LOGGER.debug(
+                "Dropped %d re-queued point(s) with no usable time", undatable
+            )
         if not kept:
             return
 

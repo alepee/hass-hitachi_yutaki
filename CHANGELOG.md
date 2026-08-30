@@ -49,6 +49,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   was a fixed number of points, which meant 30 minutes at the default 5-second poll
   but six hours at a 60-second one, while re-queued points were discarded after 30
   minutes either way (#395).
+- Buffered telemetry points are no longer lost when Home Assistant shuts down while
+  a send is in flight. The cancellation that shutdown raises does not derive from
+  `Exception`, so the points already taken out of the buffer were dropped instead of
+  being put back for the final flush (#395).
+- Unloading or reloading the integration no longer waits on an unreachable telemetry
+  endpoint. The final flush retried three times with backoff, holding up a Home
+  Assistant shutdown for the better part of a minute for anonymous, best-effort data;
+  it is now bounded to about one attempt (#395).
+- A batch rejected as too large is now dropped even when the connection breaks before
+  the error body can be read. The read failure was previously mistaken for a
+  transient error, so the batch was re-queued and rejected again on every cycle
+  (#395).
 
 ## [2.2.0-beta.3] - 2026-07-26
 

@@ -504,3 +504,32 @@ class TestBufferWindow:
     def test_degenerate_interval_falls_back_to_the_default(self):
         """A zero interval must not divide by zero."""
         assert compute_buffer_max_size(timedelta(0)) == 360
+
+
+class TestRequeueRobustness:
+    """requeue is public, so a foreign point must not break a flush cycle."""
+
+    def test_a_serialized_timestamp_does_not_raise(self):
+        """MetricsBatch.to_dict emits ISO strings; comparing one would raise."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+
+        collector.requeue([{"outdoor_temp": 5.0, "time": "2026-08-30T12:00:00+00:00"}])
+
+        assert collector.buffer_size == 0
+
+    def test_a_missing_timestamp_does_not_raise(self):
+        """No time at all is equally undatable, and equally not fatal."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+
+        collector.requeue([{"outdoor_temp": 5.0}])
+
+        assert collector.buffer_size == 0
+
+    def test_datable_points_still_come_back(self):
+        """The guard must not swallow the points requeue exists for."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        fresh = {"outdoor_temp": 5.0, "time": datetime.now(tz=UTC)}
+
+        collector.requeue([{"outdoor_temp": 1.0, "time": "nope"}, fresh])
+
+        assert collector.flush() == [fresh]

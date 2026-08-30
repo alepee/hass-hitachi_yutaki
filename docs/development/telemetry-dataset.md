@@ -39,11 +39,13 @@ export CF_ACCOUNT=…        # Cloudflare account id
 - Header: `Authorization: Bearer $CF_TOKEN`.
 
 Workflow to find fixtures for a given model:
-1. Page `installations/`, download each, keep those whose `data.profile` matches the target model → collect their instance hashes.
-2. Page `snapshots/`, match files whose filename ends with one of the 12-char hash prefixes.
+1. Page `installations/`, download each, keep those whose `data.profile` matches the target model → collect their instance and device hashes (the object body carries both, and so does its `customMetadata`).
+2. Page `snapshots/`, match files whose filename **contains** one of the 12-char hashes. Use a substring match, not an ends-with one: a snapshot from an upgraded client is named `snap_<ts>_<instance12>_<device12>.json`, so its name ends with the *device* hash and an ends-with match on the instance hash finds nothing.
 3. Download a matching snapshot for the full `registers` dict (incl. `system_config`).
 
-New objects carry `<instance12>_<device12>` in their filename instead of a bare `<instance12>`. A prefix match on `<instance12>` alone still finds every unit of a household (matches step 2's substring check unchanged); appending `_<device12>` narrows the match to one specific unit. The same applies when matching `metrics/` batch filenames against a collected hash.
+Object names come in two shapes. Objects written before #395, and those from a client that has not upgraded yet, carry a bare `<instance12>`. Newer ones carry `<instance12>_<device12>`. A substring match on `<instance12>` therefore finds every unit of a household in both shapes, while a substring match on `<instance12>_<device12>` narrows it to one specific heat-pump unit. The same applies to `metrics/` batch filenames.
+
+Note that the archived body of a payload from a client that has not upgraded carries a `device_hash` equal to its `instance_hash`, since the Worker falls back to the instance identity when the field is absent. Counting distinct `device_hash` values over the archive therefore under-counts the units of a household that has not upgraded, exactly as `count(distinct blob8)` does on the Analytics Engine side.
 
 ## Access path B: DuckDB + httpfs (R2 S3 credentials)
 

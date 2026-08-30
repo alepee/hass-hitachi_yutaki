@@ -12,8 +12,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
+from custom_components.hitachi_yutaki import UNLOAD_FLUSH_TIMEOUT
 from custom_components.hitachi_yutaki.telemetry.http_client import (
     MAX_RETRIES,
+    REQUEST_TIMEOUT,
+    RETRY_DELAYS,
     HttpTelemetryClient,
 )
 from custom_components.hitachi_yutaki.telemetry.models import (
@@ -438,3 +441,58 @@ class TestSelfInflictedRateLimit:
     def test_probably_delivered_is_falsy(self):
         """Strong evidence is not a confirmed 2xx."""
         assert not SendResult.PROBABLY_DELIVERED
+
+
+class TestStatusOutranksTheBody:
+    """Reading the body must never change the verdict (#395).
+
+    The body is only used for a log line. A connection dropped after the
+    status line would otherwise turn a 413 into a generic transient failure,
+    and the caller would re-queue a batch the endpoint refuses again.
+    """
+
+    @pytest.mark.asyncio
+    async def test_413_survives_an_unreadable_body(self):
+        """The status says drop the batch, whatever the body does."""
+        resp = _mock_response(413, "payload too large")
+        resp.text = AsyncMock(side_effect=aiohttp.ClientError("connection reset"))
+        client = _make_client(_mock_session(resp))
+
+        result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.PAYLOAD_TOO_LARGE
+
+    @pytest.mark.asyncio
+    async def test_an_unreadable_body_is_logged_as_unavailable(self, caplog):
+        """The log line still names the status, which is the diagnostic value."""
+        resp = _mock_response(400, "bad request")
+        resp.text = AsyncMock(side_effect=TimeoutError)
+        client = _make_client(_mock_session(resp), label="PAC 1")
+
+        with caplog.at_level(logging.WARNING):
+            result = await client.send_installation(_make_installation())
+
+        assert result is SendResult.FAILED
+        assert "400" in caplog.text
+        assert "<body unavailable>" in caplog.text
+
+
+class TestShutdownBudget:
+    """The unload flush must not hold up a Home Assistant shutdown (#395)."""
+
+    def test_unload_timeout_cuts_the_retry_budget(self):
+        """Three attempts with backoff would stall the shutdown for ~50s.
+
+        The unload flush is bounded to roughly one attempt instead. Pinned
+        here so raising MAX_RETRIES or the delays cannot silently restore a
+        minute-long shutdown.
+        """
+        full_budget = MAX_RETRIES * REQUEST_TIMEOUT + sum(
+            RETRY_DELAYS[: MAX_RETRIES - 1]
+        )
+
+        assert UNLOAD_FLUSH_TIMEOUT >= REQUEST_TIMEOUT, "one attempt must fit"
+        assert full_budget / 2 > UNLOAD_FLUSH_TIMEOUT, (
+            f"unload may stall the shutdown for {UNLOAD_FLUSH_TIMEOUT}s against a "
+            f"{full_budget}s full retry budget"
+        )

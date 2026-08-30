@@ -321,3 +321,61 @@ describe("WAE fleet dashboard (#395)", () => {
     expect(point.blobs[7]).toBe(HASH);
   });
 });
+
+describe("contracts the integration client depends on (#395)", () => {
+  it("answers 413, not 400, when the body exceeds the payload limit", async () => {
+    // The client drops a batch on 413 and re-queues it on any other 4xx. A
+    // Worker that answered 400 here would make every oversized batch cycle
+    // through the buffer instead of being discarded.
+    const bucket = createFakeBucket();
+    const oversized = {
+      ...metricsPayload(),
+      points: [{ time: "2026-03-13T12:00:00Z", blob: "x".repeat(300 * 1024) }],
+    };
+
+    const res = await worker.fetch(makeRequest(oversized), makeEnv(bucket));
+
+    expect(res.status).toBe(413);
+    expect(bucket.put).not.toHaveBeenCalled();
+  });
+
+  it("keeps the legacy rate-limit cache key byte-identical", async () => {
+    // A client without device_hash must land on the exact key it used before
+    // #395. A changed prefix or layout would reset every in-flight window on
+    // deploy and double-accept payloads during that minute.
+    const bucket = createFakeBucket();
+
+    await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
+
+    expect([...fakeCache.store.keys()]).toEqual([
+      `https://rate-limit.internal/rl/${HASH}/metrics`,
+    ]);
+  });
+
+  it("keys the rate limit on the device hash when one is sent", async () => {
+    const bucket = createFakeBucket();
+
+    await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: DEVICE }),
+      makeEnv(bucket),
+    );
+
+    expect([...fakeCache.store.keys()]).toEqual([
+      `https://rate-limit.internal/rl/${DEVICE}/metrics`,
+    ]);
+  });
+
+  it("does not sweep the legacy object when the archive fails", async () => {
+    // Ordering guard: sweeping before a failed write would delete the only
+    // remaining copy of that installation and answer 502 with nothing written.
+    const bucket = createFakeBucket({ fail: true });
+
+    const res = await worker.fetch(
+      makeRequest({ ...installationPayload(), device_hash: DEVICE }),
+      makeEnv(bucket),
+    );
+
+    expect(res.status).toBe(502);
+    expect(bucket.delete).not.toHaveBeenCalled();
+  });
+});

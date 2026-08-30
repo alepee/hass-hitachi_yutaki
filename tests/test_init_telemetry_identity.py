@@ -38,6 +38,7 @@ from custom_components.hitachi_yutaki.telemetry.anonymizer import (
     hash_device_id,
     hash_instance_id,
 )
+from custom_components.hitachi_yutaki.telemetry.http_client import HttpTelemetryClient
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 
@@ -47,6 +48,7 @@ def _make_entry(
     title: str,
     unique_id: str | None,
     unit_id: int = 1,
+    telemetry: str = "off",
 ) -> MockConfigEntry:
     """Build a minimal HC-A(16/64)MB entry with telemetry off (no network)."""
     return MockConfigEntry(
@@ -66,11 +68,17 @@ def _make_entry(
             "profile": "yutaki_s",
             "power_supply": DEFAULT_POWER_SUPPLY,
         },
-        options={CONF_TELEMETRY_LEVEL: "off"},
+        options={CONF_TELEMETRY_LEVEL: telemetry},
     )
 
 
-async def _setup(hass: HomeAssistant, entry: MockConfigEntry, *, connects: bool = True):
+async def _setup(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    *,
+    connects: bool = True,
+    hardware_id: str | None = None,
+):
     """Run async_setup_entry with I/O and platforms stubbed out."""
     entry.add_to_hass(hass)
 
@@ -85,7 +93,7 @@ async def _setup(hass: HomeAssistant, entry: MockConfigEntry, *, connects: bool 
         ),
         patch(
             "custom_components.hitachi_yutaki.api.modbus.ModbusApiClient.async_get_unique_id",
-            AsyncMock(return_value=None),
+            AsyncMock(return_value=hardware_id),
         ),
         patch(
             "custom_components.hitachi_yutaki.api.modbus.ModbusApiClient.close",
@@ -164,3 +172,62 @@ async def test_backfill_fallback_distinguishes_units_of_one_gateway(
     assert first_entry.unique_id == f"{DEFAULT_HOST}_{DEFAULT_DEVICE_ID}_1"
     assert second_entry.unique_id == f"{DEFAULT_HOST}_{DEFAULT_DEVICE_ID}_2"
     assert first._telemetry_meta["device_hash"] != second._telemetry_meta["device_hash"]
+
+
+@pytest.mark.asyncio
+async def test_backfill_from_hardware_id_distinguishes_units(
+    hass: HomeAssistant,
+) -> None:
+    """Hardware read succeeds: the unit id must still be part of the identity.
+
+    Two legacy entries of one multi-unit HC-A(16/64)MB gateway read the *same*
+    hardware identifier, since it identifies the gateway and not the unit
+    behind it. Without the unit id suffix both back-fill to one unique_id and
+    therefore to one device_hash, which is #395 again.
+    """
+    first_entry = _make_entry(title="PAC 1", unique_id=None, unit_id=1)
+    second_entry = _make_entry(title="PAC 2", unique_id=None, unit_id=2)
+
+    first = await _setup(hass, first_entry, hardware_id="TESTHW1234")
+    second = await _setup(hass, second_entry, hardware_id="TESTHW1234")
+
+    assert first_entry.unique_id == f"{DOMAIN}_TESTHW1234_1"
+    assert second_entry.unique_id == f"{DOMAIN}_TESTHW1234_2"
+    assert first._telemetry_meta["device_hash"] != second._telemetry_meta["device_hash"]
+
+
+@pytest.mark.asyncio
+async def test_setup_refuses_an_entry_left_without_a_unique_id(
+    hass: HomeAssistant,
+) -> None:
+    """The guard exists so a None never gets hashed as the string "None".
+
+    Every entry lacking one would then share a single device_hash, silently.
+    The back-fill above makes this unreachable in practice, which is exactly
+    why it must be pinned: a refactor moving the derivation above the back-fill
+    would reintroduce #395 with no test failing.
+    """
+    entry = _make_entry(title="PAC 1", unique_id=None)
+
+    with (
+        patch.object(
+            hass.config_entries, "async_update_entry", return_value=True
+        ),  # back-fill result discarded: entry.unique_id stays None
+        pytest.raises(ValueError, match="unique_id"),
+    ):
+        await _setup(hass, entry, connects=False)
+
+
+@pytest.mark.asyncio
+async def test_telemetry_client_is_labelled_with_the_entry_title(
+    hass: HomeAssistant,
+) -> None:
+    """Log lines must name the entry, which is what made #395 diagnosable."""
+    entry = _make_entry(
+        title="PAC salon", unique_id=f"{DOMAIN}_TESTHW1234_1", telemetry="on"
+    )
+
+    coordinator = await _setup(hass, entry)
+
+    assert isinstance(coordinator.telemetry_client, HttpTelemetryClient)
+    assert coordinator.telemetry_client._prefix == "[PAC salon] "

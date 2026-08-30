@@ -66,6 +66,20 @@ class HttpTelemetryClient:
         """Send a register snapshot payload."""
         return await self._send(snapshot.to_dict())
 
+    @staticmethod
+    async def _read_body(resp: aiohttp.ClientResponse) -> str:
+        """Return the response body, or a placeholder if it cannot be read.
+
+        The body is only ever used for a log line, so reading it must not
+        decide the outcome. A connection dropped after the status line would
+        otherwise turn a 413 into a generic transient failure, and the caller
+        would re-queue a batch the endpoint will refuse again (#395).
+        """
+        try:
+            return await resp.text()
+        except Exception:  # noqa: BLE001 - diagnostics only, never fatal
+            return "<body unavailable>"
+
     async def _send(self, payload: dict[str, Any]) -> SendResult:
         """Send a JSON payload with gzip compression and retry logic.
 
@@ -121,7 +135,7 @@ class HttpTelemetryClient:
                             "%sTelemetry rejected (HTTP %s): %s",
                             self._prefix,
                             resp.status,
-                            await resp.text(),
+                            await self._read_body(resp),
                         )
                         if resp.status == _HTTP_PAYLOAD_TOO_LARGE:
                             return SendResult.PAYLOAD_TOO_LARGE

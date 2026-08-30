@@ -383,6 +383,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         instance_hash = self._telemetry_meta["instance_hash"]
         device_hash = self._telemetry_meta["device_hash"]
 
+        # Decided in the branches below, acted on once in `finally`. Re-queueing
+        # inline would run twice if anything after it raised, and would be
+        # skipped entirely on cancellation.
+        requeue_needed = False
         try:
             anonymized = [anonymize_point(p) for p in points]
             batch = MetricsBatch(
@@ -415,19 +419,29 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 )
             else:
                 self.telemetry_send_failures += 1
-                self.telemetry_collector.requeue(points)
+                requeue_needed = True
                 _LOGGER.warning(
                     "[%s] Telemetry flush: send returned failure",
                     self.config_entry.title,
                 )
+        except asyncio.CancelledError:
+            # Home Assistant shutting down mid-send, typically while the client
+            # waits between retries. CancelledError derives from BaseException,
+            # so `except Exception` lets the already-flushed points vanish
+            # instead of putting them back for the unload flush (#395).
+            requeue_needed = True
+            raise
         except Exception:
             self.telemetry_send_failures += 1
-            self.telemetry_collector.requeue(points)
+            requeue_needed = True
             _LOGGER.warning(
                 "[%s] Telemetry flush failed",
                 self.config_entry.title,
                 exc_info=True,
             )
+        finally:
+            if requeue_needed:
+                self.telemetry_collector.requeue(points)
 
     def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
         """Return True if circuit is configured in system_config."""

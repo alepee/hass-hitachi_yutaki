@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from datetime import date, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -365,7 +366,7 @@ async def test_failed_flush_requeues_points(coordinator):
     coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
     coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
     coordinator.telemetry_client = AsyncMock()
-    coordinator.telemetry_client.send_metrics.return_value = False
+    coordinator.telemetry_client.send_metrics.return_value = SendResult.FAILED
 
     await coordinator.async_flush_telemetry()
 
@@ -380,7 +381,7 @@ async def test_successful_flush_does_not_requeue(coordinator):
     coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
     coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
     coordinator.telemetry_client = AsyncMock()
-    coordinator.telemetry_client.send_metrics.return_value = True
+    coordinator.telemetry_client.send_metrics.return_value = SendResult.SUCCESS
 
     await coordinator.async_flush_telemetry()
 
@@ -402,3 +403,38 @@ async def test_probably_delivered_flush_does_not_requeue(coordinator):
 
     assert coordinator.telemetry_collector.buffer_size == 0
     assert coordinator.telemetry_send_failures == 0
+
+
+@pytest.mark.asyncio
+async def test_cancelled_flush_requeues_points(coordinator):
+    """A shutdown mid-send must not swallow the batch (#395).
+
+    CancelledError derives from BaseException, so the `except Exception`
+    handler never sees it and the points already popped from the buffer would
+    be lost instead of waiting for the unload flush.
+    """
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.side_effect = asyncio.CancelledError
+
+    with pytest.raises(asyncio.CancelledError):
+        await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 1
+
+
+@pytest.mark.asyncio
+async def test_a_failed_flush_requeues_its_points_only_once(coordinator):
+    """The re-queue happens in one place, whatever the failure path."""
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.side_effect = RuntimeError("boom")
+
+    await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 1
+    assert coordinator.telemetry_send_failures == 1

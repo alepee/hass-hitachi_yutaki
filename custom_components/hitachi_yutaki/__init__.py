@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from contextlib import suppress
 from datetime import datetime, timedelta
 import logging
@@ -76,6 +77,12 @@ _LOGGER = logging.getLogger(__name__)
 # How often buffered telemetry points are sent. Paired with the poll interval
 # it also fixes how many points a cycle produces, hence the collect stride.
 TELEMETRY_FLUSH_INTERVAL = timedelta(minutes=5)
+
+# Ceiling on the final flush at unload. The client retries three times with
+# backoff, so an unreachable endpoint would otherwise hold up a Home Assistant
+# shutdown for the better part of a minute for anonymous, best-effort data.
+# Sized for one attempt: past that the points are discarded anyway (#395).
+UNLOAD_FLUSH_TIMEOUT = 12
 
 type HitachiYutakiConfigEntry = ConfigEntry[HitachiYutakiDataCoordinator]
 
@@ -846,9 +853,18 @@ async def async_unload_entry(
 
         # Flush remaining telemetry data before closing. One request only:
         # the endpoint accepts one per minute per unit, so draining a deeper
-        # backlog here would be rejected anyway. Say what is being discarded
+        # backlog here would be rejected anyway. Bounded, so an unreachable
+        # endpoint cannot stall the shutdown. Say what is being discarded
         # rather than let it vanish with the coordinator (#395).
-        await coordinator.async_flush_telemetry()
+        try:
+            async with asyncio.timeout(UNLOAD_FLUSH_TIMEOUT):
+                await coordinator.async_flush_telemetry()
+        except TimeoutError:
+            _LOGGER.info(
+                "[%s] Telemetry flush on unload timed out after %ds",
+                entry.title,
+                UNLOAD_FLUSH_TIMEOUT,
+            )
         stranded = coordinator.telemetry_collector.buffer_size
         if stranded:
             _LOGGER.info(
