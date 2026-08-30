@@ -23,13 +23,18 @@ class SendResult(Enum):
     re-queue points that grow the next batch, so every following flush is
     rejected too and telemetry never recovers (#395).
 
+    The same reasoning applies to a batch the endpoint has almost certainly
+    already stored: re-queueing it archives the points twice (#395).
+
     Truthiness follows success, so callers that only care whether the payload
-    landed can keep testing the result directly.
+    landed can keep testing the result directly. PROBABLY_DELIVERED is
+    deliberately falsy: the evidence is strong but the 2xx was never seen.
     """
 
     SUCCESS = "success"
     FAILED = "failed"
     PAYLOAD_TOO_LARGE = "payload_too_large"
+    PROBABLY_DELIVERED = "probably_delivered"
 
     def __bool__(self) -> bool:
         """Return True only for SUCCESS."""

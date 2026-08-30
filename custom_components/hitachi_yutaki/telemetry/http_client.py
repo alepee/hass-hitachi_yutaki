@@ -25,6 +25,10 @@ REQUEST_TIMEOUT = 10  # seconds
 # retry it (#395).
 _HTTP_PAYLOAD_TOO_LARGE = 413
 
+# HTTP status meaning "one payload of this type was already accepted for this
+# unit inside the endpoint's rate-limit window".
+_HTTP_RATE_LIMITED = 429
+
 
 class HttpTelemetryClient:
     """Sends telemetry data as gzipped JSON to the ingestion endpoint.
@@ -65,7 +69,9 @@ class HttpTelemetryClient:
     async def _send(self, payload: dict[str, Any]) -> SendResult:
         """Send a JSON payload with gzip compression and retry logic.
 
-        Returns SUCCESS on 2xx, PAYLOAD_TOO_LARGE on 413, FAILED otherwise.
+        Returns SUCCESS on 2xx, PAYLOAD_TOO_LARGE on 413, PROBABLY_DELIVERED
+        on a 429 that this call's own earlier attempt provoked, and FAILED
+        otherwise.
         """
         body = gzip.compress(json.dumps(payload).encode())
         headers = {
@@ -74,6 +80,11 @@ class HttpTelemetryClient:
             "X-Instance-Hash": self._instance_hash,
         }
         timeout = aiohttp.ClientTimeout(total=REQUEST_TIMEOUT)
+
+        # True once an attempt was sent but its outcome was never seen, i.e. a
+        # timeout or a dropped connection. Such an attempt may well have been
+        # stored by the endpoint.
+        sent_unobserved = False
 
         for attempt in range(MAX_RETRIES):
             try:
@@ -85,6 +96,21 @@ class HttpTelemetryClient:
                 ) as resp:
                     if 200 <= resp.status < 300:
                         return SendResult.SUCCESS
+
+                    # The endpoint commits its rate-limit slot only after the
+                    # payload is durably archived, and the window is shorter
+                    # than the flush cycle. So a 429 following an attempt of
+                    # ours whose response never arrived says that same attempt
+                    # landed. Re-queueing here would archive the points twice
+                    # (#395); report the near-certainty instead.
+                    if resp.status == _HTTP_RATE_LIMITED and sent_unobserved:
+                        _LOGGER.info(
+                            "%sTelemetry retry hit the rate limit our own "
+                            "unanswered attempt armed, treating the batch as "
+                            "delivered",
+                            self._prefix,
+                        )
+                        return SendResult.PROBABLY_DELIVERED
 
                     # Client errors (4xx) are not retryable. All are logged at
                     # WARNING, including 429: with per-unit identities a rate
@@ -111,6 +137,7 @@ class HttpTelemetryClient:
                     )
 
             except TimeoutError:
+                sent_unobserved = True
                 _LOGGER.debug(
                     "%sTelemetry request timed out, attempt %d/%d",
                     self._prefix,
@@ -118,6 +145,7 @@ class HttpTelemetryClient:
                     MAX_RETRIES,
                 )
             except aiohttp.ClientError as err:
+                sent_unobserved = True
                 _LOGGER.debug(
                     "%sTelemetry request failed (%s), attempt %d/%d",
                     self._prefix,

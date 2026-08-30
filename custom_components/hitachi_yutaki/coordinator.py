@@ -392,6 +392,16 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             if result:
                 self.telemetry_last_send = datetime.now(tz=UTC)
+            elif result is SendResult.PROBABLY_DELIVERED:
+                # The endpoint rate-limited a retry of an attempt whose answer
+                # we never saw, which means that attempt was archived. Keeping
+                # the points would write them a second time (#395).
+                _LOGGER.info(
+                    "[%s] Telemetry flush: batch of %d points already accepted "
+                    "by the endpoint, not re-queued",
+                    self.config_entry.title,
+                    len(points),
+                )
             elif result is SendResult.PAYLOAD_TOO_LARGE:
                 # The batch itself is unacceptable, so re-queueing it would
                 # grow the next one and pin telemetry on a permanent rejection.

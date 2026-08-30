@@ -7,7 +7,11 @@ from datetime import datetime, timedelta
 import logging
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_NAME, __version__ as HA_VERSION
+from homeassistant.const import (
+    CONF_NAME,
+    CONF_SCAN_INTERVAL,
+    __version__ as HA_VERSION,
+)
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
@@ -65,8 +69,13 @@ from .telemetry import (
     TelemetryLevel,
 )
 from .telemetry.anonymizer import hash_device_id, hash_instance_id
+from .telemetry.collector import compute_collect_stride
 
 _LOGGER = logging.getLogger(__name__)
+
+# How often buffered telemetry points are sent. Paired with the poll interval
+# it also fixes how many points a cycle produces, hence the collect stride.
+TELEMETRY_FLUSH_INTERVAL = timedelta(minutes=5)
 
 type HitachiYutakiConfigEntry = ConfigEntry[HitachiYutakiDataCoordinator]
 
@@ -271,6 +280,29 @@ async def _async_heal_outdoor_cycle(
             await detect_client.close()
 
 
+def _build_telemetry_collector(
+    entry: HitachiYutakiConfigEntry, telemetry_level: TelemetryLevel
+) -> TelemetryCollector:
+    """Create the collector, decimated to what a flush cycle can send.
+
+    The scan interval is a user setting with no lower bound. When the poll
+    outruns the flush cap the buffer saturates and evicts points silently, so
+    collection is thinned at the source instead (#395).
+    """
+    stride = compute_collect_stride(
+        timedelta(seconds=entry.data[CONF_SCAN_INTERVAL]), TELEMETRY_FLUSH_INTERVAL
+    )
+    if stride > 1:
+        _LOGGER.info(
+            "Telemetry collects 1 poll out of %d: a %ss scan interval produces "
+            "more points than a %s flush can send",
+            stride,
+            entry.data[CONF_SCAN_INTERVAL],
+            TELEMETRY_FLUSH_INTERVAL,
+        )
+    return TelemetryCollector(level=telemetry_level, collect_stride=stride)
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: HitachiYutakiConfigEntry
 ) -> bool:
@@ -438,9 +470,7 @@ async def async_setup_entry(
     else:
         coordinator.telemetry_client = NoopTelemetryClient()
 
-    coordinator.telemetry_collector = TelemetryCollector(
-        level=telemetry_level,
-    )
+    coordinator.telemetry_collector = _build_telemetry_collector(entry, telemetry_level)
     coordinator._telemetry_meta = {
         "instance_hash": instance_hash,
         "device_hash": device_hash,
@@ -713,15 +743,14 @@ async def async_setup_entry(
             translation_key="enable_refrigerant_detection",
         )
 
-    # Set up telemetry flush timer (every 5 min)
+    # Set up telemetry flush timer
     if telemetry_level != TelemetryLevel.OFF:
-        flush_interval = timedelta(minutes=5)
 
         async def _telemetry_flush(_now: datetime) -> None:
             await coordinator.async_flush_telemetry()
 
         entry.async_on_unload(
-            async_track_time_interval(hass, _telemetry_flush, flush_interval)
+            async_track_time_interval(hass, _telemetry_flush, TELEMETRY_FLUSH_INTERVAL)
         )
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

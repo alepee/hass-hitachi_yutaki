@@ -2,12 +2,14 @@
 
 from datetime import UTC, datetime, timedelta
 import json
+import logging
 from pathlib import Path
 
 from custom_components.hitachi_yutaki.telemetry.collector import (
     MAX_FLUSH_POINTS,
     MAX_POINT_AGE,
     TelemetryCollector,
+    compute_collect_stride,
 )
 from custom_components.hitachi_yutaki.telemetry.models import (
     MetricsBatch,
@@ -281,3 +283,121 @@ class TestFlushCap:
             f"a {MAX_FLUSH_POINTS}-point batch serializes to {size} bytes, "
             f"too close to the {max_payload_size}-byte ingestion limit"
         )
+
+
+class TestCollectStride:
+    """Collection is decimated when the poll outruns the drain rate (#395).
+
+    The scan interval is a user setting with no lower bound, while a flush
+    sends at most MAX_FLUSH_POINTS every 5 minutes. Below roughly 3.75s the
+    poll produces more points per cycle than a flush can take, so the buffer
+    saturates and the deque evicts points silently and forever.
+    """
+
+    def test_default_poll_collects_every_point(self):
+        """The documented 5s poll must be untouched by the stride."""
+        assert compute_collect_stride(timedelta(seconds=5), timedelta(minutes=5)) == 1
+
+    def test_slow_polls_collect_every_point(self):
+        """Anything slower than the default fits under the cap by construction."""
+        for seconds in (4, 10, 30, 60):
+            assert (
+                compute_collect_stride(timedelta(seconds=seconds), timedelta(minutes=5))
+                == 1
+            ), f"a {seconds}s poll should not be decimated"
+
+    def test_fast_polls_are_decimated(self):
+        """A cycle can never hand the flush more points than it can send."""
+        for seconds in (1, 2, 3):
+            stride = compute_collect_stride(
+                timedelta(seconds=seconds), timedelta(minutes=5)
+            )
+            per_cycle = (300 / seconds) / stride
+            assert per_cycle <= MAX_FLUSH_POINTS, (
+                f"a {seconds}s poll still produces {per_cycle} points per cycle"
+            )
+
+    def test_degenerate_intervals_fall_back_to_every_point(self):
+        """A zero interval must not divide by zero or silence collection."""
+        assert compute_collect_stride(timedelta(0), timedelta(minutes=5)) == 1
+        assert compute_collect_stride(timedelta(seconds=5), timedelta(0)) == 1
+
+    def test_stride_keeps_one_poll_out_of_n(self):
+        """Decimation is even, not bursty."""
+        collector = TelemetryCollector(TelemetryLevel.ON, collect_stride=3)
+        for i in range(9):
+            collector.collect(_sample_data(outdoor_temp=float(i)))
+
+        assert [p["outdoor_temp"] for p in collector.flush()] == [2.0, 5.0, 8.0]
+
+    def test_unavailable_polls_do_not_shift_the_stride(self):
+        """A gateway blackout must not change which polls are kept."""
+        collector = TelemetryCollector(TelemetryLevel.ON, collect_stride=2)
+        collector.collect(_sample_data(outdoor_temp=0.0))
+        collector.collect({"is_available": False})
+        collector.collect(_sample_data(outdoor_temp=1.0))
+
+        assert [p["outdoor_temp"] for p in collector.flush()] == [1.0]
+
+    def test_a_fast_poll_no_longer_saturates_the_buffer(self):
+        """End-to-end: a 2s poll used to lose ~half its points forever.
+
+        Ten cycles of a 2s poll against a working endpoint: with a stride of
+        1 the buffer pins at its maximum and `collect` evicts on every call.
+        """
+        stride = compute_collect_stride(timedelta(seconds=2), timedelta(minutes=5))
+        collector = TelemetryCollector(TelemetryLevel.ON, collect_stride=stride)
+
+        sent = 0
+        for _ in range(10):
+            for _ in range(150):  # one 5-minute cycle at a 2s poll
+                collector.collect(_sample_data())
+            sent += len(collector.flush())  # the send succeeds
+
+        assert collector.points_dropped == 0
+        assert collector.buffer_size == 0
+        assert sent == 10 * 150 // stride
+
+
+class TestOverflowIsVisible:
+    """A saturated buffer must be reported, not silently absorbed (#395)."""
+
+    def test_collect_counts_evicted_points(self):
+        """deque.append drops the oldest point without a word."""
+        collector = TelemetryCollector(TelemetryLevel.ON, buffer_max_size=2)
+        for _ in range(5):
+            collector.collect(_sample_data())
+
+        assert collector.buffer_size == 2
+        assert collector.points_dropped == 3
+
+    def test_requeue_counts_evicted_points(self):
+        """Overflow on re-queue is the same loss and gets the same accounting."""
+        collector = TelemetryCollector(TelemetryLevel.ON, buffer_max_size=2)
+        for _ in range(2):
+            collector.collect(_sample_data())
+
+        collector.requeue([{**_sample_data(), "time": datetime.now(tz=UTC)}])
+
+        assert collector.buffer_size == 2
+        assert collector.points_dropped == 1
+
+    def test_first_eviction_warns(self, caplog):
+        """The very first dropped point already produces a log line."""
+        collector = TelemetryCollector(TelemetryLevel.ON, buffer_max_size=1)
+        collector.collect(_sample_data())
+
+        with caplog.at_level(logging.WARNING):
+            collector.collect(_sample_data())
+
+        assert "buffer full" in caplog.text
+
+    def test_a_healthy_collector_never_warns(self, caplog):
+        """No noise on the nominal path."""
+        collector = TelemetryCollector(TelemetryLevel.ON)
+        with caplog.at_level(logging.WARNING):
+            for _ in range(60):
+                collector.collect(_sample_data())
+
+        assert collector.points_dropped == 0
+        assert caplog.text == ""

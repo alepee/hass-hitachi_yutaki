@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import deque
 from datetime import UTC, datetime, timedelta
 import logging
+from math import ceil
 from typing import Any
 
 from .models import TelemetryLevel
@@ -26,8 +27,33 @@ MAX_POINT_AGE = timedelta(minutes=30)
 # even on the widest profile (#395).
 MAX_FLUSH_POINTS = 80
 
+# One warning per this many silently evicted points, so a saturated buffer is
+# visible in the log without flooding it.
+_OVERFLOW_LOG_EVERY = 100
+
 # Keys to exclude from telemetry (internal coordinator flags)
 _EXCLUDED_KEYS = frozenset({"is_available"})
+
+
+def compute_collect_stride(scan_interval: timedelta, flush_interval: timedelta) -> int:
+    """Return how many polls make up one collected telemetry point.
+
+    A flush sends at most MAX_FLUSH_POINTS, while polling cadence is a user
+    setting with no lower bound. Below roughly a 3.75s scan interval the poll
+    produces more points per cycle than a flush can drain, the buffer
+    saturates and the deque evicts points silently and forever (#395).
+
+    Decimating collection at the source keeps production at or under the drain
+    rate, so the loss becomes an explicit, evenly spread resolution choice
+    instead of an invisible one. The stride is 1 whenever a cycle already fits
+    under the cap, which covers the default 5s poll and anything slower, so
+    normal installations collect every poll exactly as before.
+    """
+    scan = scan_interval.total_seconds()
+    flush = flush_interval.total_seconds()
+    if scan <= 0 or flush <= 0:
+        return 1
+    return max(1, ceil(flush / scan / MAX_FLUSH_POINTS))
 
 
 class TelemetryCollector:
@@ -42,10 +68,17 @@ class TelemetryCollector:
         self,
         level: TelemetryLevel,
         buffer_max_size: int = DEFAULT_BUFFER_MAX_SIZE,
+        collect_stride: int = 1,
     ) -> None:
-        """Initialize the collector."""
+        """Initialize the collector.
+
+        `collect_stride` keeps one poll out of N, see compute_collect_stride.
+        """
         self._level = level
         self._buffer: deque[dict[str, Any]] = deque(maxlen=buffer_max_size)
+        self._stride = max(1, collect_stride)
+        self._polls = 0
+        self._points_dropped = 0
 
     @property
     def level(self) -> TelemetryLevel:
@@ -56,6 +89,16 @@ class TelemetryCollector:
     def buffer_size(self) -> int:
         """Return the current number of buffered points."""
         return len(self._buffer)
+
+    @property
+    def collect_stride(self) -> int:
+        """Return how many polls make up one collected point."""
+        return self._stride
+
+    @property
+    def points_dropped(self) -> int:
+        """Return how many points a full buffer has evicted since startup."""
+        return self._points_dropped
 
     def collect(self, data: dict[str, Any]) -> None:
         """Snapshot the data dict and add to the buffer.
@@ -68,9 +111,21 @@ class TelemetryCollector:
         if not data or not data.get("is_available"):
             return
 
+        # Count only polls that carry usable data, so an unavailable gateway
+        # does not shift which polls the stride keeps.
+        self._polls += 1
+        if self._polls % self._stride:
+            return
+
         # Shallow copy, exclude internal keys, add timestamp
         point = {k: v for k, v in data.items() if k not in _EXCLUDED_KEYS}
         point["time"] = datetime.now(tz=UTC)
+
+        maxlen = self._buffer.maxlen
+        if maxlen is not None and len(self._buffer) == maxlen:
+            # deque.append evicts the oldest point without a word. A backlog
+            # this deep means sends are failing, so say so (#395).
+            self._note_dropped(1)
 
         self._buffer.append(point)
 
@@ -112,6 +167,21 @@ class TelemetryCollector:
         merged = kept + list(self._buffer)
         # `is not None`, not truthiness: -0 == 0, so merged[-0:] would return
         # the whole list and silently make a maxlen=0 buffer unbounded.
-        self._buffer = deque(
-            merged[-maxlen:] if maxlen is not None else merged, maxlen=maxlen
-        )
+        retained = merged[-maxlen:] if maxlen is not None else merged
+        self._note_dropped(len(merged) - len(retained))
+        self._buffer = deque(retained, maxlen=maxlen)
+
+    def _note_dropped(self, count: int) -> None:
+        """Account for evicted points and warn periodically."""
+        if count <= 0:
+            return
+
+        before = self._points_dropped
+        self._points_dropped += count
+        if before == 0 or before // _OVERFLOW_LOG_EVERY != (
+            self._points_dropped // _OVERFLOW_LOG_EVERY
+        ):
+            _LOGGER.warning(
+                "Telemetry buffer full, %d point(s) dropped so far",
+                self._points_dropped,
+            )

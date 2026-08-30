@@ -32,6 +32,10 @@ Data points are buffered locally and sent every 5 minutes. If a send fails, its 
 - Points older than 30 minutes are discarded: stale data has no analytical value, and a misreading unit cannot keep replaying it.
 - One request carries at most 80 points, so a backlog drains over several cycles instead of growing into a request the ingestion endpoint refuses. A batch refused as too large is dropped rather than retried, with a warning naming the config entry.
 
+Because a flush is capped, a poll faster than roughly 3.75 seconds would produce more points per cycle than one request can carry: the buffer would saturate and silently discard the surplus. Collection is therefore decimated to match, keeping one poll out of N so a cycle never produces more than a flush can send. The default 5-second interval, and anything slower, is unaffected and collects every poll. When the stride applies, it is logged once at setup. Any point a full buffer still evicts is counted and reported in the log, so the loss is never silent.
+
+A batch the endpoint has almost certainly already stored is not re-queued. The endpoint commits its rate-limit slot only once a payload is durably archived and the window is shorter than the flush cycle, so a rate-limit rejection that follows an attempt of ours whose answer never arrived means that attempt landed. Re-queueing there would archive the same points twice.
+
 ## How to enable or disable telemetry
 
 Go to **Settings → Devices & Services → Hitachi Yutaki → Configure** and select the telemetry step. You can enable or disable telemetry at any time.

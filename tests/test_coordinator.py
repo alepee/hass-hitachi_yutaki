@@ -17,6 +17,7 @@ from custom_components.hitachi_yutaki.domain.services.refrigerant import (
 )
 from custom_components.hitachi_yutaki.telemetry import (
     NoopTelemetryClient,
+    SendResult,
     TelemetryCollector,
     TelemetryLevel,
 )
@@ -384,3 +385,20 @@ async def test_successful_flush_does_not_requeue(coordinator):
     await coordinator.async_flush_telemetry()
 
     assert coordinator.telemetry_collector.buffer_size == 0
+
+
+@pytest.mark.asyncio
+async def test_probably_delivered_flush_does_not_requeue(coordinator):
+    """A batch the endpoint already archived must not be sent twice (#395)."""
+    coordinator.telemetry_collector = TelemetryCollector(TelemetryLevel.ON)
+    coordinator.telemetry_collector.collect({"is_available": True, "outdoor_temp": 5.0})
+    coordinator._telemetry_meta = {"instance_hash": "a" * 64, "device_hash": "b" * 64}
+    coordinator.telemetry_client = AsyncMock()
+    coordinator.telemetry_client.send_metrics.return_value = (
+        SendResult.PROBABLY_DELIVERED
+    )
+
+    await coordinator.async_flush_telemetry()
+
+    assert coordinator.telemetry_collector.buffer_size == 0
+    assert coordinator.telemetry_send_failures == 0

@@ -26,6 +26,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the unit id in their fallback identifier, so several units behind one
   HC-A(16/64)MB gateway no longer collapse into a single identity. Single-gateway
   installations are unaffected and their fleet history is continuous (#395).
+- Telemetry no longer loses points on installations polling faster than about 3.75
+  seconds. A flush carries at most 80 points, so a faster poll produced more per
+  5-minute cycle than one request could take and the buffer silently discarded the
+  surplus forever. Collection is now thinned to one poll out of N so a cycle never
+  outruns what a flush can send, and any point a full buffer still evicts is counted
+  and logged instead of vanishing. The default 5-second interval, and anything
+  slower, collects every poll exactly as before (#395).
+- Telemetry no longer archives the same points twice after a lost response. When a
+  send timed out on a batch the endpoint had in fact stored, the immediate retry hit
+  the rate-limit window that very attempt had armed, and the points were re-queued
+  and sent again on the next cycle. Such a rejection is now recognised for what it
+  is and the batch is not re-queued (#395).
 
 ## [2.2.0-beta.3] - 2026-07-26
 

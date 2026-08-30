@@ -474,3 +474,68 @@ class TestRegisterSnapshot:
         await coordinator._send_register_snapshot(data)
 
         assert not coordinator._snapshot_sent
+
+
+class TestPerDeviceIdentityInPayloads:
+    """Every outgoing payload must carry the per-unit identity (#395).
+
+    The coordinator's meta dict holding the right value is not the property
+    that matters: what fixes #395 is `device_hash` reaching the wire on all
+    three payload types, distinct from the household-wide `instance_hash`.
+    Asserting the meta dict alone leaves the whole suite green when the
+    coordinator sends `instance_hash` in the `device_hash` field, which is
+    exactly the bug.
+    """
+
+    @pytest.mark.asyncio
+    async def test_metrics_batch_carries_the_device_hash(self):
+        """A flushed batch identifies the unit, not the household."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
+        coordinator.telemetry_collector.collect(_sample_data())
+
+        await coordinator.async_flush_telemetry()
+
+        batch = coordinator.telemetry_client.send_metrics.call_args[0][0]
+        assert batch.device_hash == "b" * 64
+        assert batch.device_hash != batch.instance_hash
+
+    @pytest.mark.asyncio
+    async def test_installation_info_carries_the_device_hash(self):
+        """The installation payload identifies the unit, not the household."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
+
+        await coordinator._send_installation_info()
+
+        info = coordinator.telemetry_client.send_installation.call_args[0][0]
+        assert info.device_hash == "b" * 64
+        assert info.device_hash != info.instance_hash
+
+    @pytest.mark.asyncio
+    async def test_register_snapshot_carries_the_device_hash(self):
+        """The snapshot payload identifies the unit, not the household."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
+
+        await coordinator._send_register_snapshot(_sample_data())
+
+        snapshot = coordinator.telemetry_client.send_snapshot.call_args[0][0]
+        assert snapshot.device_hash == "b" * 64
+        assert snapshot.device_hash != snapshot.instance_hash
+
+    @pytest.mark.asyncio
+    async def test_serialized_payloads_carry_the_device_hash(self):
+        """The field survives to_dict(), which is what the endpoint reads."""
+        coordinator = _make_coordinator(telemetry_level=TelemetryLevel.ON)
+        coordinator.telemetry_collector.collect(_sample_data())
+
+        await coordinator.async_flush_telemetry()
+        await coordinator._send_installation_info()
+        await coordinator._send_register_snapshot(_sample_data())
+
+        for mock in (
+            coordinator.telemetry_client.send_metrics,
+            coordinator.telemetry_client.send_installation,
+            coordinator.telemetry_client.send_snapshot,
+        ):
+            payload = mock.call_args[0][0].to_dict()
+            assert payload["device_hash"] == "b" * 64
+            assert payload["device_hash"] != payload["instance_hash"]
