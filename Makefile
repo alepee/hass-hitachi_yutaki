@@ -81,6 +81,47 @@ bump: ## Bump version — usage: make bump [PART=patch|minor|major|beta] (defaul
 version: ## Show current version
 	@echo $(VERSION)
 
+# —— Telemetry backend ——————————————————————————————————
+
+WORKER_DIR := backend/worker
+
+# Load the Worker's local .env (gitignored) so make sees the same account
+# wrangler would read from it. A missing file is fine: the guard below is what
+# reports it, with an actionable message.
+-include $(WORKER_DIR)/.env
+export CLOUDFLARE_ACCOUNT_ID
+
+# Refuse to act without an explicit account. wrangler otherwise falls back to
+# whichever account the local OAuth token happens to belong to, which silently
+# deploys the Worker somewhere else and auto-provisions an empty R2 bucket
+# there instead of failing.
+define require_cf_account
+	@test -n "$(CLOUDFLARE_ACCOUNT_ID)" || { \
+		echo "CLOUDFLARE_ACCOUNT_ID is not set."; \
+		echo "Put 'CLOUDFLARE_ACCOUNT_ID=<id>' in $(WORKER_DIR)/.env (gitignored),"; \
+		echo "or export it. Find the id at dash.cloudflare.com/<account_id>."; \
+		exit 1; \
+	}
+endef
+
+.PHONY: worker-install
+worker-install: ## Install the telemetry Worker's dependencies
+	cd $(WORKER_DIR) && npm ci
+
+.PHONY: worker-test
+worker-test: ## Run the telemetry Worker test suite
+	cd $(WORKER_DIR) && npm test
+
+.PHONY: worker-deploy
+worker-deploy: ## Deploy the telemetry Worker (requires CLOUDFLARE_ACCOUNT_ID)
+	$(require_cf_account)
+	cd $(WORKER_DIR) && npm test && npx wrangler deploy
+
+.PHONY: worker-deploy-dry
+worker-deploy-dry: ## Build the Worker without deploying (requires CLOUDFLARE_ACCOUNT_ID)
+	$(require_cf_account)
+	cd $(WORKER_DIR) && npx wrangler deploy --dry-run
+
 # —— Diagnostics ———————————————————————————————————————
 
 .PHONY: scan
