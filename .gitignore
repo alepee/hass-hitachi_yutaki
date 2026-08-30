@@ -117,3 +117,8 @@ venv.bak/
 .mypy_cache/
 
 .idea/
+
+# Superpowers working material: plans and specs describing how a change was
+# arrived at. They go stale as soon as a review reshapes the design, and the
+# contract lives in docs/reference/ instead. Kept locally, out of the repo.
+docs/superpowers/
