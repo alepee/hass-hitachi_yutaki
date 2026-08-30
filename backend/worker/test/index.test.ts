@@ -264,7 +264,9 @@ describe("hardening (#414)", () => {
       expect(written.doubles.every((d: unknown) => typeof d === "number")).toBe(true);
     });
 
-    it("drops a NaN where a number is expected", async () => {
+    it("drops a null where a number is expected", async () => {
+      // Named for what it does: `JSON.stringify(Number.NaN)` emits `null`, so
+      // this exercises the `typeof` branch, not the finite-number one.
       const bucket = createFakeBucket();
 
       await worker.fetch(
@@ -274,6 +276,30 @@ describe("hardening (#414)", () => {
 
       const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
       expect(archived.data.longitude).toBeUndefined();
+    });
+
+    it("drops a number that overflowed to Infinity", async () => {
+      // The finite-number guard is reachable over HTTP even though the JSON
+      // grammar has no `Infinity` literal: an exponent that overflows parses
+      // to it. `JSON.parse('{"latitude": 1e999}').latitude === Infinity`, a
+      // number, so only the isFinite check stops it reaching the archive and
+      // the Analytics Engine doubles.
+      const bucket = createFakeBucket();
+      const body = String.raw`{"type":"installation","instance_hash":"${HASH}",` +
+        String.raw`"data":{"profile":"yutaki_s80","gateway_type":"modbus_atw_mbs_02",` +
+        String.raw`"latitude":1e999,"max_circuits":2}}`;
+      const request = new Request("https://telemetry.internal/v1/ingest", {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-instance-hash": HASH },
+        body,
+      });
+
+      const res = await worker.fetch(request, makeEnv(bucket));
+
+      expect(res.status).toBe(202);
+      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      expect(archived.data.latitude).toBeUndefined();
+      expect(archived.data.max_circuits).toBe(2);
     });
   });
 
