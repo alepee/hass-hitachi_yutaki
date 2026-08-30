@@ -91,10 +91,22 @@ npx wrangler dev    # Runs locally with bindings
 ### Deploy
 
 ```bash
-cd backend/worker
-npx wrangler login  # One-time OAuth (opens browser)
-npx wrangler deploy
+npx wrangler login          # One-time OAuth (opens browser)
+echo "CLOUDFLARE_ACCOUNT_ID=<id>" > backend/worker/.env   # one-time, gitignored
+make worker-deploy          # runs the test suite, then deploys
 ```
+
+**Always name the account.** Without `CLOUDFLARE_ACCOUNT_ID`, wrangler targets
+whichever account the local OAuth token happens to belong to. If that is not
+the account hosting this Worker, the deploy does not fail: it creates a second
+Worker there and auto-provisions an empty R2 bucket to satisfy the binding,
+while the real endpoint keeps serving the old code. `make worker-deploy`
+refuses to run rather than let that happen, and `backend/worker/.env` is
+gitignored so the id stays out of this public repository. Find the id in the
+dashboard URL, `dash.cloudflare.com/<account_id>`.
+
+`make worker-deploy-dry` builds without deploying, `make worker-test` runs the
+suite alone.
 
 ### TypeScript structure
 
@@ -141,8 +153,8 @@ Or use Cloudflare MCP tools (`accounts_list`, `r2_bucket_create`).
 ### 2. Deploy Worker
 
 ```bash
-cd backend/worker
-npm install
+make worker-install
 npx wrangler login
-npx wrangler deploy
+echo "CLOUDFLARE_ACCOUNT_ID=<id>" > backend/worker/.env
+make worker-deploy
 ```
