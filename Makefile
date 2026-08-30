@@ -85,10 +85,19 @@ version: ## Show current version
 
 WORKER_DIR := backend/worker
 
-# Load the Worker's local .env (gitignored) so make sees the same account
-# wrangler would read from it. A missing file is fine: the guard below is what
-# reports it, with an actionable message.
--include $(WORKER_DIR)/.env
+# Read the account id out of the Worker's local .env (gitignored), which is
+# also where wrangler reads it, so one file configures both.
+#
+# Deliberately not `-include`: that parses the whole file into make's own
+# namespace, so one line make cannot parse breaks *every* target in this
+# repository, and any assignment silently overrides a Makefile variable. This
+# extracts the single value instead, tolerating quotes, surrounding blanks and
+# CRLF. `?=` leaves an already-exported environment value untouched.
+CLOUDFLARE_ACCOUNT_ID ?= $(strip $(shell \
+	test -f $(WORKER_DIR)/.env && \
+	sed -n 's/^[[:space:]]*\(export[[:space:]][[:space:]]*\)\{0,1\}CLOUDFLARE_ACCOUNT_ID[[:space:]]*=[[:space:]]*//p' \
+		$(WORKER_DIR)/.env | tail -1 | tr -d '"'"'"'\r' \
+))
 export CLOUDFLARE_ACCOUNT_ID
 
 # Refuse to act without an explicit account. wrangler otherwise falls back to

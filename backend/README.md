@@ -106,7 +106,32 @@ gitignored so the id stays out of this public repository. Find the id in the
 dashboard URL, `dash.cloudflare.com/<account_id>`.
 
 `make worker-deploy-dry` builds without deploying, `make worker-test` runs the
-suite alone.
+suite alone, `npm run test:watch` inside `backend/worker` watches.
+
+**What the guard does not check.** It verifies that an account id is *present*,
+never that it is the *right* one. A `CLOUDFLARE_ACCOUNT_ID` left over in your
+shell from another Cloudflare project satisfies it, and the deploy lands there
+exactly as it would have with no guard at all. The case the guard exists for is
+the one that happened, no account configured; the misinformed case stays on the
+human. If that ever stops being good enough, pin the identity itself: commit
+`account_id` to `wrangler.toml`, or assert the account name from
+`wrangler whoami` before deploying.
+
+### Payload size limit
+
+The endpoint refuses a decompressed body over **256 KB with HTTP 413**, and the
+bound that actually applies is measured in **bytes**, while reading, so a body
+that expands past it is abandoned rather than buffered. `validator.ts` also
+checks the decoded string's length; that check is a second gate, and it counts
+UTF-16 code units, so for non-ASCII content it is looser than the byte bound.
+The byte bound is the contract: it is the one that protects the isolate.
+
+The Home Assistant client caps a metrics batch at 180 KB of serialized body
+before compressing, so it stays clear of this on every heat-pump profile.
+
+The provisioning commands below create resources, so name the account for them
+too: `CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler r2 bucket create …`. An unnamed
+account is how an empty bucket ends up in the wrong place.
 
 ### TypeScript structure
 
@@ -144,8 +169,9 @@ If you need to recreate the infrastructure:
 ### 1. Cloudflare resources
 
 ```bash
-# R2 bucket for the archive
-npx wrangler r2 bucket create hitachi-telemetry-archive
+# R2 bucket for the archive. Name the account: wrangler otherwise picks
+# whichever one the local OAuth token belongs to.
+CLOUDFLARE_ACCOUNT_ID=<id> npx wrangler r2 bucket create hitachi-telemetry-archive
 ```
 
 Or use Cloudflare MCP tools (`accounts_list`, `r2_bucket_create`).
