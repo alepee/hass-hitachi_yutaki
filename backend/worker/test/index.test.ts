@@ -603,3 +603,46 @@ describe("hardening (#414)", () => {
     });
   });
 });
+
+describe("device_hash absence (#414)", () => {
+  it("treats an explicit null as absent rather than rejecting it", async () => {
+    // A client serializing an optional field as `null` means the same thing as
+    // omitting it. Rejecting turned that into a permanent 400 for every one of
+    // its payloads, where the legacy identity is the documented behaviour.
+    const bucket = createFakeBucket();
+
+    const res = await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: null }),
+      makeEnv(bucket),
+    );
+
+    expect(res.status).toBe(202);
+    const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+    expect(archived.device_hash).toBe(HASH);
+    expect(writtenKey(bucket).endsWith(`_${HASH.slice(0, 12)}.json`)).toBe(true);
+  });
+
+  it("keys the rate limit on the instance identity for a null device_hash", async () => {
+    const bucket = createFakeBucket();
+
+    await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: null }),
+      makeEnv(bucket),
+    );
+
+    expect([...fakeCache.store.keys()]).toEqual([
+      `https://rate-limit.internal/rl/${HASH}/metrics`,
+    ]);
+  });
+
+  it("still rejects a device_hash of the wrong shape", async () => {
+    const bucket = createFakeBucket();
+
+    const res = await worker.fetch(
+      makeRequest({ ...metricsPayload(), device_hash: "not-a-hash" }),
+      makeEnv(bucket),
+    );
+
+    expect(res.status).toBe(400);
+  });
+});

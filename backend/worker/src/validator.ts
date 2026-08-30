@@ -150,9 +150,14 @@ export function validate(
 
   // Per-unit identity (#395). Optional: legacy clients never send it, and
   // fall back to the instance identity so their behaviour is unchanged.
+  //
+  // `!= null`, not `!== undefined`: a client that serializes the field as an
+  // explicit `null` means the same thing as omitting it, and turning that into
+  // a permanent 400 would reject every payload it ever sends. A field of the
+  // wrong *shape* is still rejected; only absence is forgiven (#414).
   let deviceHash = instanceHash;
   let hasExplicitDeviceHash = false;
-  if (payload.device_hash !== undefined) {
+  if (payload.device_hash != null) {
     const dh = String(payload.device_hash);
     if (!INSTANCE_HASH_RE.test(dh)) {
       throw new ValidationError("Invalid device_hash (expected SHA-256 hex)");
