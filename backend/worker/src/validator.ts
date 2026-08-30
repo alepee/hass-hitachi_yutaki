@@ -13,24 +13,34 @@ import type {
 } from "./types";
 
 const INSTANCE_HASH_RE = /^[a-f0-9]{64}$/;
-const MAX_PAYLOAD_SIZE = 256 * 1024; // 256 KB uncompressed
+/** Decompressed body limit. Exported so the request reader enforces it too. */
+export const MAX_PAYLOAD_SIZE = 256 * 1024; // 256 KB uncompressed
 const MAX_METRICS_POINTS = 500;
 
-/** Allowed installation data fields (whitelist). */
-const INSTALLATION_FIELDS = new Set([
-  "profile",
-  "gateway_type",
-  "ha_version",
-  "integration_version",
-  "power_supply",
-  "has_dhw",
-  "has_pool",
-  "has_cooling",
-  "max_circuits",
-  "has_secondary_compressor",
-  "latitude",
-  "longitude",
-  "climate_zone",
+/**
+ * Allowed installation data fields, with the type each one must have.
+ *
+ * The whitelist used to copy values verbatim, so a field of the wrong type was
+ * archived as-is and then threw inside the Analytics Engine write, whose catch
+ * is deliberately silent: the installation existed in R2 but never reached the
+ * fleet dashboard, with nothing to show for it (#414). A field of the wrong
+ * type is now dropped rather than rejected, so a client sending one keeps
+ * having the rest of its payload accepted.
+ */
+const INSTALLATION_FIELDS = new Map<string, "string" | "number" | "boolean">([
+  ["profile", "string"],
+  ["gateway_type", "string"],
+  ["ha_version", "string"],
+  ["integration_version", "string"],
+  ["power_supply", "string"],
+  ["has_dhw", "boolean"],
+  ["has_pool", "boolean"],
+  ["has_cooling", "boolean"],
+  ["max_circuits", "number"],
+  ["has_secondary_compressor", "boolean"],
+  ["latitude", "number"],
+  ["longitude", "number"],
+  ["climate_zone", "string"],
 ]);
 
 /** Allowed daily stats data fields (whitelist). */
@@ -72,6 +82,30 @@ function whitelist(
     if (key in obj) {
       result[key] = obj[key];
     }
+  }
+  return result;
+}
+
+/** Whitelist that also drops any field whose value is not of the given type. */
+function typedWhitelist(
+  obj: Record<string, unknown>,
+  allowed: Map<string, "string" | "number" | "boolean">,
+): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  for (const [key, expected] of allowed) {
+    if (!(key in obj)) {
+      continue;
+    }
+    const value = obj[key];
+    if (typeof value !== expected) {
+      console.warn(`dropped ${key}: expected ${expected}, got ${typeof value}`);
+      continue;
+    }
+    if (expected === "number" && !Number.isFinite(value)) {
+      console.warn(`dropped ${key}: not a finite number`);
+      continue;
+    }
+    result[key] = value;
   }
   return result;
 }
@@ -141,7 +175,7 @@ function validateInstallation(
   return {
     type: "installation",
     instance_hash: instanceHash,
-    data: whitelist(d, INSTALLATION_FIELDS) as InstallationPayload["data"],
+    data: typedWhitelist(d, INSTALLATION_FIELDS) as InstallationPayload["data"],
   };
 }
 

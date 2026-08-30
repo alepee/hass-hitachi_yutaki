@@ -19,7 +19,47 @@ import {
   markRateLimit,
 } from "./rate-limiter";
 import type { Env } from "./types";
-import { ValidationError, validate } from "./validator";
+import { MAX_PAYLOAD_SIZE, ValidationError, validate } from "./validator";
+
+/**
+ * Read a stream as text, refusing anything past `limit` bytes.
+ *
+ * The size check in the validator runs on the decompressed string, so buffering
+ * the whole body first meant a small gzip payload expanding to gigabytes was
+ * materialised before anything could reject it, exhausting the isolate. The
+ * endpoint is public and unauthenticated, so the bound has to be enforced while
+ * reading, not after (#414). An oversized body still answers 413, exactly as it
+ * did when the validator was the one to catch it.
+ */
+async function readBoundedText(
+  stream: ReadableStream<Uint8Array>,
+  limit: number,
+): Promise<string> {
+  const reader = stream.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    total += value.byteLength;
+    if (total > limit) {
+      await reader.cancel().catch(() => undefined);
+      throw new ValidationError("Payload too large", 413);
+    }
+    chunks.push(value);
+  }
+
+  const merged = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    merged.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return new TextDecoder().decode(merged);
+}
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
@@ -33,14 +73,14 @@ export default {
     }
 
     try {
-      // Decompress if gzipped, otherwise read as text
-      let body: string;
-      if (request.headers.get("content-encoding") === "gzip") {
-        const ds = new DecompressionStream("gzip");
-        const decompressed = request.body!.pipeThrough(ds);
-        body = await new Response(decompressed).text();
-      } else {
-        body = await request.text();
+      // Decompress if gzipped, otherwise read as text. Bounded either way.
+      let body = "";
+      if (request.body) {
+        const stream =
+          request.headers.get("content-encoding") === "gzip"
+            ? request.body.pipeThrough(new DecompressionStream("gzip"))
+            : request.body;
+        body = await readBoundedText(stream, MAX_PAYLOAD_SIZE);
       }
 
       // Validate and sanitize
