@@ -22,7 +22,7 @@ jobs:
         run: uv python install 3.14
 
       - name: Install dependencies
-        run: uv sync --group dev
+        run: uv sync --locked --group dev
 
       - name: Lint with ruff
         run: uv run ruff check custom_components tests
