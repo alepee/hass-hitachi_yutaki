@@ -123,7 +123,7 @@ Domain logic goes in `domain/services/`, adapter logic in `adapters/`. See [docs
 
 ## Code Quality Standards
 - **Linting**: Ruff with the Home Assistant ruleset (configured in `pyproject.toml` under `[tool.ruff]`).
-- **Type checking**: `ty` (Astral, pinned while pre-1.0), advisory only and scoped to the pure-Python domain layer via `make typecheck`. Not part of `make check`, pre-commit, or required CI checks until ty reaches 1.0.
+- **Type checking**: `ty` (Astral, pinned while pre-1.0), advisory only and scoped to the pure-Python domain layer via `make typecheck`. Not part of `make check`, pre-commit, or required CI checks until ty reaches 1.0; a non-blocking CI job (`typecheck` in `lint.yml`) surfaces findings on PRs.
 - **Type hints**: required for all function signatures.
 - **Docstrings**: required for all public functions/classes.
 - **Import conventions**: use the aliases from `[tool.ruff.lint.flake8-import-conventions.extend-aliases]` in `pyproject.toml` (e.g., `vol`, `cv`, `dt_util`).
