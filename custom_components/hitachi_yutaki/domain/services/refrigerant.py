@@ -141,21 +141,35 @@ class RefrigerantMonitor:
         if current - self._last_sample_time < SAMPLE_MIN_INTERVAL_S:
             return flushed
 
-        superheat = data.gas_temp - data.evaporator_temp  # type: ignore[operator]
+        gas_temp = data.gas_temp
+        evaporator_temp = data.evaporator_temp
+        outdoor_expansion_valve = data.outdoor_expansion_valve
+        outdoor_temp = data.outdoor_temp
+        if (
+            gas_temp is None
+            or evaporator_temp is None
+            or outdoor_expansion_valve is None
+            or outdoor_temp is None
+        ):
+            # Already rejected by _should_sample(); repeated on locals so the
+            # signals are narrowed to float for the checks below.
+            return flushed
+
+        superheat = gas_temp - evaporator_temp
         if not (self._superheat_min <= superheat <= self._superheat_max):
             return flushed
-        if not (EVO_MIN_PCT <= data.outdoor_expansion_valve <= EVO_MAX_PCT):  # type: ignore[operator]
+        if not (EVO_MIN_PCT <= outdoor_expansion_valve <= EVO_MAX_PCT):
             return flushed
-        if not (EVAP_MIN_C <= data.evaporator_temp <= EVAP_MAX_C):  # type: ignore[operator]
+        if not (EVAP_MIN_C <= evaporator_temp <= EVAP_MAX_C):
             return flushed
-        if not (OUTDOOR_MIN_C <= data.outdoor_temp <= OUTDOOR_MAX_C):  # type: ignore[operator]
+        if not (OUTDOOR_MIN_C <= outdoor_temp <= OUTDOOR_MAX_C):
             return flushed
 
         self._last_sample_time = current
         self._superheats.append(superheat)
-        self._evos.append(data.outdoor_expansion_valve)  # type: ignore[arg-type]
-        self._evaps.append(data.evaporator_temp)  # type: ignore[arg-type]
-        self._outdoors.append(data.outdoor_temp)  # type: ignore[arg-type]
+        self._evos.append(outdoor_expansion_valve)
+        self._evaps.append(evaporator_temp)
+        self._outdoors.append(outdoor_temp)
         return flushed
 
     def get_status(self) -> RefrigerantStatus:

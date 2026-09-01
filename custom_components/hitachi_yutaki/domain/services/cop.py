@@ -205,14 +205,15 @@ class COPService:
             return
 
         # Validate input data
-        if any(
-            x is None
-            for x in [
-                data.water_inlet_temp,
-                data.water_outlet_temp,
-                data.water_flow,
-                data.compressor_current,
-            ]
+        water_inlet_temp = data.water_inlet_temp
+        water_outlet_temp = data.water_outlet_temp
+        water_flow = data.water_flow
+        compressor_current = data.compressor_current
+        if (
+            water_inlet_temp is None
+            or water_outlet_temp is None
+            or water_flow is None
+            or compressor_current is None
         ):
             # Transient missing data: do not advance the interval timer, so the
             # next complete poll within the interval is still accepted (#319).
@@ -223,9 +224,9 @@ class COPService:
 
         # Calculate thermal power
         thermal_power = self._thermal_calculator(
-            data.water_inlet_temp,  # type: ignore
-            data.water_outlet_temp,  # type: ignore
-            data.water_flow,  # type: ignore
+            water_inlet_temp,
+            water_outlet_temp,
+            water_flow,
         )
 
         # Use pre-computed electrical power if available, else compute from current.
@@ -236,7 +237,7 @@ class COPService:
         if data.electrical_power is not None:
             electrical_power = data.electrical_power
         else:
-            total_current = data.compressor_current  # type: ignore
+            total_current = compressor_current
             if (
                 data.secondary_compressor_current is not None
                 and data.secondary_compressor_frequency is not None
