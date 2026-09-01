@@ -471,7 +471,9 @@ Offset 145:
 
 Some state registers about outdoor unit have been added. Using these registers it is now possible to know the status of the refrigerant cycle. Some control registers have also been added.
 
-The outdoor unit block uses a **different**, fixed base from the indoor block (not the indoor `Modbus_Id`): the integration computes outdoor addresses as `30000 + Offset`. The outdoor unit is shared across all indoor units on the same H-LINK bus. Note: the datasheet describes indexing by outdoor refrigerant cycle (`30000 + (Cycle × 100) + Offset`), but the current implementation hardcodes the base at 30000 and does not index by refrigerant cycle (effectively cycle 0 only).
+The outdoor unit block uses a **different** base from the indoor block (not the indoor `Modbus_Id`): it is keyed on the **outdoor refrigerant cycle**, `30000 + (Cycle × 100) + Offset`. The cycle is arbitrary and is *not* the `unit_id`; it is read from the gateway unit table (input register `200 + unit_id × 4 + 1`, `0xFF` meaning "no unit"), persisted at config time as `outdoor_cycle`, and falls back to cycle 0 when it cannot be read (#353, since v2.2.0-beta.1). One outdoor unit is shared by all indoor units sitting on the same refrigerant cycle.
+
+> **Known limitation (#403).** On a gateway hosting several cycles, field data shows the extended outdoor registers populated **only for cycle 0**. At a secondary cycle, offsets `0`/`1`/`2` (outdoor air, discharge, evaporating temperature) carry live values, while `3`~`10` (number of running compressors, pressures, **total current**, **total frequency**, EVO/EVB) stay at `0` even with the compressor demonstrably running. This is a gateway behaviour, not a model limitation: a Yutampo R32 read at cycle 0 reports current and frequency normally. Consequence: on such a unit, `electrical_power` cannot be estimated from the compressor current, and a **Power Sensor** must be configured to get any electrical reading. Not yet confirmed whether a non-Yutampo unit at a non-zero cycle behaves the same.
 
 | Offset | Description | Values | R/W |
 |---|---|---|---|

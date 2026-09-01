@@ -504,6 +504,62 @@ class TestEnergyAndCost:
         # measured whole-unit power is 3 kW; must NOT be ~6 kW
         assert data["electrical_power"] == 3.0
 
+    def test_power_entity_read_when_current_is_zero(self):
+        """Regression #403: an external power meter must be read at 0 A.
+
+        The measured-power branch does not use the compressor current, so a
+        unit reporting 0 A (permanently on a Yutampo R32, or simply at standby)
+        must still report the meter value.
+        """
+        mock_hass = MagicMock()
+
+        power_state = MagicMock()
+        power_state.state = "749"  # 749 W measured while the compressor runs
+        power_state.attributes = {"unit_of_measurement": "W"}
+
+        config_entry = MagicMock()
+        config_entry.data = {"power_entity": "sensor.unit_power"}
+
+        mock_hass.states.get = lambda entity_id: (
+            power_state if entity_id == "sensor.unit_power" else None
+        )
+
+        adapter = DerivedMetricsAdapter(
+            hass=mock_hass,
+            config_entry=config_entry,
+            power_supply="single",
+        )
+
+        data = _sample_data(compressor_current=0, compressor_frequency=0)
+        adapter.update(data)
+        assert data["electrical_power"] == 0.749
+
+    def test_power_entity_read_when_current_is_missing(self):
+        """Regression #403: same, when the register is absent from the payload."""
+        mock_hass = MagicMock()
+
+        power_state = MagicMock()
+        power_state.state = "0.059"
+        power_state.attributes = {"unit_of_measurement": "kW"}
+
+        config_entry = MagicMock()
+        config_entry.data = {"power_entity": "sensor.unit_power"}
+
+        mock_hass.states.get = lambda entity_id: (
+            power_state if entity_id == "sensor.unit_power" else None
+        )
+
+        adapter = DerivedMetricsAdapter(
+            hass=mock_hass,
+            config_entry=config_entry,
+            power_supply="single",
+        )
+
+        data = _sample_data()
+        data.pop("compressor_current")
+        adapter.update(data)
+        assert data["electrical_power"] == 0.059
+
     def test_s80_ixu_estimate_matches_summed_current(self):
         """S80 I×U estimate is unchanged: U×(I1+I2) == U×I1 + U×I2.
 
