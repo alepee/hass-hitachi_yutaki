@@ -31,6 +31,13 @@ format: ## Run ruff formatter
 .PHONY: check
 check: lint format ## Run all code quality checks (lint + format)
 
+# ty is still 0.0.x (pinned in pyproject.toml): advisory only, scoped to the
+# pure-Python domain layer, and deliberately not part of `check`, pre-commit
+# or required CI checks until it reaches 1.0.
+.PHONY: typecheck
+typecheck: ## Type-check the domain layer with ty (advisory, beta tool)
+	uv run ty check custom_components/hitachi_yutaki/domain
+
 .PHONY: pre-commit
 pre-commit: ## Run all pre-commit hooks on the entire codebase
 	uv run pre-commit run --all-files

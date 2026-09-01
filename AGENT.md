@@ -15,6 +15,7 @@ make setup           # Full project setup (deps + pre-commit hooks)
 make install         # Install/reinstall all dependencies
 make check           # Run all code quality checks (lint + format)
 make lint            # Run ruff linter with auto-fix
+make typecheck       # Type-check the domain layer with ty (advisory, beta tool)
 make test            # Run all tests
 make test-domain     # Run domain layer tests only (pure Python, no HA)
 make test-coverage   # Run tests with coverage report
@@ -122,6 +123,7 @@ Domain logic goes in `domain/services/`, adapter logic in `adapters/`. See [docs
 
 ## Code Quality Standards
 - **Linting**: Ruff with the Home Assistant ruleset (configured in `pyproject.toml` under `[tool.ruff]`).
+- **Type checking**: `ty` (Astral, pinned while pre-1.0), advisory only and scoped to the pure-Python domain layer via `make typecheck`. Not part of `make check`, pre-commit, or required CI checks until ty reaches 1.0.
 - **Type hints**: required for all function signatures.
 - **Docstrings**: required for all public functions/classes.
 - **Import conventions**: use the aliases from `[tool.ruff.lint.flake8-import-conventions.extend-aliases]` in `pyproject.toml` (e.g., `vol`, `cv`, `dt_util`).
@@ -136,7 +138,7 @@ Tests live in `tests/` (mirrors the package layout):
 ## Dependencies
 All dependencies are declared in `pyproject.toml` (single source of truth).
 - **Runtime**: `pymodbus`, Home Assistant core.
-- **Dev**: `pytest-homeassistant-custom-component`, `ruff`, `pre-commit`, `pytest`, `pytest-asyncio`.
+- **Dev**: `pytest-homeassistant-custom-component`, `ruff`, `ty`, `pre-commit`, `pytest`, `pytest-asyncio`.
 
 ## Operating Modes (preserved conventions)
 
