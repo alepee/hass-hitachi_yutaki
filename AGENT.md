@@ -155,7 +155,7 @@ These workflows are stable; do not change them without explicit request. See [CO
 - **Changelog**: every behavior-affecting PR must add an entry under `[Unreleased]` in `CHANGELOG.md` (Keep a Changelog format). PRs with no user-facing effect may use the `skip-changelog` label.
 
 ### Version Management
-Version lives in two files, kept in sync by `make bump`:
+Version lives in two files, kept in sync by `make bump` (which also refreshes `uv.lock`, since the lockfile records the project version and CI rejects a stale one):
 - `manifest.json` → `"version"`: **source of truth** (read by HA core + HACS at runtime).
 - `pyproject.toml` → `version`: metadata only (build tools).
 
