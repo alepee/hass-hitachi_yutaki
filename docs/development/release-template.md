@@ -4,7 +4,7 @@ Follow this template when cutting a release so titles and descriptions stay cons
 
 ## Release flow (recap)
 
-`make bump [PART=patch|minor|major|beta]` on `main` → move the CHANGELOG entries → commit → push → create the GitHub release with the tag. See [AGENT.md](../../AGENT.md#release-process). `make bump` updates **only** `manifest.json` (source of truth) and `pyproject.toml`; moving the `[Unreleased]` CHANGELOG entries under a new dated `## [X.Y.Z] - YYYY-MM-DD` section is a **manual** step (leave `## [Unreleased]` in place, empty).
+`make bump [PART=patch|minor|major|beta]` on `main` → move the CHANGELOG entries → commit → push → create the GitHub release with the tag. See [AGENT.md](../../AGENT.md#release-process). `make bump` updates `manifest.json` (source of truth) and `pyproject.toml`, then refreshes `uv.lock` (which records the project version; CI fails on a stale lockfile); moving the `[Unreleased]` CHANGELOG entries under a new dated `## [X.Y.Z] - YYYY-MM-DD` section is a **manual** step (leave `## [Unreleased]` in place, empty).
 
 Create the release with:
 

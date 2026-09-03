@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0-beta.5] - 2026-09-03
+
 ### Fixed
 - A configured **Power Sensor** (`power_entity`) is now read even when the compressor reports 0 A. The electrical-power computation was guarded by `compressor_current > 0`, but the measured-power path does not use the current at all, so the external meter was simply ignored whenever the compressor current read zero: standby draw was never counted for anyone, and wherever the gateway itself reports a constant 0 A (an **HC-A(16/64)MB** serves no compressor current for a unit read at a secondary refrigerant cycle, even with the compressor running) `electrical_power`, `power_consumption` and `electricity_cost` were stuck at 0 forever, even with a dedicated meter correctly configured. The `P ≈ U × I × cosφ` estimate is unchanged. Note that DHW COP still cannot be computed on a Yutampo R32: it requires water inlet/outlet temperatures and flow, which that unit does not report (#403).
 

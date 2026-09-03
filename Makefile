@@ -83,6 +83,7 @@ ha-version: ## Temporary HA specific version (reset by make install)
 .PHONY: bump
 bump: ## Bump version — usage: make bump [PART=patch|minor|major|beta] (default: patch)
 	@python3 scripts/bump_version.py $(PART)
+	@uv lock --quiet
 
 .PHONY: version
 version: ## Show current version
