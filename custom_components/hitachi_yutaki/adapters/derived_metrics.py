@@ -307,7 +307,6 @@ class DerivedMetricsAdapter:
         # Summing the currents first is correct for both backends:
         #   - measured_power path: returned once (whole unit) -> no double count.
         #   - I×U estimate path: U×(I1+I2) == U×I1 + U×I2 -> identical to old sum.
-        electrical_power = 0.0
         current = data.get("compressor_current")
         total_current = current if current is not None and current > 0 else 0.0
 
@@ -318,8 +317,16 @@ class DerivedMetricsAdapter:
             if sec_current is not None and sec_freq is not None and sec_freq > 0:
                 total_current += sec_current
 
-        if total_current > 0:
-            electrical_power = self._electrical_calculator(total_current)
+        # Issue #403: the calculator is called unconditionally, including at
+        # zero current. Its priority-1 branch reads CONF_POWER_ENTITY, which
+        # does not use the current at all, so a `total_current > 0` guard made
+        # an external power meter unreadable whenever the compressor reported
+        # 0 A: standby draw for everyone, and permanently wherever the gateway
+        # itself reports a constant 0 A (an HC-A(16/64)MB serves no current for
+        # a unit read at a secondary refrigerant cycle, even with the
+        # compressor demonstrably running). The I×U estimate is unaffected
+        # (U × 0 × cosφ == 0).
+        electrical_power = self._electrical_calculator(total_current)
 
         data["electrical_power"] = round(electrical_power, 3)
         _LOGGER.debug(

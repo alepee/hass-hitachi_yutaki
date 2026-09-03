@@ -92,8 +92,15 @@ class YutampoR32Profile(HitachiHeatPumpProfile):
         """Return False - compact compressor, reduced sensor package.
 
         Gas temp (Tg), liquid temp (Ti) and expansion valve openings (EVI/EVO)
-        read a constant 0 on a Yutampo R32; only the core compressor sensors
+        read a constant 0 on a Yutampo R32; the core compressor sensors
         (frequency, current, discharge, evaporator) carry real data.
+
+        Caveat (#403): "carries real data" is about the model, not about every
+        installation. Behind an HC-A(16/64)MB gateway, a unit read at a
+        secondary refrigerant cycle gets frequency and current from the gateway
+        as a constant 0 (discharge and evaporator still work) — a gateway
+        limitation that applies whatever the model, so it is not expressed
+        here as a profile capability.
         """
         return False
 

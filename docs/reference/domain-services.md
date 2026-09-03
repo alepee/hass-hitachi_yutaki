@@ -226,6 +226,15 @@ chain for input data.
 > magnitude. A configured `measured_power` (Power Sensor option) bypasses the
 > estimate entirely (priority 1).
 
+> **Zero current is not a short-circuit.** The adapter calls the calculator on
+> every poll, including when the compressor reports 0 A, because the
+> measured-power branch does not use the current. This is what lets a Power
+> Sensor report standby draw, and what makes it usable at all wherever the
+> gateway itself reports a constant 0 A (an HC-A(16/64)MB serves no current for
+> a unit read at a secondary refrigerant cycle, even with the compressor
+> demonstrably running, #403). With no Power Sensor configured the result is
+> unchanged (`U × 0 × cosφ = 0`).
+
 ### Priority
 
 1. `measured_power` (direct kW reading, if available)
