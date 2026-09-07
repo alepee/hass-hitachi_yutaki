@@ -543,6 +543,16 @@ async def async_setup_entry(
     # for one poll cycle on every Home Assistant restart.
     await coordinator.derived_metrics.async_restore_refrigerant()
 
+    # Same rule for the energy counters (#432): restore the thermal and
+    # electrical accumulators BEFORE the first poll. That poll publishes
+    # ``coordinator.data`` for the entities created later in this function, and
+    # nothing re-injects a value restored afterwards, so a restore placed after
+    # the refresh left ``power_consumption`` (TOTAL_INCREASING) at 0.0 for one
+    # poll after every restart: HA statistics read it as a meter reset and
+    # re-added the lifetime total.
+    await _async_restore_thermal_energy(hass, entry, coordinator)
+    await _async_restore_energy_state(hass, entry, coordinator)
+
     # Initial poll. A transient gateway_not_ready (H-LINK still initializing
     # after a gateway power-cycle) must not fail setup of an already-configured
     # entry: log a warning and continue. Entities will go ``available`` on the
@@ -592,12 +602,6 @@ async def async_setup_entry(
             has_dhw=live_caps["dhw"],
             has_pool=live_caps["pool"],
         )
-
-    # Restore thermal energy from last known state
-    await _async_restore_thermal_energy(hass, entry, coordinator)
-
-    # Restore energy accumulators (electrical energy + cost) from last known state
-    await _async_restore_energy_state(hass, entry, coordinator)
 
     # Rehydrate COP measurement buffers from Recorder history
     await coordinator.derived_metrics.async_rehydrate_cop()
