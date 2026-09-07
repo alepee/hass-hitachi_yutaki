@@ -3,6 +3,8 @@
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
+
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
     ENERGY_GAP_TOLERANCE_INTERVALS,
     ENERGY_GAP_TOLERANCE_MIN_S,
@@ -345,17 +347,32 @@ class TestEnergyAndCost:
         assert adapter._max_energy_gap == ENERGY_GAP_TOLERANCE_MIN_S
 
     def test_electrical_energy_slow_read_at_default_interval_not_clamped(self):
-        """A 17 s gap at the default 5 s interval is integrated in full."""
+        """A 25 s gap at the default 5 s interval is integrated in full."""
         adapter = _make_adapter()
         data1 = _sample_data(compressor_current=8.5)
         adapter.update(data1)
         power_kw = data1["electrical_power"]
 
-        adapter._last_energy_time -= 17
+        adapter._last_energy_time -= 25
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
-        assert data2["electrical_energy_consumed"] == round(power_kw * 17 / 3600, 3)
+        assert adapter._accumulated_energy == pytest.approx(power_kw * 25 / 3600)
+
+    def test_electrical_energy_gap_above_floor_clamped_at_default_interval(self):
+        """A 50 s gap at the default 5 s interval contributes 30 s worth."""
+        adapter = _make_adapter()
+        data1 = _sample_data(compressor_current=8.5)
+        adapter.update(data1)
+        power_kw = data1["electrical_power"]
+
+        adapter._last_energy_time -= 50
+        data2 = _sample_data(compressor_current=8.5)
+        adapter.update(data2)
+
+        assert adapter._accumulated_energy == pytest.approx(
+            power_kw * ENERGY_GAP_TOLERANCE_MIN_S / 3600
+        )
 
     def test_electrical_energy_tolerance_scales_above_floor(self):
         """Above the floor the tolerance follows 3 x the configured interval."""

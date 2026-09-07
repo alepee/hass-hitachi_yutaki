@@ -69,7 +69,8 @@ _LOGGER = logging.getLogger(__name__)
 # The floor matters at the default 5 s interval: HA schedules the next poll
 # after the previous one completes, so the gap is scan_interval plus the Modbus
 # read time, and fleet telemetry shows reads of 10-12 s on some gateways (gaps
-# up to 17 s at p99). 3 x 5 s would still clamp 1-3% of the energy there.
+# up to 17 s at p99). 3 x 5 s would still clamp 1-3% of the energy there; the
+# rare gaps beyond 30 s are still clamped.
 ENERGY_GAP_TOLERANCE_INTERVALS = 3
 ENERGY_GAP_TOLERANCE_MIN_S = 30.0
 
