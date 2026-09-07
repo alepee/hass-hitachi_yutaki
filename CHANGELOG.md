@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- `power_consumption` and `electricity_cost` under-counted by roughly two orders of magnitude on any installation polling slower than 10 s. The energy integrator discarded every increment whose time since the previous poll exceeded a hard-coded `2 × DEFAULT_SCAN_INTERVAL` (10 s), while the coordinator polls at the *configured* `scan_interval`, so at 20 s only the rare polls landing under 10 s apart were counted. The tolerance now derives from the configured interval (`3 × scan_interval`), and a longer gap is clamped to that tolerance rather than dropped, so a gateway outage costs at most a few polls of phantom energy instead of losing the increment that ends it. `electrical_power` itself was correct throughout (#403).
+
 ## [2.2.0-beta.5] - 2026-09-03
 
 ### Fixed

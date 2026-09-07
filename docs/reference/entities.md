@@ -81,6 +81,15 @@ Only one of these two selects is created per install (mutually exclusive): `oper
 > power meter to the optional **Power Sensor** option (config flow): a measured
 > value takes priority over the estimate for both these sensors and the COP
 > calculation.
+>
+> `power_consumption` (and `electricity_cost`) are integrated in the
+> `DerivedMetricsAdapter` on every coordinator poll: `electrical_power × dt`,
+> where `dt` is the time since the previous poll, clamped to
+> `3 × scan_interval` (the configured polling interval). A late poll is
+> integrated in full; a long gap (gateway outage, HA suspended) contributes at
+> most that clamped amount instead of integrating the stale power over the
+> whole outage. Both counters are restored from the last recorded entity
+> state when the integration reloads, so a restart is just another gap.
 
 ### Thermal Energy
 

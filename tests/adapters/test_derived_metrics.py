@@ -4,8 +4,10 @@ import logging
 from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
+    ENERGY_GAP_TOLERANCE_INTERVALS,
     DerivedMetricsAdapter,
 )
+from custom_components.hitachi_yutaki.const import DEFAULT_SCAN_INTERVAL
 from custom_components.hitachi_yutaki.domain.models.refrigerant import (
     RefrigerantBaseline,
     RefrigerantStatus,
@@ -281,6 +283,60 @@ class TestEnergyAndCost:
         adapter.update(data2)
         assert data2["electrical_energy_consumed"] > 0
 
+    def test_electrical_energy_integrates_at_configured_scan_interval(self):
+        """A poll spaced at the configured interval is integrated in full (#403).
+
+        The gap tolerance used to be hard-coded to 2 × DEFAULT_SCAN_INTERVAL
+        (10 s) while the coordinator polls at the configured interval, so any
+        install polling slower than 10 s silently dropped every increment.
+        """
+        config_entry = MagicMock()
+        config_entry.data = {"scan_interval": 20}
+        adapter = DerivedMetricsAdapter(
+            hass=None, config_entry=config_entry, power_supply="single"
+        )
+        data1 = _sample_data(compressor_current=8.5)
+        adapter.update(data1)
+        power_kw = data1["electrical_power"]
+
+        adapter._last_energy_time -= 20
+        data2 = _sample_data(compressor_current=8.5)
+        adapter.update(data2)
+
+        expected = round(power_kw * 20 / 3600, 3)
+        assert data2["electrical_energy_consumed"] == expected
+        assert expected > 0
+
+    def test_electrical_energy_clamps_long_gap(self):
+        """A gap beyond the tolerance contributes at most the clamped amount.
+
+        A gateway outage must not integrate the stale power over the whole
+        outage, but the poll that ends it must not be dropped either.
+        """
+        config_entry = MagicMock()
+        config_entry.data = {"scan_interval": 10}
+        adapter = DerivedMetricsAdapter(
+            hass=None, config_entry=config_entry, power_supply="single"
+        )
+        data1 = _sample_data(compressor_current=8.5)
+        adapter.update(data1)
+        power_kw = data1["electrical_power"]
+
+        adapter._last_energy_time -= 3600  # one hour without a poll
+        data2 = _sample_data(compressor_current=8.5)
+        adapter.update(data2)
+
+        max_gap = 10 * ENERGY_GAP_TOLERANCE_INTERVALS
+        expected = round(power_kw * max_gap / 3600, 3)
+        assert data2["electrical_energy_consumed"] == expected
+
+    def test_electrical_energy_default_scan_interval_without_config(self):
+        """Without scan_interval in the entry the default interval is used."""
+        adapter = _make_adapter()
+        assert adapter._max_energy_gap == (
+            DEFAULT_SCAN_INTERVAL * ENERGY_GAP_TOLERANCE_INTERVALS
+        )
+
     def test_electrical_energy_zero_when_compressor_off(self):
         """electrical_energy_consumed stays at 0 when compressor is off."""
         adapter = _make_adapter()
@@ -344,6 +400,36 @@ class TestEnergyAndCost:
             adapter.update(data)
 
         assert data["electricity_cost"] > 0
+
+    def test_electricity_cost_follows_energy_at_configured_scan_interval(self):
+        """electricity_cost uses the same clamped delta as energy (#403)."""
+        mock_hass = MagicMock()
+        price_state = MagicMock()
+        price_state.state = "0.20"
+        mock_hass.states.get = lambda entity_id: (
+            price_state if entity_id == "sensor.price" else None
+        )
+        config_entry = MagicMock()
+        config_entry.data = {
+            "electricity_price_entity": "sensor.price",
+            "scan_interval": 30,
+        }
+        adapter = DerivedMetricsAdapter(
+            hass=mock_hass, config_entry=config_entry, power_supply="single"
+        )
+        data1 = _sample_data(compressor_current=8.5)
+        adapter.update(data1)
+        power_kw = data1["electrical_power"]
+
+        # Twenty polls at the configured 30 s interval: 10 minutes of running
+        for _ in range(20):
+            adapter._last_energy_time -= 30
+            data = _sample_data(compressor_current=8.5)
+            adapter.update(data)
+
+        expected_kwh = power_kw * 20 * 30 / 3600
+        assert data["electrical_energy_consumed"] == round(expected_kwh, 3)
+        assert data["electricity_cost"] == round(expected_kwh * 0.20, 2)
 
     def test_electricity_cost_stalls_when_price_unavailable(self):
         """electricity_cost does not accumulate when price entity is unavailable."""
