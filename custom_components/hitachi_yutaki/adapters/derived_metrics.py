@@ -14,6 +14,7 @@ import logging
 import time
 from typing import Any
 
+from homeassistant.const import CONF_SCAN_INTERVAL
 from homeassistant.helpers.storage import Store
 
 from ..adapters.calculators.electrical import ElectricalPowerCalculatorAdapter
@@ -58,6 +59,20 @@ from ..domain.services.thermal import ThermalEnergyAccumulator, ThermalPowerServ
 from ..domain.services.timing import CompressorHistory, CompressorTimingService
 
 _LOGGER = logging.getLogger(__name__)
+
+# Energy integration tolerates polls up to this many configured scan intervals
+# apart, and never less than ENERGY_GAP_TOLERANCE_MIN_S. Beyond that the gap is
+# treated as an outage: the increment is clamped to the tolerance rather than
+# dropped, so a late poll costs at most that much phantom energy instead of the
+# whole increment. See #403.
+#
+# The floor matters at the default 5 s interval: HA schedules the next poll
+# after the previous one completes, so the gap is scan_interval plus the Modbus
+# read time, and fleet telemetry shows reads of 10-12 s on some gateways (gaps
+# up to 17 s at p99). 3 x 5 s would still clamp 1-3% of the energy there; the
+# rare gaps beyond 30 s are still clamped.
+ENERGY_GAP_TOLERANCE_INTERVALS = 3
+ENERGY_GAP_TOLERANCE_MIN_S = 30.0
 
 COMPRESSOR_HISTORY_SIZE = 100
 
@@ -127,6 +142,13 @@ class DerivedMetricsAdapter:
             self._secondary_timing = CompressorTimingService(history=history_t2)
 
         # Energy accumulation state
+        scan_interval = self._config_entry_data.get(
+            CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
+        )
+        self._max_energy_gap: float = max(
+            float(scan_interval * ENERGY_GAP_TOLERANCE_INTERVALS),
+            ENERGY_GAP_TOLERANCE_MIN_S,
+        )
         self._last_energy_time: float | None = None
         self._accumulated_energy: float = 0.0  # kWh integrated from electrical_power
         self._electricity_cost: float = 0.0
@@ -234,15 +256,28 @@ class DerivedMetricsAdapter:
         Uses data["electrical_power"] (kW) computed by _update_cop() which
         already handles the priority chain (power_entity > I×U calculated)
         and sums both compressors for S80.
+
+        The elapsed time since the previous poll is clamped to
+        ``max(ENERGY_GAP_TOLERANCE_INTERVALS × scan_interval,
+        ENERGY_GAP_TOLERANCE_MIN_S)``: a poll arriving late
+        (slow gateway, HA jitter) is integrated in full, while a long gap
+        (gateway outage, HA suspended) only contributes that bounded amount
+        instead of integrating the stale power over the whole outage.
         """
         now = time.monotonic()
         electrical_power = data.get("electrical_power", 0)
 
         # Integrate electrical power over time for energy (kWh)
+        delta_kwh = 0.0
+        raw_dt = (
+            (now - self._last_energy_time)
+            if self._last_energy_time is not None
+            else 0.0
+        )
         if self._last_energy_time is not None and electrical_power > 0:
-            dt = now - self._last_energy_time
-            if dt <= DEFAULT_SCAN_INTERVAL * 2:
-                self._accumulated_energy += electrical_power * (dt / 3600)
+            dt = min(raw_dt, self._max_energy_gap)
+            delta_kwh = electrical_power * (dt / 3600)
+            self._accumulated_energy += delta_kwh
 
         data["electrical_energy_consumed"] = round(self._accumulated_energy, 3)
 
@@ -252,22 +287,17 @@ class DerivedMetricsAdapter:
             price = self._get_float_from_entity(price_entity)
             data["_current_price"] = price
 
-            if (
-                price is not None
-                and self._last_energy_time is not None
-                and electrical_power > 0
-            ):
-                dt = now - self._last_energy_time
-                if dt <= DEFAULT_SCAN_INTERVAL * 2:
-                    delta_kwh = electrical_power * (dt / 3600)
-                    self._electricity_cost += round(delta_kwh * price, 6)
+            if price is not None and delta_kwh > 0:
+                self._electricity_cost += round(delta_kwh * price, 6)
 
             data["electricity_cost"] = round(self._electricity_cost, 2)
 
         _LOGGER.debug(
-            "Energy: power=%.3f kW, dt=%.1fs, energy=%.3f kWh, cost=%.4f %s, price=%s",
+            "Energy: power=%.3f kW, dt=%.1fs (max %.0fs), energy=%.3f kWh, "
+            "cost=%.4f %s, price=%s",
             electrical_power,
-            (now - self._last_energy_time) if self._last_energy_time else 0,
+            raw_dt,
+            self._max_energy_gap,
             self._accumulated_energy,
             self._electricity_cost,
             self._config_entry_data.get(CONF_ELECTRICITY_PRICE_ENTITY, "n/a"),
