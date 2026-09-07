@@ -357,7 +357,10 @@ class TestEnergyAndCost:
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
-        assert adapter._accumulated_energy == pytest.approx(power_kw * 25 / 3600)
+        # rel: time.monotonic() keeps running between the two update() calls
+        assert adapter._accumulated_energy == pytest.approx(
+            power_kw * 25 / 3600, rel=1e-3
+        )
 
     def test_electrical_energy_gap_above_floor_clamped_at_default_interval(self):
         """A 50 s gap at the default 5 s interval contributes 30 s worth."""
@@ -371,7 +374,7 @@ class TestEnergyAndCost:
         adapter.update(data2)
 
         assert adapter._accumulated_energy == pytest.approx(
-            power_kw * ENERGY_GAP_TOLERANCE_MIN_S / 3600
+            power_kw * ENERGY_GAP_TOLERANCE_MIN_S / 3600, rel=1e-3
         )
 
     def test_electrical_energy_tolerance_scales_above_floor(self):
