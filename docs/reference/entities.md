@@ -89,7 +89,7 @@ Only one of these two selects is created per install (mutually exclusive): `oper
 > integrated in full; a long gap (gateway outage, HA suspended) contributes at
 > most that clamped amount instead of integrating the stale power over the
 > whole outage. Both counters are restored from the last recorded entity
-> state when the integration reloads, so a restart is just another gap.
+> state when the integration reloads; the downtime itself contributes nothing.
 
 ### Thermal Energy
 
