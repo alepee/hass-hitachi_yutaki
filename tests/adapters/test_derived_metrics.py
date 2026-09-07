@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
     ENERGY_GAP_TOLERANCE_INTERVALS,
+    ENERGY_GAP_TOLERANCE_MIN_S,
     DerivedMetricsAdapter,
 )
 from custom_components.hitachi_yutaki.const import DEFAULT_SCAN_INTERVAL
@@ -314,7 +315,7 @@ class TestEnergyAndCost:
         outage, but the poll that ends it must not be dropped either.
         """
         config_entry = MagicMock()
-        config_entry.data = {"scan_interval": 10}
+        config_entry.data = {"scan_interval": 20}
         adapter = DerivedMetricsAdapter(
             hass=None, config_entry=config_entry, power_supply="single"
         )
@@ -326,16 +327,44 @@ class TestEnergyAndCost:
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
-        max_gap = 10 * ENERGY_GAP_TOLERANCE_INTERVALS
+        max_gap = 20 * ENERGY_GAP_TOLERANCE_INTERVALS  # 60 s, above the floor
         expected = round(power_kw * max_gap / 3600, 3)
         assert data2["electrical_energy_consumed"] == expected
 
-    def test_electrical_energy_default_scan_interval_without_config(self):
-        """Without scan_interval in the entry the default interval is used."""
+    def test_electrical_energy_default_scan_interval_uses_floor(self):
+        """At the default 5 s interval the 30 s floor wins over 3 x 5 s.
+
+        The gap between polls is the interval plus the Modbus read time, and
+        fleet telemetry shows reads of 10-12 s on some gateways, so 15 s would
+        still clamp real increments at the default interval.
+        """
         adapter = _make_adapter()
-        assert adapter._max_energy_gap == (
-            DEFAULT_SCAN_INTERVAL * ENERGY_GAP_TOLERANCE_INTERVALS
+        assert DEFAULT_SCAN_INTERVAL * ENERGY_GAP_TOLERANCE_INTERVALS < (
+            ENERGY_GAP_TOLERANCE_MIN_S
         )
+        assert adapter._max_energy_gap == ENERGY_GAP_TOLERANCE_MIN_S
+
+    def test_electrical_energy_slow_read_at_default_interval_not_clamped(self):
+        """A 17 s gap at the default 5 s interval is integrated in full."""
+        adapter = _make_adapter()
+        data1 = _sample_data(compressor_current=8.5)
+        adapter.update(data1)
+        power_kw = data1["electrical_power"]
+
+        adapter._last_energy_time -= 17
+        data2 = _sample_data(compressor_current=8.5)
+        adapter.update(data2)
+
+        assert data2["electrical_energy_consumed"] == round(power_kw * 17 / 3600, 3)
+
+    def test_electrical_energy_tolerance_scales_above_floor(self):
+        """Above the floor the tolerance follows 3 x the configured interval."""
+        config_entry = MagicMock()
+        config_entry.data = {"scan_interval": 60}
+        adapter = DerivedMetricsAdapter(
+            hass=None, config_entry=config_entry, power_supply="single"
+        )
+        assert adapter._max_energy_gap == 60 * ENERGY_GAP_TOLERANCE_INTERVALS
 
     def test_electrical_energy_zero_when_compressor_off(self):
         """electrical_energy_consumed stays at 0 when compressor is off."""

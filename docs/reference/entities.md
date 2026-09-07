@@ -85,7 +85,9 @@ Only one of these two selects is created per install (mutually exclusive): `oper
 > `power_consumption` (and `electricity_cost`) are integrated in the
 > `DerivedMetricsAdapter` on every coordinator poll: `electrical_power × dt`,
 > where `dt` is the time since the previous poll, clamped to
-> `3 × scan_interval` (the configured polling interval). A late poll is
+> `max(3 × scan_interval, 30 s)` (`scan_interval` being the configured polling
+> interval; the floor absorbs slow Modbus reads at the default 5 s, since the
+> gap between polls is the interval plus the read time). A late poll is
 > integrated in full; a long gap (gateway outage, HA suspended) contributes at
 > most that clamped amount instead of integrating the stale power over the
 > whole outage. Both counters are restored from the last recorded entity

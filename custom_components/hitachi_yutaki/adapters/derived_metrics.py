@@ -61,11 +61,17 @@ from ..domain.services.timing import CompressorHistory, CompressorTimingService
 _LOGGER = logging.getLogger(__name__)
 
 # Energy integration tolerates polls up to this many configured scan intervals
-# apart (slow gateways, HA scheduler jitter). Beyond that the gap is treated as
-# an outage: the increment is clamped to the tolerance rather than dropped, so a
-# late poll costs at most a few polls of phantom energy instead of the whole
-# increment. See #403.
+# apart, and never less than ENERGY_GAP_TOLERANCE_MIN_S. Beyond that the gap is
+# treated as an outage: the increment is clamped to the tolerance rather than
+# dropped, so a late poll costs at most that much phantom energy instead of the
+# whole increment. See #403.
+#
+# The floor matters at the default 5 s interval: HA schedules the next poll
+# after the previous one completes, so the gap is scan_interval plus the Modbus
+# read time, and fleet telemetry shows reads of 10-12 s on some gateways (gaps
+# up to 17 s at p99). 3 x 5 s would still clamp 1-3% of the energy there.
 ENERGY_GAP_TOLERANCE_INTERVALS = 3
+ENERGY_GAP_TOLERANCE_MIN_S = 30.0
 
 COMPRESSOR_HISTORY_SIZE = 100
 
@@ -138,8 +144,9 @@ class DerivedMetricsAdapter:
         scan_interval = self._config_entry_data.get(
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
         )
-        self._max_energy_gap: float = float(
-            scan_interval * ENERGY_GAP_TOLERANCE_INTERVALS
+        self._max_energy_gap: float = max(
+            float(scan_interval * ENERGY_GAP_TOLERANCE_INTERVALS),
+            ENERGY_GAP_TOLERANCE_MIN_S,
         )
         self._last_energy_time: float | None = None
         self._accumulated_energy: float = 0.0  # kWh integrated from electrical_power
@@ -250,7 +257,8 @@ class DerivedMetricsAdapter:
         and sums both compressors for S80.
 
         The elapsed time since the previous poll is clamped to
-        ``ENERGY_GAP_TOLERANCE_INTERVALS × scan_interval``: a poll arriving late
+        ``max(ENERGY_GAP_TOLERANCE_INTERVALS × scan_interval,
+        ENERGY_GAP_TOLERANCE_MIN_S)``: a poll arriving late
         (slow gateway, HA jitter) is integrated in full, while a long gap
         (gateway outage, HA suspended) only contributes that bounded amount
         instead of integrating the stale power over the whole outage.
