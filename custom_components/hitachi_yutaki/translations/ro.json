@@ -786,12 +786,7 @@
     },
     "missing_config": {
       "title": "Configurație Hitachi Yutaki incompletă",
-      "description": "Integrarea Hitachi Yutaki nu are parametrii de configurare necesari (tip gateway și/sau profil pompă de căldură). Integrarea nu poate fi configurată până când acești parametri nu sunt definiți.\n\n**Pentru a rezolva:**\n1. Mergeți la Setări > Dispozitive și servicii > Hitachi Yutaki\n2. Faceți clic pe integrare și selectați Configurare\n3. Selectați parametrii lipsă (tip gateway și profil pompă de căldură)\n4. Salvați configurația",
-      "fix_flow": {
-        "abort": {
-          "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
-        }
-      }
+      "description": "Integrarea Hitachi Yutaki nu are parametrii de configurare necesari (tip gateway și/sau profil pompă de căldură). Integrarea nu poate fi configurată până când acești parametri nu sunt definiți.\n\n**Pentru a rezolva:**\n1. Mergeți la Setări > Dispozitive și servicii > Hitachi Yutaki\n2. Faceți clic pe integrare și selectați Configurare\n3. Selectați parametrii lipsă (tip gateway și profil pompă de căldură)\n4. Salvați configurația"
     },
     "enable_energy_cost": {
       "title": "Urmăriți costul electricității pompei de căldură",

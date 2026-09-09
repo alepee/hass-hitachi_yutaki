@@ -786,12 +786,7 @@
     },
     "missing_config": {
       "title": "Hitachi Yutaki Configuration Incomplete",
-      "description": "Your Hitachi Yutaki integration is missing required configuration parameters (gateway type and/or heat pump profile). The integration cannot be set up until these parameters are configured.\n\n**To resolve this:**\n1. Go to Settings > Devices & Services > Hitachi Yutaki\n2. Click on the integration and select Configure\n3. Select the missing parameters (gateway type and heat pump profile)\n4. Save the configuration",
-      "fix_flow": {
-        "abort": {
-          "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
-        }
-      }
+      "description": "Your Hitachi Yutaki integration is missing required configuration parameters (gateway type and/or heat pump profile). The integration cannot be set up until these parameters are configured.\n\n**To resolve this:**\n1. Go to Settings > Devices & Services > Hitachi Yutaki\n2. Click on the integration and select Configure\n3. Select the missing parameters (gateway type and heat pump profile)\n4. Save the configuration"
     },
     "enable_telemetry": {
       "title": "Help Improve Hitachi Yutaki",
