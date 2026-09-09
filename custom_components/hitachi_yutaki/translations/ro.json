@@ -760,6 +760,9 @@
             "title": "Circuitul frigorific a fost întreținut?",
             "description": "De câteva zile, starea încărcării cu agent frigorific rămâne la **Alertă**: atât supraîncălzirea pe linia de gaz, cât și deschiderea ventilului de expansiune au crescut față de referința învățată, semnătura clasică a unei pierderi lente de agent frigorific.\n\nAceasta este o **avertizare** bazată pe monitorizarea continuă a propriilor date de funcționare. Ea **completează** și **nu înlocuiește** inspecția periodică obligatorie de etanșeitate efectuată de un tehnician autorizat. Luați în considerare programarea unei verificări de etanșeitate cu instalatorul dumneavoastră. Avertizarea dispare automat când valorile revin la normal.\n\nConfirmați mai jos doar dacă un tehnician autorizat a inspectat sau a întreținut circuitul frigorific (verificare de etanșeitate, completare, intervenție la ventilul de expansiune). Aceasta resetează referința de detecție: detectorul revine la **învățare** și are nevoie de aproximativ 2 săptămâni de funcționare în regim de încălzire pentru a învăța o nouă referință. Este aceeași acțiune ca butonul **Resetare referință agent frigorific**."
           }
+        },
+        "abort": {
+          "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
         }
       }
     },
@@ -771,6 +774,9 @@
             "title": "Circuitul frigorific a fost întreținut?",
             "description": "De câteva zile, starea încărcării cu agent frigorific rămâne la **Alertă**: atât supraîncălzirea pe linia de gaz, cât și deschiderea ventilului de expansiune au crescut față de referința învățată, semnătura clasică a unei pierderi lente de agent frigorific.\n\n**Notă: acest verdict se bazează pe date învechite.** Ultima zi cu funcționare în regim de încălzire utilizabilă a fost **{last_valid_day}**, acum {days_since_valid_data} zile, de regulă pentru că sezonul de încălzire s-a încheiat. O pierdere lentă de agent frigorific nu se repară de la sine, așa că această alertă este menținută intenționat și nu va dispărea până când încălzirea nu reîncepe sau nu confirmați că circuitul a fost întreținut. Luați în considerare programarea unei verificări de etanșeitate cu instalatorul dumneavoastră înainte de următorul sezon de încălzire.\n\nConfirmați mai jos doar dacă un tehnician autorizat a inspectat sau a întreținut circuitul frigorific (verificare de etanșeitate, completare, intervenție la ventilul de expansiune). Aceasta resetează referința de detecție: detectorul revine la **învățare** și are nevoie de aproximativ 2 săptămâni de funcționare în regim de încălzire pentru a învăța o nouă referință. Este aceeași acțiune ca butonul **Resetare referință agent frigorific**."
           }
+        },
+        "abort": {
+          "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
         }
       }
     },
@@ -796,6 +802,9 @@
               "electricity_price_entity": "Un senzor care furnizează prețul curent al electricității în moneda dvs. per kWh (de ex. 0,18 pentru 0,18 {currency}/kWh)."
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
         }
       }
     },
@@ -810,6 +819,9 @@
               "telemetry_level": "Telemetrie anonimă"
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
         }
       }
     },
@@ -824,6 +836,9 @@
               "refrigerant_detection": "Activați monitorizarea încărcăturii de agent frigorific (beta)"
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
         }
       }
     }

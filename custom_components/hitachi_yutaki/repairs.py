@@ -26,6 +26,19 @@ from .profiles import PROFILES
 _REFRIGERANT_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/refrigerant-monitoring.md"
 
 
+def _abort_orphaned_issue(flow: RepairsFlow) -> FlowResult:
+    """Delete a per-entry repair issue whose config entry no longer exists.
+
+    Per-entry issues are persistent, so one created for an entry that was later
+    removed survives restarts. Before 2.2.0 nothing deleted it on entry removal,
+    and its fix flow aborted with ``entry_not_found`` while leaving the issue in
+    place: the user could neither fix nor dismiss it (#409). The flow is the
+    only UI path to such an issue, so it has to be the one that removes it.
+    """
+    async_delete_issue(flow.hass, DOMAIN, flow.issue_id)
+    return flow.async_abort(reason="entry_not_found")
+
+
 class MissingConfigRepairFlow(RepairsFlow):
     """Handler for repair flows to fix missing configuration."""
 
@@ -48,7 +61,7 @@ class MissingConfigRepairFlow(RepairsFlow):
         entry = next((e for e in config_entries if e.entry_id == entry_id), None)
 
         if entry is None:
-            return self.async_abort(reason="entry_not_found")
+            return _abort_orphaned_issue(self)
 
         if user_input is not None:
             # Update the config entry with the missing parameters
@@ -123,7 +136,7 @@ class EnableTelemetryRepairFlow(RepairsFlow):
         entry = next((e for e in config_entries if e.entry_id == entry_id), None)
 
         if entry is None:
-            return self.async_abort(reason="entry_not_found")
+            return _abort_orphaned_issue(self)
 
         if user_input is not None:
             level = user_input.get(CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL)
@@ -187,7 +200,7 @@ class EnableRefrigerantDetectionRepairFlow(RepairsFlow):
         entry = next((e for e in config_entries if e.entry_id == entry_id), None)
 
         if entry is None:
-            return self.async_abort(reason="entry_not_found")
+            return _abort_orphaned_issue(self)
 
         if user_input is not None:
             consent = user_input.get(
@@ -239,7 +252,7 @@ class EnergyCostRepairFlow(RepairsFlow):
         entry = next((e for e in config_entries if e.entry_id == entry_id), None)
 
         if entry is None:
-            return self.async_abort(reason="entry_not_found")
+            return _abort_orphaned_issue(self)
 
         if user_input is not None:
             price_entity = user_input.get(CONF_ELECTRICITY_PRICE_ENTITY)
@@ -290,7 +303,7 @@ class RefrigerantServicedRepairFlow(RepairsFlow):
         entry = next((e for e in config_entries if e.entry_id == entry_id), None)
 
         if entry is None:
-            return self.async_abort(reason="entry_not_found")
+            return _abort_orphaned_issue(self)
 
         if user_input is not None:
             coordinator = entry.runtime_data

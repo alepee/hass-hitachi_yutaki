@@ -82,11 +82,22 @@ class TestRefrigerantServicedRepairFlow:
     @pytest.mark.asyncio
     async def test_confirm_aborts_if_entry_not_found(self, hass: HomeAssistant) -> None:
         """Verify the flow aborts when the config entry no longer exists."""
-        flow = await _init_flow(hass, "refrigerant_charge_alert_nonexistent_entry")
+        issue_id = "refrigerant_charge_alert_nonexistent_entry"
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=True,
+            is_persistent=True,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="refrigerant_charge_alert",
+        )
+        flow = await _init_flow(hass, issue_id)
         result = await flow.async_step_confirm()
 
         assert result["type"] is FlowResultType.ABORT
         assert result["reason"] == "entry_not_found"
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None  # #409
 
     @pytest.mark.asyncio
     async def test_confirm_forwards_stale_placeholders(

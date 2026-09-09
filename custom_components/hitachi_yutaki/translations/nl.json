@@ -760,6 +760,9 @@
             "title": "Koudemiddelcircuit onderhouden?",
             "description": "Al enkele dagen blijft de status van de koudemiddelvulling op **Alarm** staan: zowel de oververhitting van de gasleiding als de opening van het expansieventiel zijn ten opzichte van de aangeleerde referentie gestegen, de klassieke signatuur van een langzaam koudemiddelverlies.\n\nDit is een **waarschuwing** op basis van continue monitoring van uw eigen bedrijfsgegevens. Het **vult** de verplichte periodieke lekdichtheidsinspectie door een gecertificeerd technicus **aan** en **vervangt** deze **niet**. Overweeg een lekdichtheidscontrole in te plannen met uw installateur. De waarschuwing verdwijnt automatisch wanneer de metingen weer normaal zijn.\n\nBevestig hieronder alleen als een gecertificeerd technicus het koudemiddelcircuit heeft geïnspecteerd of onderhouden (lekcontrole, bijvullen, onderhoud aan het expansieventiel). Dit reset de detectiereferentie: de detector keert terug naar **aanleren** en heeft ongeveer 2 weken verwarmingsbedrijf nodig om een nieuwe referentie aan te leren. Dit is dezelfde actie als de knop **Koudemiddel-referentie resetten**."
           }
+        },
+        "abort": {
+          "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
         }
       }
     },
@@ -771,6 +774,9 @@
             "title": "Koudemiddelcircuit onderhouden?",
             "description": "Al enkele dagen blijft de status van de koudemiddelvulling op **Alarm** staan: zowel de oververhitting van de gasleiding als de opening van het expansieventiel zijn ten opzichte van de aangeleerde referentie gestegen, de klassieke signatuur van een langzaam koudemiddelverlies.\n\n**Let op: dit oordeel is gebaseerd op verouderde gegevens.** De laatste dag met bruikbaar verwarmingsbedrijf was **{last_valid_day}**, {days_since_valid_data} dagen geleden, meestal omdat het stookseizoen is afgelopen. Een langzaam koudemiddelverlies herstelt zich niet vanzelf, dus dit alarm blijft bewust staan en verdwijnt pas wanneer het verwarmen hervat of wanneer u bevestigt dat het circuit is onderhouden. Overweeg een lekdichtheidscontrole in te plannen met uw installateur vóór het volgende stookseizoen.\n\nBevestig hieronder alleen als een gecertificeerd technicus het koudemiddelcircuit heeft geïnspecteerd of onderhouden (lekcontrole, bijvullen, onderhoud aan het expansieventiel). Dit reset de detectiereferentie: de detector keert terug naar **aanleren** en heeft ongeveer 2 weken verwarmingsbedrijf nodig om een nieuwe referentie aan te leren. Dit is dezelfde actie als de knop **Koudemiddel-referentie resetten**."
           }
+        },
+        "abort": {
+          "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
         }
       }
     },
@@ -796,6 +802,9 @@
               "electricity_price_entity": "Een sensor die de huidige elektriciteitsprijs levert in uw valuta per kWh (bijv. 0,18 voor 0,18 {currency}/kWh)."
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
         }
       }
     },
@@ -810,6 +819,9 @@
               "telemetry_level": "Anonieme telemetrie"
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
         }
       }
     },
@@ -824,6 +836,9 @@
               "refrigerant_detection": "Bewaking van koudemiddelvulling inschakelen (bèta)"
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
         }
       }
     }
