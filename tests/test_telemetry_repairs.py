@@ -131,11 +131,24 @@ class TestEnableTelemetryRepairFlow:
     @pytest.mark.asyncio
     async def test_confirm_aborts_if_entry_not_found(self, hass: HomeAssistant) -> None:
         """Verify the flow aborts when the config entry no longer exists."""
-        flow = await _init_repair_flow(hass, "enable_telemetry_nonexistent_entry")
+        issue_id = "enable_telemetry_nonexistent_entry"
+        ir.async_create_issue(
+            hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=True,
+            is_persistent=True,
+            severity=ir.IssueSeverity.WARNING,
+            translation_key="enable_telemetry",
+        )
+        flow = await _init_repair_flow(hass, issue_id)
         result = await flow.async_step_confirm()
 
         assert result["type"] is FlowResultType.ABORT
         assert result["reason"] == "entry_not_found"
+        # The orphaned issue is gone with the abort (#409): the flow is the only
+        # UI path to it, so it must not be left un-dismissable.
+        assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None
 
     @pytest.mark.asyncio
     async def test_confirm_deletes_issue(self, hass: HomeAssistant) -> None:

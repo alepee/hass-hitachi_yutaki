@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- Repair issues left behind by a removed Hitachi Yutaki config entry (the "Help Improve Hitachi Yutaki" and "Track Your Heat Pump's Electricity Cost" onboarding prompts, the configuration-incomplete and refrigerant-alert repairs) can now be dismissed: opening one deletes it and explains that its unit is no longer configured, where it previously aborted with a raw `entry_not_found` key and stayed in the list for good. Entries removed on 2.2.0 or later no longer leave such issues behind in the first place (#409).
+
 ## [2.2.0-beta.6] - 2026-09-07
 
 ### Fixed

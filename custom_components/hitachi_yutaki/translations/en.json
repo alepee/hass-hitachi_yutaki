@@ -760,6 +760,9 @@
             "title": "Refrigerant circuit serviced?",
             "description": "For several days the Refrigerant Charge Status has stayed at **Alert**: gas-line superheat and the expansion-valve opening have both drifted up from the learned baseline, the classic signature of a slow refrigerant loss.\n\nThis is an **advisory** based on continuous monitoring of your own operating data. It **complements** and does **not** replace the mandatory periodic leak-tightness inspection by a certified technician. Consider scheduling a leak-tightness check with your installer. The warning clears automatically when readings recover.\n\nConfirm below only if a certified technician has inspected or serviced the refrigerant circuit (leak check, top-up, expansion-valve service). This resets the detection baseline: the detector returns to **learning** and needs about 2 weeks of heating operation to learn a new reference. This is the same action as the **Reset Refrigerant Baseline** button."
           }
+        },
+        "abort": {
+          "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
         }
       }
     },
@@ -771,6 +774,9 @@
             "title": "Refrigerant circuit serviced?",
             "description": "For several days the Refrigerant Charge Status has stayed at **Alert**: gas-line superheat and the expansion-valve opening have both drifted up from the learned baseline, the classic signature of a slow refrigerant loss.\n\n**Note: this verdict is based on stale data.** The last day with qualifying heating operation was **{last_valid_day}**, {days_since_valid_data} days ago, typically because the heating season has ended. A slow refrigerant loss does not repair itself, so this alert is kept on purpose and will not clear until heating resumes or you confirm the circuit was serviced. Consider scheduling a leak-tightness check with your installer before the next heating season.\n\nConfirm below only if a certified technician has inspected or serviced the refrigerant circuit (leak check, top-up, expansion-valve service). This resets the detection baseline: the detector returns to **learning** and needs about 2 weeks of heating operation to learn a new reference. This is the same action as the **Reset Refrigerant Baseline** button."
           }
+        },
+        "abort": {
+          "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
         }
       }
     },
@@ -780,7 +786,12 @@
     },
     "missing_config": {
       "title": "Hitachi Yutaki Configuration Incomplete",
-      "description": "Your Hitachi Yutaki integration is missing required configuration parameters (gateway type and/or heat pump profile). The integration cannot be set up until these parameters are configured.\n\n**To resolve this:**\n1. Go to Settings > Devices & Services > Hitachi Yutaki\n2. Click on the integration and select Configure\n3. Select the missing parameters (gateway type and heat pump profile)\n4. Save the configuration"
+      "description": "Your Hitachi Yutaki integration is missing required configuration parameters (gateway type and/or heat pump profile). The integration cannot be set up until these parameters are configured.\n\n**To resolve this:**\n1. Go to Settings > Devices & Services > Hitachi Yutaki\n2. Click on the integration and select Configure\n3. Select the missing parameters (gateway type and heat pump profile)\n4. Save the configuration",
+      "fix_flow": {
+        "abort": {
+          "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
+        }
+      }
     },
     "enable_telemetry": {
       "title": "Help Improve Hitachi Yutaki",
@@ -793,6 +804,9 @@
               "telemetry_level": "Anonymous telemetry"
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
         }
       }
     },
@@ -807,6 +821,9 @@
               "refrigerant_detection": "Enable refrigerant charge monitoring (beta)"
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
         }
       }
     },
@@ -824,6 +841,9 @@
               "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh)."
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
         }
       }
     }

@@ -760,6 +760,9 @@
             "title": "Circuit frigorigène entretenu ?",
             "description": "Depuis plusieurs jours, l'état de la charge frigorigène reste en **Alerte** : la surchauffe en ligne gaz et l'ouverture du détendeur ont toutes deux dérivé à la hausse par rapport à la référence apprise, la signature classique d'une fuite lente de frigorigène.\n\nIl s'agit d'un **avertissement** basé sur la surveillance continue de vos propres données de fonctionnement. Il **complète** et ne **remplace pas** le contrôle d'étanchéité périodique obligatoire par un technicien certifié. Envisagez de programmer un contrôle d'étanchéité avec votre installateur. L'avertissement disparaît automatiquement lorsque les mesures reviennent à la normale.\n\nNe confirmez ci-dessous que si un technicien certifié a inspecté ou entretenu le circuit frigorigène (contrôle d'étanchéité, recharge, intervention sur le détendeur). Cela réinitialise la référence de détection : le détecteur repasse en **apprentissage** et a besoin d'environ 2 semaines de fonctionnement en chauffage pour apprendre une nouvelle référence. C'est la même action que le bouton **Réinitialiser la référence frigorigène**."
           }
+        },
+        "abort": {
+          "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
         }
       }
     },
@@ -771,6 +774,9 @@
             "title": "Circuit frigorigène entretenu ?",
             "description": "Depuis plusieurs jours, l'état de la charge frigorigène reste en **Alerte** : la surchauffe en ligne gaz et l'ouverture du détendeur ont toutes deux dérivé à la hausse par rapport à la référence apprise, la signature classique d'une fuite lente de frigorigène.\n\n**Remarque : ce verdict repose sur des données obsolètes.** Le dernier jour avec un fonctionnement en chauffage exploitable était le **{last_valid_day}**, il y a {days_since_valid_data} jours, généralement parce que la saison de chauffage est terminée. Une fuite lente de frigorigène ne se répare pas d'elle-même : cette alerte est donc maintenue volontairement et ne disparaîtra pas tant que le chauffage n'aura pas repris ou que vous n'aurez pas confirmé l'entretien du circuit. Envisagez de programmer un contrôle d'étanchéité avec votre installateur avant la prochaine saison de chauffage.\n\nNe confirmez ci-dessous que si un technicien certifié a inspecté ou entretenu le circuit frigorigène (contrôle d'étanchéité, recharge, intervention sur le détendeur). Cela réinitialise la référence de détection : le détecteur repasse en **apprentissage** et a besoin d'environ 2 semaines de fonctionnement en chauffage pour apprendre une nouvelle référence. C'est la même action que le bouton **Réinitialiser la référence frigorigène**."
           }
+        },
+        "abort": {
+          "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
         }
       }
     },
@@ -780,7 +786,12 @@
     },
     "missing_config": {
       "title": "Configuration Hitachi Yutaki Incomplète",
-      "description": "Votre intégration Hitachi Yutaki manque des paramètres de configuration requis (type de passerelle et/ou profil de pompe à chaleur). L'intégration ne peut pas être configurée tant que ces paramètres ne sont pas définis.\n\n**Pour résoudre ce problème :**\n1. Allez dans Paramètres > Appareils et services > Hitachi Yutaki\n2. Cliquez sur l'intégration et sélectionnez Configurer\n3. Sélectionnez les paramètres manquants (type de passerelle et profil de pompe à chaleur)\n4. Enregistrez la configuration"
+      "description": "Votre intégration Hitachi Yutaki manque des paramètres de configuration requis (type de passerelle et/ou profil de pompe à chaleur). L'intégration ne peut pas être configurée tant que ces paramètres ne sont pas définis.\n\n**Pour résoudre ce problème :**\n1. Allez dans Paramètres > Appareils et services > Hitachi Yutaki\n2. Cliquez sur l'intégration et sélectionnez Configurer\n3. Sélectionnez les paramètres manquants (type de passerelle et profil de pompe à chaleur)\n4. Enregistrez la configuration",
+      "fix_flow": {
+        "abort": {
+          "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
+        }
+      }
     },
     "enable_energy_cost": {
       "title": "Suivez le coût d'électricité de votre pompe à chaleur",
@@ -796,6 +807,9 @@
               "electricity_price_entity": "Un capteur fournissant le prix actuel de l'électricité dans votre devise par kWh (ex. 0.18 pour 0,18 {currency}/kWh)."
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
         }
       }
     },
@@ -810,6 +824,9 @@
               "telemetry_level": "Télémétrie anonyme"
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
         }
       }
     },
@@ -824,6 +841,9 @@
               "refrigerant_detection": "Activer la surveillance de la charge de fluide frigorigène (bêta)"
             }
           }
+        },
+        "abort": {
+          "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
         }
       }
     }
