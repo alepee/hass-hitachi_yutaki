@@ -126,9 +126,20 @@
       },
       "advanced_features": {
         "title": "Advanced features (beta)",
-        "description": "🧪 Enable experimental early detection of a slow refrigerant charge loss, computed locally from your compressor signals.\n\n⚠️ This feature is in beta and currently rests on very little validation data. It will only be considered stable after it has been checked across a full winter heating season. Treat any alert as a hint to look closer, not as a diagnosis: it can be a false positive. Do NOT call a technician or pay for a service on the strength of an alert alone, always double-check first. It is advisory and does not replace the mandatory F-Gas leak-tightness inspection.\n\n🙏 Turning on anonymous telemetry (next step / integration options) helps me check the detector's reliability across the whole fleet and reach a stable release sooner.\n\nYou can change this at any time in the integration options.\n\n[Learn more about refrigerant monitoring]({learn_more_url})",
-        "data": {
-          "refrigerant_detection": "Enable refrigerant charge monitoring (beta)"
+        "description": "🧪 Preventive maintenance detectors run locally on your heat pump's own signals and warn you about a problem before it becomes a breakdown.\n\n⚠️ These detectors are in beta. Treat any alert as a hint to look closer, not as a diagnosis: it can be a false positive. Do NOT call a technician or pay for a service on the strength of an alert alone, always double-check first.\n\n🙏 Turning on anonymous telemetry (next step / integration options) helps me check how reliable these detectors are across the whole fleet and reach a stable release sooner.\n\nYou can change any of this at any time in the integration options.\n\n[Learn more about preventive maintenance]({learn_more_url})",
+        "sections": {
+          "preventive_maintenance": {
+            "name": "Preventive maintenance",
+            "description": "Enable the detectors you want to run. Each one is independent.",
+            "data": {
+              "refrigerant_detection": "Refrigerant charge monitoring (beta)",
+              "cycling_detection": "Compressor short-cycling detection (beta)"
+            },
+            "data_description": {
+              "refrigerant_detection": "Early detection of a slow refrigerant charge loss, from gas-line superheat and expansion-valve drift. Needs about two weeks of heating to learn your installation's normal behaviour. Advisory only: it does not replace the mandatory F-Gas leak-tightness inspection.",
+              "cycling_detection": "Detects a compressor that starts and stops too often in space heating, which wears it out and costs efficiency. Usually points at an oversized unit, a missing buffer volume, or a heating curve set too high. Needs three days of heating to reach a verdict."
+            }
+          }
         }
       },
       "repair": {
@@ -222,9 +233,20 @@
       },
       "advanced_features": {
         "title": "Advanced features (beta)",
-        "description": "🧪 Enable experimental early detection of a slow refrigerant charge loss, computed locally from your compressor signals.\n\n⚠️ This feature is in beta and currently rests on very little validation data. It will only be considered stable after it has been checked across a full winter heating season. Treat any alert as a hint to look closer, not as a diagnosis: it can be a false positive. Do NOT call a technician or pay for a service on the strength of an alert alone, always double-check first. It is advisory and does not replace the mandatory F-Gas leak-tightness inspection.\n\n🙏 Turning on anonymous telemetry (next step / integration options) helps me check the detector's reliability across the whole fleet and reach a stable release sooner.\n\nYou can change this at any time in the integration options.\n\n[Learn more about refrigerant monitoring]({learn_more_url})",
-        "data": {
-          "refrigerant_detection": "Enable refrigerant charge monitoring (beta)"
+        "description": "🧪 Preventive maintenance detectors run locally on your heat pump's own signals and warn you about a problem before it becomes a breakdown.\n\n⚠️ These detectors are in beta. Treat any alert as a hint to look closer, not as a diagnosis: it can be a false positive. Do NOT call a technician or pay for a service on the strength of an alert alone, always double-check first.\n\n🙏 Turning on anonymous telemetry (next step / integration options) helps me check how reliable these detectors are across the whole fleet and reach a stable release sooner.\n\nYou can change any of this at any time in the integration options.\n\n[Learn more about preventive maintenance]({learn_more_url})",
+        "sections": {
+          "preventive_maintenance": {
+            "name": "Preventive maintenance",
+            "description": "Enable the detectors you want to run. Each one is independent.",
+            "data": {
+              "refrigerant_detection": "Refrigerant charge monitoring (beta)",
+              "cycling_detection": "Compressor short-cycling detection (beta)"
+            },
+            "data_description": {
+              "refrigerant_detection": "Early detection of a slow refrigerant charge loss, from gas-line superheat and expansion-valve drift. Needs about two weeks of heating to learn your installation's normal behaviour. Advisory only: it does not replace the mandatory F-Gas leak-tightness inspection.",
+              "cycling_detection": "Detects a compressor that starts and stops too often in space heating, which wears it out and costs efficiency. Usually points at an oversized unit, a missing buffer volume, or a heating curve set too high. Needs three days of heating to reach a verdict."
+            }
+          }
         }
       }
     },
@@ -562,6 +584,15 @@
       },
       "electricity_cost": {
         "name": "Electricity Cost"
+      },
+      "compressor_cycling_status": {
+        "name": "Compressor cycling",
+        "state": {
+          "learning": "Learning",
+          "ok": "Normal",
+          "watch": "Watch",
+          "alert": "Short cycling"
+        }
       }
     },
     "binary_sensor": {
@@ -841,6 +872,10 @@
           "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
         }
       }
+    },
+    "compressor_short_cycling": {
+      "title": "Compressor is short cycling",
+      "description": "🧪 Beta detector. Your compressor has been starting and stopping unusually often in space heating for several days: too many starts per hour combined with a cycle period under {period} minutes.\n\nShort cycling wears the compressor and costs seasonal efficiency. The usual causes, in decreasing order of likelihood on this fleet:\n\n- **A heating curve set too high.** The steeper the curve, the more the installation cycles: this is the strongest correlation measured across the fleet. Lowering your flow temperature is the first thing to try, and it costs nothing.\n- **Too little buffer volume** for the unit's minimum output.\n- **An oversized unit** for the actual heat demand. Units that cycle are typically already pinned at their minimum compressor frequency, so there is no modulation margin left to recover.\n\nThis is advisory: the integration cannot tell these apart on its own. The alert clears by itself once the cycling stops."
     }
   }
 }

@@ -161,6 +161,28 @@ Historical states can be preloaded from the Recorder for continuity across resta
 
 ---
 
+## Compressor Short-Cycling Detection
+
+**File:** `domain/services/cycling.py`
+
+Detects a compressor that starts and stops too often in space heating. Advisory only.
+Full rationale, thresholds and fleet calibration: [Cycling monitoring](cycling-monitoring.md).
+
+### Key class
+
+| Class | Role |
+|---|---|
+| `CyclingMonitor` | Debounced transition tracking, per-day aggregation, absolute-threshold verdict |
+
+### Design note
+
+This service is the reference implementation of the **absolute threshold per regime**
+pattern: no learned baseline, because short cycling is a *stable state* rather than a
+drift and a baseline would learn the fault. See
+[Preventive maintenance](preventive-maintenance.md) for when to pick which pattern.
+
+---
+
 ## Refrigerant Anomaly Detection
 
 **File:** `domain/services/refrigerant.py`

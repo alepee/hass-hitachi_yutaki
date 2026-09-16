@@ -114,9 +114,11 @@ CONF_TELEMETRY_LEVEL = "telemetry_level"
 DEFAULT_TELEMETRY_LEVEL = "off"
 TELEMETRY_ENDPOINT = "https://hitachi-telemetry.lepee.dev/v1/ingest"
 
-# Refrigerant charge-loss detection (beta, opt-in consent)
+# Preventive maintenance detectors (beta, one opt-in consent each)
 CONF_REFRIGERANT_DETECTION = "refrigerant_detection"
 DEFAULT_REFRIGERANT_DETECTION = False
+CONF_CYCLING_DETECTION = "cycling_detection"
+DEFAULT_CYCLING_DETECTION = False
 
 # COP calculation parameters
 COP_MEASUREMENTS_INTERVAL = 60  # seconds

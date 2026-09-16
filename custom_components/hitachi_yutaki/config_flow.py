@@ -13,12 +13,13 @@ from homeassistant.const import (
     CONF_NAME,
 )
 from homeassistant.core import callback
-from homeassistant.data_entry_flow import FlowResult
+from homeassistant.data_entry_flow import FlowResult, section
 from homeassistant.helpers import selector
 
 from .api import GATEWAY_INFO, create_register_map
 from .api.config_providers import GATEWAY_CONFIG_PROVIDERS, GatewayConfigProvider
 from .const import (
+    CONF_CYCLING_DETECTION,
     CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_ENERGY_ENTITY,
     CONF_MODBUS_DEVICE_ID,
@@ -32,6 +33,7 @@ from .const import (
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
+    DEFAULT_CYCLING_DETECTION,
     DEFAULT_POWER_SUPPLY,
     DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
@@ -43,6 +45,50 @@ from .profiles import PROFILES
 _LOGGER = logging.getLogger(__name__)
 
 _REFRIGERANT_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/refrigerant-monitoring.md"
+_PREVENTIVE_MAINTENANCE_DOC_URL = (
+    "https://github.com/alepee/hass-hitachi_yutaki/blob/main/"
+    "docs/reference/preventive-maintenance.md"
+)
+SECTION_PREVENTIVE_MAINTENANCE = "preventive_maintenance"
+
+
+def _preventive_maintenance_schema(
+    *, refrigerant_supported: bool, refrigerant: bool, cycling: bool
+) -> vol.Schema:
+    """Build the beta panel schema, one toggle per preventive-maintenance detector.
+
+    The detectors are grouped in a single section but each keeps its own
+    consent: they do not share a warm-up time, a hardware scope, or a failure
+    mode, so a global opt-in would switch on detections that cannot apply to
+    the user's machine.
+    """
+    toggles: dict[Any, Any] = {}
+    if refrigerant_supported:
+        toggles[vol.Required(CONF_REFRIGERANT_DETECTION, default=refrigerant)] = (
+            selector.BooleanSelector()
+        )
+    toggles[vol.Required(CONF_CYCLING_DETECTION, default=cycling)] = (
+        selector.BooleanSelector()
+    )
+    return vol.Schema(
+        {
+            vol.Required(SECTION_PREVENTIVE_MAINTENANCE): section(
+                vol.Schema(toggles), {"collapsed": False}
+            )
+        }
+    )
+
+
+def _flatten_preventive_maintenance(user_input: dict[str, Any]) -> dict[str, Any]:
+    """Return the section's toggles as flat option keys.
+
+    A config-flow ``section`` nests its values under the section key, but every
+    consumer reads ``options["refrigerant_detection"]`` flat. Flattening here
+    keeps the storage layout independent of the presentation and avoids an
+    options migration.
+    """
+    return dict(user_input.get(SECTION_PREVENTIVE_MAINTENANCE, {}))
+
 
 # Editable optional external-sensor keys rendered by the options "sensors" step.
 # These are the only keys reconciled when a selector is cleared (see #323):
@@ -381,21 +427,9 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         self._abort_if_unique_id_configured()
 
                         self._pending_config = config
-                        profile_cls = PROFILES.get(config.get("profile"))
-                        if (
-                            profile_cls is not None
-                            and profile_cls().supports_extended_compressor_sensors
-                        ):
-                            return await self.async_step_advanced_features()
-                        return self.async_create_entry(
-                            title=config[CONF_NAME],
-                            data=config,
-                            options={
-                                CONF_REFRIGERANT_DETECTION: (
-                                    DEFAULT_REFRIGERANT_DETECTION
-                                )
-                            },
-                        )
+                        # Every profile reaches the panel: short-cycling
+                        # detection needs no extended sensors.
+                        return await self.async_step_advanced_features()
                     else:
                         errors["base"] = "invalid_slave"
 
@@ -417,33 +451,44 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_advanced_features(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Advanced features (beta) panel: refrigerant charge-loss detection consent.
+        """Beta panel: one consent toggle per preventive-maintenance detector.
 
-        Last step of the install flow, only reached for profiles that expose the
-        extended compressor sensors. The refrigerant detection toggle is the
-        first (currently only) feature in this panel.
+        Last step of the install flow, reached by every profile. The refrigerant
+        toggle only appears when the profile exposes the extended compressor
+        sensors; short-cycling detection is offered to all of them.
         """
+        profile_cls = PROFILES.get(self._pending_config.get("profile"))
+        refrigerant_supported = (
+            profile_cls is not None
+            and profile_cls().supports_extended_compressor_sensors
+        )
+
         if user_input is not None:
-            consent = user_input.get(
-                CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
-            )
+            consents = _flatten_preventive_maintenance(user_input)
+            options = {
+                CONF_REFRIGERANT_DETECTION: consents.get(
+                    CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+                ),
+                CONF_CYCLING_DETECTION: consents.get(
+                    CONF_CYCLING_DETECTION, DEFAULT_CYCLING_DETECTION
+                ),
+            }
             return self.async_create_entry(
                 title=self._pending_config[CONF_NAME],
                 data=self._pending_config,
-                options={CONF_REFRIGERANT_DETECTION: consent},
+                options=options,
             )
 
         return self.async_show_form(
             step_id="advanced_features",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_REFRIGERANT_DETECTION,
-                        default=DEFAULT_REFRIGERANT_DETECTION,
-                    ): selector.BooleanSelector()
-                }
+            data_schema=_preventive_maintenance_schema(
+                refrigerant_supported=refrigerant_supported,
+                refrigerant=DEFAULT_REFRIGERANT_DETECTION,
+                cycling=DEFAULT_CYCLING_DETECTION,
             ),
-            description_placeholders={"learn_more_url": _REFRIGERANT_DOC_URL},
+            description_placeholders={
+                "learn_more_url": _PREVENTIVE_MAINTENANCE_DOC_URL
+            },
         )
 
 
@@ -463,6 +508,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         # Refrigerant consent collected by async_step_advanced_features, kept out
         # of self._collected so it never leaks into entry.data (options-only).
         self._refrigerant_detection: bool | None = None
+        self._cycling_detection: bool | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -685,39 +731,46 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     async def async_step_advanced_features(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Options step: advanced features (beta) panel, refrigerant consent.
+        """Options step: beta panel, one consent per preventive-maintenance detector.
 
-        Sits just before the telemetry step. Skipped for profiles without the
-        extended compressor sensors (e.g. Yutampo R32).
+        Sits just before the telemetry step and is shown for every profile: the
+        refrigerant toggle is hidden when the profile has no extended
+        compressor sensors (e.g. Yutampo R32), the cycling one always applies.
         """
         profile_key = self._collected.get(
             "profile", self.config_entry.data.get("profile")
         )
         profile_cls = PROFILES.get(profile_key)
-        supported = (
+        refrigerant_supported = (
             profile_cls is not None
             and profile_cls().supports_extended_compressor_sensors
         )
-        if not supported:
-            return await self.async_step_telemetry()
+
         if user_input is not None:
-            self._refrigerant_detection = user_input.get(
-                CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+            consents = _flatten_preventive_maintenance(user_input)
+            if refrigerant_supported:
+                self._refrigerant_detection = consents.get(
+                    CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+                )
+            self._cycling_detection = consents.get(
+                CONF_CYCLING_DETECTION, DEFAULT_CYCLING_DETECTION
             )
             return await self.async_step_telemetry()
-        current = self.config_entry.options.get(
-            CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
-        )
+
         return self.async_show_form(
             step_id="advanced_features",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        CONF_REFRIGERANT_DETECTION, default=current
-                    ): selector.BooleanSelector()
-                }
+            data_schema=_preventive_maintenance_schema(
+                refrigerant_supported=refrigerant_supported,
+                refrigerant=self.config_entry.options.get(
+                    CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+                ),
+                cycling=self.config_entry.options.get(
+                    CONF_CYCLING_DETECTION, DEFAULT_CYCLING_DETECTION
+                ),
             ),
-            description_placeholders={"learn_more_url": _REFRIGERANT_DOC_URL},
+            description_placeholders={
+                "learn_more_url": _PREVENTIVE_MAINTENANCE_DOC_URL
+            },
         )
 
     async def async_step_telemetry(
@@ -734,6 +787,8 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             }
             if self._refrigerant_detection is not None:
                 new_options[CONF_REFRIGERANT_DETECTION] = self._refrigerant_detection
+            if self._cycling_detection is not None:
+                new_options[CONF_CYCLING_DETECTION] = self._cycling_detection
 
             # Merge: entry defaults < provider context < user-collected
             # Clean up internal keys (prefixed with _) from provider context

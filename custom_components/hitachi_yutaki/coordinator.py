@@ -27,9 +27,15 @@ from .const import (
     CIRCUIT_MODES,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
+    CONF_CYCLING_DETECTION,
     CONF_REFRIGERANT_DETECTION,
+    DEFAULT_CYCLING_DETECTION,
     DEFAULT_REFRIGERANT_DETECTION,
     DOMAIN,
+)
+from .domain.services.cycling import (
+    ALERT_PERSIST_DAYS as CYCLING_ALERT_PERSIST_DAYS,
+    PERIOD_THRESHOLD_MIN as CYCLING_PERIOD_THRESHOLD_MIN,
 )
 from .domain.services.defrost_guard import DefrostGuard
 from .domain.services.refrigerant import (
@@ -52,6 +58,11 @@ from .telemetry.anonymizer import (
 )
 
 _LOGGER = logging.getLogger(__name__)
+
+_CYCLING_DOC_URL = (
+    "https://github.com/alepee/hass-hitachi_yutaki/blob/main/"
+    "docs/reference/cycling-monitoring.md"
+)
 
 _MAX_BACKOFF = timedelta(seconds=300)
 
@@ -117,6 +128,19 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             self.profile.supports_extended_compressor_sensors
             and self.config_entry.options.get(
                 CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
+            )
+        )
+
+    @property
+    def cycling_detection_active(self) -> bool:
+        """True when the user opted in to short-cycling detection.
+
+        Unlike the refrigerant detector there is no capability gate: every
+        profile has a compressor, and the signal (running or not) is universal.
+        """
+        return bool(
+            self.config_entry.options.get(
+                CONF_CYCLING_DETECTION, DEFAULT_CYCLING_DETECTION
             )
         )
 
@@ -222,6 +246,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             if self.derived_metrics is not None:
                 self.derived_metrics.update(data)
                 self._update_refrigerant_issue()
+                self._update_cycling_issue()
 
             # Telemetry: collect metrics from this poll cycle
             # (collector handles level=OFF internally)
@@ -505,6 +530,42 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     severity=ir.IssueSeverity.WARNING,
                     translation_key="refrigerant_charge_alert",
                 )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+
+    def _cycling_issue_id(self) -> str:
+        """Return the repair-issue id for the short-cycling alert."""
+        return f"compressor_short_cycling_{self.config_entry.entry_id}"
+
+    def _update_cycling_issue(self) -> None:
+        """Raise or clear the short-cycling repair issue.
+
+        Advisory (WARNING), raised once both fault criteria have held for
+        several valid days. Unlike the refrigerant issue this one is not
+        fixable: there is no baseline to reset, and the remedy (buffer volume,
+        heating curve, unit sizing) is an installation change the integration
+        cannot make. It clears on its own as soon as the cycling stops.
+        """
+        issue_id = self._cycling_issue_id()
+        if not self.cycling_detection_active:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+
+        status = getattr(self.derived_metrics, "cycling_status", None)
+        if status is not None and status.alert_streak >= CYCLING_ALERT_PERSIST_DAYS:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                is_persistent=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="compressor_short_cycling",
+                translation_placeholders={
+                    "period": str(int(CYCLING_PERIOD_THRESHOLD_MIN)),
+                },
+                learn_more_url=_CYCLING_DOC_URL,
+            )
         else:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 

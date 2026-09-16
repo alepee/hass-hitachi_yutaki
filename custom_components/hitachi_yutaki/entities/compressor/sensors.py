@@ -18,6 +18,12 @@ from homeassistant.const import (
 )
 from homeassistant.helpers.entity import EntityCategory
 
+from ...domain.services.cycling import (
+    STATUS_ALERT as CYCLING_STATUS_ALERT,
+    STATUS_LEARNING as CYCLING_STATUS_LEARNING,
+    STATUS_OK as CYCLING_STATUS_OK,
+    STATUS_WATCH as CYCLING_STATUS_WATCH,
+)
 from ...domain.services.refrigerant import (
     STATUS_ALERT,
     STATUS_LEARNING,
@@ -316,6 +322,17 @@ def build_refrigerant_sensors(
     )
 
 
+def build_cycling_sensors(
+    coordinator: HitachiYutakiDataCoordinator,
+    entry_id: str,
+) -> list[HitachiYutakiSensor]:
+    """Build the compressor short-cycling diagnostic sensor."""
+    descriptions = _build_cycling_sensor_descriptions()
+    return _create_sensors(
+        coordinator, entry_id, descriptions, DEVICE_PRIMARY_COMPRESSOR
+    )
+
+
 def _refrigerant_attributes(
     coordinator: HitachiYutakiDataCoordinator,
 ) -> dict[str, object] | None:
@@ -336,6 +353,58 @@ def _refrigerant_attributes(
             "refrigerant_charge_days_since_valid_data"
         ),
     }
+
+
+def _cycling_attributes(
+    coordinator: HitachiYutakiDataCoordinator,
+) -> dict[str, object] | None:
+    """Expose the cycling detector internals as entity attributes."""
+    if coordinator.data is None:
+        return None
+    return {
+        "cycles_today": coordinator.data.get("compressor_cycling_cycles_today"),
+        "peak_starts_per_hour": coordinator.data.get("compressor_cycling_peak_starts"),
+        "median_cycle_period_min": coordinator.data.get(
+            "compressor_cycling_median_period"
+        ),
+        "median_run_min": coordinator.data.get("compressor_cycling_median_run"),
+        "valid_days": coordinator.data.get("compressor_cycling_valid_days"),
+        "alert_streak": coordinator.data.get("compressor_cycling_alert_streak"),
+        "last_valid_day": coordinator.data.get("compressor_cycling_last_valid_day"),
+        "days_since_valid_day": coordinator.data.get(
+            "compressor_cycling_days_since_valid_day"
+        ),
+    }
+
+
+def _build_cycling_sensor_descriptions() -> tuple[
+    HitachiYutakiSensorEntityDescription, ...
+]:
+    """Build compressor short-cycling sensor descriptions."""
+    return (
+        HitachiYutakiSensorEntityDescription(
+            key="compressor_cycling_status",
+            translation_key="compressor_cycling_status",
+            description=(
+                "Detects sustained short cycling in space heating (too many "
+                "starts per hour combined with a short cycle period). Points at "
+                "an oversized unit, a missing buffer volume, or a heating curve "
+                "set too high."
+            ),
+            device_class=SensorDeviceClass.ENUM,
+            options=[
+                CYCLING_STATUS_LEARNING,
+                CYCLING_STATUS_OK,
+                CYCLING_STATUS_WATCH,
+                CYCLING_STATUS_ALERT,
+            ],
+            entity_category=EntityCategory.DIAGNOSTIC,
+            icon="mdi:sine-wave",
+            condition=lambda c: c.cycling_detection_active,
+            value_fn=lambda c: c.data.get("compressor_cycling_status"),
+            attributes_fn=_cycling_attributes,
+        ),
+    )
 
 
 def _build_refrigerant_sensor_descriptions() -> tuple[

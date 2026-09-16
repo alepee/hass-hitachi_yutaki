@@ -35,6 +35,7 @@ from .const import (
     CIRCUIT_MODE_HEATING,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
+    CONF_CYCLING_DETECTION,
     CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
@@ -43,6 +44,7 @@ from .const import (
     CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
     CONF_UNIT_ID,
+    DEFAULT_CYCLING_DETECTION,
     DEFAULT_DEVICE_ID,
     DEFAULT_POWER_SUPPLY,
     DEFAULT_REFRIGERANT_DETECTION,
@@ -520,6 +522,9 @@ async def async_setup_entry(
     refrigerant_detection_enabled = entry.options.get(
         CONF_REFRIGERANT_DETECTION, DEFAULT_REFRIGERANT_DETECTION
     )
+    cycling_detection_enabled = entry.options.get(
+        CONF_CYCLING_DETECTION, DEFAULT_CYCLING_DETECTION
+    )
 
     # Create derived metrics adapter (enriches data with thermal power, COP, etc.)
     coordinator.derived_metrics = DerivedMetricsAdapter(
@@ -534,6 +539,7 @@ async def async_setup_entry(
         superheat_plausible_range=profile.gas_superheat_plausible_range,
         superheat_observed_band=profile.gas_superheat_observed_band,
         refrigerant_detection_enabled=refrigerant_detection_enabled,
+        cycling_detection_enabled=cycling_detection_enabled,
     )
 
     # Restore the refrigerant-anomaly detector state from its persisted Store
@@ -542,6 +548,10 @@ async def async_setup_entry(
     # active refrigerant repair issue and publish a spurious `learning` status
     # for one poll cycle on every Home Assistant restart.
     await coordinator.derived_metrics.async_restore_refrigerant()
+
+    # Same ordering rule for the cycling detector: its repair issue is raised
+    # from the first poll, so the persisted alert streak must already be there.
+    await coordinator.derived_metrics.async_restore_cycling()
 
     # Same rule for the energy counters (#432): restore the thermal and
     # electrical accumulators BEFORE the first poll. That poll publishes
@@ -877,9 +887,10 @@ async def async_unload_entry(
                 stranded,
             )
 
-        # Persist refrigerant detector state before closing
+        # Persist preventive-maintenance detector state before closing
         if coordinator.derived_metrics is not None:
             await coordinator.derived_metrics.async_flush_refrigerant()
+            await coordinator.derived_metrics.async_flush_cycling()
 
         # Close API connection
         if coordinator.api_client.connected:

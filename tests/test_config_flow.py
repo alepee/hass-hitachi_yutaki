@@ -6,7 +6,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.hitachi_yutaki.config_flow import (
+    SECTION_PREVENTIVE_MAINTENANCE,
+)
 from custom_components.hitachi_yutaki.const import (
+    CONF_CYCLING_DETECTION,
     CONF_ENERGY_ENTITY,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
@@ -402,7 +406,8 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     assert result["step_id"] == "advanced_features"
 
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {CONF_REFRIGERANT_DETECTION: True}
+        result["flow_id"],
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: True}},
     )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -414,10 +419,14 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     assert result["options"][CONF_REFRIGERANT_DETECTION] is True
 
 
-async def test_full_flow_skips_refrigerant_when_unsupported(
+async def test_full_flow_hides_refrigerant_toggle_when_unsupported(
     hass: HomeAssistant,
 ) -> None:
-    """A profile without extended sensors (Yutampo R32) skips the consent step."""
+    """A profile without extended sensors still gets the panel, minus that toggle.
+
+    Short-cycling detection applies to every profile, so the panel is shown to
+    all of them; only the refrigerant toggle is capability-gated.
+    """
     mock_client = _mock_api_client()
     mock_gw_info = _mock_gateway_info(mock_client)
     mock_profs = _mock_profiles()
@@ -438,9 +447,23 @@ async def test_full_flow_skips_refrigerant_when_unsupported(
             result["flow_id"], POWER_INPUT
         )
 
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "advanced_features"
+
+    section_schema = result["data_schema"].schema[SECTION_PREVENTIVE_MAINTENANCE]
+    keys = {str(key) for key in section_schema.schema.schema}
+    assert CONF_REFRIGERANT_DETECTION not in keys
+    assert CONF_CYCLING_DETECTION in keys
+
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_CYCLING_DETECTION: True}},
+    )
+
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["profile"] == "yutampo_r32"
     assert result["options"][CONF_REFRIGERANT_DETECTION] is False
+    assert result["options"][CONF_CYCLING_DETECTION] is True
 
 
 async def test_validate_connection_system_initializing(
@@ -649,7 +672,7 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
     assert result["step_id"] == "advanced_features"
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_REFRIGERANT_DETECTION: True},
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: True}},
     )
     assert result["step_id"] == "telemetry"
 
@@ -752,7 +775,7 @@ async def test_options_flow_clears_optional_sensor(hass: HomeAssistant) -> None:
     assert result["step_id"] == "advanced_features"
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_REFRIGERANT_DETECTION: False},
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: False}},
     )
     assert result["step_id"] == "telemetry"
 
@@ -802,7 +825,7 @@ async def test_options_flow_keeps_unset_optional_sensor_value(
     assert result["step_id"] == "advanced_features"
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_REFRIGERANT_DETECTION: False},
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: False}},
     )
     assert result["step_id"] == "telemetry"
 
@@ -849,7 +872,7 @@ async def test_options_flow_preserves_unrelated_data_when_clearing_sensor(
     assert result["step_id"] == "advanced_features"
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_REFRIGERANT_DETECTION: False},
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: False}},
     )
     assert result["step_id"] == "telemetry"
 
@@ -867,10 +890,10 @@ async def test_options_flow_preserves_unrelated_data_when_clearing_sensor(
     assert entry.data["profile"] == "yutaki_s"
 
 
-async def test_options_flow_skips_refrigerant_for_yutampo(
+async def test_options_flow_hides_refrigerant_toggle_for_yutampo(
     hass: HomeAssistant,
 ) -> None:
-    """A Yutampo R32 entry walks sensors -> telemetry (no refrigerant step)."""
+    """A Yutampo R32 entry still sees the panel, without the refrigerant toggle."""
     entry = MockConfigEntry(
         version=2,
         minor_version=4,
@@ -895,7 +918,17 @@ async def test_options_flow_skips_refrigerant_for_yutampo(
         result["flow_id"],
         {"power_supply": "single"},
     )
-    # Unsupported profile: refrigerant consent is skipped entirely.
+    # Unsupported profile: the panel is shown, but only with the cycling toggle.
+    assert result["step_id"] == "advanced_features"
+    section_schema = result["data_schema"].schema[SECTION_PREVENTIVE_MAINTENANCE]
+    keys = {str(key) for key in section_schema.schema.schema}
+    assert CONF_REFRIGERANT_DETECTION not in keys
+    assert CONF_CYCLING_DETECTION in keys
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_CYCLING_DETECTION: False}},
+    )
     assert result["step_id"] == "telemetry"
 
 
@@ -930,7 +963,7 @@ async def test_options_flow_persists_refrigerant_consent(
     assert result["step_id"] == "advanced_features"
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_REFRIGERANT_DETECTION: True},
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: True}},
     )
     assert result["step_id"] == "telemetry"
 
