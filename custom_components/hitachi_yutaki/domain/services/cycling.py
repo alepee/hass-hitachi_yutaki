@@ -49,6 +49,13 @@ PERIOD_THRESHOLD_MIN = 15.0  # median cycle period, minutes
 # Consecutive faulted days before a repair issue is raised
 ALERT_PERSIST_DAYS = 3
 
+# Calendar days without a valid heating day after which the verdict expires.
+# Unlike a refrigerant leak, a cycling verdict has no actionable meaning out of
+# the heating season: nobody retunes a heating curve in August. Rather than
+# freeze an alert for months, the streak expires and the detector re-earns its
+# verdict when heating resumes.
+STALE_AFTER_DAYS = 14
+
 # Status values (also the ENUM options of the diagnostic sensor)
 STATUS_LEARNING = "learning"
 STATUS_OK = "ok"
@@ -101,6 +108,7 @@ class CyclingMonitor:
         elif today != self._current_day:
             flushed = self._flush_day()
             self._current_day = today
+            self._expire_stale_alert(today)
 
         if self._note_gap(now):
             # A hole in the data looks exactly like a long off period. Drop the
@@ -303,6 +311,24 @@ class CyclingMonitor:
         self._reset_day_buffers()
         return added
 
+    def _days_since_valid_day(self, today: date | None = None) -> int | None:
+        """Return the calendar days since the last valid heating day."""
+        aggregates = self._storage.get_all()
+        if not aggregates:
+            return None
+        reference = today or self._current_day
+        if reference is None:
+            return None
+        return (reference - aggregates[-1].day).days
+
+    def _expire_stale_alert(self, today: date) -> None:
+        """Drop the alert streak once heating has been idle for too long."""
+        if self._alert_streak == 0:
+            return
+        days_since = self._days_since_valid_day(today)
+        if days_since is not None and days_since > STALE_AFTER_DAYS:
+            self._alert_streak = 0
+
     def _reset_day_buffers(self) -> None:
         """Clear the transient intra-day measurements."""
         self._starts = []
@@ -328,6 +354,7 @@ class CyclingMonitor:
         run_today = median(self._runs) if self._runs else None
         peak_today = self._peak_starts() if self._starts else None
         last_valid_day = aggregates[-1].day if aggregates else None
+        days_since = self._days_since_valid_day()
 
         if valid_days == 0:
             return CyclingStatus(
@@ -339,6 +366,7 @@ class CyclingMonitor:
                 valid_days=valid_days,
                 alert_streak=self._alert_streak,
                 last_valid_day=last_valid_day,
+                days_since_valid_day=days_since,
             )
 
         if self._alert_streak >= ALERT_PERSIST_DAYS:
@@ -357,6 +385,7 @@ class CyclingMonitor:
             valid_days=valid_days,
             alert_streak=self._alert_streak,
             last_valid_day=last_valid_day,
+            days_since_valid_day=days_since,
         )
 
     def _today_faulted(self, period: float | None, peak: int | None) -> bool:

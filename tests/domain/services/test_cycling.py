@@ -13,6 +13,7 @@ from custom_components.hitachi_yutaki.domain.services.cycling import (
     DEBOUNCE_S,
     HISTORY_DAYS,
     MIN_CYCLES_PER_DAY,
+    STALE_AFTER_DAYS,
     STATUS_ALERT,
     STATUS_LEARNING,
     STATUS_OK,
@@ -317,3 +318,34 @@ def test_reset_clears_everything() -> None:
     assert status.valid_days == 0
     assert status.alert_streak == 0
     assert status.status == STATUS_LEARNING
+
+
+def test_alert_expires_out_of_season() -> None:
+    """A frozen alert closes after a long stretch with no valid heating day.
+
+    A cycling verdict has no actionable meaning in summer, so rather than hold
+    an alert for months the streak expires and is re-earned when heating
+    resumes.
+    """
+    monitor = _monitor()
+    day_start = START
+    for _ in range(ALERT_PERSIST_DAYS):
+        end = _run_cycles(
+            monitor,
+            start=day_start,
+            count=8,
+            run=timedelta(minutes=4),
+            rest=timedelta(minutes=4),
+        )
+        day_start = _end_day(monitor, after=end)
+    assert monitor.get_status().status == STATUS_ALERT
+
+    # Heating stops: polls keep coming, but no cycle is measured.
+    far_later = day_start + timedelta(days=STALE_AFTER_DAYS + 1)
+    monitor.update(_input(running=False), timestamp=far_later)
+
+    status = monitor.get_status()
+    assert status.alert_streak == 0
+    assert status.status == STATUS_OK
+    assert status.days_since_valid_day is not None
+    assert status.days_since_valid_day > STALE_AFTER_DAYS

@@ -371,6 +371,9 @@ def _cycling_attributes(
         "valid_days": coordinator.data.get("compressor_cycling_valid_days"),
         "alert_streak": coordinator.data.get("compressor_cycling_alert_streak"),
         "last_valid_day": coordinator.data.get("compressor_cycling_last_valid_day"),
+        "days_since_valid_day": coordinator.data.get(
+            "compressor_cycling_days_since_valid_day"
+        ),
     }
 
 

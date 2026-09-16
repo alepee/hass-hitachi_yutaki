@@ -41,6 +41,12 @@ The alert clears by itself as soon as a day comes back healthy. There is nothing
 reset, so the repair issue is not fixable: the remedy is an installation change the
 integration cannot make.
 
+**Out of season**, the verdict expires: after 14 calendar days without a valid heating
+day the streak is dropped and the alert closes. Unlike a refrigerant leak, a cycling
+verdict has no actionable meaning in August, and freezing an alert for a whole summer
+would only teach users to ignore it. The detector re-earns its verdict in three days
+when heating resumes. The `days_since_valid_day` attribute exposes the data age.
+
 ## Why not the usual "3 starts per hour"
 
 Because these machines genuinely run short cycles, and the rule of thumb does not survive

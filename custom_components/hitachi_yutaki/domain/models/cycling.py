@@ -46,3 +46,4 @@ class CyclingStatus:
     valid_days: int
     alert_streak: int
     last_valid_day: date | None = None
+    days_since_valid_day: int | None = None
