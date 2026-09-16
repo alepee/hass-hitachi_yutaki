@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0-beta.7] - 2026-09-17
+
 ### Added
 - **Compressor short-cycling detection (beta, opt-in)**: a new diagnostic sensor warns when the compressor starts and stops too often in space heating, which wears it out and costs seasonal efficiency. It usually points at a heating curve set too high, too little buffer volume, or an oversized unit. The verdict (`learning`/`ok`/`watch`/`alert`) needs three days of heating, and a repair issue is raised once the fault has held that long; it clears on its own when the cycling stops, and expires after two weeks without a heating day so it does not linger all summer. Thresholds were calibrated by replaying the anonymous telemetry archive rather than taken from the literature: the usual "3 starts per hour" rule flags about a third of real installations, because these machines genuinely run short cycles (fleet median run 6.7 min). Only the conjunction of at least 6 starts within an hour *and* a median cycle period at or under 15 minutes separates the tail of the distribution. Unlike the refrigerant detector this one has no learned baseline: short cycling is a stable state, not a drift, and a baseline would learn the fault instead of reporting it. Available on every profile.
 - The "Advanced features (beta)" panel now groups the beta detectors in a **"Preventive maintenance" section with one consent toggle per detector**, and is shown to every profile instead of only those with extended compressor sensors. The refrigerant toggle stays hidden where the hardware cannot support it (Yutampo R32), so that profile now gets a detector for the first time. Existing consents are unchanged.
