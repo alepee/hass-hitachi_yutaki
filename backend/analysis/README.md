@@ -72,6 +72,15 @@ python3 fp_simulation.py                    # 5. false-positive pressure estimat
    days** to be meaningful — sample a full month of the heating season, not
    1 day in 5.
 
+## One-off maintenance
+
+- **`backfill_snapshot_time.py`**: rewrites the archived snapshots that have
+  no `time` in their body (everything ingested before the Worker fix for
+  #442), reconstructing it from the ingestion epoch in the object name and
+  tagging it `time_source: "backfill"`. Dry run by default, `--apply` to
+  write; idempotent, so safe to re-run. Needs a **write** R2 token, unlike the
+  rest of this directory. Deploy the Worker first, then run it.
+
 ## Sampling guidance
 
 - A fleet-day is ~12 k batch files; `pull_day.sh` takes ~1-2 min per day.

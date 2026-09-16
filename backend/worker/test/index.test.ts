@@ -589,16 +589,50 @@ describe("payload types that had no test at all", () => {
     expect(archived.data.cop_avg).toBe(3.2);
   });
 
-  it("accepts a snapshot payload and partitions it by ingestion date", async () => {
+  it("accepts a snapshot payload and partitions it by its own time", async () => {
     const bucket = createFakeBucket();
 
     const res = await worker.fetch(makeRequest(snapshotPayload()), makeEnv(bucket));
 
     expect(res.status).toBe(202);
-    expect(writtenKey(bucket)).toMatch(
-      /^snapshots\/year=\d{4}\/month=\d{2}\/day=\d{2}\/snap_/,
-    );
+    expect(writtenKey(bucket)).toMatch(/^snapshots\/year=2026\/month=03\/day=13\/snap_/);
     expect(writtenKey(bucket).endsWith(`_${HASH.slice(0, 12)}.json`)).toBe(true);
+  });
+
+  it("archives the client time of a snapshot", async () => {
+    // The whitelist rebuilt the payload without `time`, so every archived
+    // snapshot was undated in its body and the only date was the object name
+    // (#442).
+    const bucket = createFakeBucket();
+
+    await worker.fetch(makeRequest(snapshotPayload()), makeEnv(bucket));
+
+    const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+    expect(archived.time).toBe("2026-03-13T12:00:00Z");
+  });
+
+  it.each([
+    ["missing", undefined],
+    ["unparseable", "yesterday-ish"],
+    ["not a string", 1773403200],
+  ])("falls back to the ingestion time when the snapshot time is %s", async (_label, time) => {
+    const bucket = createFakeBucket();
+    const before = Date.now();
+
+    const res = await worker.fetch(
+      makeRequest({ ...snapshotPayload(), time }),
+      makeEnv(bucket),
+    );
+
+    expect(res.status).toBe(202);
+    const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+    const archivedTime = new Date(archived.time).getTime();
+    expect(archivedTime).toBeGreaterThanOrEqual(before);
+    expect(archivedTime).toBeLessThanOrEqual(Date.now());
+    // and the partition follows the same date, so body and path agree
+    const d = new Date(archived.time);
+    const expected = `snapshots/year=${d.getUTCFullYear()}/month=${String(d.getUTCMonth() + 1).padStart(2, "0")}/day=${String(d.getUTCDate()).padStart(2, "0")}/snap_`;
+    expect(writtenKey(bucket).startsWith(expected)).toBe(true);
   });
 
   it("keeps only finite numeric registers in a snapshot", async () => {

@@ -23,7 +23,7 @@ daily_stats/year=YYYY/month=MM/daily_<date>_<hash12>.json
 - `<hash12>` = first 12 chars of the SHA-256 instance hash (legacy layout), or `<instance12>_<device12>` (first 12 chars of the instance hash, then of the device hash) once a client sends `device_hash`. It is always the last component of the name, so matching an object to an installation stays a match on the tail.
 - `<rand>` = 8 random hex characters. The timestamp has one-second resolution, so without it two batches from one unit in the same second landed on the same key and the second write replaced the first. Objects written before this was added have no `<rand>` component, which changes nothing for a match on the hash.
 - **installations** carry `data.profile` (e.g. `yutampo_r32`, `yutaki_s`, `yutaki_s80`), `gateway_type`, `has_dhw/pool/cooling`, `max_circuits`.
-- **snapshots** carry a one-time `registers` dict (numeric register values incl. `system_config`): the raw material for fixtures.
+- **snapshots** carry a one-time `registers` dict (numeric register values incl. `system_config`): the raw material for fixtures, plus the client `time` (ISO-8601) the snapshot was taken at. Objects archived before the fix for #442 had no `time` in their body; they were backfilled from the ingestion epoch in the object name and carry `time_source: "backfill"` to say so. A snapshot is sent once per integration start, so a unit has many of them: pick the latest with `row_number() OVER (PARTITION BY unit ORDER BY time DESC)`, never by file order.
 
 ## Access path A: Cloudflare REST API (only a Cloudflare API token)
 

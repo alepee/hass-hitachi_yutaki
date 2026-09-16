@@ -21,6 +21,7 @@
 import type {
   DailyStatsPayload,
   MetricsPayload,
+  SnapshotPayload,
   TelemetryPayload,
 } from "./types";
 
@@ -129,7 +130,9 @@ function buildKey(payload: TelemetryPayload, hasExplicitDeviceHash: boolean): st
       return `daily_stats/year=${year}/month=${month}/daily_${(payload as DailyStatsPayload).date}_${suffix}.json`;
     }
     case "snapshot": {
-      const { year, month, day } = dateParts();
+      // The validator guarantees a parseable `time` (#442), so body and
+      // partition agree; `dateParts` still guards against the impossible.
+      const { year, month, day } = dateParts((payload as SnapshotPayload).time);
       return `snapshots/year=${year}/month=${month}/day=${day}/snap_${ts}_${nonce()}_${suffix}.json`;
     }
   }
