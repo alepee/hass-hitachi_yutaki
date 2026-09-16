@@ -126,9 +126,20 @@
       },
       "advanced_features": {
         "title": "Funcții avansate (beta)",
-        "description": "🧪 Activați detectarea experimentală timpurie a unei pierderi lente a încărcăturii de agent frigorific, calculată local pe baza semnalelor compresorului.\n\n⚠️ Această funcție este în beta și se bazează deocamdată pe foarte puține date de validare. Va fi considerată stabilă abia după ce va fi verificată pe parcursul unui întreg sezon de încălzire de iarnă. Tratați orice alertă ca pe un motiv de a verifica mai atent, nu ca pe un diagnostic: poate fi un fals pozitiv. NU chemați un tehnician și nu faceți cheltuieli doar pe baza unei alerte, verificați întotdeauna mai întâi. Are rol consultativ și nu înlocuiește inspecția obligatorie de etanșeitate F-Gaz.\n\n🙏 Activarea telemetriei anonime (pasul următor / opțiunile integrării) mă ajută să verific fiabilitatea detectorului pe întregul parc de instalații și să ajung mai repede la o versiune stabilă.\n\nPuteți modifica această opțiune oricând în opțiunile integrării.\n\n[Aflați mai multe despre monitorizarea agentului frigorific]({learn_more_url})",
-        "data": {
-          "refrigerant_detection": "Activați monitorizarea încărcăturii de agent frigorific (beta)"
+        "description": "🧪 Detectoarele de întreținere preventivă rulează local, pe semnalele pe care pompa dumneavoastră de căldură le furnizează deja, și vă avertizează despre o problemă înainte ca aceasta să devină o defecțiune.\n\n⚠️ Aceste detectoare sunt în beta. Tratați orice alertă ca pe un indiciu de a verifica mai atent, nu ca pe un diagnostic: poate fi un fals pozitiv. NU chemați un tehnician și NU plătiți o intervenție doar pe baza unei alerte, verificați întotdeauna mai întâi.\n\n🙏 Activarea telemetriei anonime (pasul următor / opțiunile integrării) mă ajută să verific fiabilitatea acestor detectoare pe întregul parc și să ajung mai repede la o versiune stabilă.\n\nPuteți modifica oricând aceste setări în opțiunile integrării.\n\n[Aflați mai multe despre întreținerea preventivă]({learn_more_url})",
+        "sections": {
+          "preventive_maintenance": {
+            "name": "Întreținere preventivă",
+            "description": "Activați detectoarele pe care doriți să le folosiți. Fiecare este independent.",
+            "data": {
+              "refrigerant_detection": "Monitorizarea încărcăturii de agent frigorific (beta)",
+              "cycling_detection": "Detectarea ciclurilor scurte ale compresorului (beta)"
+            },
+            "data_description": {
+              "refrigerant_detection": "Detectarea timpurie a unei pierderi lente de agent frigorific, pe baza supraîncălzirii de pe conducta de gaz și a derivei ventilului de expansiune. Necesită aproximativ două săptămâni de încălzire pentru a învăța comportamentul normal al instalației. Doar orientativ: nu înlocuiește inspecția obligatorie de etanșeitate F-Gas.",
+              "cycling_detection": "Detectează un compresor care pornește și se oprește prea des în regim de încălzire, ceea ce îl uzează și scade randamentul. De obicei indică o unitate supradimensionată, un volum tampon insuficient sau o curbă de încălzire setată prea sus. Necesită trei zile de încălzire pentru un verdict."
+            }
+          }
         }
       },
       "repair": {
@@ -222,9 +233,20 @@
       },
       "advanced_features": {
         "title": "Funcții avansate (beta)",
-        "description": "🧪 Activați detectarea experimentală timpurie a unei pierderi lente a încărcăturii de agent frigorific, calculată local pe baza semnalelor compresorului.\n\n⚠️ Această funcție este în beta și se bazează deocamdată pe foarte puține date de validare. Va fi considerată stabilă abia după ce va fi verificată pe parcursul unui întreg sezon de încălzire de iarnă. Tratați orice alertă ca pe un motiv de a verifica mai atent, nu ca pe un diagnostic: poate fi un fals pozitiv. NU chemați un tehnician și nu faceți cheltuieli doar pe baza unei alerte, verificați întotdeauna mai întâi. Are rol consultativ și nu înlocuiește inspecția obligatorie de etanșeitate F-Gaz.\n\n🙏 Activarea telemetriei anonime (pasul următor / opțiunile integrării) mă ajută să verific fiabilitatea detectorului pe întregul parc de instalații și să ajung mai repede la o versiune stabilă.\n\nPuteți modifica această opțiune oricând în opțiunile integrării.\n\n[Aflați mai multe despre monitorizarea agentului frigorific]({learn_more_url})",
-        "data": {
-          "refrigerant_detection": "Activați monitorizarea încărcăturii de agent frigorific (beta)"
+        "description": "🧪 Detectoarele de întreținere preventivă rulează local, pe semnalele pe care pompa dumneavoastră de căldură le furnizează deja, și vă avertizează despre o problemă înainte ca aceasta să devină o defecțiune.\n\n⚠️ Aceste detectoare sunt în beta. Tratați orice alertă ca pe un indiciu de a verifica mai atent, nu ca pe un diagnostic: poate fi un fals pozitiv. NU chemați un tehnician și NU plătiți o intervenție doar pe baza unei alerte, verificați întotdeauna mai întâi.\n\n🙏 Activarea telemetriei anonime (pasul următor / opțiunile integrării) mă ajută să verific fiabilitatea acestor detectoare pe întregul parc și să ajung mai repede la o versiune stabilă.\n\nPuteți modifica oricând aceste setări în opțiunile integrării.\n\n[Aflați mai multe despre întreținerea preventivă]({learn_more_url})",
+        "sections": {
+          "preventive_maintenance": {
+            "name": "Întreținere preventivă",
+            "description": "Activați detectoarele pe care doriți să le folosiți. Fiecare este independent.",
+            "data": {
+              "refrigerant_detection": "Monitorizarea încărcăturii de agent frigorific (beta)",
+              "cycling_detection": "Detectarea ciclurilor scurte ale compresorului (beta)"
+            },
+            "data_description": {
+              "refrigerant_detection": "Detectarea timpurie a unei pierderi lente de agent frigorific, pe baza supraîncălzirii de pe conducta de gaz și a derivei ventilului de expansiune. Necesită aproximativ două săptămâni de încălzire pentru a învăța comportamentul normal al instalației. Doar orientativ: nu înlocuiește inspecția obligatorie de etanșeitate F-Gas.",
+              "cycling_detection": "Detectează un compresor care pornește și se oprește prea des în regim de încălzire, ceea ce îl uzează și scade randamentul. De obicei indică o unitate supradimensionată, un volum tampon insuficient sau o curbă de încălzire setată prea sus. Necesită trei zile de încălzire pentru un verdict."
+            }
+          }
         }
       }
     },
@@ -562,6 +584,15 @@
       },
       "electricity_cost": {
         "name": "Cost electricitate"
+      },
+      "compressor_cycling_status": {
+        "name": "Ciclarea compresorului",
+        "state": {
+          "learning": "Învățare",
+          "ok": "Normal",
+          "watch": "De urmărit",
+          "alert": "Cicluri scurte"
+        }
       }
     },
     "binary_sensor": {
@@ -841,6 +872,10 @@
           "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
         }
       }
+    },
+    "compressor_short_cycling": {
+      "title": "Compresorul funcționează în cicluri scurte",
+      "description": "🧪 Detector în beta. Compresorul dumneavoastră pornește și se oprește neobișnuit de des în regim de încălzire de câteva zile: prea multe porniri pe oră, combinate cu o perioadă de ciclu sub {period} minute.\n\nCiclurile scurte uzează compresorul și scad randamentul sezonier. Cauzele obișnuite, în ordinea descrescătoare a probabilității:\n\n- **O curbă de încălzire setată prea sus.** Cu cât curba este mai abruptă, cu atât instalația ciclează mai mult: este cea mai puternică corelație măsurată. Scăderea temperaturii pe tur este primul lucru de încercat și nu costă nimic.\n- **Volum tampon insuficient** pentru puterea minimă a unității.\n- **O unitate supradimensionată** față de necesarul real. Unitățile care ciclează funcționează de obicei deja la frecvența minimă a compresorului, deci nu mai există marjă de modulare.\n\nAcest mesaj este orientativ: integrarea nu poate distinge singură între aceste cauze. Alerta dispare de la sine imediat ce ciclurile scurte încetează."
     }
   }
 }

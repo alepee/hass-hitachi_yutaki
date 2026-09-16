@@ -126,9 +126,20 @@
       },
       "advanced_features": {
         "title": "Fonctionnalités avancées (bêta)",
-        "description": "🧪 Activez la détection expérimentale d'une perte lente de charge de fluide frigorigène, calculée localement à partir des signaux du compresseur.\n\n⚠️ Cette fonctionnalité est en bêta et repose pour l'instant sur très peu de données de validation. Elle ne sera considérée comme stable qu'après avoir été éprouvée sur une saison de chauffe hivernale complète. Considérez toute alerte comme une invitation à regarder de plus près, pas comme un diagnostic : il peut s'agir d'un faux positif. N'appelez pas un professionnel et n'engagez aucune dépense sur la seule foi d'une alerte, vérifiez toujours par vous-même d'abord. Cette détection est indicative et ne remplace pas le contrôle d'étanchéité F-Gas obligatoire.\n\n🙏 Activer la télémétrie anonyme (étape suivante / options de l'intégration) m'aide à vérifier la fiabilité du détecteur sur l'ensemble du parc et à parvenir plus vite à une version stable.\n\nVous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la surveillance du fluide frigorigène]({learn_more_url})",
-        "data": {
-          "refrigerant_detection": "Activer la surveillance de la charge de fluide frigorigène (bêta)"
+        "description": "🧪 Les détecteurs de maintenance préventive tournent localement, à partir des signaux que votre pompe à chaleur produit déjà, et vous alertent d'un problème avant qu'il ne devienne une panne.\n\n⚠️ Ces détecteurs sont en bêta. Traitez toute alerte comme une invitation à regarder de plus près, pas comme un diagnostic : cela peut être un faux positif. N'appelez PAS un technicien et ne payez PAS une intervention sur la seule foi d'une alerte, vérifiez toujours avant.\n\n🙏 Activer la télémétrie anonyme (étape suivante / options de l'intégration) m'aide à mesurer la fiabilité de ces détecteurs sur l'ensemble du parc et à sortir une version stable plus vite.\n\nVous pouvez modifier tout cela à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la maintenance préventive]({learn_more_url})",
+        "sections": {
+          "preventive_maintenance": {
+            "name": "Maintenance préventive",
+            "description": "Activez les détecteurs que vous souhaitez faire tourner. Chacun est indépendant.",
+            "data": {
+              "refrigerant_detection": "Surveillance de la charge de fluide frigorigène (bêta)",
+              "cycling_detection": "Détection des cycles courts du compresseur (bêta)"
+            },
+            "data_description": {
+              "refrigerant_detection": "Détection précoce d'une perte lente de charge en fluide frigorigène, à partir de la surchauffe de la ligne gaz et de la dérive du détendeur. Nécessite environ deux semaines de chauffage pour apprendre le comportement normal de votre installation. Indicatif uniquement : cela ne remplace pas le contrôle d'étanchéité F-Gas obligatoire.",
+              "cycling_detection": "Détecte un compresseur qui démarre et s'arrête trop souvent en chauffage, ce qui l'use et coûte en rendement. Traduit généralement une machine surdimensionnée, un volume tampon insuffisant, ou une loi d'eau réglée trop haut. Nécessite trois jours de chauffage pour rendre un verdict."
+            }
+          }
         }
       },
       "repair": {
@@ -222,9 +233,20 @@
       },
       "advanced_features": {
         "title": "Fonctionnalités avancées (bêta)",
-        "description": "🧪 Activez la détection expérimentale d'une perte lente de charge de fluide frigorigène, calculée localement à partir des signaux du compresseur.\n\n⚠️ Cette fonctionnalité est en bêta et repose pour l'instant sur très peu de données de validation. Elle ne sera considérée comme stable qu'après avoir été éprouvée sur une saison de chauffe hivernale complète. Considérez toute alerte comme une invitation à regarder de plus près, pas comme un diagnostic : il peut s'agir d'un faux positif. N'appelez pas un professionnel et n'engagez aucune dépense sur la seule foi d'une alerte, vérifiez toujours par vous-même d'abord. Cette détection est indicative et ne remplace pas le contrôle d'étanchéité F-Gas obligatoire.\n\n🙏 Activer la télémétrie anonyme (étape suivante / options de l'intégration) m'aide à vérifier la fiabilité du détecteur sur l'ensemble du parc et à parvenir plus vite à une version stable.\n\nVous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la surveillance du fluide frigorigène]({learn_more_url})",
-        "data": {
-          "refrigerant_detection": "Activer la surveillance de la charge de fluide frigorigène (bêta)"
+        "description": "🧪 Les détecteurs de maintenance préventive tournent localement, à partir des signaux que votre pompe à chaleur produit déjà, et vous alertent d'un problème avant qu'il ne devienne une panne.\n\n⚠️ Ces détecteurs sont en bêta. Traitez toute alerte comme une invitation à regarder de plus près, pas comme un diagnostic : cela peut être un faux positif. N'appelez PAS un technicien et ne payez PAS une intervention sur la seule foi d'une alerte, vérifiez toujours avant.\n\n🙏 Activer la télémétrie anonyme (étape suivante / options de l'intégration) m'aide à mesurer la fiabilité de ces détecteurs sur l'ensemble du parc et à sortir une version stable plus vite.\n\nVous pouvez modifier tout cela à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la maintenance préventive]({learn_more_url})",
+        "sections": {
+          "preventive_maintenance": {
+            "name": "Maintenance préventive",
+            "description": "Activez les détecteurs que vous souhaitez faire tourner. Chacun est indépendant.",
+            "data": {
+              "refrigerant_detection": "Surveillance de la charge de fluide frigorigène (bêta)",
+              "cycling_detection": "Détection des cycles courts du compresseur (bêta)"
+            },
+            "data_description": {
+              "refrigerant_detection": "Détection précoce d'une perte lente de charge en fluide frigorigène, à partir de la surchauffe de la ligne gaz et de la dérive du détendeur. Nécessite environ deux semaines de chauffage pour apprendre le comportement normal de votre installation. Indicatif uniquement : cela ne remplace pas le contrôle d'étanchéité F-Gas obligatoire.",
+              "cycling_detection": "Détecte un compresseur qui démarre et s'arrête trop souvent en chauffage, ce qui l'use et coûte en rendement. Traduit généralement une machine surdimensionnée, un volume tampon insuffisant, ou une loi d'eau réglée trop haut. Nécessite trois jours de chauffage pour rendre un verdict."
+            }
+          }
         }
       }
     },
@@ -562,6 +584,15 @@
       },
       "electricity_cost": {
         "name": "Coût d'Électricité"
+      },
+      "compressor_cycling_status": {
+        "name": "Cycles du compresseur",
+        "state": {
+          "learning": "Apprentissage",
+          "ok": "Normal",
+          "watch": "À surveiller",
+          "alert": "Cycles courts"
+        }
       }
     },
     "binary_sensor": {
@@ -841,6 +872,10 @@
           "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
         }
       }
+    },
+    "compressor_short_cycling": {
+      "title": "Le compresseur fait des cycles courts",
+      "description": "🧪 Détecteur en bêta. Votre compresseur démarre et s'arrête anormalement souvent en chauffage depuis plusieurs jours : trop de démarrages par heure, combinés à une période de cycle inférieure à {period} minutes.\n\nLes cycles courts usent le compresseur et dégradent le rendement saisonnier. Les causes habituelles, par ordre de probabilité décroissante sur le parc :\n\n- **Une loi d'eau réglée trop haut.** Plus la loi est raide, plus l'installation cycle : c'est la corrélation la plus forte mesurée sur le parc. Abaisser votre température de départ est la première chose à essayer, et cela ne coûte rien.\n- **Un volume tampon insuffisant** pour la puissance minimale de la machine.\n- **Une machine surdimensionnée** par rapport au besoin réel. Les unités qui cyclent sont en général déjà calées sur leur fréquence compresseur minimale, il ne reste donc aucune marge de modulation à récupérer.\n\nCeci est indicatif : l'intégration ne peut pas distinguer ces causes seule. L'alerte disparaît d'elle-même dès que les cycles courts cessent."
     }
   }
 }

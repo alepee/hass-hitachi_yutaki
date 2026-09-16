@@ -126,9 +126,20 @@
       },
       "advanced_features": {
         "title": "Geavanceerde functies (bèta)",
-        "description": "🧪 Schakel experimentele vroegtijdige detectie in van een langzaam verlies van koudemiddelvulling, lokaal berekend op basis van de signalen van uw compressor.\n\n⚠️ Deze functie is in bèta en steunt momenteel op zeer weinig validatiegegevens. Ze wordt pas als stabiel beschouwd nadat ze een volledig winterstookseizoen lang is getoetst. Beschouw elke waarschuwing als een aanleiding om beter te kijken, niet als een diagnose: het kan een vals positief zijn. Bel GEEN technicus en maak geen kosten op basis van een waarschuwing alleen, controleer altijd eerst zelf. Ze is adviserend en vervangt niet de verplichte F-gas-lekdichtheidscontrole.\n\n🙏 Door anonieme telemetrie in te schakelen (volgende stap / integratie-opties) help je me de betrouwbaarheid van de detector over alle installaties te controleren en sneller een stabiele versie te bereiken.\n\nJe kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over koudemiddelbewaking]({learn_more_url})",
-        "data": {
-          "refrigerant_detection": "Bewaking van koudemiddelvulling inschakelen (bèta)"
+        "description": "🧪 Detectoren voor preventief onderhoud draaien lokaal, op signalen die uw warmtepomp al levert, en waarschuwen u voor een probleem voordat het een storing wordt.\n\n⚠️ Deze detectoren zijn in bèta. Beschouw een waarschuwing als een aanwijzing om beter te kijken, niet als een diagnose: het kan een vals positief zijn. Bel GEEN monteur en betaal GEEN interventie op basis van een waarschuwing alleen, controleer altijd eerst.\n\n🙏 Anonieme telemetrie inschakelen (volgende stap / integratie-opties) helpt mij de betrouwbaarheid van deze detectoren over het hele wagenpark te toetsen en sneller een stabiele versie uit te brengen.\n\nU kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer over preventief onderhoud]({learn_more_url})",
+        "sections": {
+          "preventive_maintenance": {
+            "name": "Preventief onderhoud",
+            "description": "Schakel de detectoren in die u wilt gebruiken. Elke detector staat op zichzelf.",
+            "data": {
+              "refrigerant_detection": "Bewaking van koudemiddelvulling (bèta)",
+              "cycling_detection": "Detectie van kort pendelen van de compressor (bèta)"
+            },
+            "data_description": {
+              "refrigerant_detection": "Vroegtijdige detectie van een langzaam verlies van koudemiddelvulling, op basis van de oververhitting in de gasleiding en de drift van het expansieventiel. Heeft ongeveer twee weken verwarming nodig om het normale gedrag van uw installatie te leren. Alleen indicatief: het vervangt de verplichte F-gassen lekcontrole niet.",
+              "cycling_detection": "Detecteert een compressor die te vaak start en stopt tijdens het verwarmen, wat hem verslijt en rendement kost. Wijst meestal op een te groot gedimensioneerde unit, te weinig buffervolume, of een te hoog ingestelde stooklijn. Heeft drie dagen verwarming nodig voor een oordeel."
+            }
+          }
         }
       },
       "repair": {
@@ -222,9 +233,20 @@
       },
       "advanced_features": {
         "title": "Geavanceerde functies (bèta)",
-        "description": "🧪 Schakel experimentele vroegtijdige detectie in van een langzaam verlies van koudemiddelvulling, lokaal berekend op basis van de signalen van uw compressor.\n\n⚠️ Deze functie is in bèta en steunt momenteel op zeer weinig validatiegegevens. Ze wordt pas als stabiel beschouwd nadat ze een volledig winterstookseizoen lang is getoetst. Beschouw elke waarschuwing als een aanleiding om beter te kijken, niet als een diagnose: het kan een vals positief zijn. Bel GEEN technicus en maak geen kosten op basis van een waarschuwing alleen, controleer altijd eerst zelf. Ze is adviserend en vervangt niet de verplichte F-gas-lekdichtheidscontrole.\n\n🙏 Door anonieme telemetrie in te schakelen (volgende stap / integratie-opties) help je me de betrouwbaarheid van de detector over alle installaties te controleren en sneller een stabiele versie te bereiken.\n\nJe kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over koudemiddelbewaking]({learn_more_url})",
-        "data": {
-          "refrigerant_detection": "Bewaking van koudemiddelvulling inschakelen (bèta)"
+        "description": "🧪 Detectoren voor preventief onderhoud draaien lokaal, op signalen die uw warmtepomp al levert, en waarschuwen u voor een probleem voordat het een storing wordt.\n\n⚠️ Deze detectoren zijn in bèta. Beschouw een waarschuwing als een aanwijzing om beter te kijken, niet als een diagnose: het kan een vals positief zijn. Bel GEEN monteur en betaal GEEN interventie op basis van een waarschuwing alleen, controleer altijd eerst.\n\n🙏 Anonieme telemetrie inschakelen (volgende stap / integratie-opties) helpt mij de betrouwbaarheid van deze detectoren over het hele wagenpark te toetsen en sneller een stabiele versie uit te brengen.\n\nU kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer over preventief onderhoud]({learn_more_url})",
+        "sections": {
+          "preventive_maintenance": {
+            "name": "Preventief onderhoud",
+            "description": "Schakel de detectoren in die u wilt gebruiken. Elke detector staat op zichzelf.",
+            "data": {
+              "refrigerant_detection": "Bewaking van koudemiddelvulling (bèta)",
+              "cycling_detection": "Detectie van kort pendelen van de compressor (bèta)"
+            },
+            "data_description": {
+              "refrigerant_detection": "Vroegtijdige detectie van een langzaam verlies van koudemiddelvulling, op basis van de oververhitting in de gasleiding en de drift van het expansieventiel. Heeft ongeveer twee weken verwarming nodig om het normale gedrag van uw installatie te leren. Alleen indicatief: het vervangt de verplichte F-gassen lekcontrole niet.",
+              "cycling_detection": "Detecteert een compressor die te vaak start en stopt tijdens het verwarmen, wat hem verslijt en rendement kost. Wijst meestal op een te groot gedimensioneerde unit, te weinig buffervolume, of een te hoog ingestelde stooklijn. Heeft drie dagen verwarming nodig voor een oordeel."
+            }
+          }
         }
       }
     },
@@ -562,6 +584,15 @@
       },
       "electricity_cost": {
         "name": "Elektriciteitskosten"
+      },
+      "compressor_cycling_status": {
+        "name": "Compressorpendelen",
+        "state": {
+          "learning": "Leren",
+          "ok": "Normaal",
+          "watch": "In de gaten houden",
+          "alert": "Kort pendelen"
+        }
       }
     },
     "binary_sensor": {
@@ -841,6 +872,10 @@
           "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
         }
       }
+    },
+    "compressor_short_cycling": {
+      "title": "De compressor pendelt kort",
+      "description": "🧪 Bètadetector. Uw compressor start en stopt al enkele dagen ongewoon vaak tijdens het verwarmen: te veel starts per uur, gecombineerd met een cyclusperiode onder {period} minuten.\n\nKort pendelen verslijt de compressor en kost seizoensrendement. De gebruikelijke oorzaken, in afnemende volgorde van waarschijnlijkheid:\n\n- **Een te hoog ingestelde stooklijn.** Hoe steiler de lijn, hoe meer de installatie pendelt: dit is de sterkste gemeten correlatie. Uw aanvoertemperatuur verlagen is het eerste om te proberen, en het kost niets.\n- **Te weinig buffervolume** voor het minimumvermogen van de unit.\n- **Een te groot gedimensioneerde unit** voor de werkelijke warmtevraag. Units die pendelen draaien meestal al op hun minimale compressorfrequentie, dus er is geen modulatiemarge meer over.\n\nDit is indicatief: de integratie kan deze oorzaken niet zelf onderscheiden. De waarschuwing verdwijnt vanzelf zodra het pendelen stopt."
     }
   }
 }

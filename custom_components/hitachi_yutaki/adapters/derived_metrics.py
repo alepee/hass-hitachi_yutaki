@@ -38,6 +38,7 @@ from ..const import (
     DOMAIN,
 )
 from ..domain.models.cop import COPInput
+from ..domain.models.cycling import CyclingInput, CyclingStatus
 from ..domain.models.operation import MODE_COOLING, MODE_DHW, MODE_HEATING, MODE_POOL
 from ..domain.models.refrigerant import (
     RefrigerantBaseline,
@@ -49,6 +50,10 @@ from ..domain.services.cop import (
     COP_MEASUREMENTS_PERIOD,
     COPService,
     EnergyAccumulator,
+)
+from ..domain.services.cycling import (
+    HISTORY_DAYS as CYCLING_HISTORY_DAYS,
+    CyclingMonitor,
 )
 from ..domain.services.defrost_guard import DefrostGuard
 from ..domain.services.refrigerant import (
@@ -77,7 +82,9 @@ ENERGY_GAP_TOLERANCE_MIN_S = 30.0
 COMPRESSOR_HISTORY_SIZE = 100
 
 REFRIGERANT_STORE_VERSION = 1
+CYCLING_STORE_VERSION = 1
 REFRIGERANT_SAVE_DELAY_S = 600  # debounce persisted writes (flush is daily)
+CYCLING_SAVE_DELAY_S = 600  # same debounce, same daily flush cadence
 
 
 class DerivedMetricsAdapter:
@@ -96,6 +103,7 @@ class DerivedMetricsAdapter:
         superheat_plausible_range: tuple[float, float] | None = None,
         superheat_observed_band: tuple[float, float] | None = None,
         refrigerant_detection_enabled: bool = True,
+        cycling_detection_enabled: bool = False,
     ) -> None:
         """Initialize the adapter with domain services."""
         self._hass = hass
@@ -172,6 +180,23 @@ class DerivedMetricsAdapter:
                     f"{DOMAIN}_refrigerant_{entry_id}",
                 )
 
+        # Compressor short-cycling detection (no capability gate: every profile
+        # has a compressor). Opt-in, like every preventive-maintenance detector.
+        self._cycling_monitor: CyclingMonitor | None = None
+        self._cycling_store: Store | None = None
+        self._cycling_status: CyclingStatus | None = None
+        if cycling_detection_enabled:
+            self._cycling_monitor = CyclingMonitor(
+                InMemoryStorage(max_len=CYCLING_HISTORY_DAYS)
+            )
+            entry_id = getattr(config_entry, "entry_id", None)
+            if hass is not None and entry_id:
+                self._cycling_store = Store(
+                    hass,
+                    CYCLING_STORE_VERSION,
+                    f"{DOMAIN}_cycling_{entry_id}",
+                )
+
     def _make_cop_service(
         self, thermal_calculator: Any, expected_mode: str
     ) -> COPService:
@@ -226,6 +251,7 @@ class DerivedMetricsAdapter:
         self._update_energy(data)
         self._update_timing(data)
         self._update_refrigerant(data)
+        self._update_cycling(data)
 
     def _get_temperature(
         self, data: dict[str, Any], config_key: str, fallback_key: str
@@ -705,6 +731,76 @@ class DerivedMetricsAdapter:
             await self._refrigerant_store.async_save(
                 self._refrigerant_monitor.serialize()
             )
+
+    def _update_cycling(self, data: dict[str, Any]) -> None:
+        """Feed the cycling monitor and inject its verdict into data."""
+        monitor = self._cycling_monitor
+        if monitor is None:
+            return
+
+        cycling_input = CyclingInput(
+            operation_mode=resolve_operation_mode(data.get("operation_state")),
+            compressor_running=data.get("is_compressor_running"),
+            data_reliable=self.defrost_guard.is_data_reliable,
+        )
+
+        flushed = monitor.update(cycling_input)
+        status = monitor.get_status()
+        self._cycling_status = status
+
+        data["compressor_cycling_status"] = status.status
+        data["compressor_cycling_cycles_today"] = status.cycles_today
+        data["compressor_cycling_peak_starts"] = status.peak_starts_today
+        data["compressor_cycling_median_period"] = status.median_period_today
+        data["compressor_cycling_median_run"] = status.median_run_today
+        data["compressor_cycling_valid_days"] = status.valid_days
+        data["compressor_cycling_alert_streak"] = status.alert_streak
+        data["compressor_cycling_last_valid_day"] = (
+            status.last_valid_day.isoformat() if status.last_valid_day else None
+        )
+
+        # A daily flush changed the persisted state - schedule a debounced save.
+        if flushed and self._cycling_store is not None:
+            self._cycling_store.async_delay_save(
+                monitor.serialize, CYCLING_SAVE_DELAY_S
+            )
+
+    @property
+    def cycling_status(self) -> CyclingStatus | None:
+        """Return the latest cycling verdict (None until first computed)."""
+        return self._cycling_status
+
+    async def async_restore_cycling(self) -> None:
+        """Load persisted cycling state from the Store into the monitor."""
+        if self._cycling_monitor is None or self._cycling_store is None:
+            return
+        try:
+            state = await self._cycling_store.async_load()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("Failed to load cycling state", exc_info=True)
+            return
+        if state:
+            try:
+                self._cycling_monitor.restore(state)
+            except ValueError:
+                _LOGGER.warning(
+                    "Discarding corrupt cycling detector snapshot; "
+                    "the detector restarts in learning mode",
+                    exc_info=True,
+                )
+
+    async def async_reset_cycling(self) -> None:
+        """Clear the monitor and delete its persisted state."""
+        if self._cycling_monitor is not None:
+            self._cycling_monitor.reset()
+            self._cycling_status = None
+        if self._cycling_store is not None:
+            await self._cycling_store.async_remove()
+
+    async def async_flush_cycling(self) -> None:
+        """Persist the current cycling state immediately (e.g. on unload)."""
+        if self._cycling_monitor is not None and self._cycling_store is not None:
+            await self._cycling_store.async_save(self._cycling_monitor.serialize())
 
     async def async_rehydrate_timing(self) -> None:
         """Replay Recorder data to rebuild compressor timing history."""
