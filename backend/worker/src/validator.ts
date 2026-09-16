@@ -297,8 +297,27 @@ function validateSnapshot(
     type: "snapshot",
     instance_hash: instanceHash,
     device_hash: deviceHash,
+    time: snapshotTime(payload.time),
     profile: payload.profile as string,
     gateway_type: payload.gateway_type as string,
     registers: sanitized,
   };
+}
+
+/**
+ * The snapshot's own timestamp, or the ingestion time when the client sent
+ * none or an unparseable one.
+ *
+ * The client has always sent `time`, but this whitelist never copied it, so
+ * every archived snapshot was undated in its body and "latest snapshot per
+ * unit" had to be parsed out of the object name (#442). A bad value is not
+ * worth a 400: the registers are still usable data, and the snapshot is sent
+ * right after the first poll, so ingestion time is within seconds of the
+ * truth (same reasoning as the partition fallback, #414).
+ */
+function snapshotTime(value: unknown): string {
+  if (typeof value === "string" && !Number.isNaN(new Date(value).getTime())) {
+    return value;
+  }
+  return new Date().toISOString();
 }

@@ -71,6 +71,11 @@ export interface DailyStatsPayload extends BasePayload {
 /** Register snapshot payload. */
 export interface SnapshotPayload extends BasePayload {
   type: "snapshot";
+  /**
+   * When the client took the snapshot (ISO-8601). Falls back to the ingestion
+   * time when the client sends none or an unparseable one (#442).
+   */
+  time: string;
   profile: string;
   gateway_type: string;
   registers: Record<string, number>;
