@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Telemetry no longer drops points every few hours on the widest heat-pump profiles,
+  with a recurring `Telemetry buffer full, N point(s) dropped so far` warning. A
+  request is capped at 180 KB, and when a point grows past about 3 KB that cap lets one
+  5-minute flush carry fewer points than a 5-second poll produces (52 to 56 against
+  60), so the buffer filled up slowly and evicted the surplus. When a delivered batch
+  leaves points behind, a catch-up flush now follows 65 seconds later, which doubles
+  the drain rate while staying inside the endpoint's one-request-per-minute limit. No
+  catch-up follows a failed send. Telemetry only, no effect on the heat pump.
+
 ## [2.2.0-beta.7] - 2026-09-17
 
 ### Added

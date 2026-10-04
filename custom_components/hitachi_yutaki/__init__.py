@@ -13,11 +13,14 @@ from homeassistant.const import (
     CONF_SCAN_INTERVAL,
     __version__ as HA_VERSION,
 )
-from homeassistant.core import HomeAssistant
+from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import async_track_time_interval
+from homeassistant.helpers.event import (
+    async_call_later,
+    async_track_time_interval,
+)
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 from homeassistant.helpers.issue_registry import (
     IssueSeverity,
@@ -79,6 +82,13 @@ _LOGGER = logging.getLogger(__name__)
 # How often buffered telemetry points are sent. Paired with the poll interval
 # it also fixes how many points a cycle produces, hence the collect stride.
 TELEMETRY_FLUSH_INTERVAL = timedelta(minutes=5)
+
+# Delay before a catch-up flush, when a delivered batch left points behind.
+# A flush is capped in bytes, so on the widest profiles one request carries
+# fewer points than a 5s poll produces in a cycle and the buffer slowly
+# saturates. One extra request per cycle doubles the drain rate. It sits past
+# the endpoint's 60s rate-limit window and well before the next regular flush.
+TELEMETRY_CATCHUP_DELAY = timedelta(seconds=65)
 
 # Ceiling on the final flush at unload. The client retries three times with
 # backoff, so an unreachable endpoint would otherwise hold up a Home Assistant
@@ -313,6 +323,44 @@ def _build_telemetry_collector(
         buffer_max_size=compute_buffer_max_size(scan_interval, stride),
         collect_stride=stride,
     )
+
+
+def _schedule_telemetry_flush(
+    hass: HomeAssistant,
+    entry: HitachiYutakiConfigEntry,
+    coordinator: HitachiYutakiDataCoordinator,
+) -> None:
+    """Flush telemetry every cycle, with a catch-up when a backlog remains."""
+    cancel_catchup: CALLBACK_TYPE | None = None
+
+    async def _telemetry_catchup(_now: datetime) -> None:
+        nonlocal cancel_catchup
+        cancel_catchup = None
+        await coordinator.async_flush_telemetry()
+
+    async def _telemetry_flush(_now: datetime) -> None:
+        nonlocal cancel_catchup
+        delivered = await coordinator.async_flush_telemetry()
+        # Only after a delivered batch: a backlog left by a failing send
+        # waits for the next cycle rather than doubling the failed requests.
+        if (
+            delivered
+            and coordinator.telemetry_collector.buffer_size
+            and cancel_catchup is None
+        ):
+            cancel_catchup = async_call_later(
+                hass, TELEMETRY_CATCHUP_DELAY, _telemetry_catchup
+            )
+
+    @callback
+    def _cancel_telemetry_catchup() -> None:
+        if cancel_catchup is not None:
+            cancel_catchup()
+
+    entry.async_on_unload(
+        async_track_time_interval(hass, _telemetry_flush, TELEMETRY_FLUSH_INTERVAL)
+    )
+    entry.async_on_unload(_cancel_telemetry_catchup)
 
 
 async def async_setup_entry(
@@ -769,13 +817,7 @@ async def async_setup_entry(
 
     # Set up telemetry flush timer
     if telemetry_level != TelemetryLevel.OFF:
-
-        async def _telemetry_flush(_now: datetime) -> None:
-            await coordinator.async_flush_telemetry()
-
-        entry.async_on_unload(
-            async_track_time_interval(hass, _telemetry_flush, TELEMETRY_FLUSH_INTERVAL)
-        )
+        _schedule_telemetry_flush(hass, entry, coordinator)
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.info(
