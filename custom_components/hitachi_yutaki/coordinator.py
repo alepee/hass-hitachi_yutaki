@@ -399,11 +399,15 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 exc_info=True,
             )
 
-    async def async_flush_telemetry(self) -> None:
-        """Flush telemetry buffer and send data."""
+    async def async_flush_telemetry(self) -> bool:
+        """Flush telemetry buffer and send data.
+
+        Return True when a batch reached the endpoint, so the caller can tell
+        a backlog worth draining early from one left by a failing send.
+        """
         points = self.telemetry_collector.flush()
         if not points:
-            return
+            return False
 
         instance_hash = self._telemetry_meta["instance_hash"]
         device_hash = self._telemetry_meta["device_hash"]
@@ -412,6 +416,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         # inline would run twice if anything after it raised, and would be
         # skipped entirely on cancellation.
         requeue_needed = False
+        delivered = False
         try:
             anonymized = [anonymize_point(p) for p in points]
             batch = MetricsBatch(
@@ -421,6 +426,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             if result:
                 self.telemetry_last_send = datetime.now(tz=UTC)
+                delivered = True
             elif result is SendResult.PROBABLY_DELIVERED:
                 # The endpoint rate-limited a retry of an attempt whose answer
                 # we never saw, which means that attempt was archived. Keeping
@@ -467,6 +473,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         finally:
             if requeue_needed:
                 self.telemetry_collector.requeue(points)
+        return delivered
 
     def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
         """Return True if circuit is configured in system_config."""

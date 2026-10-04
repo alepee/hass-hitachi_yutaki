@@ -343,6 +343,53 @@ class TestFailureHandling:
         assert coordinator.telemetry_collector.buffer_size == 3
 
 
+class TestFlushOutcome:
+    """What async_flush_telemetry reports, which gates the catch-up flush."""
+
+    @pytest.mark.asyncio
+    async def test_delivered_batch_returns_true(self):
+        """A delivered batch is what allows a catch-up flush."""
+        coordinator = _make_coordinator()
+        coordinator.telemetry_collector.collect(_sample_data())
+
+        assert await coordinator.async_flush_telemetry() is True
+
+    @pytest.mark.asyncio
+    async def test_empty_buffer_returns_false(self):
+        """Nothing sent, nothing to catch up on."""
+        coordinator = _make_coordinator()
+
+        assert await coordinator.async_flush_telemetry() is False
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "result",
+        [
+            SendResult.FAILED,
+            SendResult.PAYLOAD_TOO_LARGE,
+            SendResult.PROBABLY_DELIVERED,
+        ],
+    )
+    async def test_undelivered_batch_returns_false(self, result):
+        """A backlog left by a failing send must not trigger an early retry."""
+        coordinator = _make_coordinator()
+        coordinator.telemetry_client.send_metrics = AsyncMock(return_value=result)
+        coordinator.telemetry_collector.collect(_sample_data())
+
+        assert await coordinator.async_flush_telemetry() is False
+
+    @pytest.mark.asyncio
+    async def test_exception_returns_false(self):
+        """An exception is a failed send, not a delivered one."""
+        coordinator = _make_coordinator()
+        coordinator.telemetry_client.send_metrics = AsyncMock(
+            side_effect=Exception("network error")
+        )
+        coordinator.telemetry_collector.collect(_sample_data())
+
+        assert await coordinator.async_flush_telemetry() is False
+
+
 class TestBufferOverflow:
     """Tests for circular buffer overflow behavior."""
 
