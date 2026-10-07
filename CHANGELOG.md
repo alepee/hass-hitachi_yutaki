@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Dutch: the power setup step and the power and sensors options step were both titled
+  "External sensor configuration", dropping the power supply they configure. They now
+  read "Vermogensconfiguratie" and "Vermogen- en sensorconfiguratie".
+- Dutch: the refrigerant charge status showed "Alarm" in its alert state, the same word
+  as the heat pump's own alarm sensor and alarm codes. It now reads "Waarschuwing", and
+  the refrigerant repair issues name the state accordingly.
+
 ## [2.2.0-beta.8] - 2026-10-07
 
 ### Fixed
