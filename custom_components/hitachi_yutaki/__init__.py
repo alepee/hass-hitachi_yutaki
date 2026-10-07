@@ -6,11 +6,14 @@ import asyncio
 from contextlib import suppress
 from datetime import datetime, timedelta
 import logging
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     CONF_NAME,
     CONF_SCAN_INTERVAL,
+    MAJOR_VERSION,
+    MINOR_VERSION,
     __version__ as HA_VERSION,
 )
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
@@ -89,6 +92,10 @@ TELEMETRY_FLUSH_INTERVAL = timedelta(minutes=5)
 # saturates. One extra request per cycle doubles the drain rate. It sits past
 # the endpoint's 60s rate-limit window and well before the next regular flush.
 TELEMETRY_CATCHUP_DELAY = timedelta(seconds=65)
+
+# `async_get_or_create` takes `via_device_id` since HA 2026.8 and drops the
+# identifier-based `via_device` in 2027.8. Older releases only know the latter.
+_HAS_VIA_DEVICE_ID = (MAJOR_VERSION, MINOR_VERSION) >= (2026, 8)
 
 # Ceiling on the final flush at unload. The client retries three times with
 # backoff, so an unreachable endpoint would otherwise hold up a Home Assistant
@@ -323,6 +330,13 @@ def _build_telemetry_collector(
         buffer_max_size=compute_buffer_max_size(scan_interval, stride),
         collect_stride=stride,
     )
+
+
+def _via(parent: dr.DeviceEntry) -> dict[str, Any]:
+    """Return the keyword linking a device to its parent on this HA version."""
+    if _HAS_VIA_DEVICE_ID:
+        return {"via_device_id": parent.id}
+    return {"via_device": next(iter(parent.identifiers))}
 
 
 def _schedule_telemetry_flush(
@@ -674,7 +688,7 @@ async def async_setup_entry(
     _LOGGER.debug("Registering devices for unit model %s", profile.name)
 
     # Add gateway device
-    device_registry.async_get_or_create(
+    gateway_device = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}")},
         manufacturer=gateway_manufacturer,
@@ -685,14 +699,14 @@ async def async_setup_entry(
     )
 
     # Add main unit device
-    device_registry.async_get_or_create(
+    control_unit_device = device_registry.async_get_or_create(
         config_entry_id=entry.entry_id,
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
         manufacturer=MANUFACTURER,
         model=profile.name,
         name=DEVICE_CONTROL_UNIT.replace("_", " ").title(),  # Fallback name
         translation_key="control_unit",
-        via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}"),
+        **_via(gateway_device),
     )
 
     # Add primary compressor device
@@ -703,7 +717,7 @@ async def async_setup_entry(
         model=profile.name,
         name=DEVICE_PRIMARY_COMPRESSOR.replace("_", " ").title(),  # Fallback name
         translation_key="primary_compressor",
-        via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+        **_via(control_unit_device),
     )
 
     # Add secondary compressor device for S80 model
@@ -716,7 +730,7 @@ async def async_setup_entry(
             model=profile.name,
             name=DEVICE_SECONDARY_COMPRESSOR.replace("_", " ").title(),  # Fallback name
             translation_key="secondary_compressor",
-            via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+            **_via(control_unit_device),
         )
 
     # Add Circuit 1 device if configured
@@ -729,7 +743,7 @@ async def async_setup_entry(
             model=profile.name,
             name=DEVICE_CIRCUIT_1.replace("_", " ").title(),  # Fallback name
             translation_key="circuit1",
-            via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+            **_via(control_unit_device),
         )
 
     # Add Circuit 2 device if configured
@@ -742,7 +756,7 @@ async def async_setup_entry(
             model=profile.name,
             name=DEVICE_CIRCUIT_2.replace("_", " ").title(),  # Fallback name
             translation_key="circuit2",
-            via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+            **_via(control_unit_device),
         )
 
     # Add DHW device if configured
@@ -755,7 +769,7 @@ async def async_setup_entry(
             model=profile.name,
             name=DEVICE_DHW.replace("_", " ").capitalize(),  # Fallback name
             translation_key="dhw",
-            via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+            **_via(control_unit_device),
         )
 
     # Add Pool device if configured
@@ -768,7 +782,7 @@ async def async_setup_entry(
             model=profile.name,
             name=DEVICE_POOL.replace("_", " ").title(),  # Fallback name
             translation_key="pool",
-            via_device=(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}"),
+            **_via(control_unit_device),
         )
 
     # Energy cost onboarding: suggest price entity configuration
