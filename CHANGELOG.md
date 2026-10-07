@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0-beta.8] - 2026-10-07
+
 ### Fixed
 
 - Telemetry no longer drops points every few hours on the widest heat-pump profiles,
