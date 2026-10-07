@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- No more `Detected that custom integration 'hitachi_yutaki' calls
+  device_registry.async_get_or_create with a deprecated via_device parameter`
+  warning at startup on Home Assistant 2026.9 and later, ahead of the parameter's
+  removal in 2027.8. Devices are now linked to their parent by registry id on Home
+  Assistant 2026.8+, and by identifier as before on older releases.
+
+### Fixed
+
 - Dutch: the power setup step and the power and sensors options step were both titled
   "External sensor configuration", dropping the power supply they configure. They now
   read "Vermogensconfiguratie" and "Vermogen- en sensorconfiguratie".
