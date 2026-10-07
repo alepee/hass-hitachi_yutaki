@@ -110,7 +110,7 @@
       },
       "sensors": {
         "title": "Vermogen- en sensorconfiguratie",
-        "description": "Configureer de externe elektriciteit- en temperatuursensoren.",
+        "description": "Configureer de voeding en de externe sensoren.",
         "data": {
           "power_supply": "Voeding",
           "voltage_entity": "Spanningssensor (optioneel)",
@@ -147,7 +147,7 @@
         "description": "Uw Hitachi Yutaki integratie mist vereiste configuratieparameters. Selecteer de ontbrekende parameters om door te gaan.",
         "data": {
           "gateway_type": "Gatewaytype",
-          "profile": "Warmtepompmodel"
+          "profile": "Warmtepompprofiel"
         }
       },
       "telemetry": {

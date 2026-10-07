@@ -15,6 +15,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dutch: the refrigerant charge status showed "Alarm" in its alert state, the same word
   as the heat pump's own alarm sensor and alarm codes. It now reads "Waarschuwing", and
   the refrigerant repair issues name the state accordingly.
+- Dutch: the power and sensors options step now describes the power supply it
+  configures, and the profile repair step asks for the heat pump profile rather than
+  the model.
 
 ## [2.2.0-beta.8] - 2026-10-07
 
