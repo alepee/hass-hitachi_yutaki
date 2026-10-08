@@ -1,1 +1,881 @@
-{}
+{
+    "device": {
+        "gateway": {
+            "name": "Passarel·la"
+        },
+        "control_unit": {
+            "name": "Unitat de control"
+        },
+        "primary_compressor": {
+            "name": "Compressor exterior"
+        },
+        "secondary_compressor": {
+            "name": "Compressor interior"
+        },
+        "circuit1": {
+            "name": "Circuit 1"
+        },
+        "circuit2": {
+            "name": "Circuit 2"
+        },
+        "dhw": {
+            "name": "ACS"
+        },
+        "pool": {
+            "name": "Piscina"
+        }
+    },
+    "selector": {
+        "gateway_type": {
+            "options": {
+                "modbus_atw_mbs_02": "Modbus ATW-MBS-02",
+                "modbus_hc_a_mb": "Modbus HC-A(16/64)MB (beta)"
+            }
+        },
+        "gateway_variant": {
+            "options": {
+                "gen1": "Gen 1 (NWE/NWSE)",
+                "gen2": "Gen 2+ (NW1E, RW1E, RW2E, RW3E)"
+            }
+        },
+        "profile": {
+            "options": {
+                "yutaki_s": "Yutaki S",
+                "yutaki_s_combi": "Yutaki S Combi",
+                "yutaki_s80": "Yutaki S80",
+                "yutaki_m": "Yutaki M",
+                "yutampo_r32": "Yutampo R32",
+                "yutaki_sc_lite": "Yutaki SC Lite",
+                "ycc": "YCC"
+            }
+        },
+        "power_supply": {
+            "options": {
+                "single": "Monofàsica",
+                "three": "Trifàsica"
+            }
+        },
+        "telemetry_level": {
+            "options": {
+                "off": "😢 Desactivada: no s'envia cap dada",
+                "on": "🤩 Activada: les mètriques anonimitzades ajuden a millorar la integració"
+            }
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Passarel·la Hitachi Yutaki",
+                "description": "Seleccioneu el tipus de passarel·la de la vostra bomba de calor Hitachi Yutaki.",
+                "data": {
+                    "gateway_type": "Tipus de passarel·la"
+                }
+            },
+            "atw_mbs_02_variant": {
+                "title": "Generació del maquinari",
+                "description": "Seleccioneu la generació del maquinari segons el sufix de la referència del model de la unitat (a la placa de característiques).\n\n**Gen 1**: unitats R410A fabricades abans de ~2016.\n**Gen 2+**: unitats R410A/R32 fabricades a partir de ~2016.\n\n[Ajudeu-me a identificar el meu model]({model_decoder_url})",
+                "data": {
+                    "gateway_variant": "Generació"
+                }
+            },
+            "atw_mbs_02_connection": {
+                "title": "Paràmetres de connexió",
+                "description": "Introduïu les dades de connexió de la passarel·la de la vostra bomba de calor Hitachi Yutaki.",
+                "data": {
+                    "name": "Nom",
+                    "modbus_host": "Amfitrió/adreça IP",
+                    "modbus_port": "Port",
+                    "modbus_device_id": "ID del dispositiu Modbus",
+                    "scan_interval": "Interval de consulta (segons)"
+                }
+            },
+            "hc_a_mb_connection": {
+                "title": "Paràmetres de connexió",
+                "description": "Introduïu les dades de connexió de la passarel·la de la vostra bomba de calor Hitachi Yutaki.",
+                "data": {
+                    "name": "Nom",
+                    "modbus_host": "Amfitrió/adreça IP",
+                    "modbus_port": "Port",
+                    "modbus_device_id": "ID del dispositiu Modbus",
+                    "unit_id": "ID de la unitat",
+                    "scan_interval": "Interval de consulta (segons)"
+                }
+            },
+            "profile": {
+                "title": "Model de bomba de calor",
+                "description": "Seleccioneu el model de la vostra bomba de calor.",
+                "data": {
+                    "profile": "Model de bomba de calor"
+                }
+            },
+            "sensors": {
+                "title": "Configuració de l'alimentació i els sensors",
+                "description": "Configureu l'alimentació elèctrica i els sensors externs.",
+                "data": {
+                    "power_supply": "Alimentació elèctrica",
+                    "voltage_entity": "Sensor de tensió (opcional)",
+                    "power_entity": "Sensor de potència (opcional)",
+                    "energy_entity": "Sensor d'energia (opcional)",
+                    "water_inlet_temp_entity": "Sensor de temperatura d'entrada d'aigua (opcional)",
+                    "water_outlet_temp_entity": "Sensor de temperatura de sortida d'aigua (opcional)",
+                    "electricity_price_entity": "Sensor de preu de l'electricitat (opcional)"
+                },
+                "data_description": {
+                    "electricity_price_entity": "Un sensor que proporciona el preu actual de l'electricitat en la vostra moneda per kWh (p. ex. 0.18 per a 0,18 {currency}/kWh). Activa el sensor de cost de l'electricitat."
+                }
+            },
+            "advanced_features": {
+                "title": "Funcions avançades (beta)",
+                "description": "🧪 Els detectors de manteniment preventiu s'executen localment a partir dels senyals de la mateixa bomba de calor i us avisen d'un problema abans que es converteixi en una avaria.\n\n⚠️ Aquests detectors són en fase beta. Tracteu qualsevol alerta com una pista per mirar-ho més de prop, no com un diagnòstic: pot ser un fals positiu. NO truqueu a un tècnic ni pagueu cap servei només per una alerta, comproveu-ho sempre abans.\n\n🙏 Activar la telemetria anònima (pas següent / opcions de la integració) m'ajuda a comprovar la fiabilitat d'aquests detectors en tot el parc i a arribar abans a una versió estable.\n\nPodeu canviar tot això en qualsevol moment a les opcions de la integració.\n\n[Més informació sobre el manteniment preventiu]({learn_more_url})",
+                "sections": {
+                    "preventive_maintenance": {
+                        "name": "Manteniment preventiu",
+                        "description": "Activeu els detectors que vulgueu executar. Cadascun és independent.",
+                        "data": {
+                            "refrigerant_detection": "Supervisió de la càrrega de refrigerant (beta)",
+                            "cycling_detection": "Detecció de cicles curts del compressor (beta)"
+                        },
+                        "data_description": {
+                            "refrigerant_detection": "Detecció precoç d'una pèrdua lenta de càrrega de refrigerant, a partir del sobreescalfament de la línia de gas i de la deriva de la vàlvula d'expansió. Necessita unes dues setmanes de calefacció per aprendre el comportament normal de la vostra instal·lació. Només és orientatiu: no substitueix el control d'estanquitat F-Gas obligatori.",
+                            "cycling_detection": "Detecta un compressor que s'engega i s'atura massa sovint en calefacció, cosa que el desgasta i en redueix l'eficiència. Normalment indica una unitat sobredimensionada, un volum d'inèrcia insuficient o una corba de calefacció massa alta. Necessita tres dies de calefacció per emetre un veredicte."
+                        }
+                    }
+                }
+            },
+            "repair": {
+                "title": "Reparació de la configuració d'Hitachi Yutaki",
+                "description": "A la vostra integració Hitachi Yutaki li falten paràmetres de configuració obligatoris. Seleccioneu els paràmetres que falten per continuar.",
+                "data": {
+                    "gateway_type": "Tipus de passarel·la",
+                    "profile": "Perfil de la bomba de calor"
+                }
+            },
+            "telemetry": {
+                "title": "Ajudeu a millorar aquesta integració",
+                "description": "Desenvolupo i provo amb un sol model de bomba de calor. Per a tots els altres, treballo a cegues: les vostres dades anònimes m'ajuden a crear proves realistes, detectar regressions i desenvolupar noves funcions. Mai no es recull cap informació personal.\n\n[Més informació sobre la telemetria]({learn_more_url})",
+                "data": {
+                    "telemetry_level": "Telemetria anònima"
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "No s'ha pogut connectar a la passarel·la. Comproveu l'amfitrió i el port.",
+            "invalid_slave": "ID d'esclau Modbus no vàlid. Comproveu l'ID i torneu-ho a provar.",
+            "modbus_error": "S'ha produït un error de Modbus. Consulteu els registres per a més detalls.",
+            "invalid_central_control_mode": "La passarel·la ha d'estar en mode de control «Central». Canvieu-lo a la configuració de la passarel·la.",
+            "unknown": "S'ha produït un error desconegut. Consulteu els registres.",
+            "system_initializing": "La passarel·la Hitachi Yutaki s'està inicialitzant. Espereu un moment i torneu-ho a provar.",
+            "desync_error": "La passarel·la no està sincronitzada amb la bomba de calor. Assegureu-vos que la bomba de calor està engegada i que la connexió entre els dos dispositius és correcta.",
+            "gateway_not_ready": "La passarel·la és accessible però no està preparada (encara s'està inicialitzant, o no està sincronitzada amb la bomba de calor). És normal durant uns minuts just després d'engegar la passarel·la. Si persisteix, comproveu el cablejat H-LINK (borns 1-2 de la PCB de la unitat interior, parell trenat apantallat de 0,75 mm²) i consulteu la guia de resolució de problemes del projecte."
+        }
+    },
+    "config": {
+        "step": {
+            "user": {
+                "title": "Passarel·la Hitachi Yutaki",
+                "description": "Seleccioneu el tipus de passarel·la de la vostra bomba de calor Hitachi Yutaki.",
+                "data": {
+                    "gateway_type": "Tipus de passarel·la"
+                }
+            },
+            "atw_mbs_02_variant": {
+                "title": "Generació del maquinari",
+                "description": "La detecció automàtica suggereix: **{detected_variant}**. Comproveu-ho amb el sufix de la referència del model de la unitat (a la placa de característiques).\n\n**Gen 1**: unitats R410A fabricades abans de ~2016.\n**Gen 2+**: unitats R410A/R32 fabricades a partir de ~2016.\n\n[Ajudeu-me a identificar el meu model]({model_decoder_url})",
+                "data": {
+                    "gateway_variant": "Generació"
+                }
+            },
+            "atw_mbs_02_connection": {
+                "title": "Paràmetres de connexió",
+                "description": "Introduïu les dades de connexió de la passarel·la de la vostra bomba de calor Hitachi Yutaki.",
+                "data": {
+                    "name": "Nom",
+                    "modbus_host": "Amfitrió/adreça IP",
+                    "modbus_port": "Port",
+                    "modbus_device_id": "ID del dispositiu Modbus",
+                    "scan_interval": "Interval de consulta (segons)"
+                }
+            },
+            "hc_a_mb_connection": {
+                "title": "Paràmetres de connexió",
+                "description": "Introduïu les dades de connexió de la passarel·la de la vostra bomba de calor Hitachi Yutaki.",
+                "data": {
+                    "name": "Nom",
+                    "modbus_host": "Amfitrió/adreça IP",
+                    "modbus_port": "Port",
+                    "modbus_device_id": "ID del dispositiu Modbus",
+                    "unit_id": "ID de la unitat",
+                    "scan_interval": "Interval de consulta (segons)"
+                }
+            },
+            "profile": {
+                "title": "Model de bomba de calor",
+                "description": "Seleccioneu el model de la vostra bomba de calor. La integració intentarà detectar-lo automàticament, però podeu canviar-lo manualment si cal.",
+                "data": {
+                    "profile": "Model de bomba de calor"
+                }
+            },
+            "power": {
+                "title": "Configuració de l'alimentació",
+                "description": "Configureu l'alimentació i els sensors de temperatura externs.",
+                "data": {
+                    "power_supply": "Alimentació elèctrica",
+                    "voltage_entity": "Sensor de tensió (opcional)",
+                    "power_entity": "Sensor de potència (opcional)",
+                    "energy_entity": "Sensor d'energia (opcional)",
+                    "water_inlet_temp_entity": "Sensor de temperatura d'entrada d'aigua (opcional)",
+                    "water_outlet_temp_entity": "Sensor de temperatura de sortida d'aigua (opcional)",
+                    "electricity_price_entity": "Sensor de preu de l'electricitat (opcional)"
+                },
+                "data_description": {
+                    "electricity_price_entity": "Un sensor que proporciona el preu actual de l'electricitat en la vostra moneda per kWh (p. ex. 0.18 per a 0,18 {currency}/kWh). Activa el sensor de cost de l'electricitat."
+                }
+            },
+            "advanced_features": {
+                "title": "Funcions avançades (beta)",
+                "description": "🧪 Els detectors de manteniment preventiu s'executen localment a partir dels senyals de la mateixa bomba de calor i us avisen d'un problema abans que es converteixi en una avaria.\n\n⚠️ Aquests detectors són en fase beta. Tracteu qualsevol alerta com una pista per mirar-ho més de prop, no com un diagnòstic: pot ser un fals positiu. NO truqueu a un tècnic ni pagueu cap servei només per una alerta, comproveu-ho sempre abans.\n\n🙏 Activar la telemetria anònima (pas següent / opcions de la integració) m'ajuda a comprovar la fiabilitat d'aquests detectors en tot el parc i a arribar abans a una versió estable.\n\nPodeu canviar tot això en qualsevol moment a les opcions de la integració.\n\n[Més informació sobre el manteniment preventiu]({learn_more_url})",
+                "sections": {
+                    "preventive_maintenance": {
+                        "name": "Manteniment preventiu",
+                        "description": "Activeu els detectors que vulgueu executar. Cadascun és independent.",
+                        "data": {
+                            "refrigerant_detection": "Supervisió de la càrrega de refrigerant (beta)",
+                            "cycling_detection": "Detecció de cicles curts del compressor (beta)"
+                        },
+                        "data_description": {
+                            "refrigerant_detection": "Detecció precoç d'una pèrdua lenta de càrrega de refrigerant, a partir del sobreescalfament de la línia de gas i de la deriva de la vàlvula d'expansió. Necessita unes dues setmanes de calefacció per aprendre el comportament normal de la vostra instal·lació. Només és orientatiu: no substitueix el control d'estanquitat F-Gas obligatori.",
+                            "cycling_detection": "Detecta un compressor que s'engega i s'atura massa sovint en calefacció, cosa que el desgasta i en redueix l'eficiència. Normalment indica una unitat sobredimensionada, un volum d'inèrcia insuficient o una corba de calefacció massa alta. Necessita tres dies de calefacció per emetre un veredicte."
+                        }
+                    }
+                }
+            }
+        },
+        "error": {
+            "cannot_connect": "No s'ha pogut connectar a la passarel·la. Comproveu l'amfitrió i el port.",
+            "invalid_slave": "ID d'esclau Modbus no vàlid. Comproveu l'ID i torneu-ho a provar.",
+            "modbus_error": "S'ha produït un error de Modbus. Consulteu els registres per a més detalls.",
+            "invalid_central_control_mode": "La passarel·la ha d'estar en mode de control «Central». Canvieu-lo a la configuració de la passarel·la.",
+            "unknown": "S'ha produït un error desconegut. Consulteu els registres.",
+            "system_initializing": "La passarel·la Hitachi Yutaki s'està inicialitzant. Espereu un moment i torneu-ho a provar.",
+            "desync_error": "La passarel·la no està sincronitzada amb la bomba de calor. Assegureu-vos que la bomba de calor està engegada i que la connexió entre els dos dispositius és correcta.",
+            "gateway_not_ready": "La passarel·la és accessible però no està preparada (encara s'està inicialitzant, o no està sincronitzada amb la bomba de calor). És normal durant uns minuts just després d'engegar la passarel·la. Si persisteix, comproveu el cablejat H-LINK (borns 1-2 de la PCB de la unitat interior, parell trenat apantallat de 0,75 mm²) i consulteu la guia de resolució de problemes del projecte."
+        },
+        "abort": {
+            "already_configured": "Aquesta passarel·la Hitachi Yutaki ja està configurada.",
+            "unknown_gateway": "Tipus de passarel·la desconegut. Torneu a configurar la integració."
+        }
+    },
+    "entity": {
+        "sensor": {
+            "operation_state": {
+                "name": "Estat de funcionament",
+                "state": {
+                    "operation_state_off": "Apagat",
+                    "operation_state_cool_demand_off": "Sense demanda de refrigeració",
+                    "operation_state_cool_thermo_off": "Refrigeració Thermo OFF",
+                    "operation_state_cool_thermo_on": "Refrigeració Thermo ON",
+                    "operation_state_heat_demand_off": "Sense demanda de calefacció",
+                    "operation_state_heat_thermo_off": "Calefacció Thermo OFF",
+                    "operation_state_heat_thermo_on": "Calefacció Thermo ON",
+                    "operation_state_dhw_off": "ACS OFF",
+                    "operation_state_dhw_on": "ACS ON",
+                    "operation_state_pool_off": "Piscina OFF",
+                    "operation_state_pool_on": "Piscina ON",
+                    "operation_state_alarm": "Alarma",
+                    "operation_state_unknown": "Estat desconegut"
+                }
+            },
+            "outdoor_temp": {
+                "name": "Temperatura exterior"
+            },
+            "water_inlet_temp": {
+                "name": "Temperatura d'entrada d'aigua"
+            },
+            "water_outlet_temp": {
+                "name": "Temperatura de sortida d'aigua"
+            },
+            "water_outlet_2_temp": {
+                "name": "Temperatura de sortida d'aigua 2"
+            },
+            "water_outlet_3_temp": {
+                "name": "Temperatura de sortida d'aigua 3"
+            },
+            "water_target_temp": {
+                "name": "Temperatura de consigna corregida"
+            },
+            "water_flow": {
+                "name": "Cabal d'aigua"
+            },
+            "pump_speed": {
+                "name": "Velocitat de la bomba"
+            },
+            "compressor_frequency": {
+                "name": "Freqüència del compressor"
+            },
+            "compressor_current": {
+                "name": "Corrent del compressor"
+            },
+            "compressor_cycle_time": {
+                "name": "Temps de cicle del compressor",
+                "state": {
+                    "operation_state_off": "Apagat"
+                }
+            },
+            "compressor_tg_gas_temp": {
+                "name": "Temperatura del gas"
+            },
+            "compressor_ti_liquid_temp": {
+                "name": "Temperatura del líquid"
+            },
+            "compressor_td_discharge_temp": {
+                "name": "Temperatura de descàrrega"
+            },
+            "compressor_te_evaporator_temp": {
+                "name": "Temperatura de l'evaporador"
+            },
+            "compressor_evi_indoor_expansion_valve_opening": {
+                "name": "Obertura de la vàlvula d'expansió interior"
+            },
+            "compressor_evo_outdoor_expansion_valve_opening": {
+                "name": "Obertura de la vàlvula d'expansió exterior"
+            },
+            "electrical_power": {
+                "name": "Potència elèctrica"
+            },
+            "power_consumption": {
+                "name": "Consum elèctric"
+            },
+            "alarm": {
+                "name": "Alarma",
+                "state": {
+                    "alarm_code_0": "Cap alarma",
+                    "alarm_code_2": "Activació del dispositiu de seguretat de la unitat exterior",
+                    "alarm_code_3": "Transmissió anòmala entre les unitats interiors i la unitat exterior",
+                    "alarm_code_4": "Transmissió anòmala entre la PCB de control i la PCB de l'inversor de la unitat exterior",
+                    "alarm_code_5": "Codi de funcionament anòmal del senyal de detecció de fase",
+                    "alarm_code_6": "Tensió excessivament baixa o alta per a l'inversor",
+                    "alarm_code_7": "Disminució del sobreescalfament del gas de descàrrega",
+                    "alarm_code_8": "Temperatura excessiva del gas de descàrrega a la part superior del compressor",
+                    "alarm_code_11": "Anomalia del termistor de temperatura d'entrada d'aigua (THMWI)",
+                    "alarm_code_12": "Anomalia del termistor de temperatura de sortida d'aigua (THMWO)",
+                    "alarm_code_13": "Anomalia del termistor de temperatura de la canonada de líquid R410A interior (THML)",
+                    "alarm_code_14": "Anomalia del termistor de temperatura de la canonada de gas R410A interior (THMG)",
+                    "alarm_code_15": "Anomalia del termistor de temperatura de sortida d'aigua del circuit 2 (THMWO2)",
+                    "alarm_code_16": "Anomalia del termistor de temperatura d'ACS (THMDHW)",
+                    "alarm_code_17": "Anomalia del sensor auxiliar 2 (THMAUX2)",
+                    "alarm_code_18": "Anomalia del sensor universal",
+                    "alarm_code_19": "Anomalia del termistor de temperatura",
+                    "alarm_code_20": "Anomalia del termistor de temperatura del gas de descàrrega",
+                    "alarm_code_21": "Anomalia del sensor d'alta pressió",
+                    "alarm_code_22": "Anomalia del termistor de temperatura exterior (THM7)",
+                    "alarm_code_23": "Anomalia del termistor de temperatura del gas de descàrrega (THM9)",
+                    "alarm_code_24": "Anomalia del termistor de temperatura d'evaporació durant la calefacció (THM8)",
+                    "alarm_code_25": "Anomalia del sensor auxiliar 3 (THMAUX3)",
+                    "alarm_code_26": "Error de configuració de potència o de potència combinada entre la unitat interior i l'exterior",
+                    "alarm_code_35": "Error de configuració de potència o de potència combinada entre la unitat interior i l'exterior",
+                    "alarm_code_36": "Error de configuració de potència o de potència combinada entre la unitat interior i l'exterior",
+                    "alarm_code_38": "Anomalia del circuit de protecció (unitat exterior)",
+                    "alarm_code_40": "Configuració incorrecta del controlador de la unitat",
+                    "alarm_code_41": "Sobrecàrrega del pressòstat d'alta pressió",
+                    "alarm_code_42": "Sobrecàrrega en calefacció (s'ha d'activar el pressòstat d'alta pressió)",
+                    "alarm_code_45": "Activació de la protecció contra l'augment de l'alta pressió",
+                    "alarm_code_47": "Activació de la protecció del sistema contra una pressió d'aspiració insuficient",
+                    "alarm_code_48": "Activació de la protecció contra sobreintensitat",
+                    "alarm_code_51": "Funcionament anòmal del sensor de corrent",
+                    "alarm_code_53": "Activació del mòdul de transistors",
+                    "alarm_code_54": "Anomalia de temperatura de l'aleta de l'inversor",
+                    "alarm_code_57": "Anomalia de la protecció del motor del ventilador (motor de ventilador CC)",
+                    "alarm_code_70": "Alarma de cabal d'aigua i mal funcionament de la bomba d'aigua",
+                    "alarm_code_72": "Alarma del termòstat de l'escalfador d'aigua",
+                    "alarm_code_73": "Protecció de límit de temperatura màxima del circuit mesclat",
+                    "alarm_code_74": "Protecció de límit de temperatura de la unitat",
+                    "alarm_code_75": "Protecció antigel per detecció de la temperatura d'entrada/sortida d'aigua freda",
+                    "alarm_code_76": "Aturada per protecció antigel del termistor de temperatura del líquid interior",
+                    "alarm_code_77": "Error de comunicació del receptor sense fil intel·ligent",
+                    "alarm_code_78": "Error de comunicació RF",
+                    "alarm_code_79": "Configuració de potència incorrecta",
+                    "alarm_code_80": "Error de comunicació del comandament a distància H-LINK",
+                    "alarm_code_81": "Interrupció momentània de l'alimentació o baixa tensió detectada",
+                    "alarm_code_83": "Anomalia de baixa pressió al circuit hidràulic",
+                    "alarm_code_101": "Ordre d'activació del pressòstat d'alta pressió",
+                    "alarm_code_102": "Activació del control de protecció per alta pressió excessiva",
+                    "alarm_code_104": "Activació del control de protecció per baixa pressió",
+                    "alarm_code_105": "Diferència de baixa pressió excessiva",
+                    "alarm_code_106": "Temperatura excessiva del gas de descàrrega",
+                    "alarm_code_129": "Fallada del sensor de pressió del gas de descàrrega",
+                    "alarm_code_130": "Fallada del sensor de pressió del gas d'aspiració",
+                    "alarm_code_132": "Error de transmissió entre la PCB de l'inversor i la PCB principal",
+                    "alarm_code_134": "Control d'anomalia de fase de la font d'alimentació",
+                    "alarm_code_135": "Configuració incorrecta de la PCB",
+                    "alarm_code_151": "Control d'anomalia de tensió de l'inversor",
+                    "alarm_code_152": "Funcionament anòmal del sensor de corrent",
+                    "alarm_code_153": "Activació de la protecció contra sobreintensitat de l'inversor (I)",
+                    "alarm_code_154": "Activació de la protecció del mòdul de transistors",
+                    "alarm_code_155": "Control d'anomalia de l'aleta de l'inversor",
+                    "alarm_code_156": "Fallada de l'inversor",
+                    "alarm_code_157": "Altres anomalies",
+                    "alarm_code_202": "Configuració incorrecta del controlador PC-ARF HE",
+                    "alarm_code_203": "Aturada del PC-ARFHE esclau en resposta al PC-ARFHE mestre",
+                    "alarm_code_204": "La unitat interior perd la comunicació amb el PC-ARFHE mestre",
+                    "alarm_code_205": "Alarma central, sense missatge central"
+                }
+            },
+            "secondary_compressor_discharge_temp": {
+                "name": "Temperatura de descàrrega del compressor secundari"
+            },
+            "secondary_compressor_suction_temp": {
+                "name": "Temperatura d'aspiració del compressor secundari"
+            },
+            "secondary_compressor_discharge_pressure": {
+                "name": "Pressió de descàrrega del compressor secundari"
+            },
+            "secondary_compressor_suction_pressure": {
+                "name": "Pressió d'aspiració del compressor secundari"
+            },
+            "secondary_compressor_frequency": {
+                "name": "Freqüència del compressor secundari"
+            },
+            "secondary_compressor_current": {
+                "name": "Corrent del compressor secundari"
+            },
+            "cop_heating": {
+                "name": "COP de calefacció",
+                "state_attributes": {
+                    "quality": {
+                        "name": "Qualitat",
+                        "state": {
+                            "no_data": "Sense dades",
+                            "insufficient_data": "Dades insuficients",
+                            "preliminary": "Preliminar",
+                            "optimal": "Òptima"
+                        }
+                    },
+                    "measurements": {
+                        "name": "Nombre de mesures"
+                    },
+                    "time_span_minutes": {
+                        "name": "Període de mesura"
+                    }
+                }
+            },
+            "cop_cooling": {
+                "name": "COP de refrigeració",
+                "state_attributes": {
+                    "quality": {
+                        "name": "Qualitat",
+                        "state": {
+                            "no_data": "Sense dades",
+                            "insufficient_data": "Dades insuficients",
+                            "preliminary": "Preliminar",
+                            "optimal": "Òptima"
+                        }
+                    },
+                    "measurements": {
+                        "name": "Nombre de mesures"
+                    },
+                    "time_span_minutes": {
+                        "name": "Període de mesura"
+                    }
+                }
+            },
+            "cop_dhw": {
+                "name": "COP d'ACS",
+                "state_attributes": {
+                    "quality": {
+                        "name": "Qualitat",
+                        "state": {
+                            "no_data": "Sense dades",
+                            "insufficient_data": "Dades insuficients",
+                            "preliminary": "Preliminar",
+                            "optimal": "Òptima"
+                        }
+                    },
+                    "measurements": {
+                        "name": "Nombre de mesures"
+                    },
+                    "time_span_minutes": {
+                        "name": "Període de mesura"
+                    }
+                }
+            },
+            "cop_pool": {
+                "name": "COP de piscina",
+                "state_attributes": {
+                    "quality": {
+                        "name": "Qualitat",
+                        "state": {
+                            "no_data": "Sense dades",
+                            "insufficient_data": "Dades insuficients",
+                            "preliminary": "Preliminar",
+                            "optimal": "Òptima"
+                        }
+                    },
+                    "measurements": {
+                        "name": "Nombre de mesures"
+                    },
+                    "time_span_minutes": {
+                        "name": "Període de mesura"
+                    }
+                }
+            },
+            "compressor_runtime": {
+                "name": "Temps de funcionament del compressor"
+            },
+            "compressor_resttime": {
+                "name": "Temps de repòs del compressor"
+            },
+            "secondary_compressor_cycle_time": {
+                "name": "Temps de cicle del compressor secundari"
+            },
+            "secondary_compressor_runtime": {
+                "name": "Temps de funcionament del compressor secundari"
+            },
+            "secondary_compressor_resttime": {
+                "name": "Temps de repòs del compressor secundari"
+            },
+            "thermal_power_heating": {
+                "name": "Potència tèrmica de calefacció"
+            },
+            "thermal_power_cooling": {
+                "name": "Potència tèrmica de refrigeració"
+            },
+            "thermal_energy_heating_daily": {
+                "name": "Energia tèrmica de calefacció diària"
+            },
+            "thermal_energy_heating_total": {
+                "name": "Energia tèrmica de calefacció total"
+            },
+            "thermal_energy_cooling_daily": {
+                "name": "Energia tèrmica de refrigeració diària"
+            },
+            "thermal_energy_cooling_total": {
+                "name": "Energia tèrmica de refrigeració total"
+            },
+            "system_state": {
+                "name": "Estat de sincronització de la passarel·la",
+                "state": {
+                    "synchronized": "Sincronitzada",
+                    "desynchronized": "Desincronitzada",
+                    "initializing": "S'està inicialitzant"
+                }
+            },
+            "telemetry_status": {
+                "name": "Estat de la telemetria",
+                "state": {
+                    "off": "Desactivada",
+                    "on": "Activada"
+                }
+            },
+            "refrigerant_charge_status": {
+                "name": "Estat de la càrrega de refrigerant",
+                "state": {
+                    "learning": "Aprenentatge",
+                    "ok": "Correcte",
+                    "watch": "Vigilància",
+                    "alert": "Alerta"
+                }
+            },
+            "dhw_demand_mode": {
+                "name": "Mode de demanda d'ACS",
+                "state": {
+                    "standard": "Estàndard",
+                    "high_demand": "Demanda alta"
+                }
+            },
+            "electricity_cost": {
+                "name": "Cost de l'electricitat"
+            },
+            "compressor_cycling_status": {
+                "name": "Cicles del compressor",
+                "state": {
+                    "learning": "Aprenentatge",
+                    "ok": "Normal",
+                    "watch": "Vigilància",
+                    "alert": "Cicles curts"
+                }
+            }
+        },
+        "binary_sensor": {
+            "connectivity": {
+                "name": "Connectivitat"
+            },
+            "defrost": {
+                "name": "Desglaç"
+            },
+            "solar": {
+                "name": "Solar"
+            },
+            "pump1": {
+                "name": "Bomba 1"
+            },
+            "pump2": {
+                "name": "Bomba 2"
+            },
+            "pump3": {
+                "name": "Bomba 3"
+            },
+            "compressor": {
+                "name": "Compressor"
+            },
+            "boiler": {
+                "name": "Caldera"
+            },
+            "dhw_heater": {
+                "name": "Resistència d'ACS"
+            },
+            "space_heater": {
+                "name": "Resistència de calefacció"
+            },
+            "smart_function": {
+                "name": "Funció Smart"
+            },
+            "compressor_running": {
+                "name": "Compressor en funcionament"
+            },
+            "secondary_compressor_running": {
+                "name": "Compressor secundari en funcionament"
+            },
+            "antilegionella_cycle": {
+                "name": "Cicle antilegionel·la"
+            }
+        },
+        "select": {
+            "operation_mode_heat": {
+                "name": "Mode de funcionament",
+                "state": {
+                    "heat": "Calefacció",
+                    "auto": "Automàtic"
+                }
+            },
+            "operation_mode_full": {
+                "name": "Mode de funcionament",
+                "state": {
+                    "cool": "Refrigeració",
+                    "heat": "Calefacció",
+                    "auto": "Automàtic"
+                }
+            },
+            "otc_calculation_method_heating": {
+                "name": "Mètode de compensació de calefacció",
+                "state": {
+                    "disabled": "Desactivat",
+                    "points": "Punts",
+                    "gradient": "Gradient",
+                    "fix": "Fix"
+                }
+            },
+            "otc_calculation_method_cooling": {
+                "name": "Mètode de compensació de refrigeració",
+                "state": {
+                    "disabled": "Desactivat",
+                    "points": "Punts",
+                    "fix": "Fix"
+                }
+            }
+        },
+        "switch": {
+            "power": {
+                "name": "Alimentació"
+            },
+            "thermostat": {
+                "name": "Termòstat"
+            },
+            "eco_mode": {
+                "name": "Mode ECO"
+            },
+            "boost": {
+                "name": "Boost"
+            },
+            "high_demand": {
+                "name": "Demanda alta"
+            }
+        },
+        "button": {
+            "antilegionella": {
+                "name": "Inicia el cicle antilegionel·la"
+            },
+            "reset_refrigerant_baseline": {
+                "name": "Restableix la referència del refrigerant"
+            }
+        },
+        "number": {
+            "max_flow_temp_heating_otc": {
+                "name": "Temperatura d'impulsió màxima en calefacció"
+            },
+            "max_flow_temp_cooling_otc": {
+                "name": "Temperatura d'impulsió màxima en refrigeració"
+            },
+            "heat_eco_offset": {
+                "name": "Desplaçament ECO de calefacció"
+            },
+            "cool_eco_offset": {
+                "name": "Desplaçament ECO de refrigeració"
+            },
+            "eco_offset": {
+                "name": "Desplaçament ECO"
+            },
+            "current_temp": {
+                "name": "Temperatura actual"
+            },
+            "target_temp": {
+                "name": "Temperatura de consigna"
+            },
+            "pool_current_temperature": {
+                "name": "Temperatura actual"
+            },
+            "pool_target_temperature": {
+                "name": "Temperatura de consigna"
+            },
+            "antilegionella_temp": {
+                "name": "Temperatura antilegionel·la"
+            }
+        },
+        "climate": {
+            "climate": {
+                "name": "Control de climatització",
+                "state": {
+                    "off": "Apagat",
+                    "heat": "Calefacció",
+                    "cool": "Refrigeració",
+                    "auto": "Automàtic",
+                    "idle": "Inactiu",
+                    "defrost": "Desglaç"
+                },
+                "state_attributes": {
+                    "preset_mode": {
+                        "state": {
+                            "eco": "Eco",
+                            "comfort": "Confort"
+                        }
+                    }
+                }
+            }
+        },
+        "water_heater": {
+            "dhw": {
+                "name": "Control d'ACS",
+                "state": {
+                    "off": "Apagat",
+                    "standard": "Estàndard",
+                    "high_demand": "Demanda alta"
+                }
+            }
+        }
+    },
+    "services": {
+        "set_room_temperature": {
+            "name": "Estableix la temperatura ambient",
+            "description": "Envia la temperatura ambient mesurada a la bomba de calor. S'utilitza quan el termòstat Modbus està activat per proporcionar la lectura de temperatura ambient per a la regulació del termòstat.",
+            "fields": {
+                "temperature": {
+                    "name": "Temperatura",
+                    "description": "La temperatura ambient mesurada, en graus Celsius."
+                }
+            }
+        }
+    },
+    "issues": {
+        "desync_warning": {
+            "title": "Passarel·la Hitachi desincronitzada",
+            "description": "La passarel·la Hitachi ha perdut la sincronització amb la bomba de calor durant més de 3 minuts. Les entitats no estaran disponibles fins que es restableixi la connexió.\n\n**Per resoldre-ho:**\n1. Comproveu la connexió física entre la passarel·la i la bomba de calor.\n2. Assegureu-vos que la bomba de calor està engegada.\n3. Reinicieu la bomba de calor i la passarel·la si el problema persisteix."
+        },
+        "connection_error": {
+            "title": "Passarel·la Hitachi inaccessible",
+            "description": "La integració no s'ha pogut connectar a la passarel·la Hitachi Yutaki. Les entitats no estaran disponibles fins que es restableixi la connexió.\n\n**Per resoldre-ho:**\n1. Comproveu que la passarel·la està engegada i connectada a la xarxa.\n2. Verifiqueu que l'adreça IP i el port configurats a Home Assistant són correctes."
+        },
+        "refrigerant_charge_alert": {
+            "title": "Possible pèrdua de càrrega de refrigerant",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "S'ha revisat el circuit de refrigerant?",
+                        "description": "Fa diversos dies que l'estat de la càrrega de refrigerant es manté en **Alerta**: el sobreescalfament de la línia de gas i l'obertura de la vàlvula d'expansió han augmentat tots dos respecte a la referència apresa, el senyal típic d'una pèrdua lenta de refrigerant.\n\nAixò és un **avís orientatiu** basat en la supervisió contínua de les vostres pròpies dades de funcionament. **Complementa** i **no substitueix** el control d'estanquitat periòdic obligatori que ha de fer un tècnic certificat. Us recomanem programar un control d'estanquitat amb el vostre instal·lador. L'avís desapareix automàticament quan les lectures es recuperen.\n\nConfirmeu-ho a continuació només si un tècnic certificat ha inspeccionat o revisat el circuit de refrigerant (control de fuites, recàrrega, revisió de la vàlvula d'expansió). Això restableix la referència de detecció: el detector torna a l'estat d'**aprenentatge** i necessita unes 2 setmanes de funcionament en calefacció per aprendre una nova referència. És la mateixa acció que el botó **Restableix la referència del refrigerant**."
+                    }
+                },
+                "abort": {
+                    "entry_not_found": "La unitat Hitachi Yutaki per a la qual es va crear aquesta reparació ja no està configurada. S'ha eliminat la reparació."
+                }
+            }
+        },
+        "refrigerant_charge_alert_stale": {
+            "title": "Possible pèrdua de càrrega de refrigerant",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "S'ha revisat el circuit de refrigerant?",
+                        "description": "Fa diversos dies que l'estat de la càrrega de refrigerant es manté en **Alerta**: el sobreescalfament de la línia de gas i l'obertura de la vàlvula d'expansió han augmentat tots dos respecte a la referència apresa, el senyal típic d'una pèrdua lenta de refrigerant.\n\n**Nota: aquest veredicte es basa en dades antigues.** L'últim dia amb un funcionament en calefacció vàlid va ser el **{last_valid_day}**, fa {days_since_valid_data} dies, normalment perquè la temporada de calefacció ha acabat. Una pèrdua lenta de refrigerant no es repara sola, de manera que aquesta alerta es manté expressament i no desapareixerà fins que es reprengui la calefacció o confirmeu que s'ha revisat el circuit. Us recomanem programar un control d'estanquitat amb el vostre instal·lador abans de la propera temporada de calefacció.\n\nConfirmeu-ho a continuació només si un tècnic certificat ha inspeccionat o revisat el circuit de refrigerant (control de fuites, recàrrega, revisió de la vàlvula d'expansió). Això restableix la referència de detecció: el detector torna a l'estat d'**aprenentatge** i necessita unes 2 setmanes de funcionament en calefacció per aprendre una nova referència. És la mateixa acció que el botó **Restableix la referència del refrigerant**."
+                    }
+                },
+                "abort": {
+                    "entry_not_found": "La unitat Hitachi Yutaki per a la qual es va crear aquesta reparació ja no està configurada. S'ha eliminat la reparació."
+                }
+            }
+        },
+        "initializing_warning": {
+            "title": "La passarel·la Hitachi s'està inicialitzant",
+            "description": "La passarel·la Hitachi Yutaki s'està inicialitzant. És normal després d'un reinici i només hauria de trigar uns minuts. Si aquest avís persisteix, proveu de reiniciar la passarel·la."
+        },
+        "missing_config": {
+            "title": "Configuració d'Hitachi Yutaki incompleta",
+            "description": "A la vostra integració Hitachi Yutaki li falten paràmetres de configuració obligatoris (tipus de passarel·la i/o perfil de la bomba de calor). La integració no es pot configurar fins que s'hagin definit aquests paràmetres.\n\n**Per resoldre-ho:**\n1. Aneu a Configuració > Dispositius i serveis > Hitachi Yutaki\n2. Feu clic a la integració i seleccioneu Configura\n3. Seleccioneu els paràmetres que falten (tipus de passarel·la i perfil de la bomba de calor)\n4. Deseu la configuració"
+        },
+        "enable_telemetry": {
+            "title": "Ajudeu a millorar Hitachi Yutaki",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Ajudeu a millorar aquesta integració",
+                        "description": "Desenvolupo i provo amb un sol model de bomba de calor. Per a tots els altres, treballo a cegues: les vostres dades anònimes m'ajuden a crear proves realistes, detectar regressions i desenvolupar noves funcions. Mai no es recull cap informació personal. Podeu canviar-ho en qualsevol moment a les opcions de la integració.\n\n[Més informació sobre la telemetria]({learn_more_url})",
+                        "data": {
+                            "telemetry_level": "Telemetria anònima"
+                        }
+                    }
+                },
+                "abort": {
+                    "entry_not_found": "La unitat Hitachi Yutaki per a la qual es va crear aquesta reparació ja no està configurada. S'ha eliminat la reparació."
+                }
+            }
+        },
+        "enable_refrigerant_detection": {
+            "title": "Proveu la supervisió de la càrrega de refrigerant (beta)",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Funcions avançades (beta)",
+                        "description": "🧪 Activeu la detecció experimental precoç d'una pèrdua lenta de càrrega de refrigerant, calculada localment a partir dels senyals del compressor.\n\n⚠️ Aquesta funció és en fase beta i, de moment, es basa en molt poques dades de validació. Només es considerarà estable després d'haver-la comprovat durant tota una temporada de calefacció d'hivern. Tracteu qualsevol alerta com una pista per mirar-ho més de prop, no com un diagnòstic: pot ser un fals positiu. NO truqueu a un tècnic ni pagueu cap servei només per una alerta, comproveu-ho sempre abans. És orientativa i no substitueix el control d'estanquitat F-Gas obligatori.\n\n🙏 Activar la telemetria anònima (pas següent / opcions de la integració) m'ajuda a comprovar la fiabilitat del detector en tot el parc i a arribar abans a una versió estable.\n\nPodeu canviar-ho en qualsevol moment a les opcions de la integració.\n\n[Més informació sobre la supervisió del refrigerant]({learn_more_url})",
+                        "data": {
+                            "refrigerant_detection": "Activa la supervisió de la càrrega de refrigerant (beta)"
+                        }
+                    }
+                },
+                "abort": {
+                    "entry_not_found": "La unitat Hitachi Yutaki per a la qual es va crear aquesta reparació ja no està configurada. S'ha eliminat la reparació."
+                }
+            }
+        },
+        "enable_energy_cost": {
+            "title": "Feu el seguiment del cost elèctric de la vostra bomba de calor",
+            "fix_flow": {
+                "step": {
+                    "confirm": {
+                        "title": "Seguiment del cost de l'electricitat",
+                        "description": "Ara podeu fer el seguiment del cost elèctric de la vostra bomba de calor. Indiqueu un sensor que exposi el preu actual de l'electricitat en la vostra moneda per kWh, i la integració calcularà un sensor de cost acumulat.\n\nPodeu canviar-ho en qualsevol moment a les opcions de la integració.",
+                        "data": {
+                            "electricity_price_entity": "Sensor de preu de l'electricitat"
+                        },
+                        "data_description": {
+                            "electricity_price_entity": "Un sensor que proporciona el preu actual de l'electricitat en la vostra moneda per kWh (p. ex. 0.18 per a 0,18 {currency}/kWh)."
+                        }
+                    }
+                },
+                "abort": {
+                    "entry_not_found": "La unitat Hitachi Yutaki per a la qual es va crear aquesta reparació ja no està configurada. S'ha eliminat la reparació."
+                }
+            }
+        },
+        "compressor_short_cycling": {
+            "title": "El compressor fa cicles curts",
+            "description": "🧪 Detector en fase beta. Fa diversos dies que el vostre compressor s'engega i s'atura amb una freqüència anormal en calefacció: massa arrencades per hora, combinades amb un període de cicle inferior a {period} minuts.\n\nEls cicles curts desgasten el compressor i redueixen l'eficiència estacional. Les causes habituals, en ordre de probabilitat decreixent en aquest parc:\n\n- **Una corba de calefacció massa alta.** Com més pronunciada és la corba, més cicles fa la instal·lació: és la correlació més forta mesurada en tot el parc. Baixar la temperatura d'impulsió és el primer que cal provar, i no costa res.\n- **Un volum d'inèrcia massa petit** per a la potència mínima de la unitat.\n- **Una unitat sobredimensionada** per a la demanda real de calor. Les unitats que fan cicles curts normalment ja funcionen a la freqüència mínima del compressor, de manera que no els queda marge de modulació per recuperar.\n\nAixò és orientatiu: la integració no pot distingir aquestes causes per si sola. L'alerta desapareix sola quan s'aturen els cicles curts."
+        }
+    }
+}
