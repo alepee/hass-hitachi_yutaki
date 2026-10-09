@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Catalan translation, seeded from the English source and the French translation
+  and open for review by native speakers on
+  [Weblate](https://hosted.weblate.org/engage/hass-hitachi_yutaki/).
+
 ### Fixed
 
 - No more `Detected that custom integration 'hitachi_yutaki' calls
@@ -14,8 +20,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warning at startup on Home Assistant 2026.9 and later, ahead of the parameter's
   removal in 2027.8. Devices are now linked to their parent by registry id on Home
   Assistant 2026.8+, and by identifier as before on older releases.
-
-### Fixed
 
 - Dutch: the power setup step and the power and sensors options step were both titled
   "External sensor configuration", dropping the power supply they configure. They now
