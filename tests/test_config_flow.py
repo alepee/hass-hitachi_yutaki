@@ -677,10 +677,16 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
     assert result["step_id"] == "telemetry"
 
     # Step 5: telemetry
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"telemetry_level": "off"},
+    )
+    # Telemetry off: the fleet ping gets its own consent step.
+    assert result["step_id"] == "fleet_ping"
     with patch.object(hass.config_entries, "async_reload"):
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
-            {"telemetry_level": "off"},
+            {"fleet_ping": True},
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -779,10 +785,16 @@ async def test_options_flow_clears_optional_sensor(hass: HomeAssistant) -> None:
     )
     assert result["step_id"] == "telemetry"
 
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"telemetry_level": "off"},
+    )
+    # Telemetry off: the fleet ping gets its own consent step.
+    assert result["step_id"] == "fleet_ping"
     with patch.object(hass.config_entries, "async_reload"):
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
-            {"telemetry_level": "off"},
+            {"fleet_ping": True},
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -829,10 +841,16 @@ async def test_options_flow_keeps_unset_optional_sensor_value(
     )
     assert result["step_id"] == "telemetry"
 
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"telemetry_level": "off"},
+    )
+    # Telemetry off: the fleet ping gets its own consent step.
+    assert result["step_id"] == "fleet_ping"
     with patch.object(hass.config_entries, "async_reload"):
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
-            {"telemetry_level": "off"},
+            {"fleet_ping": True},
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -876,10 +894,16 @@ async def test_options_flow_preserves_unrelated_data_when_clearing_sensor(
     )
     assert result["step_id"] == "telemetry"
 
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"telemetry_level": "off"},
+    )
+    # Telemetry off: the fleet ping gets its own consent step.
+    assert result["step_id"] == "fleet_ping"
     with patch.object(hass.config_entries, "async_reload"):
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
-            {"telemetry_level": "off"},
+            {"fleet_ping": True},
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
@@ -967,12 +991,92 @@ async def test_options_flow_persists_refrigerant_consent(
     )
     assert result["step_id"] == "telemetry"
 
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"telemetry_level": "off"},
+    )
+    # Telemetry off: the fleet ping gets its own consent step.
+    assert result["step_id"] == "fleet_ping"
     with patch.object(hass.config_entries, "async_reload"):
         result = await hass.config_entries.options.async_configure(
             result["flow_id"],
-            {"telemetry_level": "off"},
+            {"fleet_ping": True},
         )
 
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options[CONF_REFRIGERANT_DETECTION] is True
     assert CONF_REFRIGERANT_DETECTION not in entry.data
+
+
+def _fleet_ping_entry(options: dict | None = None) -> MockConfigEntry:
+    """Entry ready for the options flow, with the given options."""
+    return MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title=DEFAULT_NAME,
+        data={
+            "gateway_type": "modbus_atw_mbs_02",
+            "gateway_variant": "gen2",
+            "name": DEFAULT_NAME,
+            CONF_MODBUS_HOST: DEFAULT_HOST,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
+            "profile": "yutaki_s",
+            "power_supply": DEFAULT_POWER_SUPPLY,
+        },
+        options=options or {},
+    )
+
+
+async def _walk_options_flow_to_telemetry(hass: HomeAssistant, entry: MockConfigEntry):
+    """Drive the options flow up to the telemetry form."""
+    result = await _walk_options_flow_to_sensors(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"power_supply": "single"}
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: False}},
+    )
+    assert result["step_id"] == "telemetry"
+    return result
+
+
+async def test_options_flow_telemetry_on_skips_fleet_ping_step(
+    hass: HomeAssistant,
+) -> None:
+    """Telemetry ON implies the fleet ping: its step is not shown (#468)."""
+    entry = _fleet_ping_entry()
+    entry.add_to_hass(hass)
+
+    result = await _walk_options_flow_to_telemetry(hass, entry)
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"telemetry_level": "on"}
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options["telemetry_level"] == "on"
+    assert "fleet_ping" not in entry.options
+
+
+async def test_options_flow_fleet_ping_opt_out(hass: HomeAssistant) -> None:
+    """With telemetry off, turning the fleet ping off is persisted (#468)."""
+    entry = _fleet_ping_entry({"fleet_ping": True})
+    entry.add_to_hass(hass)
+
+    result = await _walk_options_flow_to_telemetry(hass, entry)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {"telemetry_level": "off"}
+    )
+    assert result["step_id"] == "fleet_ping"
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], {"fleet_ping": False}
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options["telemetry_level"] == "off"
+    assert entry.options["fleet_ping"] is False

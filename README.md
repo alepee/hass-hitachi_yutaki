@@ -1,6 +1,6 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![Translation status](https://hosted.weblate.org/widget/hass-hitachi_yutaki/source/svg-badge.svg)](https://hosted.weblate.org/engage/hass-hitachi_yutaki/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/alepee/hass-hitachi_yutaki)    
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/alepee/hass-hitachi_yutaki)
 [![Validate](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/validate.yml)
 [![Tests](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/tests.yml/badge.svg)](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/tests.yml)
 
@@ -154,6 +154,10 @@ This integration can optionally collect anonymous performance data to improve su
 All data is identified by a non-reversible hash. No personal information, IP addresses, or location data is ever collected. You can enable or disable telemetry at any time in the integration options.
 
 See [Telemetry Reference](docs/reference/telemetry.md) for details on what is collected, and [Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200) for community context.
+
+### Fleet ping
+
+Separately from telemetry, the integration sends **one anonymous ping a day** per Home Assistant instance: integration and Home Assistant versions, climate zone, and the model, gateway and capabilities of each heat pump. No identifier, no location, no measurement. It's on by default and can be turned off in the integration options (telemetry On implies it). The aggregated results are public: [fleet stats](https://alepee.github.io/hass-hitachi_yutaki/fleet-stats.html). See [Fleet ping](docs/reference/telemetry.md#fleet-ping).
 
 ## Known Limitations
 

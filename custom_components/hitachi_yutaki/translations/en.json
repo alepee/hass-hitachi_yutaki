@@ -156,6 +156,13 @@
         "data": {
           "telemetry_level": "Anonymous telemetry"
         }
+      },
+      "fleet_ping": {
+        "title": "Anonymous fleet ping",
+        "description": "Separate from telemetry: once a day, the integration sends a tiny anonymous payload so I know how many installations are active and which hardware they use. That's what lets me prioritize work and decide when an old Home Assistant version can be dropped.\n\nWhat is sent: the integration and Home Assistant versions, the climate zone, and for each heat pump its model, gateway and capabilities. No identifier, no location, no measurement. The aggregated results are public: [fleet stats]({stats_url}).\n\n[Learn more about the fleet ping]({learn_more_url})",
+        "data": {
+          "fleet_ping": "Send the anonymous fleet ping"
+        }
       }
     },
     "error": {
@@ -828,6 +835,23 @@
             "description": "I develop and test on a single heat pump model. For all others, I'm working blind — your anonymous data helps me build realistic tests, catch regressions, and develop new features. No personal information is ever collected. You can change this at any time in the integration options.\n\n[Learn more about telemetry]({learn_more_url})",
             "data": {
               "telemetry_level": "Anonymous telemetry"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
+        }
+      }
+    },
+    "fleet_ping_notice": {
+      "title": "Anonymous fleet ping is on",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Anonymous fleet ping",
+            "description": "Separate from telemetry: once a day, the integration sends a tiny anonymous payload so I know how many installations are active and which hardware they use. That's what lets me prioritize work and decide when an old Home Assistant version can be dropped.\n\nWhat is sent: the integration and Home Assistant versions, the climate zone, and for each heat pump its model, gateway and capabilities. No identifier, no location, no measurement. The aggregated results are public: [fleet stats]({stats_url}).\n\nIt is on by default. Keep it on, or turn it off below. You can change this at any time in the integration options.\n\n[Learn more about the fleet ping]({learn_more_url})",
+            "data": {
+              "fleet_ping": "Send the anonymous fleet ping"
             }
           }
         },

@@ -156,6 +156,13 @@
         "data": {
           "telemetry_level": "Anonieme telemetrie"
         }
+      },
+      "fleet_ping": {
+        "title": "Anoniem vlootsignaal",
+        "description": "Los van de telemetrie: één keer per dag stuurt de integratie een klein anoniem bericht, zodat ik weet hoeveel installaties actief zijn en welke hardware ze gebruiken. Zo kan ik prioriteiten stellen en beslissen wanneer een oude Home Assistant-versie kan vervallen.\n\nWat wordt verzonden: de versie van de integratie en van Home Assistant, de klimaatzone, en per warmtepomp het model, de gateway en de mogelijkheden. Geen identificatie, geen locatie, geen metingen. De geaggregeerde resultaten zijn openbaar: [vlootstatistieken]({stats_url}).\n\n[Meer over het vlootsignaal]({learn_more_url})",
+        "data": {
+          "fleet_ping": "Anoniem vlootsignaal verzenden"
+        }
       }
     },
     "error": {
@@ -848,6 +855,23 @@
             "description": "Ik ontwikkel en test op één enkel warmtepompmodel. Voor alle andere modellen werk ik blind — uw anonieme gegevens helpen mij realistische tests op te bouwen, regressies op te sporen en nieuwe functies te ontwikkelen. Er worden nooit persoonlijke gegevens verzameld. U kunt dit op elk moment wijzigen in de integratie-opties.\n\n[Meer informatie over telemetrie]({learn_more_url})",
             "data": {
               "telemetry_level": "Anonieme telemetrie"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
+        }
+      }
+    },
+    "fleet_ping_notice": {
+      "title": "Het anonieme vlootsignaal staat aan",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Anoniem vlootsignaal",
+            "description": "Los van de telemetrie: één keer per dag stuurt de integratie een klein anoniem bericht, zodat ik weet hoeveel installaties actief zijn en welke hardware ze gebruiken. Zo kan ik prioriteiten stellen en beslissen wanneer een oude Home Assistant-versie kan vervallen.\n\nWat wordt verzonden: de versie van de integratie en van Home Assistant, de klimaatzone, en per warmtepomp het model, de gateway en de mogelijkheden. Geen identificatie, geen locatie, geen metingen. De geaggregeerde resultaten zijn openbaar: [vlootstatistieken]({stats_url}).\n\nHet staat standaard aan. Laat het aan, of zet het hieronder uit. U kunt dit op elk moment wijzigen in de opties van de integratie.\n\n[Meer over het vlootsignaal]({learn_more_url})",
+            "data": {
+              "fleet_ping": "Anoniem vlootsignaal verzenden"
             }
           }
         },

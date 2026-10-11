@@ -22,6 +22,7 @@ from .const import (
     CONF_CYCLING_DETECTION,
     CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_ENERGY_ENTITY,
+    CONF_FLEET_PING,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
@@ -34,11 +35,13 @@ from .const import (
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
     DEFAULT_CYCLING_DETECTION,
+    DEFAULT_FLEET_PING,
     DEFAULT_POWER_SUPPLY,
     DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
     DEFAULT_UNIT_ID,
     DOMAIN,
+    FLEET_PING_STATS_URL,
 )
 from .profiles import PROFILES
 
@@ -49,6 +52,8 @@ _PREVENTIVE_MAINTENANCE_DOC_URL = (
     "https://github.com/alepee/hass-hitachi_yutaki/blob/main/"
     "docs/reference/preventive-maintenance.md"
 )
+_TELEMETRY_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md"
+_FLEET_PING_DOC_URL = f"{_TELEMETRY_DOC_URL}#fleet-ping"
 SECTION_PREVENTIVE_MAINTENANCE = "preventive_maintenance"
 
 
@@ -509,6 +514,10 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         # of self._collected so it never leaks into entry.data (options-only).
         self._refrigerant_detection: bool | None = None
         self._cycling_detection: bool | None = None
+        # Consents collected by the telemetry and fleet ping steps. The fleet
+        # ping one stays None when its step is skipped (telemetry ON).
+        self._telemetry_level: str = DEFAULT_TELEMETRY_LEVEL
+        self._fleet_ping: bool | None = None
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -778,48 +787,13 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Step 5: Anonymous telemetry consent."""
         if user_input is not None:
-            # Merge telemetry level into existing options (preserve other options)
-            new_options = {
-                **self.config_entry.options,
-                CONF_TELEMETRY_LEVEL: user_input.get(
-                    CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
-                ),
-            }
-            if self._refrigerant_detection is not None:
-                new_options[CONF_REFRIGERANT_DETECTION] = self._refrigerant_detection
-            if self._cycling_detection is not None:
-                new_options[CONF_CYCLING_DETECTION] = self._cycling_detection
-
-            # Merge: entry defaults < provider context < user-collected
-            # Clean up internal keys (prefixed with _) from provider context
-            provider_data = {
-                k: v for k, v in self._step_context.items() if not k.startswith("_")
-            }
-            new_data = {**self.config_entry.data, **provider_data, **self._collected}
-
-            # Reconcile cleared optional sensors: an EntitySelector left empty is
-            # omitted from user_input, so the key never lands in self._collected
-            # and the merge above re-applies the old value from config_entry.data.
-            # Remove any editable optional sensor key the user did not submit, so
-            # a previously-configured sensor can actually be unset (#323). Only
-            # the known sensor keys are touched; unrelated persisted data (host,
-            # profile, capability flags, ...) is left intact.
-            if self._sensors_submitted:
-                for key in _OPTIONAL_SENSOR_KEYS:
-                    if key not in self._collected:
-                        new_data.pop(key, None)
-
-            self.hass.config_entries.async_update_entry(
-                self.config_entry, data=new_data, options=new_options
+            self._telemetry_level = user_input.get(
+                CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
             )
-            self.hass.async_create_task(
-                self.hass.config_entries.async_reload(self.config_entry.entry_id)
-            )
-            # Return the options as the flow result so HA's OptionsFlowManager
-            # persists them: returning an empty dict here makes async_finish_flow
-            # overwrite entry.options with {}, wiping the telemetry and
-            # refrigerant consent just written above.
-            return self.async_create_entry(title="", data=new_options)
+            # Telemetry ON implies the fleet ping, so its step would be moot.
+            if self._telemetry_level == "on":
+                return self._async_finish_options()
+            return await self.async_step_fleet_ping()
 
         current_level = self.config_entry.options.get(
             CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
@@ -840,6 +814,81 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                 }
             ),
             description_placeholders={
-                "learn_more_url": "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md",
+                "learn_more_url": _TELEMETRY_DOC_URL,
             },
         )
+
+    async def async_step_fleet_ping(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Step 6: anonymous fleet ping, its own consent (opt-out).
+
+        Only reached with telemetry off: telemetry ON implies the ping.
+        """
+        if user_input is not None:
+            self._fleet_ping = user_input.get(CONF_FLEET_PING, DEFAULT_FLEET_PING)
+            return self._async_finish_options()
+
+        return self.async_show_form(
+            step_id="fleet_ping",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_FLEET_PING,
+                        default=self.config_entry.options.get(
+                            CONF_FLEET_PING, DEFAULT_FLEET_PING
+                        ),
+                    ): selector.BooleanSelector(),
+                }
+            ),
+            description_placeholders={
+                "learn_more_url": _FLEET_PING_DOC_URL,
+                "stats_url": FLEET_PING_STATS_URL,
+            },
+        )
+
+    @callback
+    def _async_finish_options(self) -> FlowResult:
+        """Write the collected data and options, then reload the entry."""
+        # Merge consents into existing options (preserve other options)
+        new_options = {
+            **self.config_entry.options,
+            CONF_TELEMETRY_LEVEL: self._telemetry_level,
+        }
+        if self._fleet_ping is not None:
+            new_options[CONF_FLEET_PING] = self._fleet_ping
+        if self._refrigerant_detection is not None:
+            new_options[CONF_REFRIGERANT_DETECTION] = self._refrigerant_detection
+        if self._cycling_detection is not None:
+            new_options[CONF_CYCLING_DETECTION] = self._cycling_detection
+
+        # Merge: entry defaults < provider context < user-collected
+        # Clean up internal keys (prefixed with _) from provider context
+        provider_data = {
+            k: v for k, v in self._step_context.items() if not k.startswith("_")
+        }
+        new_data = {**self.config_entry.data, **provider_data, **self._collected}
+
+        # Reconcile cleared optional sensors: an EntitySelector left empty is
+        # omitted from user_input, so the key never lands in self._collected
+        # and the merge above re-applies the old value from config_entry.data.
+        # Remove any editable optional sensor key the user did not submit, so
+        # a previously-configured sensor can actually be unset (#323). Only
+        # the known sensor keys are touched; unrelated persisted data (host,
+        # profile, capability flags, ...) is left intact.
+        if self._sensors_submitted:
+            for key in _OPTIONAL_SENSOR_KEYS:
+                if key not in self._collected:
+                    new_data.pop(key, None)
+
+        self.hass.config_entries.async_update_entry(
+            self.config_entry, data=new_data, options=new_options
+        )
+        self.hass.async_create_task(
+            self.hass.config_entries.async_reload(self.config_entry.entry_id)
+        )
+        # Return the options as the flow result so HA's OptionsFlowManager
+        # persists them: returning an empty dict here makes async_finish_flow
+        # overwrite entry.options with {}, wiping the telemetry and
+        # refrigerant consent just written above.
+        return self.async_create_entry(title="", data=new_options)

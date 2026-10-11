@@ -44,6 +44,7 @@ from .domain.services.refrigerant import (
 )
 from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
+    FleetPingUnit,
     HttpTelemetryClient,
     InstallationInfo,
     MetricsBatch,
@@ -319,10 +320,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         ):
             self._installation_info_sent = False
 
-    async def _send_installation_info(self) -> None:
-        """Build and send installation info on first successful poll."""
-        meta = self._telemetry_meta
-
+    def _unit_capabilities(self) -> dict[str, Any]:
+        """Return the unit's capabilities, shared by telemetry and fleet ping."""
         has_cooling = self.has_circuit(
             CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
         ) or self.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
@@ -330,6 +329,34 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         has_circuit2 = self.has_circuit(
             CIRCUIT_SECONDARY_ID, "heating"
         ) or self.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
+
+        return {
+            "has_dhw": self.has_dhw(),
+            "has_pool": self.has_pool(),
+            "has_cooling": has_cooling,
+            "max_circuits": 2 if has_circuit2 else 1,
+            "has_secondary_compressor": self.profile.supports_secondary_compressor,
+        }
+
+    def fleet_ping_unit(self) -> FleetPingUnit | None:
+        """Describe this unit for the fleet ping, once a poll has succeeded.
+
+        None before the first successful poll: the capabilities come from the
+        gateway's system configuration, unknown until then.
+        """
+        if not self.last_update_success or not self.data:
+            return None
+        meta = self._telemetry_meta
+        return FleetPingUnit(
+            profile=meta["profile"],
+            gateway_type=meta["gateway_type"],
+            power_supply=meta["power_supply"],
+            **self._unit_capabilities(),
+        )
+
+    async def _send_installation_info(self) -> None:
+        """Build and send installation info on first successful poll."""
+        meta = self._telemetry_meta
 
         info = InstallationInfo(
             instance_hash=meta["instance_hash"],
@@ -339,13 +366,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             ha_version=meta["ha_version"],
             integration_version=meta["integration_version"],
             power_supply=meta["power_supply"],
-            has_dhw=self.has_dhw(),
-            has_pool=self.has_pool(),
-            has_cooling=has_cooling,
-            max_circuits=2 if has_circuit2 else 1,
-            has_secondary_compressor=self.profile.supports_secondary_compressor,
             latitude=self.hass.config.latitude,
             longitude=self.hass.config.longitude,
+            **self._unit_capabilities(),
         )
         info = anonymize_installation_info(info)
 

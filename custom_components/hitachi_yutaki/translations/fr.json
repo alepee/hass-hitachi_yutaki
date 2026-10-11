@@ -156,6 +156,13 @@
         "data": {
           "telemetry_level": "Télémétrie anonyme"
         }
+      },
+      "fleet_ping": {
+        "title": "Signal anonyme du parc",
+        "description": "En marge de la télémétrie : une fois par jour, l'intégration envoie un tout petit message anonyme pour que je sache combien d'installations sont actives et avec quel matériel. C'est ce qui me permet de prioriser les chantiers et de savoir quand une ancienne version de Home Assistant peut être abandonnée.\n\nCe qui est envoyé : la version de l'intégration et celle de Home Assistant, la zone climatique, et pour chaque PAC son modèle, sa passerelle et ses capacités. Aucun identifiant, aucune localisation, aucune mesure. Les résultats agrégés sont publics : [statistiques du parc]({stats_url}).\n\n[En savoir plus sur le signal du parc]({learn_more_url})",
+        "data": {
+          "fleet_ping": "Envoyer le signal anonyme du parc"
+        }
       }
     },
     "error": {
@@ -848,6 +855,23 @@
             "description": "Je développe et teste sur un seul modèle de PAC. Pour tous les autres, je travaille à l'aveugle — vos données anonymes m'aident à construire des tests réalistes, détecter les régressions et développer de nouvelles fonctionnalités. Aucune information personnelle n'est collectée. Vous pouvez modifier ce choix à tout moment dans les options de l'intégration.\n\n[En savoir plus sur la télémétrie]({learn_more_url})",
             "data": {
               "telemetry_level": "Télémétrie anonyme"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
+        }
+      }
+    },
+    "fleet_ping_notice": {
+      "title": "Le signal anonyme du parc est actif",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Signal anonyme du parc",
+            "description": "En marge de la télémétrie : une fois par jour, l'intégration envoie un tout petit message anonyme pour que je sache combien d'installations sont actives et avec quel matériel. C'est ce qui me permet de prioriser les chantiers et de savoir quand une ancienne version de Home Assistant peut être abandonnée.\n\nCe qui est envoyé : la version de l'intégration et celle de Home Assistant, la zone climatique, et pour chaque PAC son modèle, sa passerelle et ses capacités. Aucun identifiant, aucune localisation, aucune mesure. Les résultats agrégés sont publics : [statistiques du parc]({stats_url}).\n\nIl est actif par défaut. Gardez-le, ou désactivez-le ci-dessous. Vous pouvez changer d'avis à tout moment dans les options de l'intégration.\n\n[En savoir plus sur le signal du parc]({learn_more_url})",
+            "data": {
+              "fleet_ping": "Envoyer le signal anonyme du parc"
             }
           }
         },

@@ -15,14 +15,18 @@ from homeassistant.helpers.issue_registry import async_delete_issue
 from .api import GATEWAY_INFO
 from .const import (
     CONF_ELECTRICITY_PRICE_ENTITY,
+    CONF_FLEET_PING,
     CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
+    DEFAULT_FLEET_PING,
     DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
     DOMAIN,
+    FLEET_PING_STATS_URL,
 )
 from .profiles import PROFILES
 
+_FLEET_PING_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md#fleet-ping"
 _REFRIGERANT_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/refrigerant-monitoring.md"
 
 
@@ -172,6 +176,57 @@ class EnableTelemetryRepairFlow(RepairsFlow):
             ),
             description_placeholders={
                 "learn_more_url": "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md",
+            },
+        )
+
+
+class FleetPingNoticeRepairFlow(RepairsFlow):
+    """One-time notice presenting the fleet ping, with a way to turn it off.
+
+    The ping is opt-out, so it is already running when this is shown: the
+    notice is what makes it known (#468). Keeping it on records the choice so
+    the notice does not come back.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Redirect to the confirm step (init receives the flow's init data)."""
+        return await self.async_step_confirm()
+
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Show the notice and record the user's choice."""
+        entry_id = self.issue_id.removeprefix("fleet_ping_notice_")
+        entry = self.hass.config_entries.async_get_entry(entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            return _abort_orphaned_issue(self)
+
+        if user_input is not None:
+            enabled = bool(user_input.get(CONF_FLEET_PING, DEFAULT_FLEET_PING))
+            self.hass.config_entries.async_update_entry(
+                entry, options={**entry.options, CONF_FLEET_PING: enabled}
+            )
+            async_delete_issue(self.hass, DOMAIN, self.issue_id)
+            # Already running when on: only turning it off needs a reload.
+            if not enabled:
+                await self.hass.config_entries.async_reload(entry.entry_id)
+            return self.async_create_entry(data={})
+
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_FLEET_PING,
+                        default=entry.options.get(CONF_FLEET_PING, DEFAULT_FLEET_PING),
+                    ): selector.BooleanSelector(),
+                }
+            ),
+            description_placeholders={
+                "learn_more_url": _FLEET_PING_DOC_URL,
+                "stats_url": FLEET_PING_STATS_URL,
             },
         )
 
@@ -335,6 +390,8 @@ async def async_create_fix_flow(
         return EnergyCostRepairFlow()
     if issue_id.startswith("enable_telemetry_"):
         return EnableTelemetryRepairFlow()
+    if issue_id.startswith("fleet_ping_notice_"):
+        return FleetPingNoticeRepairFlow()
     if issue_id.startswith("enable_refrigerant_detection_"):
         return EnableRefrigerantDetectionRepairFlow()
     if issue_id.startswith("refrigerant_charge_alert_"):

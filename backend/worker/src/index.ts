@@ -1,6 +1,9 @@
 /**
  * Cloudflare Worker — Telemetry ingestion endpoint for Hitachi Yutaki.
  *
+ * POST /v1/ping, GET /v1/stats, daily cron: anonymous fleet ping and its
+ * public aggregate (#468), see ping.ts and stats.ts.
+ *
  * POST /v1/ingest
  *   - Accepts gzipped or plain JSON
  *   - Validates and sanitizes payload (field whitelist)
@@ -12,12 +15,14 @@
 
 import { archiveToR2, sweepLegacyInstallation } from "./archive";
 import { classifyClimateZone } from "./climate";
+import { MAX_PING_SIZE, validatePing, writePing } from "./ping";
 import {
   RateLimitError,
   WINDOW_SECONDS,
   isRateLimited,
   markRateLimit,
 } from "./rate-limiter";
+import { previousUtcDay, publishStats, serveStats } from "./stats";
 import type { Env } from "./types";
 import { MAX_PAYLOAD_SIZE, ValidationError, validate } from "./validator";
 
@@ -61,10 +66,53 @@ async function readBoundedText(
   return new TextDecoder().decode(merged);
 }
 
+/** Read the request body, decompressing gzip, bounded to `limit` bytes. */
+async function readBody(request: Request, limit: number): Promise<string> {
+  if (!request.body) {
+    return "";
+  }
+  const stream =
+    request.headers.get("content-encoding") === "gzip"
+      ? request.body.pipeThrough(new DecompressionStream("gzip"))
+      : request.body;
+  return readBoundedText(stream, limit);
+}
+
+/**
+ * POST /v1/ping: anonymous daily fleet ping (#468).
+ *
+ * No identity, so no rate limit and no R2 object: the validated fields become
+ * Analytics Engine datapoints and nothing else about the request is kept.
+ */
+async function handlePing(request: Request, env: Env): Promise<Response> {
+  if (request.method !== "POST") {
+    return new Response("Method Not Allowed", { status: 405 });
+  }
+  try {
+    const ping = validatePing(await readBody(request, MAX_PING_SIZE));
+    writePing(env.PING, ping);
+    return new Response(null, { status: 202 });
+  } catch (err) {
+    if (err instanceof ValidationError) {
+      return new Response(err.message, { status: err.statusCode });
+    }
+    console.error("Ping error:", err);
+    return new Response("Internal Server Error", { status: 500 });
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // Only accept POST to /v1/ingest
     const url = new URL(request.url);
+    if (url.pathname === "/v1/ping") {
+      return handlePing(request, env);
+    }
+    if (url.pathname === "/v1/stats") {
+      if (request.method !== "GET") {
+        return new Response("Method Not Allowed", { status: 405 });
+      }
+      return serveStats(env);
+    }
     if (url.pathname !== "/v1/ingest") {
       return new Response("Not Found", { status: 404 });
     }
@@ -74,14 +122,7 @@ export default {
 
     try {
       // Decompress if gzipped, otherwise read as text. Bounded either way.
-      let body = "";
-      if (request.body) {
-        const stream =
-          request.headers.get("content-encoding") === "gzip"
-            ? request.body.pipeThrough(new DecompressionStream("gzip"))
-            : request.body;
-        body = await readBoundedText(stream, MAX_PAYLOAD_SIZE);
-      }
+      const body = await readBody(request, MAX_PAYLOAD_SIZE);
 
       // Validate and sanitize
       const instanceHashHeader = request.headers.get("x-instance-hash");
@@ -182,5 +223,10 @@ export default {
       console.error("Ingestion error:", err);
       return new Response("Internal Server Error", { status: 500 });
     }
+  },
+
+  /** Daily cron: publish the previous UTC day's fleet stats (#468). */
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(publishStats(env, previousUtcDay(controller.scheduledTime)));
   },
 } satisfies ExportedHandler<Env>;
