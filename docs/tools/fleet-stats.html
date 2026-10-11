@@ -56,7 +56,25 @@
   .history-axis { display: flex; justify-content: space-between; color: #666; font-size: 0.75rem; }
 
   svg.map { width: 100%; height: auto; display: block; }
-  svg.map path { stroke: #fff; stroke-width: 0.3; }
+  svg.map path { stroke: #fff; stroke-width: 0.3; cursor: pointer; }
+  svg.map path.outline { fill: none; stroke: #1a1a2e; stroke-width: 1.2; pointer-events: none; }
+  svg.ring circle { cursor: pointer; transition: stroke-width 0.1s; }
+  svg.ring circle.active { stroke-width: 24; }
+
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #1a1a2e;
+    color: #fff;
+    padding: 0.3rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 10;
+  }
+  .tooltip.visible { opacity: 1; }
   .map-scale { display: flex; align-items: center; gap: 0.5rem; color: #666; font-size: 0.75rem; margin-top: 0.5rem; }
   .map-scale .ramp { height: 0.6rem; width: 160px; border-radius: 3px; }
 
@@ -75,6 +93,7 @@
 </header>
 
 <main id="content"><p class="note">Loading…</p></main>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
 
 <p class="note">
   Each chart shows one attribute on its own, never a combination, so no
@@ -107,6 +126,57 @@
   const PALETTE = ["#27ae60", "#e1b12c", "#4a7cff", "#e67e22", "#8e44ad", "#16a085", "#c0392b"];
   const OTHER_COLOR = "#b8bcc6";
   const MAX_SLICES = PALETTE.length;
+
+  // Köppen-Geiger zone names, shown on hover.
+  const ZONE_NAMES = {
+    Af: "Tropical rainforest", Am: "Tropical monsoon", Aw: "Tropical savanna, dry winter", As: "Tropical savanna, dry summer",
+    BWh: "Hot desert", BWk: "Cold desert", BSh: "Hot semi-arid", BSk: "Cold semi-arid",
+    Csa: "Hot-summer Mediterranean", Csb: "Warm-summer Mediterranean", Csc: "Cold-summer Mediterranean",
+    Cwa: "Monsoon-influenced humid subtropical", Cwb: "Subtropical highland", Cwc: "Cold subtropical highland",
+    Cfa: "Humid subtropical", Cfb: "Temperate oceanic", Cfc: "Subpolar oceanic",
+    Dsa: "Mediterranean hot-summer continental", Dsb: "Mediterranean warm-summer continental",
+    Dsc: "Mediterranean subarctic", Dsd: "Mediterranean extremely cold subarctic",
+    Dwa: "Monsoon hot-summer continental", Dwb: "Monsoon warm-summer continental",
+    Dwc: "Monsoon subarctic", Dwd: "Monsoon extremely cold subarctic",
+    Dfa: "Hot-summer humid continental", Dfb: "Warm-summer humid continental",
+    Dfc: "Subarctic", Dfd: "Extremely cold subarctic", ET: "Tundra", EF: "Ice cap",
+  };
+
+  const tooltip = document.getElementById("tooltip");
+
+  /**
+   * Tooltip for every shape of `chart` carrying a data-tip attribute.
+   *
+   * Delegated on the chart rather than bound per shape, and the hovered shape
+   * is never moved in the DOM: re-inserting the element under the pointer
+   * makes the browser drop the hover. On the map, an overlay outline drawn on
+   * top shows the active zone instead.
+   */
+  function bindTips(chart, outline) {
+    let active = null;
+    const clear = () => {
+      if (active) active.classList.remove("active");
+      active = null;
+      if (outline) outline.setAttribute("d", "");
+      tooltip.classList.remove("visible");
+    };
+    chart.addEventListener("mousemove", (event) => {
+      const target = event.target.closest("[data-tip]");
+      if (!target) return clear();
+      if (target !== active) {
+        clear();
+        active = target;
+        active.classList.add("active");
+        if (outline) outline.setAttribute("d", target.getAttribute("d"));
+        tooltip.textContent = target.dataset.tip;
+      }
+      const x = Math.min(event.clientX + 14, window.innerWidth - tooltip.offsetWidth - 8);
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${event.clientY + 14}px`;
+      tooltip.classList.add("visible");
+    });
+    chart.addEventListener("mouseleave", clear);
+  }
 
   function el(tag, attrs = {}, text) {
     const node = document.createElement(tag);
@@ -157,15 +227,14 @@
         "stroke-dasharray": `${length} ${circumference - length}`,
         "stroke-dashoffset": -offset, transform: "rotate(-90 60 60)",
       });
-      const tip = svg("title");
-      tip.textContent = `${label}: ${n}`;
-      arc.append(tip);
+      arc.dataset.tip = `${label}: ${n} (${Math.round((n / total) * 100)}%)`;
       chart.append(arc);
       offset += length;
     }
     const center = svg("text", { x: 60, y: 66, "text-anchor": "middle" });
     center.textContent = String(total);
     chart.append(center);
+    bindTips(chart);
 
     const legend = el("ul", { class: "legend" });
     for (const [label, n, color] of parts) {
@@ -218,11 +287,13 @@
           ring.map((pt, i) => `${i ? "L" : "M"}${project(pt).map((v) => v.toFixed(1)).join(",")}`).join("") + "Z"))
         .join("");
       const path = svg("path", { d, fill: shade(n, max) });
-      const tip = svg("title");
-      tip.textContent = `${code}: ${n} installation${n === 1 ? "" : "s"}`;
-      path.append(tip);
+      const name = ZONE_NAMES[code] ? ` · ${ZONE_NAMES[code]}` : "";
+      path.dataset.tip = `${code}${name}: ${n} installation${n === 1 ? "" : "s"}`;
       chart.append(path);
     }
+    const outline = svg("path", { class: "outline" });
+    chart.append(outline);
+    bindTips(chart, outline);
     const scale = el("div", { class: "map-scale" });
     const ramp = el("span", { class: "ramp" });
     ramp.style.background = `linear-gradient(to right, ${shade(1, 4)}, ${shade(4, 4)})`;
