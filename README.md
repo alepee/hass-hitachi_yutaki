@@ -155,6 +155,10 @@ All data is identified by a non-reversible hash. No personal information, IP add
 
 See [Telemetry Reference](docs/reference/telemetry.md) for details on what is collected, and [Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200) for community context.
 
+### Fleet ping
+
+Separately from telemetry, the integration sends **one anonymous ping a day** per Home Assistant instance: integration and Home Assistant versions, climate zone, and the model, gateway and capabilities of each heat pump. No identifier, no location, no measurement. It's on by default and can be turned off in the integration options (telemetry On implies it). The aggregated results are public: [fleet stats](https://alepee.github.io/hass-hitachi_yutaki/fleet-stats.html). See [Fleet ping](docs/reference/telemetry.md#fleet-ping).
+
 ## Known Limitations
 
 - **Modbus TCP only**: Direct serial Modbus is not supported.

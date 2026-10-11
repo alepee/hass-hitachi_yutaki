@@ -2,6 +2,11 @@
 export interface Env {
   ARCHIVE: R2Bucket;
   AE: AnalyticsEngineDataset;
+  /** Fleet ping datapoints, one per unit (#468). */
+  PING: AnalyticsEngineDataset;
+  /** Account and token for the Analytics Engine SQL API (stats cron). */
+  CF_ACCOUNT_ID?: string;
+  AE_API_TOKEN?: string;
 }
 
 /** Base payload with type discriminator. */
@@ -86,3 +91,27 @@ export type TelemetryPayload =
   | MetricsPayload
   | DailyStatsPayload
   | SnapshotPayload;
+
+/** One heat pump unit listed in a fleet ping (#468). */
+export interface PingUnit {
+  profile: string;
+  gateway_type: string;
+  power_supply: "single" | "three";
+  has_dhw: boolean;
+  has_pool: boolean;
+  has_cooling: boolean;
+  max_circuits: number;
+  has_secondary_compressor: boolean;
+}
+
+/**
+ * Anonymous daily fleet ping (#468). Carries no identifier: not a
+ * TelemetryPayload, and never archived per installation.
+ */
+export interface PingPayload {
+  type: "ping";
+  integration_version: string;
+  ha_version: string;
+  climate_zone: string | null;
+  units: PingUnit[];
+}

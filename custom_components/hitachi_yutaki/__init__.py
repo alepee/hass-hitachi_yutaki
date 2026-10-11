@@ -43,6 +43,7 @@ from .const import (
     CIRCUIT_SECONDARY_ID,
     CONF_CYCLING_DETECTION,
     CONF_ELECTRICITY_PRICE_ENTITY,
+    CONF_FLEET_PING,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
@@ -79,6 +80,11 @@ from .telemetry import (
 )
 from .telemetry.anonymizer import hash_device_id, hash_instance_id
 from .telemetry.collector import compute_buffer_max_size, compute_collect_stride
+from .telemetry.fleet_ping import (
+    async_register_fleet_ping,
+    async_unregister_fleet_ping,
+    is_fleet_ping_enabled,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -375,6 +381,41 @@ def _schedule_telemetry_flush(
         async_track_time_interval(hass, _telemetry_flush, TELEMETRY_FLUSH_INTERVAL)
     )
     entry.async_on_unload(_cancel_telemetry_catchup)
+
+
+async def _async_setup_fleet_ping(
+    hass: HomeAssistant,
+    entry: HitachiYutakiConfigEntry,
+    coordinator: HitachiYutakiDataCoordinator,
+    integration_version: str,
+) -> None:
+    """Enrol the entry in the fleet ping and manage its one-time notice."""
+    # Fleet ping (#468): anonymous, once a day per HA instance, its own consent.
+    if is_fleet_ping_enabled(entry.options):
+        await async_register_fleet_ping(
+            hass, entry.entry_id, integration_version, coordinator.fleet_ping_unit
+        )
+        entry.async_on_unload(lambda: async_unregister_fleet_ping(hass, entry.entry_id))
+
+    # Fleet ping notice: tell the user once, and let them turn it off. Not
+    # needed when telemetry is ON (which implies the ping) or once they chose.
+    fleet_ping_notice_id = f"fleet_ping_notice_{entry.entry_id}"
+    if (
+        CONF_FLEET_PING not in entry.options
+        and entry.options.get(CONF_TELEMETRY_LEVEL) != TelemetryLevel.ON.value
+    ):
+        async_create_issue(
+            hass,
+            DOMAIN,
+            fleet_ping_notice_id,
+            is_fixable=True,
+            is_persistent=True,
+            severity=IssueSeverity.WARNING,
+            issue_domain=DOMAIN,
+            translation_key="fleet_ping_notice",
+        )
+    else:
+        async_delete_issue(hass, DOMAIN, fleet_ping_notice_id)
 
 
 async def async_setup_entry(
@@ -833,6 +874,8 @@ async def async_setup_entry(
     if telemetry_level != TelemetryLevel.OFF:
         _schedule_telemetry_flush(hass, entry, coordinator)
 
+    await _async_setup_fleet_ping(hass, entry, coordinator, integration.version)
+
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     _LOGGER.info(
         "Hitachi Yutaki integration setup completed for %s", entry.data[CONF_NAME]
@@ -977,6 +1020,7 @@ async def async_remove_entry(
         f"missing_config_{entry.entry_id}",
         f"enable_energy_cost_{entry.entry_id}",
         f"enable_telemetry_{entry.entry_id}",
+        f"fleet_ping_notice_{entry.entry_id}",
         f"enable_refrigerant_detection_{entry.entry_id}",
         f"refrigerant_charge_alert_{entry.entry_id}",
     ):

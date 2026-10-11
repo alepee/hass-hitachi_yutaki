@@ -156,6 +156,13 @@
         "data": {
           "telemetry_level": "Telemetria anònima"
         }
+      },
+      "fleet_ping": {
+        "title": "Senyal anònim del parc",
+        "description": "Al marge de la telemetria: un cop al dia, la integració envia un missatge anònim molt petit perquè sàpiga quantes instal·lacions són actives i amb quin maquinari. Això em permet prioritzar la feina i decidir quan es pot deixar de banda una versió antiga de Home Assistant.\n\nQuè s'envia: la versió de la integració i la de Home Assistant, la zona climàtica, i per a cada bomba de calor el model, la passarel·la i les capacitats. Cap identificador, cap ubicació, cap mesura. Els resultats agregats són públics: [estadístiques del parc]({stats_url}).\n\n[Més informació sobre el senyal del parc]({learn_more_url})",
+        "data": {
+          "fleet_ping": "Enviar el senyal anònim del parc"
+        }
       }
     },
     "error": {
@@ -828,6 +835,23 @@
             "description": "Desenvolupo i provo amb un sol model de bomba de calor. Per a tots els altres, treballo a cegues: les vostres dades anònimes m'ajuden a crear proves realistes, detectar regressions i desenvolupar noves funcions. Mai no es recull cap informació personal. Podeu canviar-ho en qualsevol moment a les opcions de la integració.\n\n[Més informació sobre la telemetria]({learn_more_url})",
             "data": {
               "telemetry_level": "Telemetria anònima"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "La unitat Hitachi Yutaki per a la qual es va crear aquesta reparació ja no està configurada. S'ha eliminat la reparació."
+        }
+      }
+    },
+    "fleet_ping_notice": {
+      "title": "El senyal anònim del parc està actiu",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Senyal anònim del parc",
+            "description": "Al marge de la telemetria: un cop al dia, la integració envia un missatge anònim molt petit perquè sàpiga quantes instal·lacions són actives i amb quin maquinari. Això em permet prioritzar la feina i decidir quan es pot deixar de banda una versió antiga de Home Assistant.\n\nQuè s'envia: la versió de la integració i la de Home Assistant, la zona climàtica, i per a cada bomba de calor el model, la passarel·la i les capacitats. Cap identificador, cap ubicació, cap mesura. Els resultats agregats són públics: [estadístiques del parc]({stats_url}).\n\nEstà actiu per defecte. Mantingueu-lo, o desactiveu-lo a continuació. Podeu canviar-ho en qualsevol moment a les opcions de la integració.\n\n[Més informació sobre el senyal del parc]({learn_more_url})",
+            "data": {
+              "fleet_ping": "Enviar el senyal anònim del parc"
             }
           }
         },

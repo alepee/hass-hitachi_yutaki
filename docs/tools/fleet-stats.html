@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hitachi Yutaki Fleet Stats</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f5f6f8;
+    color: #1a1a2e;
+    line-height: 1.6;
+    padding: 1.5rem;
+    max-width: 1080px;
+    margin: 0 auto;
+  }
+
+  header { text-align: center; margin-bottom: 2rem; }
+  h1 { font-size: 1.6rem; margin-bottom: 0.25rem; }
+  .subtitle { color: #555; font-size: 0.95rem; }
+  .subtitle a, .note a { color: #4a7cff; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1rem;
+  }
+
+  .card { background: #fff; border-radius: 8px; padding: 1.25rem; }
+  .card.wide { grid-column: 1 / -1; }
+  .card h2 {
+    font-size: 1rem;
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .kpis { display: flex; gap: 2.5rem; flex-wrap: wrap; align-items: flex-end; }
+  .kpi-value { font-size: 2.6rem; font-weight: 700; color: #27ae60; line-height: 1.1; }
+  .kpi-value.blue { color: #4a7cff; }
+  .kpi-label { color: #666; font-size: 0.85rem; }
+
+  .ring-wrap { display: flex; gap: 1rem; align-items: center; }
+  svg.ring { width: 120px; height: 120px; flex: none; }
+  svg.ring text { font-size: 18px; font-weight: 700; fill: #1a1a2e; }
+  .legend { list-style: none; font-size: 0.85rem; min-width: 0; flex: 1; }
+  .legend li { display: flex; align-items: center; gap: 0.4rem; padding: 0.1rem 0; }
+  .swatch { width: 0.7rem; height: 0.7rem; border-radius: 2px; flex: none; }
+  .legend .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+  .legend .count { font-variant-numeric: tabular-nums; color: #555; }
+
+  svg.history { width: 100%; height: 60px; margin-top: 0.75rem; }
+  svg.history path { fill: none; stroke: #27ae60; stroke-width: 2; vector-effect: non-scaling-stroke; }
+  .history-axis { display: flex; justify-content: space-between; color: #666; font-size: 0.75rem; }
+
+  svg.map { width: 100%; height: auto; display: block; }
+  svg.map path { stroke: #fff; stroke-width: 0.3; cursor: pointer; }
+  svg.map path.outline { fill: none; stroke: #1a1a2e; stroke-width: 1.2; pointer-events: none; }
+  svg.ring circle { cursor: pointer; transition: stroke-width 0.1s; }
+  svg.ring circle.active { stroke-width: 24; }
+
+  .tooltip {
+    position: fixed;
+    pointer-events: none;
+    background: #1a1a2e;
+    color: #fff;
+    padding: 0.3rem 0.55rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.1s;
+    z-index: 10;
+  }
+  .tooltip.visible { opacity: 1; }
+  .map-scale { display: flex; align-items: center; gap: 0.5rem; color: #666; font-size: 0.75rem; margin-top: 0.5rem; }
+  .map-scale .ramp { height: 0.6rem; width: 160px; border-radius: 3px; }
+
+  .note { color: #666; font-size: 0.85rem; margin-top: 1.5rem; text-align: center; }
+  .error { color: #c0392b; text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Hitachi Yutaki Fleet Stats</h1>
+  <p class="subtitle">
+    Active installations of the
+    <a href="https://github.com/alepee/hass-hitachi_yutaki">Hitachi Heat Pump integration</a>,
+    from its anonymous daily fleet ping. <span id="date"></span>
+  </p>
+</header>
+
+<main id="content"><p class="note">Loading…</p></main>
+<div class="tooltip" id="tooltip" role="tooltip"></div>
+
+<p class="note">
+  Each chart shows one attribute on its own, never a combination, so no
+  installation can be singled out. The ping carries no identifier and no
+  location.
+  <a href="https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md#fleet-ping">How it works</a>
+  · <a href="https://hitachi-telemetry.lepee.dev/v1/stats">Raw data (JSON)</a>
+</p>
+
+<script>
+  const STATS_URL = "https://hitachi-telemetry.lepee.dev/v1/stats";
+  const ZONES_URL = "koppen-zones.geojson";
+  const SVG_NS = "http://www.w3.org/2000/svg";
+
+  // Per installation: versions. Per unit: the hardware.
+  const RINGS = [
+    ["integration_version", "Integration version", "installations"],
+    ["ha_version", "Home Assistant version", "installations"],
+    ["profile", "Heat pump model", "units"],
+    ["gateway_type", "Gateway", "units"],
+    ["power_supply", "Power supply", "units"],
+    ["max_circuits", "Heating circuits", "units"],
+  ];
+  const CAPABILITIES = [
+    ["has_dhw", "with DHW"],
+    ["has_cooling", "with cooling"],
+    ["has_pool", "with pool"],
+    ["has_secondary_compressor", "with S80 compressor"],
+  ];
+  const PALETTE = ["#27ae60", "#e1b12c", "#4a7cff", "#e67e22", "#8e44ad", "#16a085", "#c0392b"];
+  const OTHER_COLOR = "#b8bcc6";
+  const MAX_SLICES = PALETTE.length;
+
+  // Köppen-Geiger zone names, shown on hover.
+  const ZONE_NAMES = {
+    Af: "Tropical rainforest", Am: "Tropical monsoon", Aw: "Tropical savanna, dry winter", As: "Tropical savanna, dry summer",
+    BWh: "Hot desert", BWk: "Cold desert", BSh: "Hot semi-arid", BSk: "Cold semi-arid",
+    Csa: "Hot-summer Mediterranean", Csb: "Warm-summer Mediterranean", Csc: "Cold-summer Mediterranean",
+    Cwa: "Monsoon-influenced humid subtropical", Cwb: "Subtropical highland", Cwc: "Cold subtropical highland",
+    Cfa: "Humid subtropical", Cfb: "Temperate oceanic", Cfc: "Subpolar oceanic",
+    Dsa: "Mediterranean hot-summer continental", Dsb: "Mediterranean warm-summer continental",
+    Dsc: "Mediterranean subarctic", Dsd: "Mediterranean extremely cold subarctic",
+    Dwa: "Monsoon hot-summer continental", Dwb: "Monsoon warm-summer continental",
+    Dwc: "Monsoon subarctic", Dwd: "Monsoon extremely cold subarctic",
+    Dfa: "Hot-summer humid continental", Dfb: "Warm-summer humid continental",
+    Dfc: "Subarctic", Dfd: "Extremely cold subarctic", ET: "Tundra", EF: "Ice cap",
+  };
+
+  const tooltip = document.getElementById("tooltip");
+
+  /**
+   * Tooltip for every shape of `chart` carrying a data-tip attribute.
+   *
+   * Delegated on the chart rather than bound per shape, and the hovered shape
+   * is never moved in the DOM: re-inserting the element under the pointer
+   * makes the browser drop the hover. On the map, an overlay outline drawn on
+   * top shows the active zone instead.
+   */
+  function bindTips(chart, outline) {
+    let active = null;
+    const clear = () => {
+      if (active) active.classList.remove("active");
+      active = null;
+      if (outline) outline.setAttribute("d", "");
+      tooltip.classList.remove("visible");
+    };
+    chart.addEventListener("mousemove", (event) => {
+      const target = event.target.closest("[data-tip]");
+      if (!target) return clear();
+      if (target !== active) {
+        clear();
+        active = target;
+        active.classList.add("active");
+        if (outline) outline.setAttribute("d", target.getAttribute("d"));
+        tooltip.textContent = target.dataset.tip;
+      }
+      const x = Math.min(event.clientX + 14, window.innerWidth - tooltip.offsetWidth - 8);
+      tooltip.style.left = `${x}px`;
+      tooltip.style.top = `${event.clientY + 14}px`;
+      tooltip.classList.add("visible");
+    });
+    chart.addEventListener("mouseleave", clear);
+  }
+
+  function el(tag, attrs = {}, text) {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function svg(tag, attrs = {}) {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    return node;
+  }
+
+  function card(title, wide) {
+    const node = el("section", { class: wide ? "card wide" : "card" });
+    node.append(el("h2", {}, title));
+    return node;
+  }
+
+  function kpi(value, label, cls = "") {
+    const node = el("div");
+    node.append(el("div", { class: `kpi-value ${cls}` }, String(value)), el("div", { class: "kpi-label" }, label));
+    return node;
+  }
+
+  /** Keep the largest slices, fold the rest into "Other". */
+  function slices(counts) {
+    const sorted = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    if (sorted.length <= MAX_SLICES) return sorted.map(([k, n], i) => [k, n, PALETTE[i]]);
+    const head = sorted.slice(0, MAX_SLICES - 1).map(([k, n], i) => [k, n, PALETTE[i]]);
+    const rest = sorted.slice(MAX_SLICES - 1).reduce((sum, [, n]) => sum + n, 0);
+    return [...head, ["Other", rest, OTHER_COLOR]];
+  }
+
+  function ring(counts) {
+    const parts = slices(counts);
+    const total = parts.reduce((sum, [, n]) => sum + n, 0);
+    const wrap = el("div", { class: "ring-wrap" });
+    const chart = svg("svg", { class: "ring", viewBox: "0 0 120 120" });
+    const r = 46;
+    const circumference = 2 * Math.PI * r;
+    let offset = 0;
+    for (const [label, n, color] of parts) {
+      const length = (n / total) * circumference;
+      const arc = svg("circle", {
+        cx: 60, cy: 60, r, fill: "none", stroke: color, "stroke-width": 18,
+        "stroke-dasharray": `${length} ${circumference - length}`,
+        "stroke-dashoffset": -offset, transform: "rotate(-90 60 60)",
+      });
+      arc.dataset.tip = `${label}: ${n} (${Math.round((n / total) * 100)}%)`;
+      chart.append(arc);
+      offset += length;
+    }
+    const center = svg("text", { x: 60, y: 66, "text-anchor": "middle" });
+    center.textContent = String(total);
+    chart.append(center);
+    bindTips(chart);
+
+    const legend = el("ul", { class: "legend" });
+    for (const [label, n, color] of parts) {
+      const item = el("li");
+      const swatch = el("span", { class: "swatch" });
+      swatch.style.background = color;
+      item.append(swatch, el("span", { class: "name", title: label }, label), el("span", { class: "count" }, String(n)));
+      legend.append(item);
+    }
+    wrap.append(chart, legend);
+    return wrap;
+  }
+
+  function history(points) {
+    const frag = document.createDocumentFragment();
+    const max = Math.max(1, ...points.map((h) => h.active_installs));
+    const step = points.length > 1 ? 600 / (points.length - 1) : 0;
+    const chart = svg("svg", { class: "history", viewBox: "0 0 600 100", preserveAspectRatio: "none" });
+    const d = points.map((h, i) => `${i ? "L" : "M"}${i * step},${95 - (h.active_installs / max) * 90}`).join(" ");
+    chart.append(svg("path", { d }));
+    const axis = el("div", { class: "history-axis" });
+    axis.append(el("span", {}, points[0].date), el("span", {}, points[points.length - 1].date));
+    frag.append(chart, axis);
+    return frag;
+  }
+
+  // Equirectangular projection, cropped to the inhabited latitudes.
+  const MAP_W = 960, MAP_H = 380, LAT_TOP = 80, LAT_BOTTOM = -60;
+  const project = ([lon, lat]) => [
+    ((lon + 180) / 360) * MAP_W,
+    ((LAT_TOP - lat) / (LAT_TOP - LAT_BOTTOM)) * MAP_H,
+  ];
+
+  function shade(n, max) {
+    if (!n) return "#e6e8ec";
+    // Light to dark blue, readable from a single installation upwards.
+    const t = 0.25 + 0.75 * (n / max);
+    const mix = (a, b) => Math.round(a + (b - a) * t);
+    return `rgb(${mix(200, 30)}, ${mix(215, 70)}, ${mix(255, 200)})`;
+  }
+
+  function climateMap(zones, counts) {
+    const max = Math.max(1, ...Object.values(counts));
+    const chart = svg("svg", { class: "map", viewBox: `0 0 ${MAP_W} ${MAP_H}` });
+    for (const feature of zones.features) {
+      const code = feature.properties.CODE;
+      const n = counts[code] || 0;
+      const d = feature.geometry.coordinates
+        .flatMap((polygon) => polygon.map((ring) =>
+          ring.map((pt, i) => `${i ? "L" : "M"}${project(pt).map((v) => v.toFixed(1)).join(",")}`).join("") + "Z"))
+        .join("");
+      const path = svg("path", { d, fill: shade(n, max) });
+      const name = ZONE_NAMES[code] ? ` · ${ZONE_NAMES[code]}` : "";
+      path.dataset.tip = `${code}${name}: ${n} installation${n === 1 ? "" : "s"}`;
+      chart.append(path);
+    }
+    const outline = svg("path", { class: "outline" });
+    chart.append(outline);
+    bindTips(chart, outline);
+    const scale = el("div", { class: "map-scale" });
+    const ramp = el("span", { class: "ramp" });
+    ramp.style.background = `linear-gradient(to right, ${shade(1, 4)}, ${shade(4, 4)})`;
+    scale.append(el("span", {}, "1"), ramp, el("span", {}, `${max} installations`));
+    const caveat = el("p", { class: "map-scale" },
+      "A zone is coloured wherever that climate exists: the map shows the climates installations live in, not where they are. Hover a zone for its count.");
+    const frag = document.createDocumentFragment();
+    frag.append(chart, scale, caveat);
+    return frag;
+  }
+
+  function render(stats, zones) {
+    const main = document.getElementById("content");
+    main.replaceChildren();
+    document.getElementById("date").textContent = `Data for ${stats.date} (UTC).`;
+    const grid = el("div", { class: "grid" });
+
+    const overview = card("Active installations", true);
+    const kpis = el("div", { class: "kpis" });
+    kpis.append(kpi(stats.active_installs, "installations"), kpi(stats.units, "heat pump units"));
+    for (const [key, label] of CAPABILITIES) kpis.append(kpi(stats.capabilities[key] || 0, label, "blue"));
+    overview.append(kpis);
+    if (stats.history && stats.history.length > 1) overview.append(history(stats.history));
+    grid.append(overview);
+
+    const climate = stats.distributions.climate_zone || {};
+    if (zones) {
+      const map = card("Installations by climate zone (Köppen)", true);
+      map.append(climateMap(zones, climate));
+      grid.append(map);
+    }
+
+    for (const [key, title] of RINGS) {
+      const counts = stats.distributions[key] || {};
+      const section = card(title);
+      section.append(Object.keys(counts).length ? ring(counts) : el("p", { class: "note" }, "No data"));
+      grid.append(section);
+    }
+    const zoneCard = card("Climate zone");
+    zoneCard.append(Object.keys(climate).length ? ring(climate) : el("p", { class: "note" }, "No data"));
+    grid.append(zoneCard);
+
+    main.append(grid);
+  }
+
+  const getJson = (url) => fetch(url).then((res) => {
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  });
+
+  Promise.all([getJson(STATS_URL), getJson(ZONES_URL).catch(() => null)])
+    .then(([stats, zones]) => render(stats, zones))
+    .catch((err) => {
+      document.getElementById("content").replaceChildren(
+        el("p", { class: "error" }, `Stats are not available yet (${err.message}).`),
+      );
+    });
+</script>
+</body>
+</html>

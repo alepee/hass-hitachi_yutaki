@@ -114,6 +114,13 @@ CONF_TELEMETRY_LEVEL = "telemetry_level"
 DEFAULT_TELEMETRY_LEVEL = "off"
 TELEMETRY_ENDPOINT = "https://hitachi-telemetry.lepee.dev/v1/ingest"
 
+# Fleet ping: anonymous daily installation profile, separate consent from
+# telemetry (opt-out, on by default; telemetry ON implies it).
+CONF_FLEET_PING = "fleet_ping"
+DEFAULT_FLEET_PING = True
+FLEET_PING_ENDPOINT = "https://hitachi-telemetry.lepee.dev/v1/ping"
+FLEET_PING_STATS_URL = "https://alepee.github.io/hass-hitachi_yutaki/fleet-stats.html"
+
 # Preventive maintenance detectors (beta, one opt-in consent each)
 CONF_REFRIGERANT_DETECTION = "refrigerant_detection"
 DEFAULT_REFRIGERANT_DETECTION = False

@@ -143,7 +143,10 @@ src/
 ├── rate-limiter.ts   — Per-hash rate limiting via Cache API (1 req/min)
 ├── archive.ts        — R2 writes (Hive-style partitioned JSON)
 ├── climate.ts        — Köppen-Geiger lookup from rounded coordinates
-└── koppen-lookup.json — 14,938-entry climate zone table (Beck et al. 2018)
+├── ping.ts           — fleet ping validation and Analytics Engine write (#468)
+├── stats.ts          — daily fleet stats aggregation and GET /v1/stats (#468)
+└── koppen-lookup.json — 14,938-entry climate zone table (Beck et al. 2018);
+                        the integration ships a byte-identical copy
 ```
 
 ### Endpoint
@@ -157,6 +160,38 @@ src/
 **Payload types**: `installation`, `metrics`, `daily_stats`, `snapshot`
 
 **Responses**: `202` Accepted, `400` Bad Request, `413` Too Large, `429` Rate Limited, `500` Error, `502` R2 Unavailable
+
+### Fleet ping and public stats (#468)
+
+`POST /v1/ping` receives the anonymous daily fleet ping (see
+[telemetry reference](../docs/reference/telemetry.md#fleet-ping)). It has no
+identity: no `X-Instance-Hash`, no rate limit, no R2 object. Validation is strict
+(unknown fields rejected), then each unit becomes one datapoint in the Analytics
+Engine dataset `hitachi_fleet_ping`, with no index:
+
+| Column | Content |
+|---|---|
+| `blob1`..`blob3` | integration version, HA version, climate zone (per installation) |
+| `blob4`..`blob6` | profile, gateway type, power supply (per unit) |
+| `double1` | 1 on the first unit of a ping, 0 otherwise: `SUM(double1)` counts installations |
+| `double2`..`double6` | has_dhw, has_pool, has_cooling, max_circuits, has_secondary_compressor |
+
+A daily cron (`30 0 * * *`) aggregates the previous UTC day into
+`public/stats.json` in R2: one distribution per attribute, never a combination,
+plus a running history of active installs. `GET /v1/stats` serves it with open
+CORS to the public page `docs/tools/fleet-stats.html` (GitHub Pages).
+
+The cron queries the Analytics Engine SQL API and needs two secrets:
+
+```bash
+cd backend/worker
+npx wrangler secret put CF_ACCOUNT_ID    # the account id
+npx wrangler secret put AE_API_TOKEN     # token with Account Analytics Read
+```
+
+Invocation logs are disabled in `wrangler.toml`: they record each request with
+its metadata and cannot be turned off per route, so the ping would otherwise
+leave a request trace. `console.warn`/`console.error` output is still collected.
 
 ### Köppen enrichment
 

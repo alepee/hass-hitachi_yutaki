@@ -37,6 +37,63 @@ Because a flush is capped, a poll faster than roughly 3.75 seconds would produce
 
 A batch the endpoint has almost certainly already stored is not re-queued. The endpoint commits its rate-limit slot only once a payload is durably archived and the window is shorter than the flush cycle, so a rate-limit rejection that follows an attempt of ours whose answer never arrived means that attempt landed. Re-queueing there would archive the same points twice.
 
+## Fleet ping
+
+The fleet ping is a separate feature from telemetry, with its own setting. Once a day, the integration sends one tiny anonymous payload per Home Assistant instance, so I know how many installations are active and which hardware they run. That's what lets me prioritize work, decide when an old Home Assistant version can be dropped, and follow how fast a release is adopted.
+
+### What is sent
+
+This is the complete payload:
+
+```json
+{
+  "type": "ping",
+  "integration_version": "2.2.0",
+  "ha_version": "2026.10.1",
+  "climate_zone": "Cfb",
+  "units": [
+    {
+      "profile": "yutaki_s80",
+      "gateway_type": "modbus_atw_mbs_02",
+      "power_supply": "three",
+      "has_dhw": true,
+      "has_pool": false,
+      "has_cooling": true,
+      "max_circuits": 2,
+      "has_secondary_compressor": true
+    }
+  ]
+}
+```
+
+### What is not sent
+
+- **No identifier**: no hash, no entry id, no serial number. Two pings from the same installation cannot be linked.
+- **No location**: the Köppen climate zone is computed inside Home Assistant from its configured location, and only the zone leaves it.
+- **No measurement**: no temperature, power, energy or register value.
+
+The endpoint keeps nothing about the request itself: no IP address, no request log. It turns each unit of the ping into one anonymous counter row, and that's all.
+
+### How often
+
+At most once per UTC day per Home Assistant instance, whatever the number of Hitachi units and restarts. The day of the last delivered ping is stored locally (`.storage/hitachi_yutaki_fleet_ping`). The first attempt comes 10 minutes after Home Assistant starts, so every unit has been polled; a failed attempt is retried every hour. Counting the pings received on a day gives the number of active installations that day, without any identifier.
+
+### Public stats
+
+The aggregated results are public: [fleet stats](https://alepee.github.io/hass-hitachi_yutaki/fleet-stats.html), refreshed daily, raw data at `https://hitachi-telemetry.lepee.dev/v1/stats`. Each chart shows **one attribute on its own** (versions, climate zone, model, gateway, power supply, circuits, capabilities), never a combination of attributes, so no installation can be singled out.
+
+### Consent
+
+| | Telemetry | Fleet ping |
+|---|---|---|
+| Default | Off (opt-in) | **On (opt-out)** |
+| Content | Fine-grained metrics, pseudonymous hashes | Anonymous installation profile, no identifier |
+
+- **Telemetry On implies the fleet ping**: telemetry already shares a superset of this information.
+- **Telemetry Off leaves the fleet ping on its own toggle.**
+- A one-time repair notice presents the fleet ping and lets you turn it off. Afterwards, change it in **Settings → Devices & Services → Hitachi Yutaki → Configure**: the fleet ping step follows the telemetry step when telemetry is off.
+- With several Hitachi units on one instance, the ping only lists the units whose entry has it enabled, and is not sent if none does.
+
 ## How to enable or disable telemetry
 
 Go to **Settings → Devices & Services → Hitachi Yutaki → Configure** and select the telemetry step. You can enable or disable telemetry at any time.

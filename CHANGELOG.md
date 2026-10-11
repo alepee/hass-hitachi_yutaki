@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Anonymous daily fleet ping (#468), separate from telemetry and with its own
+  setting. Once a day, the integration sends one tiny payload per Home Assistant
+  instance: integration and Home Assistant versions, Köppen climate zone (computed
+  locally), and the model, gateway and capabilities of each heat pump. No
+  identifier, no location, no measurement. On by default, and turned off from the
+  integration options (telemetry On implies it); a one-time repair notice presents
+  it. The aggregated results are public, one chart per attribute:
+  [fleet stats](https://alepee.github.io/hass-hitachi_yutaki/fleet-stats.html).
+  Exact payload in the [telemetry reference](docs/reference/telemetry.md#fleet-ping).
+
 - Catalan translation, seeded from the English source and the French translation
   and open for review by native speakers on
   [Weblate](https://hosted.weblate.org/engage/hass-hitachi_yutaki/).

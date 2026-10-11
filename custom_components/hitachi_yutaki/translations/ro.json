@@ -156,6 +156,13 @@
         "data": {
           "telemetry_level": "Telemetrie anonimă"
         }
+      },
+      "fleet_ping": {
+        "title": "Semnal anonim al parcului",
+        "description": "Separat de telemetrie: o dată pe zi, integrarea trimite un mesaj anonim foarte mic, ca să știu câte instalări sunt active și ce echipamente folosesc. Așa pot stabili prioritățile și pot decide când o versiune veche de Home Assistant poate fi abandonată.\n\nCe se trimite: versiunea integrării și cea a Home Assistant, zona climatică și, pentru fiecare pompă de căldură, modelul, gateway-ul și capabilitățile. Niciun identificator, nicio locație, nicio măsurătoare. Rezultatele agregate sunt publice: [statistici ale parcului]({stats_url}).\n\n[Mai multe despre semnalul parcului]({learn_more_url})",
+        "data": {
+          "fleet_ping": "Trimite semnalul anonim al parcului"
+        }
       }
     },
     "error": {
@@ -848,6 +855,23 @@
             "description": "Dezvolt și testez pe un singur model de pompă de căldură. Pentru toate celelalte, lucrez pe nevăzute — datele dumneavoastră anonime mă ajută să construiesc teste realiste, să detectez regresii și să dezvolt funcții noi. Nu se colectează niciodată informații personale. Puteți modifica aceasta oricând din opțiunile integrării.\n\n[Aflați mai multe despre telemetrie]({learn_more_url})",
             "data": {
               "telemetry_level": "Telemetrie anonimă"
+            }
+          }
+        },
+        "abort": {
+          "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
+        }
+      }
+    },
+    "fleet_ping_notice": {
+      "title": "Semnalul anonim al parcului este activ",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Semnal anonim al parcului",
+            "description": "Separat de telemetrie: o dată pe zi, integrarea trimite un mesaj anonim foarte mic, ca să știu câte instalări sunt active și ce echipamente folosesc. Așa pot stabili prioritățile și pot decide când o versiune veche de Home Assistant poate fi abandonată.\n\nCe se trimite: versiunea integrării și cea a Home Assistant, zona climatică și, pentru fiecare pompă de căldură, modelul, gateway-ul și capabilitățile. Niciun identificator, nicio locație, nicio măsurătoare. Rezultatele agregate sunt publice: [statistici ale parcului]({stats_url}).\n\nEste activ în mod implicit. Păstrați-l sau dezactivați-l mai jos. Puteți schimba oricând această opțiune în setările integrării.\n\n[Mai multe despre semnalul parcului]({learn_more_url})",
+            "data": {
+              "fleet_ping": "Trimite semnalul anonim al parcului"
             }
           }
         },

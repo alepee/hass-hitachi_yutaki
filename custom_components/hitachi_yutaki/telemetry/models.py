@@ -139,3 +139,56 @@ class RegisterSnapshot:
             "gateway_type": self.gateway_type,
             "registers": self.registers,
         }
+
+
+@dataclass(frozen=True)
+class FleetPingUnit:
+    """Capabilities of one heat pump unit, as listed in a fleet ping."""
+
+    profile: str
+    gateway_type: str
+    power_supply: str  # "single" or "three"
+    has_dhw: bool
+    has_pool: bool
+    has_cooling: bool
+    max_circuits: int
+    has_secondary_compressor: bool
+
+    def to_dict(self) -> dict:
+        """Serialize to dict for JSON payload."""
+        return {
+            "profile": self.profile,
+            "gateway_type": self.gateway_type,
+            "power_supply": self.power_supply,
+            "has_dhw": self.has_dhw,
+            "has_pool": self.has_pool,
+            "has_cooling": self.has_cooling,
+            "max_circuits": self.max_circuits,
+            "has_secondary_compressor": self.has_secondary_compressor,
+        }
+
+
+@dataclass(frozen=True)
+class FleetPing:
+    """Anonymous daily fleet ping, one per Home Assistant instance (#468).
+
+    Deliberately carries no identifier of any kind (no instance or device
+    hash), so two pings from the same installation cannot be linked. The
+    location is reduced to a Köppen climate zone before it leaves the instance.
+    Separate from telemetry: its consent is its own, opt-out.
+    """
+
+    integration_version: str
+    ha_version: str
+    climate_zone: str | None
+    units: tuple[FleetPingUnit, ...]
+
+    def to_dict(self) -> dict:
+        """Serialize to dict for JSON payload."""
+        return {
+            "type": "ping",
+            "integration_version": self.integration_version,
+            "ha_version": self.ha_version,
+            "climate_zone": self.climate_zone,
+            "units": [unit.to_dict() for unit in self.units],
+        }
