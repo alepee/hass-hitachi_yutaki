@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0-beta.9] - 2026-10-12
+
 ### Added
 
 - Anonymous daily fleet ping (#468), separate from telemetry and with its own
