@@ -33,13 +33,19 @@ from pymodbus.client import ModbusTcpClient
 # We build a minimal const stub, then load the files directly with importlib.
 # ---------------------------------------------------------------------------
 
-_INTEGRATION_ROOT = Path(__file__).resolve().parent.parent / "custom_components" / "hitachi_yutaki"
+_INTEGRATION_ROOT = (
+    Path(__file__).resolve().parent.parent / "custom_components" / "hitachi_yutaki"
+)
 _REGISTERS_DIR = _INTEGRATION_ROOT / "api" / "modbus" / "registers"
 
 
-def _load_module_from_file(name: str, filepath: Path, package: str | None = None) -> types.ModuleType:
+def _load_module_from_file(
+    name: str, filepath: Path, package: str | None = None
+) -> types.ModuleType:
     """Load a Python module from a file path."""
-    spec = importlib.util.spec_from_file_location(name, filepath, submodule_search_locations=[])
+    spec = importlib.util.spec_from_file_location(
+        name, filepath, submodule_search_locations=[]
+    )
     if spec is None or spec.loader is None:
         msg = f"Cannot load module from {filepath}"
         raise ImportError(msg)
@@ -112,10 +118,16 @@ def _bootstrap_register_maps():
         package=reg_pkg_name,
     )
 
-    return atw_mod.AtwMbs02RegisterMap, hc_mod.HcAMbRegisterMap, pre2016_mod.AtwMbs02Pre2016RegisterMap
+    return (
+        atw_mod.AtwMbs02RegisterMap,
+        hc_mod.HcAMbRegisterMap,
+        pre2016_mod.AtwMbs02Pre2016RegisterMap,
+    )
 
 
-AtwMbs02RegisterMap, HcAMbRegisterMap, AtwMbs02Pre2016RegisterMap = _bootstrap_register_maps()
+AtwMbs02RegisterMap, HcAMbRegisterMap, AtwMbs02Pre2016RegisterMap = (
+    _bootstrap_register_maps()
+)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -227,6 +239,19 @@ RANGES_HC_A_MB_TARGETED_TEMPLATE = [
     (3, 100, 200, "Status Registers 100-199"),
 ]
 
+# Gateway unit table (#353, #476): 4 input registers per H-LINK slot at
+# 200 + slot * 4, holding [+0 ?, +1 Ou (outdoor cycle, 0xFF = empty),
+# +2 Iu (indoor address), +3 slot]. Absolute addresses, not offset by unit id.
+HC_A_MB_UNIT_TABLE_BASE = 200
+HC_A_MB_UNIT_TABLE_SLOTS = 16  # HC-A16MB; an HC-A64MB has 64
+HC_A_MB_UNIT_TABLE_LABEL = "Unit Table (FC4) 200-263"
+RANGE_HC_A_MB_UNIT_TABLE = (
+    4,
+    HC_A_MB_UNIT_TABLE_BASE,
+    HC_A_MB_UNIT_TABLE_BASE + HC_A_MB_UNIT_TABLE_SLOTS * 4,
+    HC_A_MB_UNIT_TABLE_LABEL,
+)
+
 # full: FC3 + FC4 over 0-65535 (~45s)
 RANGES_FULL = [
     (4, 0, 65536, "Input Registers (FC4) 0-65535"),
@@ -295,7 +320,10 @@ def build_lookup(register_map) -> dict[int, list[tuple[str, object]]]:
         entry = (name, reg_def.deserializer)
         lookup.setdefault(reg_def.address, []).append(entry)
         # Also index write_address so CONTROL-only registers are found
-        if reg_def.write_address is not None and reg_def.write_address != reg_def.address:
+        if (
+            reg_def.write_address is not None
+            and reg_def.write_address != reg_def.address
+        ):
             lookup.setdefault(reg_def.write_address, []).append(
                 (f"{name} [write]", reg_def.serializer)
             )
@@ -351,7 +379,9 @@ def detect_gateway(client: ModbusTcpClient, device_id: int, unit_id: int) -> str
     # Try HC-A-MB: unit_model at base + 162
     hc_addr = 5000 + (unit_id * 200) + HC_A_MB_UNIT_MODEL_OFFSET
     try:
-        result = client.read_holding_registers(address=hc_addr, count=1, device_id=device_id)
+        result = client.read_holding_registers(
+            address=hc_addr, count=1, device_id=device_id
+        )
         if not result.isError() and 0 <= result.registers[0] <= 6:
             return GATEWAY_HC_A_MB
     except Exception:
@@ -446,7 +476,9 @@ def scan_range(
         msg = f"Unsupported function code: {fc}"
         raise ValueError(msg)
     read_func, extractor = fc_map[fc]
-    return _scan_loop(client, device_id, read_func, start, end, label, chunk_size, delay, extractor)
+    return _scan_loop(
+        client, device_id, read_func, start, end, label, chunk_size, delay, extractor
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -539,7 +571,35 @@ def _decode_bitmask(value: int, bits: list[tuple[int, str]]) -> list[str]:
     return [name for mask, name in bits if value & mask]
 
 
-def print_system_recap(all_results: list[tuple[str, list[tuple[int, int]]]], gateway_type: str) -> None:
+def print_unit_table(all_results: list[tuple[str, list[tuple[int, int]]]]) -> None:
+    """Print the HC-A(16/64)MB unit table decoded one slot per line, if scanned."""
+    regs = next(
+        (
+            dict(results)
+            for label, results in all_results
+            if label.endswith(HC_A_MB_UNIT_TABLE_LABEL)
+        ),
+        None,
+    )
+    if regs is None:
+        return
+    print("\n" + "=" * 100)
+    print("UNIT TABLE (FC4, 4 registers per slot)")
+    print("=" * 100)
+    print("slot | registers |  +0   +1 Ou   +2 Iu   +3")
+    for slot in range(HC_A_MB_UNIT_TABLE_SLOTS):
+        start = HC_A_MB_UNIT_TABLE_BASE + slot * 4
+        values = [regs.get(start + offset) for offset in range(4)]
+        cells = ["   -" if v is None else f"{v:4d}" for v in values]
+        note = "  (empty)" if values[1] == 0xFF else ""
+        print(
+            f"{slot:4d} | {start}-{start + 3} | {cells[0]} {cells[1]}    {cells[2]}    {cells[3]}{note}"
+        )
+
+
+def print_system_recap(
+    all_results: list[tuple[str, list[tuple[int, int]]]], gateway_type: str
+) -> None:
     """Print a human-readable system configuration recap."""
     # Collect all results into a flat address->value dict
     reg_values: dict[int, int] = {
@@ -590,23 +650,31 @@ def print_system_recap(all_results: list[tuple[str, list[tuple[int, int]]]], gat
     # Unit model
     model_raw = reg_values.get(addr_model)
     if model_raw is not None:
-        print(f"  Unit model:       {UNIT_MODEL_NAMES.get(model_raw, f'unknown ({model_raw})')}")
+        print(
+            f"  Unit model:       {UNIT_MODEL_NAMES.get(model_raw, f'unknown ({model_raw})')}"
+        )
 
     # Operation mode
     mode_raw = reg_values.get(addr_mode)
     if mode_raw is not None:
-        print(f"  Unit mode:        {UNIT_MODES.get(mode_raw, f'unknown ({mode_raw})')}")
+        print(
+            f"  Unit mode:        {UNIT_MODES.get(mode_raw, f'unknown ({mode_raw})')}"
+        )
 
     # Operation state
     op_state = reg_values.get(addr_op_state)
     if op_state is not None:
-        print(f"  Operation state:  {OPERATION_STATES.get(op_state, f'unknown ({op_state})')}")
+        print(
+            f"  Operation state:  {OPERATION_STATES.get(op_state, f'unknown ({op_state})')}"
+        )
 
     # System state
     state_raw = reg_values.get(addr_state)
     if state_raw is not None:
         state_names = {0: "Synchronized", 1: "Desynchronized", 2: "Initializing"}
-        print(f"  System state:     {state_names.get(state_raw, f'unknown ({state_raw})')}")
+        print(
+            f"  System state:     {state_names.get(state_raw, f'unknown ({state_raw})')}"
+        )
 
     # Temperatures & measurements
     print()
@@ -681,9 +749,15 @@ examples:
   %(prog)s > scan_results.txt           # redirect results, progress on stderr
 """,
     )
-    parser.add_argument("--host", default="192.168.0.4", help="Gateway IP (default: 192.168.0.4)")
-    parser.add_argument("--port", type=int, default=502, help="Gateway Modbus port (default: 502)")
-    parser.add_argument("--slave", type=int, default=1, help="Modbus slave/device ID (default: 1)")
+    parser.add_argument(
+        "--host", default="192.168.0.4", help="Gateway IP (default: 192.168.0.4)"
+    )
+    parser.add_argument(
+        "--port", type=int, default=502, help="Gateway Modbus port (default: 502)"
+    )
+    parser.add_argument(
+        "--slave", type=int, default=1, help="Modbus slave/device ID (default: 1)"
+    )
     parser.add_argument(
         "--gateway",
         choices=[GATEWAY_ATW_MBS_02, GATEWAY_ATW_MBS_02_PRE2016, GATEWAY_HC_A_MB],
@@ -702,9 +776,21 @@ examples:
         default=RANGE_TARGETED,
         help="Scan range: targeted (default), full (FC3+FC4 0-65535), exhaustive (FC1-FC4 0-65535)",
     )
-    parser.add_argument("--timeout", type=int, default=10, help="Connection timeout in seconds (default: 10)")
-    parser.add_argument("--chunk-size", type=int, default=50, help="Registers per read (default: 50)")
-    parser.add_argument("--delay", type=float, default=0.1, help="Delay between reads in seconds (default: 0.1)")
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=10,
+        help="Connection timeout in seconds (default: 10)",
+    )
+    parser.add_argument(
+        "--chunk-size", type=int, default=50, help="Registers per read (default: 50)"
+    )
+    parser.add_argument(
+        "--delay",
+        type=float,
+        default=0.1,
+        help="Delay between reads in seconds (default: 0.1)",
+    )
     parser.add_argument(
         "--show-unused",
         action="store_true",
@@ -745,7 +831,9 @@ def main(argv: list[str] | None = None) -> int:
     # -- Test connection --
     info("Testing connectivity ...")
     if not test_connection(client, args.slave):
-        info("ERROR: Connection test failed — no readable registers. Check host/slave ID.")
+        info(
+            "ERROR: Connection test failed — no readable registers. Check host/slave ID."
+        )
         client.close()
         return 1
     info("Connection OK.\n")
@@ -792,6 +880,7 @@ def main(argv: list[str] | None = None) -> int:
             (fc, base + offset_start, base + offset_end, label)
             for fc, offset_start, offset_end, label in RANGES_HC_A_MB_TARGETED_TEMPLATE
         ]
+        scan_ranges.append(RANGE_HC_A_MB_UNIT_TABLE)
 
     lookup = build_lookup(register_map)
 
@@ -805,7 +894,14 @@ def main(argv: list[str] | None = None) -> int:
         full_label = f"{fc_label} {label}"
         info(f"Scanning {full_label} ({range_start}-{range_end - 1}) ...")
         results = scan_range(
-            client, args.slave, fc, range_start, range_end, fc_label, args.chunk_size, args.delay
+            client,
+            args.slave,
+            fc,
+            range_start,
+            range_end,
+            fc_label,
+            args.chunk_size,
+            args.delay,
         )
         all_results.append((full_label, results))
         total_found += len(results)
@@ -817,12 +913,15 @@ def main(argv: list[str] | None = None) -> int:
     total_printed = 0
     total_empty = 0
     for label, results in all_results:
-        printed, skipped = print_results(results, lookup, label, show_unused=args.show_unused)
+        printed, skipped = print_results(
+            results, lookup, label, show_unused=args.show_unused
+        )
         total_printed += printed
         total_empty += skipped
 
     # -- System recap --
     print_system_recap(all_results, gateway_type)
+    print_unit_table(all_results)
 
     # -- Summary --
     print("\n" + "=" * 100)
@@ -830,7 +929,9 @@ def main(argv: list[str] | None = None) -> int:
     print("=" * 100)
     print(f"Duration:        {format_duration(total_time)}")
     print(f"Gateway:         {gateway_type}")
-    print(f"Total found:     {total_found} ({total_printed} with data, {total_empty} sentinels)")
+    print(
+        f"Total found:     {total_found} ({total_printed} with data, {total_empty} sentinels)"
+    )
     for label, results in all_results:
         data = sum(1 for _, v in results if v not in SENTINEL_VALUES)
         sentinels = len(results) - data
