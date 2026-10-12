@@ -75,18 +75,17 @@ async def test_energy_counters_restored_before_first_refresh(
             "thermal_energy_heating_total", RESTORED_THERMAL_KWH
         )
 
-    async def fake_first_refresh(coordinator) -> bool:
+    async def fake_first_refresh(coordinator) -> None:
         # Stand-in for a successful first poll: run the derived metrics on a
         # minimal register set and publish the result, as the coordinator does.
         calls.append("first_refresh")
         data = {"is_available": True, "compressor_current": 0.0}
         coordinator.derived_metrics.update(data)
         coordinator.async_set_updated_data(data)
-        return True
 
     with (
         patch(
-            "custom_components.hitachi_yutaki._async_first_refresh_tolerating_gateway_not_ready",
+            "custom_components.hitachi_yutaki._async_first_refresh",
             side_effect=fake_first_refresh,
         ),
         patch(

@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Setup no longer continues while the gateway's H-LINK bus is still initializing
+  (#404). It used to go ahead on empty data: devices were created from the saved
+  capabilities, but every entity that depends on them was skipped, leaving
+  devices with no entities until a manual reload. Setup is now deferred, and Home
+  Assistant retries it on its own until the gateway is ready.
+
+- A garbage `system_config` read (`0xFFFF`) is no longer taken as a heat pump
+  declaring every capability, which created phantom `Circuit 2`, `DHW` and
+  `Pool` devices (#404).
+
+- On an HC-A(16/64)MB gateway, adding a unit whose outdoor refrigerant cycle is
+  already used by another configured unit is now refused with a clear error.
+  Two entries on one cycle read and drive the same outdoor unit, which silently
+  corrupted the first unit's data (#404).
+
+- A circuit, DHW or pool device that the heat pump no longer declares can now be
+  deleted from the device page (#404).
+
 ## [2.2.0-beta.9] - 2026-10-12
 
 ### Added

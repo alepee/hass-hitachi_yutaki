@@ -17,7 +17,7 @@
 |------|-------|--------|
 | Bronze | 18/18 | Atteint |
 | Silver | 6/10 | Non atteint |
-| Gold | 7/21 | Non atteint |
+| Gold | 8/21 | Non atteint |
 | Platinum | 1/3 | Non atteint |
 
 **Niveau actuel : Bronze** (toutes les règles validées)
@@ -77,7 +77,7 @@
 
 ## Gold (21 règles)
 
-### Règles validées (7)
+### Règles validées (8)
 
 | Règle | Détail |
 |-------|--------|
@@ -88,8 +88,9 @@
 | `entity-translations` | Traductions EN, FR, NL, RO (translations/) |
 | `reconfiguration-flow` | Options flow en 4 étapes avec reload automatique |
 | `repair-issues` | Repair flows (`missing_config`, `enable_telemetry`, `enable_energy_cost`) + issue `connection_error` |
+| `stale-devices` | `async_remove_config_entry_device` : un device circuit, ECS ou piscine que la PAC ne déclare plus peut être supprimé |
 
-### Règles non validées (14)
+### Règles non validées (13)
 
 | Règle | Détail | Effort |
 |-------|--------|--------|
@@ -97,7 +98,6 @@
 | `discovery` | Pas de découverte auto (limité par Modbus TCP) | N/A |
 | `discovery-update-info` | N/A sans discovery | N/A |
 | `dynamic-devices` | Devices statiques à la configuration | N/A |
-| `stale-devices` | Pas de nettoyage des devices obsolètes | Faible |
 | `icon-translations` | Pas de `icons.json` | Moyen |
 | `exception-translations` | Exceptions non traduisibles (`HomeAssistantError` sans `translation_key`) | Moyen |
 | `docs-data-update` | Pas de section dédiée dans la documentation | Faible |
@@ -140,4 +140,3 @@
 - `diagnostics` -- Implémenter `diagnostics.py` (export config + registres Modbus)
 - `icon-translations` -- Créer `icons.json`
 - `exception-translations` -- Utiliser `HomeAssistantError` avec `translation_key`
-- `stale-devices` -- Nettoyer les devices qui ne sont plus dans le profil

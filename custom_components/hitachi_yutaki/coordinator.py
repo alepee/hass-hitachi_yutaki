@@ -225,9 +225,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         # communication error: log it with a stack trace and return the raw
         # poll data so register-backed entities stay fresh (#386).
         try:
-            # Persist system_config in entry.data so COP services and device
-            # capabilities can be initialised at next setup *before* any
-            # refresh — survives reloads that hit gateway_not_ready (#308).
+            # Persist system_config in entry.data so COP services can be
+            # seeded at next setup *before* the first refresh (#308).
             # Only write when the value actually changed to avoid churn.
             persisted = self.config_entry.data.get("system_config")
             if self.system_config and persisted != self.system_config:

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 import logging
 from typing import Any
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import (
     CONF_NAME,
     CONF_SCAN_INTERVAL,
@@ -119,76 +119,58 @@ _THERMAL_ENERGY_KEYS = (
 )
 
 
-async def _async_first_refresh_tolerating_gateway_not_ready(
-    coordinator: HitachiYutakiDataCoordinator,
-) -> bool:
-    """Run the coordinator's first refresh, tolerating a transient gateway-not-ready.
+async def _async_first_refresh(coordinator: HitachiYutakiDataCoordinator) -> None:
+    """Run the coordinator's first refresh, deferring setup until data is fresh.
 
-    The ATW-MBS-02 gateway can report ``GATEWAY_NOT_READY`` while its H-LINK bus
-    is initializing after a power cycle (Modbus TCP is up, H-LINK is not). At
-    setup time this is a transient, expected condition: the entry was already
-    validated by the config flow, so we let setup complete and entities will
-    transition to ``available`` on the next successful poll. Any other cause
-    (TCP unreachable, Modbus error, etc.) is re-raised so HA retries setup.
-
-    Returns ``True`` when the refresh succeeded and fresh register data is
-    available, ``False`` when the refresh failed because of ``gateway_not_ready``
-    (callers must not assume ``coordinator.data`` reflects the current install).
+    The gateway can report ``GATEWAY_NOT_READY`` while its H-LINK bus is
+    initializing (Modbus TCP is up, H-LINK is not). Setup must not continue in
+    that window: entities are gated on live register data, so an empty first
+    read silently drops every capability-gated entity until the next reload,
+    leaving devices with no entities (#404). Any failure, ``gateway_not_ready``
+    included, raises ``ConfigEntryNotReady`` so HA retries setup with backoff.
+    So does a poll that carried no valid ``system_config``.
     """
     try:
         await coordinator.async_config_entry_first_refresh()
-    except ConfigEntryNotReady:
+    except ConfigEntryNotReady as exc:
         if coordinator.gateway_not_ready:
-            _LOGGER.warning(
-                "Gateway H-LINK is still initializing; continuing setup with "
-                "stale capabilities. Entities will recover on the next poll."
-            )
-            return False
+            raise ConfigEntryNotReady(
+                "Gateway H-LINK is still initializing; setup will retry"
+            ) from exc
         raise
-    return True
+    if coordinator.data.get("system_config") is None:
+        # The poll succeeded but system_config was unreadable or filtered as a
+        # garbage read: capabilities are unknown, so do not build devices and
+        # entities from them.
+        raise ConfigEntryNotReady("Gateway returned no valid system configuration")
 
 
-def _resolve_effective_capabilities(
-    *,
-    data_is_fresh: bool,
-    live: dict[str, bool],
-    persisted: dict[str, bool],
-) -> dict[str, bool]:
-    """Resolve the capability flags used to gate device registration (#317).
-
-    When the first refresh succeeds, ``api_client._data`` holds fresh register
-    data and the LIVE ``coordinator.has_*()`` flags are authoritative. When the
-    refresh was tolerated through ``gateway_not_ready`` (#303/#307), ``_data`` is
-    EMPTY so every live flag is ``False``; in that case fall back to the flags
-    decoded from the persisted ``system_config`` (#308) so DHW/Pool/Circuit
-    devices are still registered instead of silently disappearing until a later
-    reload hits a successful poll.
-
-    Both dicts use the keys ``circuit1``, ``circuit2``, ``cooling``, ``dhw`` and
-    ``pool``.
-    """
-    return live if data_is_fresh else persisted
+def _live_capabilities(coordinator: HitachiYutakiDataCoordinator) -> dict[str, bool]:
+    """Return the unit's capability flags decoded from the last poll's system_config."""
+    return {
+        "circuit1": coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
+        or coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING),
+        "circuit2": coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING)
+        or coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING),
+        "cooling": coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
+        or coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING),
+        "dhw": coordinator.has_dhw(),
+        "pool": coordinator.has_pool(),
+    }
 
 
 def _should_reinit_cop_services(
     *,
-    data_is_fresh: bool,
     live: dict[str, bool],
     persisted: dict[str, bool],
 ) -> bool:
     """Decide whether COP services must be re-initialised from LIVE capabilities.
 
     The COP services were already seeded from the persisted ``system_config``
-    (#308). We only re-init them when the first refresh produced fresh data
-    (``data_is_fresh``) AND the live capabilities disagree with the persisted
-    ones (first-time setup, or a capability changed on the unit).
-
-    When data is NOT fresh (gateway_not_ready tolerated), the live flags are all
-    ``False`` and re-initialising would DESTROY the just-seeded services (#317
-    symptom 1), so we never re-init in that case.
+    (#308). Re-init them only when the live capabilities read by the first
+    refresh disagree with the persisted ones (first-time setup, or a capability
+    changed on the unit).
     """
-    if not data_is_fresh:
-        return False
     return (
         live["cooling"] != persisted["cooling"]
         or live["dhw"] != persisted["dhw"]
@@ -597,26 +579,18 @@ async def async_setup_entry(
     }
 
     # Seed capability flags from persisted system_config so COP services are
-    # initialised correctly even when the first refresh fails with
-    # gateway_not_ready (#308). decode_config tolerates missing/0 values and
-    # returns all-False flags for never-yet-refreshed entries.
+    # initialised before the first refresh (#308).
+    # decode_config tolerates missing/0 values and returns all-False flags for
+    # never-yet-refreshed entries.
     persisted_flags = api_client.decode_config(
         {"system_config": entry.data.get("system_config", 0)}
     )
-    persisted_has_circuit1 = persisted_flags.get(
-        "has_circuit1_heating", False
-    ) or persisted_flags.get("has_circuit1_cooling", False)
-    persisted_has_circuit2 = persisted_flags.get(
-        "has_circuit2_heating", False
-    ) or persisted_flags.get("has_circuit2_cooling", False)
     persisted_has_cooling = persisted_flags.get(
         "has_circuit1_cooling", False
     ) or persisted_flags.get("has_circuit2_cooling", False)
     persisted_has_dhw = persisted_flags.get("has_dhw", False)
     persisted_has_pool = persisted_flags.get("has_pool", False)
     persisted_caps = {
-        "circuit1": persisted_has_circuit1,
-        "circuit2": persisted_has_circuit2,
         "cooling": persisted_has_cooling,
         "dhw": persisted_has_dhw,
         "pool": persisted_has_pool,
@@ -666,54 +640,26 @@ async def async_setup_entry(
     await _async_restore_thermal_energy(hass, entry, coordinator)
     await _async_restore_energy_state(hass, entry, coordinator)
 
-    # Initial poll. A transient gateway_not_ready (H-LINK still initializing
-    # after a gateway power-cycle) must not fail setup of an already-configured
-    # entry: log a warning and continue. Entities will go ``available`` on the
-    # next successful poll. Any other ConfigEntryNotReady is re-raised so HA
-    # retries setup via its standard mechanism.
-    data_is_fresh = await _async_first_refresh_tolerating_gateway_not_ready(coordinator)
+    # Initial poll. Setup only continues on fresh register data: entities and
+    # devices are gated on the capabilities it carries (#404).
+    await _async_first_refresh(coordinator)
 
     _LOGGER.debug("Data coordinator initialized")
 
     entry.runtime_data = coordinator
 
-    # Live capabilities read straight from api_client._data. These are only
-    # meaningful when the first refresh produced fresh data; if it was tolerated
-    # through gateway_not_ready (#303/#307) the _data dict is empty and every
-    # flag below is False.
-    live_caps = {
-        "circuit1": coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
-        or coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING),
-        "circuit2": coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING)
-        or coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING),
-        "cooling": coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
-        or coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING),
-        "dhw": coordinator.has_dhw(),
-        "pool": coordinator.has_pool(),
-    }
+    # Live capabilities read from the fresh first refresh. They gate device
+    # registration below, like the entity conditions gate entities.
+    caps = _live_capabilities(coordinator)
 
-    # Effective capabilities used to gate device registration: live when fresh,
-    # persisted fallback when the first refresh was tolerated (#317 symptom 2).
-    effective_caps = _resolve_effective_capabilities(
-        data_is_fresh=data_is_fresh,
-        live=live_caps,
-        persisted=persisted_caps,
-    )
-
-    # Re-initialise COP services only when fresh data disagrees with the
-    # persisted value. When data is stale, the live flags are all False and
-    # re-initialising would destroy the COP services already seeded from the
-    # persisted system_config (#308, #317 symptom 1).
-    if _should_reinit_cop_services(
-        data_is_fresh=data_is_fresh,
-        live=live_caps,
-        persisted=persisted_caps,
-    ):
-        coordinator.derived_metrics._has_cooling = live_caps["cooling"]
+    # Re-initialise COP services only when the live capabilities disagree with
+    # the persisted ones the services were seeded from (#308).
+    if _should_reinit_cop_services(live=caps, persisted=persisted_caps):
+        coordinator.derived_metrics._has_cooling = caps["cooling"]
         coordinator.derived_metrics._init_cop_services(
-            has_cooling=live_caps["cooling"],
-            has_dhw=live_caps["dhw"],
-            has_pool=live_caps["pool"],
+            has_cooling=caps["cooling"],
+            has_dhw=caps["dhw"],
+            has_pool=caps["pool"],
         )
 
     # Rehydrate COP measurement buffers from Recorder history
@@ -775,7 +721,7 @@ async def async_setup_entry(
         )
 
     # Add Circuit 1 device if configured
-    if effective_caps["circuit1"]:
+    if caps["circuit1"]:
         _LOGGER.debug("Circuit 1 configured, registering device")
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -788,7 +734,7 @@ async def async_setup_entry(
         )
 
     # Add Circuit 2 device if configured
-    if effective_caps["circuit2"]:
+    if caps["circuit2"]:
         _LOGGER.debug("Circuit 2 configured, registering device")
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -801,7 +747,7 @@ async def async_setup_entry(
         )
 
     # Add DHW device if configured
-    if effective_caps["dhw"]:
+    if caps["dhw"]:
         _LOGGER.debug("DHW configured, registering device")
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -814,7 +760,7 @@ async def async_setup_entry(
         )
 
     # Add Pool device if configured
-    if effective_caps["pool"]:
+    if caps["pool"]:
         _LOGGER.debug("Pool configured, registering device")
         device_registry.async_get_or_create(
             config_entry_id=entry.entry_id,
@@ -953,6 +899,33 @@ async def async_migrate_entry(
         )
 
     return True
+
+
+async def async_remove_config_entry_device(
+    hass: HomeAssistant,
+    config_entry: HitachiYutakiConfigEntry,
+    device_entry: dr.DeviceEntry,
+) -> bool:
+    """Allow removing a device the unit does not declare (#404).
+
+    The gateway, control unit and compressors always exist and cannot be
+    removed. A circuit, DHW or pool device can, but only when the unit's
+    current system_config no longer declares it, e.g. a phantom device left
+    by an earlier garbage read.
+    """
+    if config_entry.state is not ConfigEntryState.LOADED:
+        return False
+    caps = _live_capabilities(config_entry.runtime_data)
+    declared = {
+        f"{config_entry.entry_id}_{DEVICE_CIRCUIT_1}": caps["circuit1"],
+        f"{config_entry.entry_id}_{DEVICE_CIRCUIT_2}": caps["circuit2"],
+        f"{config_entry.entry_id}_{DEVICE_DHW}": caps["dhw"],
+        f"{config_entry.entry_id}_{DEVICE_POOL}": caps["pool"],
+    }
+    for domain, identifier in device_entry.identifiers:
+        if domain == DOMAIN and identifier in declared:
+            return not declared[identifier]
+    return False
 
 
 async def async_unload_entry(

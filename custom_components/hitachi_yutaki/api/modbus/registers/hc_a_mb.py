@@ -317,7 +317,10 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             "unit_model": RegisterDefinition(
                 self._addr(162), deserializer=deserialize_unit_model
             ),
-            "system_config": RegisterDefinition(self._addr(140)),
+            # 0xFFFF is a garbage read, not a configuration (#404).
+            "system_config": RegisterDefinition(
+                self._addr(140), sentinel_values=frozenset({0xFFFF})
+            ),
             "system_status": RegisterDefinition(self._addr(166)),
             "system_state": RegisterDefinition(
                 self._addr(145), deserializer=deserialize_system_state

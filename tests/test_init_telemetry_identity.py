@@ -84,8 +84,8 @@ async def _setup(
 
     with (
         patch(
-            "custom_components.hitachi_yutaki._async_first_refresh_tolerating_gateway_not_ready",
-            AsyncMock(return_value=False),
+            "custom_components.hitachi_yutaki._async_first_refresh",
+            AsyncMock(return_value=None),
         ),
         patch(
             "custom_components.hitachi_yutaki.api.modbus.ModbusApiClient.connect",

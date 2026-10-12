@@ -265,7 +265,8 @@
       "unknown": "An unknown error occurred. Please check the logs.",
       "system_initializing": "The Hitachi Yutaki gateway is initializing. Please wait a moment and try again.",
       "desync_error": "The gateway is out of sync with the heat pump. Ensure the heat pump is powered on and the connection between the two devices is correct.",
-      "gateway_not_ready": "The gateway is reachable but not ready (still initializing, or out of sync with the heat pump). This is normal for a few minutes right after powering on the gateway. If it persists, check the H-LINK wiring (terminals 1-2 on the indoor unit PCB, 0.75 mm² shielded twisted pair) and see the project's troubleshooting guide."
+      "gateway_not_ready": "The gateway is reachable but not ready (still initializing, or out of sync with the heat pump). This is normal for a few minutes right after powering on the gateway. If it persists, check the H-LINK wiring (terminals 1-2 on the indoor unit PCB, 0.75 mm² shielded twisted pair) and see the project's troubleshooting guide.",
+      "outdoor_cycle_in_use": "Another unit already configured on this gateway uses the same outdoor refrigerant cycle. Two units on one cycle would read and control the same outdoor unit. Check the refrigerant cycle address (DSW) of this unit, then try again."
     },
     "abort": {
       "already_configured": "This Hitachi Yutaki gateway is already configured.",

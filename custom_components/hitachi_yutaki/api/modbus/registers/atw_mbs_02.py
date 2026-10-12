@@ -233,7 +233,9 @@ REGISTER_GATEWAY = {
     "alarm_code": RegisterDefinition(1223, deserializer=deserialize_alarm_code),
     "unit_model": RegisterDefinition(1218, deserializer=deserialize_unit_model),
     "central_control_mode": RegisterDefinition(1088),
-    "system_config": RegisterDefinition(1089),
+    # 0xFFFF is not a configuration but a garbage read (every capability bit
+    # set); filter it rather than create phantom devices (#404).
+    "system_config": RegisterDefinition(1089, sentinel_values=frozenset({0xFFFF})),
     "system_status": RegisterDefinition(1222),
     "system_state": RegisterDefinition(1094, deserializer=deserialize_system_state),
 }

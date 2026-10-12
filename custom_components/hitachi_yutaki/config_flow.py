@@ -361,6 +361,24 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
+    def _outdoor_cycle_in_use(self, config: dict) -> bool:
+        """Return True if another entry on this gateway uses the same outdoor cycle.
+
+        On an HC-A(16/64)MB gateway the outdoor register block is keyed on the
+        refrigerant cycle, not on unit_id. Two entries resolving to the same
+        cycle read and drive the same outdoor unit, which silently corrupts
+        the first unit's data (#404), so the second one is refused.
+        """
+        outdoor_cycle = config.get("outdoor_cycle")
+        if outdoor_cycle is None:
+            return False
+        return any(
+            entry.data.get("outdoor_cycle") == outdoor_cycle
+            and entry.data.get(CONF_MODBUS_HOST) == config[CONF_MODBUS_HOST]
+            and entry.data.get(CONF_MODBUS_PORT) == config[CONF_MODBUS_PORT]
+            for entry in self._async_current_entries(include_ignore=False)
+        )
+
     async def async_validate_connection(self, config: dict) -> FlowResult:
         """Validate the Modbus connection."""
         errors: dict[str, str] = {}
@@ -431,10 +449,13 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         await self.async_set_unique_id(unique_id)
                         self._abort_if_unique_id_configured()
 
-                        self._pending_config = config
-                        # Every profile reaches the panel: short-cycling
-                        # detection needs no extended sensors.
-                        return await self.async_step_advanced_features()
+                        if self._outdoor_cycle_in_use(config):
+                            errors["base"] = "outdoor_cycle_in_use"
+                        else:
+                            self._pending_config = config
+                            # Every profile reaches the panel: short-cycling
+                            # detection needs no extended sensors.
+                            return await self.async_step_advanced_features()
                     else:
                         errors["base"] = "invalid_slave"
 
