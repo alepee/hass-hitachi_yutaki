@@ -123,6 +123,24 @@ describe("publish and serve", () => {
     expect(((await res.json()) as FleetStats).active_installs).toBe(4);
   });
 
+  it("does not publish a day without pings", async () => {
+    const stored = new Map<string, string>();
+    const e = env(r2(stored));
+    await publishStats(e, "2026-10-11", fakeRunner().run);
+    const published = stored.get(STATS_KEY);
+
+    const empty: SqlRunner = async (sql) => (sql.includes("AS installs") ? [{ installs: 0, units: 0 }] : []);
+    expect(await publishStats(e, "2026-10-12", empty)).toBeNull();
+    expect(stored.get(STATS_KEY)).toBe(published);
+  });
+
+  it("drops zero days left in the history", async () => {
+    const { run } = fakeRunner();
+    const previous = { history: [{ date: "2026-10-10", active_installs: 0, units: 0 }] } as FleetStats;
+    const stats = await computeStats(run, "2026-10-11", previous);
+    expect(stats.history.map((h) => h.date)).toEqual(["2026-10-11"]);
+  });
+
   it("answers 404 before the first publication", async () => {
     const res = await worker.fetch(new Request("https://telemetry.internal/v1/stats"), env(r2(new Map())));
     expect(res.status).toBe(404);

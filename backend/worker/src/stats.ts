@@ -131,7 +131,10 @@ export async function computeStats(
 
   const activeInstalls = Number(totals.installs ?? 0);
   const units = Number(totals.units ?? 0);
-  const history = (previous?.history ?? []).filter((h) => h.date !== day);
+  // Zero days are never published; drop any left by an earlier version.
+  const history = (previous?.history ?? []).filter(
+    (h) => h.date !== day && h.active_installs > 0,
+  );
   history.push({ date: day, active_installs: activeInstalls, units });
   history.sort((a, b) => a.date.localeCompare(b.date));
 
@@ -147,11 +150,26 @@ export async function computeStats(
   };
 }
 
-/** Cron entry point: aggregate `day` and publish it to R2. */
-export async function publishStats(env: Env, day: string, run: SqlRunner = aeSqlRunner(env)): Promise<FleetStats> {
+/**
+ * Cron entry point: aggregate `day` and publish it to R2.
+ *
+ * A day without a single ping is not published: the fleet is never really
+ * empty, so it means pings were not received (before the first release, or an
+ * ingestion outage). Publishing it would replace the page with zeros and leave
+ * a false zero in the history. Returns null when nothing was published.
+ */
+export async function publishStats(
+  env: Env,
+  day: string,
+  run: SqlRunner = aeSqlRunner(env),
+): Promise<FleetStats | null> {
   const existing = await env.ARCHIVE.get(STATS_KEY);
   const previous = existing ? ((await existing.json()) as FleetStats) : null;
   const stats = await computeStats(run, day, previous);
+  if (stats.active_installs === 0) {
+    console.warn(`fleet stats: no ping on ${day}, keeping the published document`);
+    return null;
+  }
   await env.ARCHIVE.put(STATS_KEY, JSON.stringify(stats), {
     httpMetadata: { contentType: "application/json" },
   });
