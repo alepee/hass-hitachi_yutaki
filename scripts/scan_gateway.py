@@ -157,6 +157,28 @@ EMPTY_REGISTER = 0xFFFF
 ATW_MBS_02_UNIT_MODEL_ADDR = 1218
 HC_A_MB_UNIT_MODEL_OFFSET = 162  # base + 162
 
+# Central control mode (ATW-MBS-02 1088, pre-2016 1073), decoded by the scanner
+# only: the integration reads it raw (see CENTRAL_CONTROL_MODE_MAP in const.py).
+CENTRAL_CONTROL_MODES = {0: "Local", 1: "Air", 2: "Water", 3: "Total"}
+
+
+def decode_central_control_mode(raw: int) -> str:
+    """Decode the central control mode, keeping unexpected values visible."""
+    return CENTRAL_CONTROL_MODES.get(raw, f"unknown ({raw})")
+
+
+# Deserializers the scanner applies on top of the register map, by register key
+SCANNER_DESERIALIZERS = {"central_control_mode": decode_central_control_mode}
+
+# ATW-MBS-02 (2016) registers absent from the integration register map, named
+# here so the scan output is readable (gateway doc, status registers). Values x10.
+ATW_MBS_02_UNMAPPED = {
+    1062: "circuit1_wireless_setting_temp (x10)",
+    1063: "circuit1_wireless_room_temp (x10)",
+    1074: "circuit2_wireless_setting_temp (x10)",
+    1075: "circuit2_wireless_room_temp (x10)",
+}
+
 # ---------------------------------------------------------------------------
 # System configuration bitmasks (register system_config)
 # Used by both ATW-MBS-02 (reg 1089) and HC-A-MB (offset 140)
@@ -168,8 +190,10 @@ SYSTEM_CONFIG_BITS = [
     (0x0008, "Circuit 2 Cooling"),
     (0x0010, "DHW"),
     (0x0020, "Pool"),
-    (0x0040, "Circuit 1 Thermostat"),
-    (0x0080, "Circuit 2 Thermostat"),
+    # Bits 6/7: a Hitachi room thermostat is bound to the circuit. Not the Modbus
+    # thermostat, which is enabled separately (ATW-MBS-02: 1010 / 1021) (#137).
+    (0x0040, "Circuit 1 Room thermostat (Hitachi)"),
+    (0x0080, "Circuit 2 Room thermostat (Hitachi)"),
     (0x0100, "Circuit 1 Wireless"),
     (0x0200, "Circuit 2 Wireless"),
     (0x0400, "Circuit 1 Wireless Temp"),
@@ -308,16 +332,19 @@ def format_duration(seconds: float) -> str:
 # ---------------------------------------------------------------------------
 
 
-def build_lookup(register_map) -> dict[int, list[tuple[str, object]]]:
+def build_lookup(
+    register_map, unmapped: dict[int, str] | None = None
+) -> dict[int, list[tuple[str, object]]]:
     """Build {address -> [(register_name, deserializer), ...]} from a register map.
 
     A single address may appear multiple times (e.g. operation_state and
     operation_state_code share the same address with different deserializers).
-    We keep all of them so annotations are exhaustive.
+    We keep all of them so annotations are exhaustive. ``unmapped`` names
+    addresses the register map does not cover, without overriding it.
     """
     lookup: dict[int, list[tuple[str, object]]] = {}
     for name, reg_def in register_map.all_registers.items():
-        entry = (name, reg_def.deserializer)
+        entry = (name, SCANNER_DESERIALIZERS.get(name, reg_def.deserializer))
         lookup.setdefault(reg_def.address, []).append(entry)
         # Also index write_address so CONTROL-only registers are found
         if (
@@ -327,6 +354,8 @@ def build_lookup(register_map) -> dict[int, list[tuple[str, object]]]:
             lookup.setdefault(reg_def.write_address, []).append(
                 (f"{name} [write]", reg_def.serializer)
             )
+    for address, name in (unmapped or {}).items():
+        lookup.setdefault(address, [(name, None)])
     return lookup
 
 
@@ -623,6 +652,9 @@ def print_system_recap(
         addr_target = 1219
         addr_flow = 1220
         addr_power = 1098
+        addr_central = 1088
+        # Per-circuit Modbus thermostat enable
+        modbus_thermostats = [("Circuit 1", 1010), ("Circuit 2", 1021)]
     elif gateway_type == GATEWAY_ATW_MBS_02_PRE2016:
         addr_model = 1217
         addr_config = 1074
@@ -636,6 +668,9 @@ def print_system_recap(
         addr_target = 1218
         addr_flow = 1220
         addr_power = 1098
+        addr_central = 1073
+        # A single Modbus thermostat enable covers all circuits (#318)
+        modbus_thermostats = [("All circuits", 1029)]
     else:
         # HC-A-MB addresses would need unit_id, skip recap for now
         print("\n" + "=" * 100)
@@ -660,6 +695,11 @@ def print_system_recap(
         print(
             f"  Unit mode:        {UNIT_MODES.get(mode_raw, f'unknown ({mode_raw})')}"
         )
+
+    # Central control mode
+    central_raw = reg_values.get(addr_central)
+    if central_raw is not None:
+        print(f"  Central mode:     {decode_central_control_mode(central_raw)}")
 
     # Operation state
     op_state = reg_values.get(addr_op_state)
@@ -706,11 +746,20 @@ def print_system_recap(
     if config_raw is not None:
         print()
         print(f"  System config register: 0x{config_raw:04X} ({config_raw})")
-        print(f"  {'Feature':<30} {'Status'}")
-        print(f"  {'-' * 30} {'-' * 8}")
+        print(f"  {'Feature':<36} {'Status'}")
+        print(f"  {'-' * 36} {'-' * 8}")
         for mask, name in SYSTEM_CONFIG_BITS:
             status = "ON" if config_raw & mask else "-"
-            print(f"  {name:<30} {status}")
+            print(f"  {name:<36} {status}")
+
+    # Modbus thermostat enable: distinct from the Hitachi room thermostat bits
+    print()
+    for circuit, address in modbus_thermostats:
+        raw = reg_values.get(address)
+        if raw is None:
+            continue
+        state = {0: "disabled", 1: "enabled"}.get(raw, f"unknown ({raw})")
+        print(f"  {circuit + ' Modbus thermostat:':<36} {state}")
 
     # System status bitmask — dedicated table
     status_raw = reg_values.get(addr_status)
@@ -882,7 +931,10 @@ def main(argv: list[str] | None = None) -> int:
         ]
         scan_ranges.append(RANGE_HC_A_MB_UNIT_TABLE)
 
-    lookup = build_lookup(register_map)
+    lookup = build_lookup(
+        register_map,
+        ATW_MBS_02_UNMAPPED if gateway_type == GATEWAY_ATW_MBS_02 else None,
+    )
 
     # -- Scan --
     all_results: list[tuple[str, list[tuple[int, int]]]] = []
