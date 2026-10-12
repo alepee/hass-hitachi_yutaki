@@ -9,6 +9,7 @@ make scan                                         # targeted scan (known zones, 
 make scan SCAN_ARGS="--range full"                # FC3+FC4 0-65535 (~45s)
 make scan SCAN_ARGS="--range exhaustive"          # FC1-FC4 0-65535 (~3min)
 make scan SCAN_ARGS="--range full" > scan.txt     # save to file (progress on stderr)
+make scan SCAN_ARGS="--host 192.168.0.4 --gateway hc-a-mb" > scan.txt  # HC-A(16/64)MB, incl. unit table
 ```
 
 ## ATW-MBS-02 Register Map
@@ -117,7 +118,20 @@ Base address = `5000 + (unit_id * 200)`
 | 50-86 | CONTROL (R/W) | Commands to heat pump |
 | 100-192 | STATUS (R) | Actual state readback (highest offset actually used is 175) |
 
-Outdoor-unit registers do **not** sit within the `5000 + unit_id*200` indoor base. They use a separate fixed base of **30000** (independent of `unit_id`): 30001 compressor discharge temp, 30002 evaporator temp, 30006 current, 30007 frequency, 30008 outdoor EVO valve.
+Outdoor-unit registers do **not** sit within the `5000 + unit_id*200` indoor base. They are keyed on the unit's outdoor refrigerant cycle, read from the unit table below: base **`30000 + cycle * 100`** (#353), e.g. offset 1 compressor discharge temp, 2 evaporator temp, 6 current, 7 frequency, 8 outdoor EVO valve.
+
+### Unit table (FC4 200+)
+
+The gateway lists the H-LINK units it enumerated in input registers starting at **200**, 4 registers per slot (`200 + slot * 4`), 16 slots on an HC-A16MB and 64 on an HC-A64MB. The targeted scan reads slots 0-15 and prints them decoded in a `UNIT TABLE` section.
+
+| Offset | Content |
+|--------|---------|
+| +0 | `1` on every sample so far, meaning unknown |
+| +1 | `Ou`, outdoor refrigerant cycle (keys the outdoor block); `0xFF` = empty slot |
+| +2 | `Iu`, indoor unit address (equals `Ou + 1` on a monobloc Yutampo) |
+| +3 | slot index on occupied slots; inconsistent on empty ones |
+
+The slot index is assigned during H-LINK enumeration and is not a stable identity (#476).
 
 ### Key STATUS offsets
 
