@@ -785,7 +785,11 @@
   "issues": {
     "desync_warning": {
       "title": "Hitachi Gateway gedesynchroniseerd",
-      "description": "De Hitachi gateway heeft de synchronisatie met de warmtepomp verloren gedurende meer dan 3 minuten. De entiteiten zijn niet beschikbaar totdat de verbinding is hersteld.\n\n**Om dit op te lossen:**\n1. Controleer de fysieke verbinding tussen de gateway en de warmtepomp.\n2. Controleer of de warmtepomp is ingeschakeld.\n3. Herstart de warmtepomp en de gateway als het probleem aanhoudt."
+      "description": "De Hitachi gateway heeft de synchronisatie met de warmtepomp verloren gedurende meer dan 3 minuten. De entiteiten zijn niet beschikbaar totdat de verbinding is hersteld.\n\n**Om dit op te lossen:**\n1. Controleer de fysieke verbinding tussen de gateway en de warmtepomp.\n2. Controleer of het hele systeem is ingeschakeld en aangesloten: binnenunit, buitenunit en gateway, met de H-LINK-kabel aangesloten.\n3. Herstart de warmtepomp en de gateway als het probleem aanhoudt."
+    },
+    "no_data_warning": {
+      "title": "Hitachi gateway ontvangt geen gegevens van de warmtepomp",
+      "description": "De Hitachi gateway antwoordt, maar elke waarde die hij teruggeeft is leeg (0xFFFF): hij ontvangt geen gegevens van de warmtepomp. De entiteiten zijn niet beschikbaar totdat dat wel zo is.\n\n**Om dit op te lossen:**\n1. Controleer of het hele systeem is ingeschakeld en aangesloten: binnenunit, buitenunit en gateway.\n2. Controleer de H-LINK-kabel tussen de gateway en de warmtepomp (klemmen 1-2 op de printplaat van de binnenunit).\n3. Herstart de warmtepomp en de gateway als het probleem aanhoudt."
     },
     "connection_error": {
       "title": "Hitachi Gateway onbereikbaar",

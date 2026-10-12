@@ -785,7 +785,11 @@
   "issues": {
     "desync_warning": {
       "title": "Hitachi Gateway Desynchronized",
-      "description": "The Hitachi gateway has lost synchronization with the heat pump for over 3 minutes. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check the physical connection between the gateway and the heat pump.\n2. Ensure the heat pump is powered on.\n3. Restart the heat pump and the gateway if the issue persists."
+      "description": "The Hitachi gateway has lost synchronization with the heat pump for over 3 minutes. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check the physical connection between the gateway and the heat pump.\n2. Ensure the whole system is powered on and connected: indoor unit, outdoor unit and gateway, with the H-LINK cable in place.\n3. Restart the heat pump and the gateway if the issue persists."
+    },
+    "no_data_warning": {
+      "title": "Hitachi gateway receives no heat pump data",
+      "description": "The Hitachi gateway answers, but every value it returns is empty (0xFFFF): it is not receiving any data from the heat pump. The entities will be unavailable until it does.\n\n**To resolve this:**\n1. Ensure the whole system is powered on and connected: indoor unit, outdoor unit and gateway.\n2. Check the H-LINK cable between the gateway and the heat pump (terminals 1-2 on the indoor unit PCB).\n3. Restart the heat pump and the gateway if the issue persists."
     },
     "connection_error": {
       "title": "Hitachi Gateway Unreachable",

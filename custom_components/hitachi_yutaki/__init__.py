@@ -123,7 +123,8 @@ async def _async_first_refresh(coordinator: HitachiYutakiDataCoordinator) -> Non
     """Run the coordinator's first refresh, deferring setup until data is fresh.
 
     The gateway can report ``GATEWAY_NOT_READY`` while its H-LINK bus is
-    initializing (Modbus TCP is up, H-LINK is not). Setup must not continue in
+    initializing or desynchronized, or while it returns no heat pump data at
+    all (Modbus TCP is up, H-LINK is not). Setup must not continue in
     that window: entities are gated on live register data, so an empty first
     read silently drops every capability-gated entity until the next reload,
     leaving devices with no entities (#404). Any failure, ``gateway_not_ready``
@@ -135,14 +136,19 @@ async def _async_first_refresh(coordinator: HitachiYutakiDataCoordinator) -> Non
     except ConfigEntryNotReady as exc:
         if coordinator.gateway_not_ready:
             raise ConfigEntryNotReady(
-                "Gateway H-LINK is still initializing; setup will retry"
+                "Gateway is not ready (initializing, desynchronized or not "
+                "receiving heat pump data); setup will retry"
             ) from exc
         raise
     if coordinator.data.get("system_config") is None:
         # The poll succeeded but system_config was unreadable or filtered as a
         # garbage read: capabilities are unknown, so do not build devices and
         # entities from them.
-        raise ConfigEntryNotReady("Gateway returned no valid system configuration")
+        raise ConfigEntryNotReady(
+            "Gateway returned no valid system configuration (0xFFFF or "
+            "unreadable); check that the heat pump and gateway are powered and "
+            "connected; setup will retry"
+        )
 
 
 def _live_capabilities(coordinator: HitachiYutakiDataCoordinator) -> dict[str, bool]:

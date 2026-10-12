@@ -19,6 +19,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   declaring every capability, which created phantom `Circuit 2`, `DHW` and
   `Pool` devices (#404).
 
+- A gateway that answers but receives no data from the heat pump (every
+  register reads `0xFFFF`, its state included) is no longer treated as healthy.
+  It is now reported as not ready, with a new repair issue asking to check that
+  the whole system is powered on and connected, instead of loading entities full
+  of meaningless values (#404). The desynchronization repair issue asks the same.
+
 - On an HC-A(16/64)MB gateway, adding a unit whose outdoor refrigerant cycle is
   already used by another configured unit is now refused with a clear error.
   Two entries on one cycle read and drive the same outdoor unit, which silently

@@ -424,6 +424,10 @@ WRITABLE_KEYS = {
 SYSTEM_STATE_ISSUES = {
     1: "desync_warning",
     2: "initializing_warning",
+    # 0xFFFF: the gateway answers Modbus but returns no heat pump data at all
+    # (every register reads 0xFFFF, field telemetry): treat it as not ready
+    # rather than as a healthy state (#404).
+    0xFFFF: "no_data_warning",
 }
 
 

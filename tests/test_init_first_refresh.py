@@ -49,7 +49,7 @@ async def test_first_refresh_gateway_not_ready_defers_setup():
         gateway_not_ready=True,
     )
 
-    with pytest.raises(ConfigEntryNotReady, match="still initializing"):
+    with pytest.raises(ConfigEntryNotReady, match="not ready"):
         await _async_first_refresh(coordinator)
 
 

@@ -156,7 +156,7 @@ async def test_setup_entry_gateway_not_ready_defers_setup(
             "custom_components.hitachi_yutaki._async_restore_energy_state",
             AsyncMock(),
         ),
-        pytest.raises(ConfigEntryNotReady, match="still initializing"),
+        pytest.raises(ConfigEntryNotReady, match="not ready"),
     ):
         await async_setup_entry(hass, entry)
 

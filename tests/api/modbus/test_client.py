@@ -784,3 +784,27 @@ def test_system_config_declares_garbage_sentinel(register_map):
     sentinels = register_map.all_registers["system_config"].sentinel_values
     assert sentinels is not None
     assert 0xFFFF in sentinels
+
+
+@pytest.mark.parametrize(
+    "register_map",
+    [AtwMbs02RegisterMap(), AtwMbs02Pre2016RegisterMap(), HcAMbRegisterMap()],
+    ids=["atw_mbs_02", "atw_mbs_02_pre2016", "hc_a_mb"],
+)
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_system_state_ffff_is_not_ready(
+    mock_ir, mock_hass, mock_client, register_map
+):
+    """A 0xFFFF system_state (no heat pump data) is not ready, not healthy (#404)."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._register_map = register_map
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0xFFFF)
+
+    result = await api.read_values(["system_config"])
+
+    assert result == ReadResult.GATEWAY_NOT_READY
+    assert "system_config" not in api._data
+    assert mock_client.read_holding_registers.call_count == 1
+    mock_ir.async_create_issue.assert_called_once()
+    assert mock_ir.async_create_issue.call_args.args[2] == "no_data_warning"

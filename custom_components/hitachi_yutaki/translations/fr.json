@@ -785,7 +785,11 @@
   "issues": {
     "desync_warning": {
       "title": "Passerelle Hitachi Désynchronisée",
-      "description": "La passerelle Hitachi a perdu la synchronisation avec la pompe à chaleur pendant plus de 3 minutes. Les entités seront indisponibles jusqu'à ce que la connexion soit rétablie.\n\n**Pour résoudre ce problème :**\n1. Vérifiez la connexion physique entre la passerelle et la pompe à chaleur.\n2. Assurez-vous que la pompe à chaleur est sous tension.\n3. Redémarrez la pompe à chaleur et la passerelle si le problème persiste."
+      "description": "La passerelle Hitachi a perdu la synchronisation avec la pompe à chaleur pendant plus de 3 minutes. Les entités seront indisponibles jusqu'à ce que la connexion soit rétablie.\n\n**Pour résoudre ce problème :**\n1. Vérifiez la connexion physique entre la passerelle et la pompe à chaleur.\n2. Assurez-vous que l'ensemble du système est sous tension et connecté : unité intérieure, unité extérieure et passerelle, avec le câble H-LINK en place.\n3. Redémarrez la pompe à chaleur et la passerelle si le problème persiste."
+    },
+    "no_data_warning": {
+      "title": "La passerelle Hitachi ne reçoit aucune donnée de la pompe à chaleur",
+      "description": "La passerelle Hitachi répond, mais toutes les valeurs qu'elle renvoie sont vides (0xFFFF) : elle ne reçoit aucune donnée de la pompe à chaleur. Les entités seront indisponibles tant que ce sera le cas.\n\n**Pour résoudre ce problème :**\n1. Assurez-vous que l'ensemble du système est sous tension et connecté : unité intérieure, unité extérieure et passerelle.\n2. Vérifiez le câble H-LINK entre la passerelle et la pompe à chaleur (bornes 1-2 de la carte de l'unité intérieure).\n3. Redémarrez la pompe à chaleur et la passerelle si le problème persiste."
     },
     "connection_error": {
       "title": "Passerelle Hitachi Inaccessible",

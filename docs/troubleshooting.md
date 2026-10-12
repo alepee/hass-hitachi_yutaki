@@ -2,9 +2,13 @@
 
 ## Gateway shows "Desynchronized" or "Not Ready"
 
-The integration displays a warning when the gateway reports a "not ready" state. This covers two cases: the "desynchronized" state, which the gateway reports when it has had no communication with the heat pump for more than 180 seconds, and the "initializing" state (data initialization at startup or after a power cycle), which is not tied to the 180 second window. When either state is reported, register reads are paused because the data is not guaranteed to be fresh or correct — it could be stale values from before communication was lost, or initial gateway values (e.g., empty registers from startup).
+The integration displays a warning when the gateway reports a "not ready" state. This covers three cases: the "desynchronized" state, which the gateway reports when it has had no communication with the heat pump for more than 180 seconds; the "initializing" state (data initialization at startup or after a power cycle), which is not tied to the 180 second window; and a gateway that answers Modbus but returns `0xFFFF` for its state and every other register, meaning it receives no data at all from the heat pump (repair issue "Hitachi gateway receives no heat pump data"). When any of them is reported, register reads are paused because the data is not guaranteed to be fresh or correct — it could be stale values from before communication was lost, or initial gateway values (e.g., empty registers from startup).
 
 **Possible causes:**
+
+### Part of the system is off or disconnected
+
+The gateway only relays what the heat pump sends over H-LINK. Check that the whole system is powered on and connected: indoor unit, outdoor unit and gateway, with the H-LINK cable in place. A heat pump switched off at its breaker while the gateway stays powered is the typical "no heat pump data" case.
 
 ### Wrong H-LINK terminals
 

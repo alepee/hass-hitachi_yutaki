@@ -785,7 +785,11 @@
   "issues": {
     "desync_warning": {
       "title": "Gateway Hitachi desincronizat",
-      "description": "Gateway-ul Hitachi a pierdut sincronizarea cu pompa de căldură de mai mult de 3 minute. Entitățile nu vor fi disponibile până la restabilirea conexiunii.\n\n**Pentru a rezolva:**\n1. Verificați conexiunea fizică dintre gateway și pompa de căldură.\n2. Asigurați-vă că pompa de căldură este pornită.\n3. Reporniți pompa de căldură și gateway-ul dacă problema persistă."
+      "description": "Gateway-ul Hitachi a pierdut sincronizarea cu pompa de căldură de mai mult de 3 minute. Entitățile nu vor fi disponibile până la restabilirea conexiunii.\n\n**Pentru a rezolva:**\n1. Verificați conexiunea fizică dintre gateway și pompa de căldură.\n2. Asigurați-vă că întregul sistem este alimentat și conectat: unitatea interioară, unitatea exterioară și gateway-ul, cu cablul H-LINK conectat.\n3. Reporniți pompa de căldură și gateway-ul dacă problema persistă."
+    },
+    "no_data_warning": {
+      "title": "Gateway-ul Hitachi nu primește date de la pompa de căldură",
+      "description": "Gateway-ul Hitachi răspunde, dar fiecare valoare returnată este goală (0xFFFF): nu primește date de la pompa de căldură. Entitățile nu vor fi disponibile până când va primi.\n\n**Pentru a rezolva:**\n1. Asigurați-vă că întregul sistem este alimentat și conectat: unitatea interioară, unitatea exterioară și gateway-ul.\n2. Verificați cablul H-LINK dintre gateway și pompa de căldură (bornele 1-2 de pe placa unității interioare).\n3. Reporniți pompa de căldură și gateway-ul dacă problema persistă."
     },
     "connection_error": {
       "title": "Gateway Hitachi inaccesibil",
