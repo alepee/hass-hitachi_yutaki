@@ -265,7 +265,8 @@
       "unknown": "S'ha produït un error desconegut. Consulteu els registres.",
       "system_initializing": "La passarel·la Hitachi Yutaki s'està inicialitzant. Espereu un moment i torneu-ho a provar.",
       "desync_error": "La passarel·la no està sincronitzada amb la bomba de calor. Assegureu-vos que la bomba de calor està engegada i que la connexió entre els dos dispositius és correcta.",
-      "gateway_not_ready": "La passarel·la és accessible però no està preparada (encara s'està inicialitzant, o no està sincronitzada amb la bomba de calor). És normal durant uns minuts just després d'engegar la passarel·la. Si persisteix, comproveu el cablejat H-LINK (borns 1-2 de la PCB de la unitat interior, parell trenat apantallat de 0,75 mm²) i consulteu la guia de resolució de problemes del projecte."
+      "gateway_not_ready": "La passarel·la és accessible però no està preparada (encara s'està inicialitzant, o no està sincronitzada amb la bomba de calor). És normal durant uns minuts just després d'engegar la passarel·la. Si persisteix, comproveu el cablejat H-LINK (borns 1-2 de la PCB de la unitat interior, parell trenat apantallat de 0,75 mm²) i consulteu la guia de resolució de problemes del projecte.",
+      "outdoor_cycle_in_use": "Una altra unitat ja configurada en aquesta passarel·la utilitza el mateix cicle frigorífic exterior. Dues unitats en un mateix cicle llegirien i controlarien la mateixa unitat exterior. Comproveu l'adreça del cicle frigorífic (DSW) d'aquesta unitat i torneu-ho a provar."
     },
     "abort": {
       "already_configured": "Aquesta passarel·la Hitachi Yutaki ja està configurada.",
