@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- Setup no longer continues while the gateway's H-LINK bus is still initializing
-  (#404). It used to go ahead on empty data: devices were created from the saved
-  capabilities, but every entity that depends on them was skipped, leaving
-  devices with no entities until a manual reload. Setup is now deferred, and Home
-  Assistant retries it on its own until the gateway is ready.
+- Setup no longer continues while the gateway is not ready (H-LINK initializing
+  or desynchronized) (#404). It used to go ahead on empty data: devices were
+  created from the saved capabilities, but every entity that depends on them was
+  skipped, leaving devices with no entities until a manual reload. Setup is now
+  deferred: after a gateway restart the entry shows "Retrying setup" for a few
+  minutes, and Home Assistant retries it on its own until the gateway is ready.
 
 - A garbage `system_config` read (`0xFFFF`) is no longer taken as a heat pump
   declaring every capability, which created phantom `Circuit 2`, `DHW` and
