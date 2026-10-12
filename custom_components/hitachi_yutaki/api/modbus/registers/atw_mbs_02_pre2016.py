@@ -93,7 +93,8 @@ REGISTER_GATEWAY = {
     "alarm_code": RegisterDefinition(1223, deserializer=deserialize_alarm_code),
     "unit_model": RegisterDefinition(1217, deserializer=deserialize_unit_model_pre2016),
     "central_control_mode": RegisterDefinition(1073),
-    "system_config": RegisterDefinition(1074),
+    # 0xFFFF is a garbage read, not a configuration (#404).
+    "system_config": RegisterDefinition(1074, sentinel_values=frozenset({0xFFFF})),
     "system_status": RegisterDefinition(1222),
     "system_state": RegisterDefinition(1083, deserializer=deserialize_system_state),
 }
@@ -289,6 +290,10 @@ WRITABLE_KEYS = {
 # to skip reads — the gateway may still respond to register queries.
 SYSTEM_STATE_ISSUES = {
     2: "initializing_warning",
+    # 0xFFFF: the gateway answers Modbus but returns no heat pump data at all
+    # (every register reads 0xFFFF, field telemetry): treat it as not ready
+    # rather than as a healthy state (#404).
+    0xFFFF: "no_data_warning",
 }
 
 

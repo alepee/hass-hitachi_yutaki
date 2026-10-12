@@ -92,6 +92,10 @@ HVAC_UNIT_MODE_AUTO = None
 SYSTEM_STATE_ISSUES = {
     1: "desync_warning",
     2: "initializing_warning",
+    # 0xFFFF: the gateway answers Modbus but returns no heat pump data at all
+    # (every register reads 0xFFFF, field telemetry): treat it as not ready
+    # rather than as a healthy state (#404).
+    0xFFFF: "no_data_warning",
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -317,7 +321,10 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             "unit_model": RegisterDefinition(
                 self._addr(162), deserializer=deserialize_unit_model
             ),
-            "system_config": RegisterDefinition(self._addr(140)),
+            # 0xFFFF is a garbage read, not a configuration (#404).
+            "system_config": RegisterDefinition(
+                self._addr(140), sentinel_values=frozenset({0xFFFF})
+            ),
             "system_status": RegisterDefinition(self._addr(166)),
             "system_state": RegisterDefinition(
                 self._addr(145), deserializer=deserialize_system_state

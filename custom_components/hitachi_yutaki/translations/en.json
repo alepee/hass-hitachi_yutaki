@@ -265,7 +265,8 @@
       "unknown": "An unknown error occurred. Please check the logs.",
       "system_initializing": "The Hitachi Yutaki gateway is initializing. Please wait a moment and try again.",
       "desync_error": "The gateway is out of sync with the heat pump. Ensure the heat pump is powered on and the connection between the two devices is correct.",
-      "gateway_not_ready": "The gateway is reachable but not ready (still initializing, or out of sync with the heat pump). This is normal for a few minutes right after powering on the gateway. If it persists, check the H-LINK wiring (terminals 1-2 on the indoor unit PCB, 0.75 mm² shielded twisted pair) and see the project's troubleshooting guide."
+      "gateway_not_ready": "The gateway is reachable but not ready (still initializing, or out of sync with the heat pump). This is normal for a few minutes right after powering on the gateway. If it persists, check the H-LINK wiring (terminals 1-2 on the indoor unit PCB, 0.75 mm² shielded twisted pair) and see the project's troubleshooting guide.",
+      "outdoor_cycle_in_use": "Another unit already configured on this gateway uses the same outdoor refrigerant cycle. Two units on one cycle would read and control the same outdoor unit. Check the refrigerant cycle address (DSW) of this unit, then try again."
     },
     "abort": {
       "already_configured": "This Hitachi Yutaki gateway is already configured.",
@@ -784,7 +785,11 @@
   "issues": {
     "desync_warning": {
       "title": "Hitachi Gateway Desynchronized",
-      "description": "The Hitachi gateway has lost synchronization with the heat pump for over 3 minutes. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check the physical connection between the gateway and the heat pump.\n2. Ensure the heat pump is powered on.\n3. Restart the heat pump and the gateway if the issue persists."
+      "description": "The Hitachi gateway has lost synchronization with the heat pump for over 3 minutes. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check the physical connection between the gateway and the heat pump.\n2. Ensure the whole system is powered on and connected: indoor unit, outdoor unit and gateway, with the H-LINK cable in place.\n3. Restart the heat pump and the gateway if the issue persists."
+    },
+    "no_data_warning": {
+      "title": "Hitachi gateway receives no heat pump data",
+      "description": "The Hitachi gateway answers, but every value it returns is empty (0xFFFF): it is not receiving any data from the heat pump. The entities will be unavailable until it does.\n\n**To resolve this:**\n1. Ensure the whole system is powered on and connected: indoor unit, outdoor unit and gateway.\n2. Check the H-LINK cable between the gateway and the heat pump (terminals 1-2 on the indoor unit PCB).\n3. Restart the heat pump and the gateway if the issue persists."
     },
     "connection_error": {
       "title": "Hitachi Gateway Unreachable",

@@ -265,7 +265,8 @@
       "unknown": "S'ha produït un error desconegut. Consulteu els registres.",
       "system_initializing": "La passarel·la Hitachi Yutaki s'està inicialitzant. Espereu un moment i torneu-ho a provar.",
       "desync_error": "La passarel·la no està sincronitzada amb la bomba de calor. Assegureu-vos que la bomba de calor està engegada i que la connexió entre els dos dispositius és correcta.",
-      "gateway_not_ready": "La passarel·la és accessible però no està preparada (encara s'està inicialitzant, o no està sincronitzada amb la bomba de calor). És normal durant uns minuts just després d'engegar la passarel·la. Si persisteix, comproveu el cablejat H-LINK (borns 1-2 de la PCB de la unitat interior, parell trenat apantallat de 0,75 mm²) i consulteu la guia de resolució de problemes del projecte."
+      "gateway_not_ready": "La passarel·la és accessible però no està preparada (encara s'està inicialitzant, o no està sincronitzada amb la bomba de calor). És normal durant uns minuts just després d'engegar la passarel·la. Si persisteix, comproveu el cablejat H-LINK (borns 1-2 de la PCB de la unitat interior, parell trenat apantallat de 0,75 mm²) i consulteu la guia de resolució de problemes del projecte.",
+      "outdoor_cycle_in_use": "Una altra unitat ja configurada en aquesta passarel·la utilitza el mateix cicle frigorífic exterior. Dues unitats en un mateix cicle llegirien i controlarien la mateixa unitat exterior. Comproveu l'adreça del cicle frigorífic (DSW) d'aquesta unitat i torneu-ho a provar."
     },
     "abort": {
       "already_configured": "Aquesta passarel·la Hitachi Yutaki ja està configurada.",
@@ -784,7 +785,11 @@
   "issues": {
     "desync_warning": {
       "title": "Passarel·la Hitachi desincronitzada",
-      "description": "La passarel·la Hitachi ha perdut la sincronització amb la bomba de calor durant més de 3 minuts. Les entitats no estaran disponibles fins que es restableixi la connexió.\n\n**Per resoldre-ho:**\n1. Comproveu la connexió física entre la passarel·la i la bomba de calor.\n2. Assegureu-vos que la bomba de calor està engegada.\n3. Reinicieu la bomba de calor i la passarel·la si el problema persisteix."
+      "description": "La passarel·la Hitachi ha perdut la sincronització amb la bomba de calor durant més de 3 minuts. Les entitats no estaran disponibles fins que es restableixi la connexió.\n\n**Per resoldre-ho:**\n1. Comproveu la connexió física entre la passarel·la i la bomba de calor.\n2. Assegureu-vos que tot el sistema està alimentat i connectat: unitat interior, unitat exterior i passarel·la, amb el cable H-LINK connectat.\n3. Reinicieu la bomba de calor i la passarel·la si el problema persisteix."
+    },
+    "no_data_warning": {
+      "title": "La passarel·la Hitachi no rep dades de la bomba de calor",
+      "description": "La passarel·la Hitachi respon, però tots els valors que retorna són buits (0xFFFF): no rep cap dada de la bomba de calor. Les entitats no estaran disponibles mentre sigui així.\n\n**Per resoldre-ho:**\n1. Assegureu-vos que tot el sistema està alimentat i connectat: unitat interior, unitat exterior i passarel·la.\n2. Comproveu el cable H-LINK entre la passarel·la i la bomba de calor (borns 1-2 de la placa de la unitat interior).\n3. Reinicieu la bomba de calor i la passarel·la si el problema persisteix."
     },
     "connection_error": {
       "title": "Passarel·la Hitachi inaccessible",

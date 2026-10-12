@@ -8,6 +8,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.hitachi_yutaki.config_flow import (
     SECTION_PREVENTIVE_MAINTENANCE,
+    HitachiYutakiConfigFlow,
 )
 from custom_components.hitachi_yutaki.const import (
     CONF_CYCLING_DETECTION,
@@ -1080,3 +1081,92 @@ async def test_options_flow_fleet_ping_opt_out(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert entry.options["telemetry_level"] == "off"
     assert entry.options["fleet_ping"] is False
+
+
+# ── Duplicate outdoor cycle (#404) ──
+
+
+def _hc_a_entry(*, unit_id: int, outdoor_cycle: int, host: str = DEFAULT_HOST):
+    return MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title=f"Unit {unit_id}",
+        unique_id=f"{DOMAIN}_ABCD1234_{unit_id}",
+        data={
+            "gateway_type": "modbus_hc_a_mb",
+            CONF_MODBUS_HOST: host,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "unit_id": unit_id,
+            "outdoor_cycle": outdoor_cycle,
+        },
+    )
+
+
+def _hc_a_config(*, unit_id: int, outdoor_cycle: int | None) -> dict:
+    config = {
+        "gateway_type": "modbus_hc_a_mb",
+        "name": DEFAULT_NAME,
+        CONF_MODBUS_HOST: DEFAULT_HOST,
+        CONF_MODBUS_PORT: DEFAULT_PORT,
+        CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+        "unit_id": unit_id,
+        "profile": "yutaki_s",
+        "power_supply": DEFAULT_POWER_SUPPLY,
+    }
+    if outdoor_cycle is not None:
+        config["outdoor_cycle"] = outdoor_cycle
+    return config
+
+
+def _flow(hass: HomeAssistant) -> HitachiYutakiConfigFlow:
+    flow = HitachiYutakiConfigFlow()
+    flow.hass = hass
+    flow.handler = DOMAIN
+    flow.context = {"source": config_entries.SOURCE_USER}
+    return flow
+
+
+async def test_outdoor_cycle_in_use_detects_same_cycle_on_same_gateway(
+    hass: HomeAssistant,
+) -> None:
+    """A second unit on the same gateway and outdoor cycle is detected."""
+    _hc_a_entry(unit_id=0, outdoor_cycle=0).add_to_hass(hass)
+    flow = _flow(hass)
+
+    assert flow._outdoor_cycle_in_use(_hc_a_config(unit_id=3, outdoor_cycle=0))
+    assert not flow._outdoor_cycle_in_use(_hc_a_config(unit_id=3, outdoor_cycle=1))
+    # ATW-MBS-02 entries carry no outdoor cycle: never a conflict.
+    assert not flow._outdoor_cycle_in_use(_hc_a_config(unit_id=3, outdoor_cycle=None))
+
+
+async def test_outdoor_cycle_in_use_ignores_other_gateways(
+    hass: HomeAssistant,
+) -> None:
+    """The same cycle number on another gateway is a different outdoor unit."""
+    _hc_a_entry(unit_id=0, outdoor_cycle=0, host="192.0.2.10").add_to_hass(hass)
+
+    assert not _flow(hass)._outdoor_cycle_in_use(
+        _hc_a_config(unit_id=3, outdoor_cycle=0)
+    )
+
+
+async def test_validate_connection_refuses_duplicate_outdoor_cycle(
+    hass: HomeAssistant,
+) -> None:
+    """Adding a unit on an outdoor cycle already in use shows an error (#404)."""
+    _hc_a_entry(unit_id=0, outdoor_cycle=0).add_to_hass(hass)
+    mock_client = _mock_api_client()
+    mock_gw_info = _mock_gateway_info(mock_client)
+
+    with (
+        patch(_PATCH_CF_GW_INFO, mock_gw_info),
+        patch(_PATCH_CF_CREATE_RM),
+    ):
+        result = await _flow(hass).async_validate_connection(
+            _hc_a_config(unit_id=3, outdoor_cycle=0)
+        )
+
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "outdoor_cycle_in_use"}

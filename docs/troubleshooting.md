@@ -2,9 +2,13 @@
 
 ## Gateway shows "Desynchronized" or "Not Ready"
 
-The integration displays a warning when the gateway reports a "not ready" state. This covers two cases: the "desynchronized" state, which the gateway reports when it has had no communication with the heat pump for more than 180 seconds, and the "initializing" state (data initialization at startup or after a power cycle), which is not tied to the 180 second window. When either state is reported, register reads are paused because the data is not guaranteed to be fresh or correct — it could be stale values from before communication was lost, or initial gateway values (e.g., empty registers from startup).
+The integration displays a warning when the gateway reports a "not ready" state. This covers three cases: the "desynchronized" state, which the gateway reports when it has had no communication with the heat pump for more than 180 seconds; the "initializing" state (data initialization at startup or after a power cycle), which is not tied to the 180 second window; and a gateway that answers Modbus but returns `0xFFFF` for its state and every other register, meaning it receives no data at all from the heat pump (repair issue "Hitachi gateway receives no heat pump data"). When any of them is reported, register reads are paused because the data is not guaranteed to be fresh or correct — it could be stale values from before communication was lost, or initial gateway values (e.g., empty registers from startup).
 
 **Possible causes:**
+
+### Part of the system is off or disconnected
+
+The gateway only relays what the heat pump sends over H-LINK. Check that the whole system is powered on and connected: indoor unit, outdoor unit and gateway, with the H-LINK cable in place. A heat pump switched off at its breaker while the gateway stays powered is the typical "no heat pump data" case.
 
 ### Wrong H-LINK terminals
 
@@ -24,6 +28,6 @@ Hitachi specifies a shielded twisted pair cable (0.75 mm² section), grounded on
 
 ### Recent power cycle
 
-After a power cycle of the gateway or the heat pump, the H-LINK bus needs a few minutes to synchronize. During this time, the integration reports the gateway as "initializing" or "desynchronized." Reloads of an already-configured entry complete normally during this window: entities show as `unavailable` until the next successful poll, then come back automatically. Initial setup, however, requires a synchronized H-LINK to detect your heat pump model and capabilities.
+After a power cycle of the gateway or the heat pump, the H-LINK bus needs a few minutes to synchronize. During this time, the integration reports the gateway as "initializing" or "desynchronized." A setup or reload that lands in this window is deferred: Home Assistant shows the entry as "Retrying setup" and tries again on its own, with an increasing delay, until H-LINK is synchronized. The integration waits for a synchronized read because the heat pump capabilities it carries decide which devices and entities are created. Setup is also deferred if the gateway returns an invalid system configuration (`0xFFFF`), which happens while the bus is unstable.
 
 **Fix:** wait 3-5 minutes after a restart. If the issue persists beyond that, check the wiring.
