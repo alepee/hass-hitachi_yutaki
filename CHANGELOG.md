@@ -45,6 +45,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   reading whichever unit took its place. Existing entries pick this up on their
   own, with nothing to reconfigure.
 
+- On an HC-A(16/64)MB gateway, adding a unit could be wrongly refused as
+  "already configured" when another entry had been created on that slot before
+  its unit moved. New entries are now identified by their unit's outdoor cycle
+  and indoor address instead of their slot (#476).
+
 ### Added
 
 - Diagnostics download for each entry (device page, "Download diagnostics"): the

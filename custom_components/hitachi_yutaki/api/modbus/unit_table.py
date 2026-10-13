@@ -144,3 +144,22 @@ def resolve_slot(
     if not is_settled(table):
         return SlotResolution(None, REASON_NOT_SETTLED)
     return SlotResolution(None, REASON_NOT_FOUND)
+
+
+def unit_unique_suffix(
+    unit_id: int, outdoor_cycle: int | None, indoor_address: int | None
+) -> str:
+    """Return the per-unit suffix of a config entry ``unique_id``.
+
+    The gateway hardware identifier is shared by every unit of an HC-A(16/64)MB
+    gateway, so the entry ``unique_id`` needs a per-unit suffix (#370). The
+    ``(Ou, Iu)`` pair is used when known, since the slot moves (#476): a slot
+    suffix would let a moved entry block a new unit added on its old slot.
+    Falls back to the slot when the pair could not be read, which is also the
+    format of every entry created before #476 (left unchanged so their
+    telemetry ``device_hash`` is preserved). On a single-unit ATW-MBS-02 the
+    slot is always 0.
+    """
+    if outdoor_cycle is not None and indoor_address is not None:
+        return f"c{outdoor_cycle}_i{indoor_address}"
+    return str(unit_id)

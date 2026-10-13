@@ -1170,3 +1170,23 @@ async def test_validate_connection_refuses_duplicate_outdoor_cycle(
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "outdoor_cycle_in_use"}
+
+
+async def test_new_unit_on_a_moved_entrys_old_slot_is_not_refused(
+    hass: HomeAssistant,
+) -> None:
+    """The unique_id uses (Ou, Iu), so a slot suffix left by a moved entry cannot collide (#476)."""
+    moved = _hc_a_entry(unit_id=1, outdoor_cycle=5)  # unique_id ..._1, now elsewhere
+    moved.add_to_hass(hass)
+    config = {**_hc_a_config(unit_id=1, outdoor_cycle=7), "indoor_address": 8}
+    flow = _flow(hass)
+    mock_gw_info = _mock_gateway_info(_mock_api_client())
+
+    with (
+        patch(_PATCH_CF_GW_INFO, mock_gw_info),
+        patch(_PATCH_CF_CREATE_RM),
+    ):
+        result = await flow.async_validate_connection(config)
+
+    assert result.get("errors") in (None, {})
+    assert flow.unique_id == f"{DOMAIN}_ABCD1234_c7_i8"

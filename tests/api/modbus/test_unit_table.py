@@ -12,6 +12,7 @@ from custom_components.hitachi_yutaki.api.modbus.unit_table import (
     is_settled,
     parse_unit_table,
     resolve_slot,
+    unit_unique_suffix,
 )
 
 EMPTY = [0, 255, 255, 255]
@@ -103,3 +104,10 @@ def test_resolve_pre_353_entry_adopts_its_slot() -> None:
     """Entries with no identity at all keep their stored slot, if occupied."""
     assert resolve_slot(DUMP_A, 3, None, None).slot == DUMP_A[3]
     assert resolve_slot(DUMP_A, 5, None, None).reason == REASON_NOT_FOUND
+
+
+def test_unit_unique_suffix_prefers_the_pair() -> None:
+    """The pair when known, the slot otherwise (entries before #476, ATW-MBS-02)."""
+    assert unit_unique_suffix(1, 7, 8) == "c7_i8"
+    assert unit_unique_suffix(1, 7, None) == "1"
+    assert unit_unique_suffix(0, None, None) == "0"

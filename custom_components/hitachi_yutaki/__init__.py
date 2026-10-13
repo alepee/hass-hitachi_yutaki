@@ -36,7 +36,11 @@ from homeassistant.loader import async_get_integration
 
 from .adapters.derived_metrics import REFRIGERANT_STORE_VERSION, DerivedMetricsAdapter
 from .api import GATEWAY_INFO, create_register_map
-from .api.modbus.unit_table import REASON_NOT_SETTLED, resolve_slot
+from .api.modbus.unit_table import (
+    REASON_NOT_SETTLED,
+    resolve_slot,
+    unit_unique_suffix,
+)
 from .const import (
     CIRCUIT_MODE_COOLING,
     CIRCUIT_MODE_HEATING,
@@ -541,6 +545,11 @@ async def async_setup_entry(
 
     # Add unique_id if missing (for existing installations)
     if entry.unique_id is None:
+        unit_suffix = unit_unique_suffix(
+            entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+            entry.data.get(CONF_OUTDOOR_CYCLE),
+            entry.data.get(CONF_INDOOR_ADDRESS),
+        )
         _LOGGER.info(
             "Config entry has no unique_id, attempting to add one based on hardware identifier"
         )
@@ -567,10 +576,7 @@ async def async_setup_entry(
             if await temp_client.connect():
                 hw_id = await temp_client.async_get_unique_id()
                 if hw_id:
-                    unique_id = (
-                        f"{DOMAIN}_{hw_id}_"
-                        f"{entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)}"
-                    )
+                    unique_id = f"{DOMAIN}_{hw_id}_{unit_suffix}"
                     _LOGGER.info(
                         "Added hardware-based unique_id to existing config entry: %s",
                         unique_id,
@@ -590,7 +596,7 @@ async def async_setup_entry(
             unique_id = (
                 f"{entry.data[CONF_MODBUS_HOST]}_"
                 f"{entry.data[CONF_MODBUS_DEVICE_ID]}_"
-                f"{entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)}"
+                f"{unit_suffix}"
             )
             _LOGGER.warning(
                 "Could not retrieve hardware identifier, using IP-based unique_id: %s",

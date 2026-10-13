@@ -21,7 +21,7 @@ No personal information is ever collected. All data is identified by a non-rever
 Every payload carries two non-reversible SHA-256 hashes:
 
 - `instance_hash`: a hash of the Home Assistant instance id. One per **household**: every Hitachi config entry on the same HA instance shares it.
-- `device_hash`: a hash of `f"{instance_id}:{entry.unique_id}"`, where `entry.unique_id` derives from the gateway hardware identifier. One per **heat-pump unit**.
+- `device_hash`: a hash of `f"{instance_id}:{entry.unique_id}"`, where `entry.unique_id` derives from the gateway hardware identifier plus a per-unit suffix: the unit's `(Ou, Iu)` pair on an HC-A(16/64)MB entry created since #476, its slot on older entries (left unchanged so their hash is preserved) and on the single-unit ATW-MBS-02. One per **heat-pump unit**.
 
 The ingestion endpoint rate-limits at 1 request per 60 seconds per `(device_hash, payload_type)`. An installation with several Hitachi gateways therefore gets one independent rate-limit budget per unit instead of sharing a single one, so no unit's flushes are starved by another's. A payload sent without `device_hash` (older client versions) falls back to the instance identity for backward compatibility, matching the pre-#395 behavior.
 
