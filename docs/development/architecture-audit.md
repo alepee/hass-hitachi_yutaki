@@ -146,3 +146,14 @@ The independent Astra reviewer returned **APPROVE** after reproducing the
 that timeout and resumed-defrost handling still work. The reviewer also
 confirmed the atomic rejection of incompatible timestamps and approved the
 final registry-default cleanup. No unresolved review finding remains.
+
+## Pull request and hosted verification
+
+Pull request: [#480, enforce API and domain architecture boundaries](https://github.com/alepee/hass-hitachi_yutaki/pull/480).
+
+The implementation commit is `92dabe0`. The repository workflows validate
+HA 2025.1.0/Python 3.13 and the locked current HA on Python 3.13 and 3.14,
+plus Ruff/translation lint, domain type checking, HACS and hassfest.
+The [PR checks](https://github.com/alepee/hass-hitachi_yutaki/pull/480/checks)
+provide the authoritative run results for the latest head, including any
+documentation-only update that records this reference.
