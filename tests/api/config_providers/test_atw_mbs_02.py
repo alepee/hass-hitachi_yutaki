@@ -19,10 +19,8 @@ def _make_mock_client(read_result: ReadResult) -> MagicMock:
     client.read_values = AsyncMock(return_value=read_result)
     client.read_value = AsyncMock(return_value=None)
     client.connected = True
-    client.register_map = MagicMock(
-        base_keys=["system_config", "system_state"],
-        gateway_keys=["unit_model", "system_state"],
-    )
+    client.base_keys = ["system_config", "system_state"]
+    client.gateway_keys = ["unit_model", "system_state"]
     return client
 
 

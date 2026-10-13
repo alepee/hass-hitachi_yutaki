@@ -62,6 +62,8 @@ import voluptuous as vol
 
 from homeassistant.core import HomeAssistant
 
+from ..base import HitachiApiClient
+
 
 @dataclass
 class StepSchema:
@@ -88,6 +90,14 @@ class StepOutcome:
     errors: dict[str, str] | None = None
     config_data: dict[str, Any] | None = None
     detected_profiles: list[str] | None = None
+
+
+@dataclass(frozen=True)
+class ConnectionValidation:
+    """Transport-independent setup validation and optional hardware identity."""
+
+    error: str | None = None
+    hardware_id: str | None = None
 
 
 class GatewayConfigProvider(Protocol):
@@ -139,6 +149,29 @@ class GatewayConfigProvider(Protocol):
             (triggers transition to profile selection).
 
         """
+        ...
+
+    async def async_validate_connection(
+        self, client: HitachiApiClient
+    ) -> ConnectionValidation:
+        """Validate readiness and identity, handling transport errors and cleanup."""
+        ...
+
+    def fallback_unique_id(self, config: Mapping[str, Any]) -> str:
+        """Return the legacy-compatible identity when hardware ID is unavailable."""
+        ...
+
+    def configuration_url(self, config: Mapping[str, Any]) -> str | None:
+        """Return the optional gateway administration URL."""
+        ...
+
+    @property
+    def sensitive_config_keys(self) -> set[str]:
+        """Return provider configuration keys to redact from diagnostics."""
+        ...
+
+    def same_gateway(self, first: Mapping[str, Any], second: Mapping[str, Any]) -> bool:
+        """Return whether two entries address the same gateway."""
         ...
 
     def unique_id_suffix(self, config: Mapping[str, Any]) -> str:

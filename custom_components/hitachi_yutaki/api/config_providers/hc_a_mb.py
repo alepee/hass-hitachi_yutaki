@@ -35,13 +35,14 @@ from ...profiles import PROFILES
 from .. import GATEWAY_INFO, create_register_map
 from ..base import ReadResult
 from . import StepOutcome, StepSchema
+from .modbus import ModbusConfigProvider
 
 _LOGGER = logging.getLogger(__name__)
 
 _STEP_CONNECTION = "hc_a_mb_connection"
 
 
-class HcAMbConfigProvider:
+class HcAMbConfigProvider(ModbusConfigProvider):
     """Configuration provider for HC-A(16/64)MB gateways.
 
     This is a single-step provider. The connection step collects all
@@ -122,7 +123,7 @@ class HcAMbConfigProvider:
                 return StepOutcome(errors={"base": "cannot_connect"})
 
             # Read base keys for profile detection
-            keys_to_read = api_client.register_map.base_keys
+            keys_to_read = api_client.base_keys
             result = await api_client.read_values(keys_to_read)
             if result == ReadResult.GATEWAY_NOT_READY:
                 # _data is not populated; trying to decode would yield None

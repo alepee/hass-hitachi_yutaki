@@ -3,9 +3,6 @@
 from enum import StrEnum
 from typing import Final, Literal
 
-from packaging import version
-import pymodbus
-
 from homeassistant.const import Platform
 
 DOMAIN: Final = "hitachi_yutaki"
@@ -148,21 +145,3 @@ VOLTAGE_THREE_PHASE = 400.0
 # Water constants
 WATER_FLOW_TO_KGS = 0.277778  # 1 m³/h = 1000 L/h = 1000 kg/h = 0.277778 kg/s
 WATER_SPECIFIC_HEAT = 4.185  # kJ/kg·K
-
-
-def get_pymodbus_device_param():
-    """Get the correct parameter name for pymodbus device/slave based on version.
-
-    Returns:
-        str: 'device_id' for pymodbus >= 3.10.0, 'slave' for older versions
-
-    """
-    try:
-        pymodbus_version = version.parse(pymodbus.__version__)
-        if pymodbus_version >= version.parse("3.10.0"):
-            return "device_id"
-        else:
-            return "slave"
-    except (ImportError, AttributeError):
-        # Fallback to 'slave' if pymodbus is not available or version cannot be determined
-        return "slave"

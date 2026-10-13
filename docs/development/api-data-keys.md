@@ -18,8 +18,9 @@ client must implement. Key surface area:
 | Area | Methods / Properties |
 | --- | --- |
 | Connection | `connect()`, `close()`, `connected` |
-| Reading | `read_value(key)`, `read_values(keys)` |
+| Reading | `base_keys`, `gateway_keys`, `read_value(key)`, `read_values(keys)` |
 | Writing | `write_value(key, value)` |
+| Key capabilities | `supports_key(key)`, `can_write(key)`, `supported_unit_modes` |
 | Feature detection | `has_dhw`, `has_pool`, `has_circuit(circuit_id, mode)` |
 | Status flags | `is_defrosting`, `is_compressor_running`, `is_boiler_active`, ... |
 | Unit control | `get/set_unit_power()`, `get/set_unit_mode()` |
@@ -28,6 +29,30 @@ client must implement. Key surface area:
 
 Entities interact with the coordinator and the API client through these
 abstractions — they never import from `api/modbus/`.
+
+`base_keys` and `gateway_keys` return lists of abstract keys. Sensors gate
+optional data with `supports_key`; controls use `can_write`. The
+`supported_unit_modes` tuple contains only writable modes (`cool`, `heat`,
+`auto`): ATW-MBS-02 gen2 supports all three, while the pre-2016 variant
+and HC-A(16/64)MB support only cool and heat. The control-unit select intersects its profile-dependent
+options with that tuple and reports failed writes as service errors.
+`register_map` is a concrete Modbus implementation detail, absent from the port.
+
+### Configuration providers
+
+Providers own `async_validate_connection(client)`, returning a
+`ConnectionValidation` with an error key or an optional hardware ID. They
+handle transport exceptions and close the validation connection. Validation
+checks `ReadResult` before consuming model data: an initializing or
+desynchronized gateway produces its readiness error, never `invalid_slave`.
+A successful read remains authoritative, including the pre-2016 map's
+nonblocking state 1.
+
+The provider also owns `fallback_unique_id`, `configuration_url` (which may
+return `None`), `same_gateway`, and `sensitive_config_keys` for diagnostics.
+Modbus fallback IDs retain the exact `host_device_unit-suffix` format in both
+setup and the config flow. Existing unique IDs are preserved. Pymodbus version
+compatibility lives in `api/modbus/compat.py`.
 
 ### Data Keys
 

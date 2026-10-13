@@ -16,17 +16,23 @@ from homeassistant.const import ATTR_TEMPERATURE, UnitOfTemperature
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from ...adapters.providers.operation_mode import resolve_operation_mode
+from ...adapters.circuit import get_circuit_activity
 from ...const import (
     CIRCUIT_IDS,
     CIRCUIT_MODE_COOLING,
     CIRCUIT_MODE_HEATING,
-    CIRCUIT_PRIMARY_ID,
-    CIRCUIT_SECONDARY_ID,
     PRESET_COMFORT,
 )
 from ...coordinator import HitachiYutakiDataCoordinator
-from ...domain.models.operation import MODE_COOLING, MODE_HEATING
+from ...domain.models.circuit import CircuitActivity
+
+_ACTIVITY_TO_HA = {
+    CircuitActivity.OFF: HVACAction.OFF,
+    CircuitActivity.IDLE: HVACAction.IDLE,
+    CircuitActivity.HEATING: HVACAction.HEATING,
+    CircuitActivity.COOLING: HVACAction.COOLING,
+    CircuitActivity.DEFROSTING: HVACAction.DEFROSTING,
+}
 
 
 @dataclass
@@ -87,29 +93,24 @@ class HitachiYutakiClimate(
             # Single circuit: full mode control
             self._attr_hvac_modes = [HVACMode.OFF]
             if (
-                coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_HEATING)
-                if circuit_id == CIRCUIT_PRIMARY_ID
-                else coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING)
+                coordinator.has_circuit(circuit_id, CIRCUIT_MODE_HEATING)
+                and "heat" in coordinator.api_client.supported_unit_modes
             ):
                 self._attr_hvac_modes.append(HVACMode.HEAT)
             if (
-                coordinator.has_circuit(CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING)
-                if circuit_id == CIRCUIT_PRIMARY_ID
-                else coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
+                coordinator.has_circuit(circuit_id, CIRCUIT_MODE_COOLING)
+                and "cool" in coordinator.api_client.supported_unit_modes
             ):
                 self._attr_hvac_modes.append(HVACMode.COOL)
             if (
                 len(self._attr_hvac_modes) > 2
-                and coordinator.api_client.register_map.hvac_unit_mode_auto is not None
+                and "auto" in coordinator.api_client.supported_unit_modes
             ):
                 self._attr_hvac_modes.append(HVACMode.AUTO)
 
         # Set available presets — ECO requires eco_mode register
         self._attr_preset_modes = [PRESET_COMFORT]
-        if (
-            f"circuit{circuit_id}_eco_mode"
-            in coordinator.api_client.register_map.all_registers
-        ):
+        if coordinator.api_client.can_write(f"circuit{circuit_id}_eco_mode"):
             self._attr_preset_modes.append(PRESET_ECO)
 
     @property
@@ -155,39 +156,10 @@ class HitachiYutakiClimate(
     @property
     def hvac_action(self) -> HVACAction | None:
         """Return the current running hvac operation."""
-        if self.hvac_mode == HVACAction.OFF:
-            return HVACAction.OFF
-
         if self.coordinator.data is None:
             return None
-
-        # Check if in defrost mode
-        if self.coordinator.api_client.is_defrosting:
-            return HVACAction.DEFROSTING
-
-        # Check if compressor is running
-        if not self.coordinator.api_client.is_compressor_running:
-            return HVACAction.IDLE
-
-        hvac_mode = self.coordinator.api_client.get_unit_mode()
-        if hvac_mode == HVACMode.COOL:
-            return HVACAction.COOLING
-        if hvac_mode == HVACMode.HEAT:
-            return HVACAction.HEATING
-
-        # AUTO: unit mode does not tell heating from cooling. Derive the actual
-        # running direction from the STATUS operation_state register so the card
-        # shows heating/cooling instead of "unknown".
-        if hvac_mode == HVACMode.AUTO:
-            operation_mode = resolve_operation_mode(
-                self.coordinator.api_client.get_operation_state()
-            )
-            if operation_mode == MODE_HEATING:
-                return HVACAction.HEATING
-            if operation_mode == MODE_COOLING:
-                return HVACAction.COOLING
-
-        return None
+        activity = get_circuit_activity(self.coordinator.api_client, self._circuit_id)
+        return _ACTIVITY_TO_HA.get(activity)
 
     @property
     def preset_mode(self) -> str | None:

@@ -38,6 +38,9 @@ This integration follows **Hexagonal Architecture** (Ports and Adapters) with st
 - **NEVER** import from `adapters.*` or `entities.*`
 - **NEVER** use external libraries (stdlib only)
 - **ALWAYS** use Protocols for dependencies
+- Inject elapsed time and installation-local calendar time through the `Clock`
+  port (or supply explicit timestamps). Never capture the system clock inside
+  domain services. Duration calculations must tolerate invalid/backward inputs.
 - Pure business logic that can be tested without HA mocks
 
 **Adapters Layer** (`adapters/`):
@@ -45,6 +48,8 @@ This integration follows **Hexagonal Architecture** (Ports and Adapters) with st
 - Bridges domain with Home Assistant infrastructure
 - Delegates business logic to domain services
 - Handles HA-specific concerns (state retrieval, entity data)
+- Recorder replay normalizes historical inputs and calls the same pure COP
+  measurement rules as live updates; it does not maintain a second calculator.
 
 **Entity Layer** (`entities/`):
 - Organized by **business domain** (not by entity type)
@@ -60,6 +65,17 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Auto-detected from Modbus data; a profile declares capabilities (DHW, pool, circuits, compressors, water circuit, extended compressor sensors) and temperature ranges.
 - Base class: `HitachiHeatPumpProfile` (`profiles/base.py`); models register in `profiles/__init__.py` (`PROFILES`).
 - Capability flags gate entity creation (via `condition` callbacks), e.g. a DHW-only Yutampo R32 sets `supports_water_circuit=False` and `supports_extended_compressor_sensors=False`.
+- `profile.max_circuits` is the hardware limit, including zero for DHW-only
+  units. Do not replace it with the number of currently configured circuits.
+
+### Gateway API Boundary
+- Consumers use logical `base_keys`/`gateway_keys`, `supports_key`, `can_write`
+  and `supported_unit_modes`; concrete register maps stay inside `api/`.
+- A readable key is not necessarily writable. UI commands must use writable
+  capabilities and propagate failed writes.
+- Providers own transport-specific validation, fallback identity and optional
+  configuration URLs. Setup and config flows do not interpret Modbus states or
+  exceptions.
 
 ### COP Calculation
 - Coefficient of Performance monitoring using energy accumulation over time.
@@ -108,6 +124,10 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 
 ### When Adding New Entities
 Follow the domain builder pattern. See [docs/development/adding-entities.md](docs/development/adding-entities.md). **Never** add business logic to entity classes; gate optional entities with a `condition` callback on the entity description.
+Feature-specific sensor attributes belong in description callbacks, not in
+sensor-key dispatch inside generic base classes. Climate entities translate the
+domain's actual-activity verdict; selected global mode alone does not establish
+that a circuit is heating while the unit produces DHW or heats the pool.
 
 ### When Modifying Calculations
 Domain logic goes in `domain/services/`, adapter logic in `adapters/`. See [docs/reference/domain-services.md](docs/reference/domain-services.md). The domain layer must remain HA-agnostic.

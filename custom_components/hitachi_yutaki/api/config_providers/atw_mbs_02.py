@@ -35,6 +35,7 @@ from .. import GATEWAY_INFO, create_register_map
 from ..base import ReadResult
 from ..modbus.registers import GATEWAY_VARIANTS
 from . import StepOutcome, StepSchema
+from .modbus import ModbusConfigProvider
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ _MODEL_DECODER_URL = (
 )
 
 
-class AtwMbs02ConfigProvider:
+class AtwMbs02ConfigProvider(ModbusConfigProvider):
     """Configuration provider for the ATW-MBS-02 gateway."""
 
     def config_steps(self) -> list[str]:
@@ -238,7 +239,7 @@ class AtwMbs02ConfigProvider:
         try:
             if not await api_client.connect():
                 return False, "cannot_connect"
-            result = await api_client.read_values(api_client.register_map.gateway_keys)
+            result = await api_client.read_values(api_client.gateway_keys)
             if result == ReadResult.GATEWAY_NOT_READY:
                 return False, "gateway_not_ready"
             return True, None
@@ -281,9 +282,7 @@ class AtwMbs02ConfigProvider:
             try:
                 if not await api_client.connect():
                     return None
-                result = await api_client.read_values(
-                    api_client.register_map.gateway_keys
-                )
+                result = await api_client.read_values(api_client.gateway_keys)
                 if result != ReadResult.SUCCESS:
                     # Gateway is reachable but not ready — skip auto-detect;
                     # the user can still pick the variant manually.
@@ -334,7 +333,7 @@ class AtwMbs02ConfigProvider:
                 return [], 0, "cannot_connect"
 
             _LOGGER.debug("Fetching all values to allow profiles to detect device")
-            keys_to_read = api_client.register_map.base_keys
+            keys_to_read = api_client.base_keys
             result = await api_client.read_values(keys_to_read)
             if result == ReadResult.GATEWAY_NOT_READY:
                 # _data is not populated; trying to decode would yield None

@@ -4,7 +4,7 @@ Detects a slow refrigerant charge loss between two mandatory F-Gas leak-tightnes
 inspections. It **complements** and does not replace the legal inspection.
 
 Pure business logic, isolated from Home Assistant. Mirrors the COP service:
-optional ``timestamp`` for replay/tests and ``time()`` for the sample-interval
+optional ``timestamp`` for replay/tests or an injected clock for the sample-interval
 throttle. See ``docs/reference/refrigerant-monitoring.md`` for the rationale.
 
 Physical basis: ``Tg`` is the THMg gas-pipe thermistor, NOT a suction sensor, so
@@ -24,9 +24,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import date, datetime
 from statistics import median
-from time import time
 from typing import Any
 
+from ..models.clock import civil_time, elapsed_time
 from ..models.operation import MODE_HEATING
 from ..models.refrigerant import (
     DailyAggregate,
@@ -34,6 +34,7 @@ from ..models.refrigerant import (
     RefrigerantInput,
     RefrigerantStatus,
 )
+from ..ports.clock import Clock
 from ..ports.storage import Storage
 
 # Sampling gate
@@ -95,6 +96,8 @@ class RefrigerantMonitor:
         self,
         storage: Storage[DailyAggregate],
         superheat_plausible_range: tuple[float, float],
+        *,
+        clock: Clock | None = None,
     ) -> None:
         """Initialize the monitor with a bounded daily-aggregate storage.
 
@@ -102,6 +105,7 @@ class RefrigerantMonitor:
         (K) supplied by the active profile; samples outside it are discarded.
         Required so the profiles remain the single source of truth.
         """
+        self._clock = clock
         self._storage = storage
         self._superheat_min, self._superheat_max = superheat_plausible_range
         self._baseline: RefrigerantBaseline | None = None
@@ -113,7 +117,7 @@ class RefrigerantMonitor:
         self._evos: list[float] = []
         self._evaps: list[float] = []
         self._outdoors: list[float] = []
-        self._last_sample_time = 0.0
+        self._last_sample_time: float | None = None
 
     def update(
         self, data: RefrigerantInput, *, timestamp: datetime | None = None
@@ -123,7 +127,7 @@ class RefrigerantMonitor:
         Returns ``True`` when a daily aggregate was just flushed (a cue for the
         adapter to persist the serialized state).
         """
-        now = timestamp or datetime.now()
+        now = civil_time(self._clock, timestamp)
         today = now.date()
 
         flushed = False
@@ -137,8 +141,11 @@ class RefrigerantMonitor:
             return flushed
 
         # Throttle: at most one sample per interval.
-        current = time()
-        if current - self._last_sample_time < SAMPLE_MIN_INTERVAL_S:
+        current = elapsed_time(self._clock, timestamp)
+        if (
+            self._last_sample_time is not None
+            and current - self._last_sample_time < SAMPLE_MIN_INTERVAL_S
+        ):
             return flushed
 
         gas_temp = data.gas_temp

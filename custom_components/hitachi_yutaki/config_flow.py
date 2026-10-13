@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from pymodbus.exceptions import ConnectionException, ModbusException
 import voluptuous as vol
 
 from homeassistant import config_entries
@@ -16,15 +15,13 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult, section
 from homeassistant.helpers import selector
 
-from .api import GATEWAY_INFO, create_api_client
+from .api import DEFAULT_GATEWAY_TYPE, GATEWAY_INFO, create_api_client
 from .api.config_providers import GATEWAY_CONFIG_PROVIDERS, GatewayConfigProvider
 from .const import (
     CONF_CYCLING_DETECTION,
     CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_ENERGY_ENTITY,
     CONF_FLEET_PING,
-    CONF_MODBUS_DEVICE_ID,
-    CONF_MODBUS_HOST,
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
     CONF_REFRIGERANT_DETECTION,
@@ -359,82 +356,39 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         )
 
     async def async_validate_connection(self, config: dict) -> FlowResult:
-        """Validate the Modbus connection."""
+        """Validate the gateway connection through its provider."""
         errors: dict[str, str] = {}
 
         provider = GATEWAY_CONFIG_PROVIDERS[config["gateway_type"]]()
         api_client = create_api_client(self.hass, config)
 
-        try:
-            if not await api_client.connect():
-                errors["base"] = "cannot_connect"
+        validation = await provider.async_validate_connection(api_client)
+        if validation.error:
+            errors["base"] = validation.error
+        else:
+            if validation.hardware_id:
+                unique_id = f"{DOMAIN}_{validation.hardware_id}_{provider.unique_id_suffix(config)}"
             else:
-                # Use the update method to fetch initial data for validation
-                await api_client.read_values(api_client.register_map.gateway_keys)
-
-                system_state = await api_client.read_value("system_state")
-                if system_state == 2:  # Data init
-                    errors["base"] = "system_initializing"
-                elif system_state == 1:  # Desync
-                    errors["base"] = "desync_error"
-                else:
-                    # Further checks can be added here if needed
-                    model_key = await api_client.get_model_key()
-                    if model_key:
-                        # Try to get hardware-based unique_id from Modbus input registers
-                        hw_id = await api_client.async_get_unique_id()
-
-                        # The hardware identifier (input registers 0-2) is
-                        # gateway-wide: every unit sharing a multi-unit
-                        # gateway returns the same hw_id, so it is
-                        # disambiguated per unit by the gateway's provider
-                        # (#370, #476).
-                        unit_suffix = provider.unique_id_suffix(config)
-
-                        if hw_id:
-                            # Use hardware identifier with domain prefix
-                            unique_id = f"{DOMAIN}_{hw_id}_{unit_suffix}"
-                            _LOGGER.info(
-                                "Gateway hardware identifier detected: %s",
-                                unique_id,
-                            )
-                        else:
-                            # Fallback to IP+slave if Modbus read failed
-                            unique_id = f"{config[CONF_MODBUS_HOST]}_{config[CONF_MODBUS_DEVICE_ID]}_{unit_suffix}"
-                            _LOGGER.warning(
-                                "Could not retrieve gateway hardware identifier. "
-                                "Using IP-based unique_id: %s. "
-                                "Duplicate detection will be limited.",
-                                unique_id,
-                            )
-
-                        await self.async_set_unique_id(unique_id)
-                        self._abort_if_unique_id_configured()
-
-                        conflict = provider.config_conflict(
-                            config,
-                            (
-                                entry.data
-                                for entry in self._async_current_entries(
-                                    include_ignore=False
-                                )
-                            ),
-                        )
-                        if conflict:
-                            errors["base"] = conflict
-                        else:
-                            self._pending_config = config
-                            # Every profile reaches the panel: short-cycling
-                            # detection needs no extended sensors.
-                            return await self.async_step_advanced_features()
-                    else:
-                        errors["base"] = "invalid_slave"
-
-        except (ModbusException, ConnectionException, OSError):
-            errors["base"] = "cannot_connect"
-        finally:
-            if api_client.connected:
-                await api_client.close()
+                unique_id = provider.fallback_unique_id(config)
+                _LOGGER.warning(
+                    "Could not retrieve gateway hardware identifier. "
+                    "Using fallback unique_id: %s. Duplicate detection will be limited.",
+                    unique_id,
+                )
+            await self.async_set_unique_id(unique_id)
+            self._abort_if_unique_id_configured()
+            conflict = provider.config_conflict(
+                config,
+                (
+                    entry.data
+                    for entry in self._async_current_entries(include_ignore=False)
+                ),
+            )
+            if conflict:
+                errors["base"] = conflict
+            else:
+                self._pending_config = config
+                return await self.async_step_advanced_features()
 
         return self.async_show_form(
             step_id="power",
@@ -539,7 +493,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
             return await self._handle_provider_step()
 
         current_gateway = self.config_entry.data.get(
-            "gateway_type", "modbus_atw_mbs_02"
+            "gateway_type", DEFAULT_GATEWAY_TYPE
         )
 
         return self.async_show_form(

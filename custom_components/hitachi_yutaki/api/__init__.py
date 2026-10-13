@@ -33,6 +33,8 @@ class GatewayInfo:
     client_class: type[HitachiApiClient]
 
 
+DEFAULT_GATEWAY_TYPE = "modbus_atw_mbs_02"
+
 GATEWAY_INFO = {
     "modbus_atw_mbs_02": GatewayInfo(
         manufacturer="Hitachi",
@@ -97,6 +99,7 @@ def create_api_client(
 
 
 __all__ = [
+    "DEFAULT_GATEWAY_TYPE",
     "GATEWAY_INFO",
     "HitachiApiClient",
     "create_api_client",
