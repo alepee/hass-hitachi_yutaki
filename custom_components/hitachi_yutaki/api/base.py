@@ -1,10 +1,15 @@
 """Base classes for Hitachi API."""
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from custom_components.hitachi_yutaki.const import CIRCUIT_IDS, CIRCUIT_MODES
+
+if TYPE_CHECKING:
+    from .modbus.unit_table import UnitSlot
 
 
 class ReadResult(Enum):
@@ -72,6 +77,15 @@ class HitachiApiClient(ABC):
             Connection must be established before calling this method.
 
         """
+
+    async def async_read_unit_table(
+        self, first_slot: int = 0, slots: int = 16
+    ) -> list[UnitSlot] | None:
+        """Read slots of the gateway unit table (HC-A(16/64)MB only, #476).
+
+        Returns None on gateways without a unit table.
+        """
+        return None
 
     @abstractmethod
     async def read_value(self, key: str) -> int | None:

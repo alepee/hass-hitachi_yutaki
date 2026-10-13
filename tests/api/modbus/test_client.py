@@ -175,75 +175,74 @@ async def test_async_get_unique_id_more_than_three_registers(api_client, mock_cl
     assert result == "3846-103-56"
 
 
-# --- Outdoor refrigerant cycle tests (#353) ---
+# --- Unit table tests (#353, #476) ---
+
+# Dump A from #476: 2x Yutaki S, 2x Yutampo R32, slots 4-15 empty.
+_UNIT_TABLE_DUMP = [1, 0, 0, 0, 1, 1, 1, 1, 1, 5, 6, 2, 1, 7, 8, 3] + [
+    0,
+    255,
+    255,
+    255,
+] * 12
+
+
+def _registers_result(registers: list[int]) -> MagicMock:
+    result = MagicMock()
+    result.isError.return_value = False
+    result.registers = registers
+    return result
 
 
 @pytest.mark.asyncio
-async def test_async_get_outdoor_cycle_success(api_client, mock_client):
-    """Reads the cycle from the unit table and returns it as an int."""
-    mock_result = MagicMock()
-    mock_result.isError.return_value = False
-    mock_result.registers = [7]
-    mock_client.read_input_registers.return_value = mock_result
+async def test_async_read_unit_table_decodes_whole_table(api_client, mock_client):
+    """One FC04 read of 64 registers at 200 decodes the 16 slots."""
+    mock_client.read_input_registers.return_value = _registers_result(_UNIT_TABLE_DUMP)
 
-    result = await api_client.async_get_outdoor_cycle(2)
-
-    assert result == 7
-
-
-@pytest.mark.asyncio
-async def test_async_get_outdoor_cycle_address_computation(api_client, mock_client):
-    """The table register is read at 200 + unit_id * 4 + 1 (offset +1, not +2)."""
-    mock_result = MagicMock()
-    mock_result.isError.return_value = False
-    mock_result.registers = [5]
-    mock_client.read_input_registers.return_value = mock_result
-
-    await api_client.async_get_outdoor_cycle(1)
+    table = await api_client.async_read_unit_table()
 
     kwargs = mock_client.read_input_registers.call_args.kwargs
-    assert kwargs["address"] == 205  # 200 + 1 * 4 + 1
-    assert kwargs["count"] == 1
+    assert (kwargs["address"], kwargs["count"]) == (200, 64)
+    assert [s.identity for s in table if s.is_valid] == [(0, 0), (1, 1), (5, 6), (7, 8)]
+    assert all(s.is_empty for s in table[4:])
 
 
 @pytest.mark.asyncio
-async def test_async_get_outdoor_cycle_sentinel_returns_none(api_client, mock_client):
-    """A 0xFF sentinel (no unit in the slot) yields None."""
-    mock_result = MagicMock()
-    mock_result.isError.return_value = False
-    mock_result.registers = [0xFF]
-    mock_client.read_input_registers.return_value = mock_result
+async def test_async_read_unit_table_single_slot(api_client, mock_client):
+    """A single slot is read at 200 + slot * 4 and keeps its index."""
+    mock_client.read_input_registers.return_value = _registers_result([1, 5, 6, 2])
 
-    assert await api_client.async_get_outdoor_cycle(3) is None
+    table = await api_client.async_read_unit_table(2, 1)
 
-
-@pytest.mark.asyncio
-async def test_async_get_outdoor_cycle_modbus_error(api_client, mock_client):
-    """A Modbus error result yields None."""
-    mock_result = MagicMock()
-    mock_result.isError.return_value = True
-    mock_client.read_input_registers.return_value = mock_result
-
-    assert await api_client.async_get_outdoor_cycle(0) is None
+    kwargs = mock_client.read_input_registers.call_args.kwargs
+    assert (kwargs["address"], kwargs["count"]) == (208, 4)
+    assert table[0].slot == 2
+    assert table[0].identity == (5, 6)
 
 
 @pytest.mark.asyncio
-async def test_async_get_outdoor_cycle_empty_registers(api_client, mock_client):
-    """An empty register list yields None."""
-    mock_result = MagicMock()
-    mock_result.isError.return_value = False
-    mock_result.registers = []
-    mock_client.read_input_registers.return_value = mock_result
+@pytest.mark.parametrize(
+    "result",
+    [
+        MagicMock(isError=MagicMock(return_value=True)),
+        _registers_result([1, 5, 6]),
+    ],
+    ids=["modbus_error", "short_read"],
+)
+async def test_async_read_unit_table_bad_result_returns_none(
+    api_client, mock_client, result
+):
+    """An error or truncated result yields None."""
+    mock_client.read_input_registers.return_value = result
 
-    assert await api_client.async_get_outdoor_cycle(0) is None
+    assert await api_client.async_read_unit_table(0, 1) is None
 
 
 @pytest.mark.asyncio
-async def test_async_get_outdoor_cycle_modbus_exception(api_client, mock_client):
+async def test_async_read_unit_table_exception_returns_none(api_client, mock_client):
     """A ModbusException during the read yields None."""
     mock_client.read_input_registers.side_effect = ModbusException("boom")
 
-    assert await api_client.async_get_outdoor_cycle(0) is None
+    assert await api_client.async_read_unit_table() is None
 
 
 # --- Register fallback tests ---

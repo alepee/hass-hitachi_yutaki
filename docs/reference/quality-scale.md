@@ -17,7 +17,7 @@
 |------|-------|--------|
 | Bronze | 18/18 | Atteint |
 | Silver | 6/10 | Non atteint |
-| Gold | 8/21 | Non atteint |
+| Gold | 9/21 | Non atteint |
 | Platinum | 1/3 | Non atteint |
 
 **Niveau actuel : Bronze** (toutes les règles validées)
@@ -77,10 +77,11 @@
 
 ## Gold (21 règles)
 
-### Règles validées (8)
+### Règles validées (9)
 
 | Règle | Détail |
 |-------|--------|
+| `diagnostics` | `diagnostics.py` : données de l'entrée (hôte masqué), identité de l'unité HC-A `(Ou, Iu)` et slot courant, dernier poll du coordinator |
 | `devices` | 8 devices créés dynamiquement selon le profil |
 | `entity-category` | `EntityCategory.DIAGNOSTIC` utilisé sur les entités avancées |
 | `entity-device-class` | `SensorDeviceClass.POWER`, `ENERGY`, `TEMPERATURE`, etc. |
@@ -90,11 +91,10 @@
 | `repair-issues` | Repair flows (`missing_config`, `enable_telemetry`, `enable_energy_cost`) + issue `connection_error` |
 | `stale-devices` | `async_remove_config_entry_device` : un device circuit, ECS ou piscine que la PAC ne déclare plus peut être supprimé |
 
-### Règles non validées (13)
+### Règles non validées (12)
 
 | Règle | Détail | Effort |
 |-------|--------|--------|
-| `diagnostics` | Pas de `diagnostics.py` | Moyen |
 | `discovery` | Pas de découverte auto (limité par Modbus TCP) | N/A |
 | `discovery-update-info` | N/A sans discovery | N/A |
 | `dynamic-devices` | Devices statiques à la configuration | N/A |
@@ -137,6 +137,5 @@
 - `docs-data-update`, `docs-examples`, `docs-known-limitations`, `docs-troubleshooting`, `docs-use-cases`, `docs-supported-functions`
 
 **Développement :**
-- `diagnostics` -- Implémenter `diagnostics.py` (export config + registres Modbus)
 - `icon-translations` -- Créer `icons.json`
 - `exception-translations` -- Utiliser `HomeAssistantError` avec `translation_key`

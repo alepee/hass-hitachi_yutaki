@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.hitachi_yutaki.api.base import ReadResult
+from custom_components.hitachi_yutaki.api.modbus.unit_table import parse_unit_table
 from custom_components.hitachi_yutaki.const import DOMAIN
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
 from custom_components.hitachi_yutaki.domain.models.refrigerant import RefrigerantStatus
@@ -438,3 +439,106 @@ async def test_a_failed_flush_requeues_its_points_only_once(coordinator):
 
     assert coordinator.telemetry_collector.buffer_size == 1
     assert coordinator.telemetry_send_failures == 1
+
+
+# --- Unit slot check (#476) ---
+
+
+def _bind_unit(coordinator, mock_api_client, slot_registers: list[int]) -> None:
+    """Bind the coordinator's entry to unit (5, 6) in slot 2."""
+    coordinator.config_entry.data = {
+        CONF_SCAN_INTERVAL: 5,
+        "unit_id": 2,
+        "outdoor_cycle": 5,
+        "indoor_address": 6,
+    }
+    coordinator.config_entry.entry_id = "entry"
+    mock_api_client.async_read_unit_table = AsyncMock(
+        return_value=parse_unit_table(slot_registers, first_slot=2)
+    )
+
+
+@pytest.mark.asyncio
+async def test_unit_slot_check_passes_when_the_unit_is_in_place(
+    coordinator, mock_api_client
+):
+    """The slot still holds the unit: the poll goes through, checked once a minute."""
+    _bind_unit(coordinator, mock_api_client, [1, 5, 6, 2])
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        await coordinator._async_update_data()
+
+    mock_api_client.async_read_unit_table.assert_awaited_once_with(2, 1)
+    coordinator.hass.config_entries.async_schedule_reload.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unit_slot_check_reloads_when_the_unit_moved(
+    coordinator, mock_api_client
+):
+    """Another unit in the slot: fail the poll and reload to locate it."""
+    _bind_unit(coordinator, mock_api_client, [1, 7, 8, 2])
+
+    with (
+        patch("custom_components.hitachi_yutaki.coordinator.ir"),
+        pytest.raises(UpdateFailed, match="Unit moved"),
+    ):
+        await coordinator._async_update_data()
+
+    coordinator.hass.config_entries.async_schedule_reload.assert_called_once_with(
+        "entry"
+    )
+
+
+@pytest.mark.asyncio
+async def test_unit_slot_check_rechecks_after_a_failure(coordinator, mock_api_client):
+    """A failed poll (e.g. a gateway reboot) forces a check on the next one."""
+    _bind_unit(coordinator, mock_api_client, [1, 5, 6, 2])
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        mock_api_client.read_values.return_value = ReadResult.GATEWAY_NOT_READY
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        mock_api_client.read_values.return_value = ReadResult.SUCCESS
+        await coordinator._async_update_data()
+
+    assert mock_api_client.async_read_unit_table.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_unit_slot_check_ignores_an_unreadable_slot(coordinator, mock_api_client):
+    """An unreadable slot is not a move."""
+    _bind_unit(coordinator, mock_api_client, [])
+    mock_api_client.async_read_unit_table.return_value = None
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+
+    coordinator.hass.config_entries.async_schedule_reload.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unit_slot_check_rechecks_after_a_connection_loss(
+    coordinator, mock_api_client
+):
+    """A gateway reboot drops the connection: the next good poll checks the slot."""
+    _bind_unit(coordinator, mock_api_client, [1, 5, 6, 2])
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        mock_api_client.read_values.side_effect = ConnectionError("gateway reboot")
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        mock_api_client.read_values.side_effect = None
+        # After the reboot, another unit sits in slot 2.
+        mock_api_client.async_read_unit_table.return_value = parse_unit_table(
+            [1, 7, 8, 2], first_slot=2
+        )
+        with pytest.raises(UpdateFailed, match="Unit moved"):
+            await coordinator._async_update_data()
+
+    coordinator.hass.config_entries.async_schedule_reload.assert_called_once_with(
+        "entry"
+    )

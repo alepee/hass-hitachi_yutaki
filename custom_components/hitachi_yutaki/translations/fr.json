@@ -795,6 +795,14 @@
       "title": "Passerelle Hitachi Inaccessible",
       "description": "L'intégration n'a pas pu se connecter à la passerelle Hitachi Yutaki. Les entités seront indisponibles jusqu'à ce que la connexion soit rétablie.\n\n**Pour résoudre ce problème :**\n1. Vérifiez si la passerelle est sous tension et connectée au réseau.\n2. Vérifiez que l'adresse IP et le port configurés dans Home Assistant sont corrects."
     },
+    "unit_not_found": {
+      "title": "Unité de pompe à chaleur introuvable sur la passerelle : {name}",
+      "description": "L'unité configurée comme **{name}** (cycle frigorifique extérieur {outdoor_cycle}, adresse intérieure {indoor_address}) n'apparaît pas dans la table des unités de la passerelle. Ses entités restent indisponibles plutôt que d'afficher les données d'une autre unité.\n\nLa passerelle range les unités dans l'ordre de leur adresse : une unité éteinte ou déconnectée au démarrage de la passerelle peut décaler les autres.\n\n**Pour résoudre le problème :**\n1. Vérifiez que l'unité est sous tension et raccordée au bus H-LINK.\n2. Redémarrez la passerelle avec toutes les unités sous tension, puis patientez quelques minutes.\n3. Si l'adresse de cycle frigorifique (DSW) de l'unité a été modifiée, supprimez cette entrée et ajoutez de nouveau l'unité.\n\nLa configuration se relance d'elle-même et ce problème disparaît dès que l'unité est retrouvée."
+    },
+    "unit_duplicate": {
+      "title": "Deux entrées désignent la même unité de pompe à chaleur : {name}",
+      "description": "**{name}** et **{other}** désignent toutes deux l'unité du cycle frigorifique extérieur {outdoor_cycle}, adresse intérieure {indoor_address}. **{name}** n'est pas configurée, pour qu'une même unité ne soit pas lue et pilotée deux fois.\n\n**Pour résoudre le problème :** supprimez l'entrée qui ne correspond à aucune unité réelle. Ce problème disparaît dès qu'une seule entrée désigne l'unité."
+    },
     "refrigerant_charge_alert": {
       "title": "Perte possible de charge frigorigène",
       "fix_flow": {

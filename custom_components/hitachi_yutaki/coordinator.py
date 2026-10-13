@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, date, datetime, timedelta
 import logging
+import time
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -28,9 +29,13 @@ from .const import (
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
     CONF_CYCLING_DETECTION,
+    CONF_INDOOR_ADDRESS,
+    CONF_OUTDOOR_CYCLE,
     CONF_REFRIGERANT_DETECTION,
+    CONF_UNIT_ID,
     DEFAULT_CYCLING_DETECTION,
     DEFAULT_REFRIGERANT_DETECTION,
+    DEFAULT_UNIT_ID,
     DOMAIN,
 )
 from .domain.services.cycling import (
@@ -67,6 +72,11 @@ _CYCLING_DOC_URL = (
 
 _MAX_BACKOFF = timedelta(seconds=300)
 
+# How often a healthy HC-A(16/64)MB entry re-checks that its slot still holds
+# its unit (#476). Also checked on the first poll after any failure, which is
+# when a gateway reboot would have re-enumerated the bus.
+_UNIT_CHECK_INTERVAL = 60.0
+
 
 class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Hitachi heat pump data from the API."""
@@ -88,6 +98,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.derived_metrics: DerivedMetricsAdapter | None = None
         self._normal_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
         self._gateway_not_ready_count: int = 0
+        # Monotonic time of the last unit slot check, None to check next poll.
+        self._unit_checked_at: float | None = None
         # Seed from persisted value (0 = unknown / never refreshed) so callers
         # of has_dhw/has_pool/has_circuit get sensible answers before the
         # first successful refresh. The api_client cache is the live source,
@@ -155,6 +167,45 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         """
         return self._gateway_not_ready_count > 0
 
+    async def _async_check_unit_slot(self) -> None:
+        """Reload the entry when its slot no longer holds its unit (#476).
+
+        On an HC-A(16/64)MB gateway the slot is resolved at setup, but a gateway
+        reboot while Home Assistant runs re-enumerates the bus, and a unit
+        missing at that moment shifts the others to new slots. Polling would
+        then carry on reading another unit's data under this entry's name.
+        Raises ``UpdateFailed`` and schedules a reload, which resolves the slot
+        again. An unreadable slot is not treated as a move.
+        """
+        data = self.config_entry.data
+        identity = (data.get(CONF_OUTDOOR_CYCLE), data.get(CONF_INDOOR_ADDRESS))
+        if None in identity:
+            return
+        now = time.monotonic()
+        if (
+            self._unit_checked_at is not None
+            and now - self._unit_checked_at < _UNIT_CHECK_INTERVAL
+        ):
+            return
+
+        slot = data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
+        slots = await self.api_client.async_read_unit_table(slot, 1)
+        if not slots:
+            return
+        self._unit_checked_at = now
+        if slots[0].is_valid and slots[0].identity == identity:
+            return
+
+        _LOGGER.warning(
+            "Slot %d of the gateway unit table no longer holds unit "
+            "(Ou=%d, Iu=%d), reloading to locate it (#476)",
+            slot,
+            *identity,
+        )
+        self._unit_checked_at = None
+        self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
+        raise UpdateFailed("Unit moved to another slot of the gateway unit table")
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Hitachi Yutaki."""
         try:
@@ -171,6 +222,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             result = await self.api_client.read_values(keys_to_read)
 
             if result == ReadResult.GATEWAY_NOT_READY:
+                self._unit_checked_at = None
                 self._gateway_not_ready_count += 1
                 backoff = min(
                     self._normal_interval * (2**self._gateway_not_ready_count),
@@ -198,6 +250,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             self.system_config = data.get("system_config", 0)
 
+            await self._async_check_unit_slot()
+
             # Poll succeeded: clear any connection error issue now, before
             # the post-fetch stages, so an enrichment bug cannot keep it
             # alive or re-create it.
@@ -209,6 +263,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             raise
 
         except Exception as exc:
+            self._unit_checked_at = None
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,

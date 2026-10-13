@@ -17,9 +17,11 @@ from homeassistant.core import HomeAssistant
 import homeassistant.helpers.config_validation as cv
 
 from ...const import (
+    CONF_INDOOR_ADDRESS,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
+    CONF_OUTDOOR_CYCLE,
     CONF_UNIT_ID,
     DEFAULT_DEVICE_ID,
     DEFAULT_HOST,
@@ -131,10 +133,11 @@ class HcAMbConfigProvider:
             decoded_data = api_client.decode_config(all_data)
             system_config = int(all_data.get("system_config") or 0)
 
-            # Detect the outdoor refrigerant cycle so the outdoor register block
-            # is addressed correctly on multi-system gateways (#353). The cycle
-            # is arbitrary and read from the gateway unit table, not unit_id.
-            outdoor_cycle = await api_client.async_get_outdoor_cycle(unit_id)
+            # Read the unit's (Ou, Iu) identity from the gateway unit table.
+            # Ou keys the outdoor register block on multi-system gateways
+            # (#353); the pair identifies the unit across slot moves (#476).
+            slots = await api_client.async_read_unit_table(unit_id, 1)
+            unit_slot = slots[0] if slots and slots[0].is_valid else None
 
             _LOGGER.debug("HC-A-MB detecting profile with data: %s", decoded_data)
             detected_profiles = [
@@ -159,8 +162,9 @@ class HcAMbConfigProvider:
             }
             if system_config:
                 config_data["system_config"] = system_config
-            if outdoor_cycle is not None:
-                config_data["outdoor_cycle"] = outdoor_cycle
+            if unit_slot is not None:
+                config_data[CONF_OUTDOOR_CYCLE] = unit_slot.outdoor_cycle
+                config_data[CONF_INDOOR_ADDRESS] = unit_slot.indoor_address
 
             return StepOutcome(
                 config_data=config_data,

@@ -8,6 +8,7 @@ from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.api.config_providers.hc_a_mb import (
     HcAMbConfigProvider,
 )
+from custom_components.hitachi_yutaki.api.modbus.unit_table import parse_unit_table
 
 
 class TestHcAMbConfigProvider:
@@ -80,3 +81,54 @@ class TestHcAMbGatewayNotReady:
         assert outcome.errors == {"base": "gateway_not_ready"}
         assert outcome.detected_profiles is None or outcome.detected_profiles == []
         client.read_value.assert_not_called()
+
+
+@pytest.mark.asyncio
+class TestHcAMbUnitIdentity:
+    """The unit's (Ou, Iu) identity is persisted at config time (#476)."""
+
+    async def _process(self, slot_registers: list[int]) -> dict:
+        client = MagicMock()
+        client.connect = AsyncMock(return_value=True)
+        client.close = AsyncMock(return_value=True)
+        client.read_values = AsyncMock(return_value=ReadResult.SUCCESS)
+        client.read_value = AsyncMock(return_value=0)
+        client.decode_config = MagicMock(return_value={})
+        client.async_read_unit_table = AsyncMock(
+            return_value=parse_unit_table(slot_registers, first_slot=2)
+        )
+        client.connected = True
+        client.register_map = MagicMock(base_keys=["system_config"])
+
+        info = MagicMock()
+        info.client_class = MagicMock(return_value=client)
+
+        with patch.dict(
+            "custom_components.hitachi_yutaki.api.config_providers.hc_a_mb.GATEWAY_INFO",
+            {"modbus_hc_a_mb": info},
+        ):
+            outcome = await HcAMbConfigProvider().process_step(
+                hass=MagicMock(),
+                step_id="hc_a_mb_connection",
+                user_input={
+                    "name": "test",
+                    "modbus_host": "127.0.0.1",
+                    "modbus_port": 502,
+                    "modbus_device_id": 1,
+                    "unit_id": 2,
+                },
+                context={},
+            )
+        client.async_read_unit_table.assert_awaited_once_with(2, 1)
+        return outcome.config_data
+
+    async def test_valid_slot_persists_the_pair(self) -> None:
+        """A consistent slot stores both Ou and Iu."""
+        config = await self._process([1, 5, 6, 2])
+        assert (config["outdoor_cycle"], config["indoor_address"]) == (5, 6)
+
+    async def test_empty_slot_persists_nothing(self) -> None:
+        """An empty slot stores no identity."""
+        config = await self._process([0, 255, 255, 255])
+        assert "outdoor_cycle" not in config
+        assert "indoor_address" not in config
