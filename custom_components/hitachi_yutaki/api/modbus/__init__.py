@@ -26,13 +26,6 @@ from ...const import (
 from ..base import HitachiApiClient, ReadResult
 from .registers import HitachiRegisterMap, RegisterDefinition
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
-from .unit_table import (
-    UNIT_TABLE_SLOTS,
-    UNIT_TABLE_STRIDE,
-    UnitSlot,
-    parse_unit_table,
-    slot_address,
-)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -192,55 +185,6 @@ class ModbusApiClient(HitachiApiClient):
                 exc,
             )
             return None
-
-    async def async_read_unit_table(
-        self, first_slot: int = 0, slots: int = UNIT_TABLE_SLOTS
-    ) -> list[UnitSlot] | None:
-        """Read slots of the HC-A(16/64)MB gateway unit table (#353, #476).
-
-        One function code 04 request at ``200 + first_slot * 4``. See
-        ``unit_table`` for the descriptor layout and why the slot is not a
-        stable identity.
-
-        Args:
-            first_slot: Index of the first slot to read.
-            slots: Number of slots to read.
-
-        Returns:
-            The decoded slots, or None if the table cannot be read.
-
-        """
-        device_param = get_pymodbus_device_param()
-        address = slot_address(first_slot)
-        count = slots * UNIT_TABLE_STRIDE
-
-        try:
-            result = await self._hass.async_add_executor_job(
-                lambda: self._client.read_input_registers(
-                    address=address,
-                    count=count,
-                    **{device_param: self._slave},
-                )
-            )
-        except (ModbusException, ConnectionError, OSError) as exc:
-            _LOGGER.warning(
-                "Communication error reading unit table (registers %d-%d): %s",
-                address,
-                address + count - 1,
-                exc,
-            )
-            return None
-
-        if result.isError() or len(result.registers or []) < count:
-            _LOGGER.warning(
-                "Failed to read unit table (registers %d-%d): %s",
-                address,
-                address + count - 1,
-                result,
-            )
-            return None
-
-        return parse_unit_table(list(result.registers[:count]), first_slot)
 
     async def read_value(self, key: str) -> int | None:
         """Read a value from the API."""

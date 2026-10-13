@@ -193,3 +193,22 @@ class TestAtwMbs02GatewayNotReady:
             )
         assert variant is None
         client.read_value.assert_not_called()
+
+
+class TestAtwMbs02EntryRules:
+    """A single-unit gateway keeps the pre-#476 rules."""
+
+    provider = AtwMbs02ConfigProvider()
+
+    def test_unique_id_suffix_is_the_default_unit(self) -> None:
+        """The suffix stays `0`, as before #476, even with stray keys."""
+        assert self.provider.unique_id_suffix({}) == "0"
+        assert (
+            self.provider.unique_id_suffix({"outdoor_cycle": 5, "indoor_address": 6})
+            == "0"
+        )
+
+    def test_no_conflict_and_no_unit_identity(self) -> None:
+        """Duplicates are left to the unique_id; there is no unit to identify."""
+        assert self.provider.config_conflict({}, [{}]) is None
+        assert self.provider.unit_identity({"outdoor_cycle": 5}) is None

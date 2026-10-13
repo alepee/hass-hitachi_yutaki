@@ -95,8 +95,19 @@ _PATCH_ATW_CREATE_RM = "custom_components.hitachi_yutaki.api.config_providers.at
 _PATCH_ATW_PROFILES = (
     "custom_components.hitachi_yutaki.api.config_providers.atw_mbs_02.PROFILES"
 )
-_PATCH_CF_GW_INFO = "custom_components.hitachi_yutaki.config_flow.GATEWAY_INFO"
-_PATCH_CF_CREATE_RM = "custom_components.hitachi_yutaki.config_flow.create_register_map"
+_PATCH_CF_CREATE_CLIENT = (
+    "custom_components.hitachi_yutaki.config_flow.create_api_client"
+)
+
+
+def _patch_cf_client(gateway_info: MagicMock):
+    """Patch the flow's client factory to hand out the mocked client."""
+    return patch(
+        _PATCH_CF_CREATE_CLIENT,
+        side_effect=lambda _hass, config: gateway_info[
+            config["gateway_type"]
+        ].client_class(),
+    )
 
 
 async def _advance_to_connection(hass: HomeAssistant) -> dict:
@@ -394,8 +405,7 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
     assert result["step_id"] == "power"
 
     with (
-        patch(_PATCH_CF_GW_INFO, mock_gw_info),
-        patch(_PATCH_CF_CREATE_RM),
+        _patch_cf_client(mock_gw_info),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -441,8 +451,7 @@ async def test_full_flow_hides_refrigerant_toggle_when_unsupported(
     assert result["step_id"] == "power"
 
     with (
-        patch(_PATCH_CF_GW_INFO, mock_gw_info),
-        patch(_PATCH_CF_CREATE_RM),
+        _patch_cf_client(mock_gw_info),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -479,8 +488,7 @@ async def test_validate_connection_system_initializing(
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
 
     with (
-        patch(_PATCH_CF_GW_INFO, mock_gw_info),
-        patch(_PATCH_CF_CREATE_RM),
+        _patch_cf_client(mock_gw_info),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -500,8 +508,7 @@ async def test_validate_connection_desync(hass: HomeAssistant) -> None:
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
 
     with (
-        patch(_PATCH_CF_GW_INFO, mock_gw_info),
-        patch(_PATCH_CF_CREATE_RM),
+        _patch_cf_client(mock_gw_info),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -521,8 +528,7 @@ async def test_validate_connection_invalid_slave(hass: HomeAssistant) -> None:
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
 
     with (
-        patch(_PATCH_CF_GW_INFO, mock_gw_info),
-        patch(_PATCH_CF_CREATE_RM),
+        _patch_cf_client(mock_gw_info),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -556,8 +562,7 @@ async def test_validate_connection_duplicate_entry_abort(
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
 
     with (
-        patch(_PATCH_CF_GW_INFO, mock_gw_info),
-        patch(_PATCH_CF_CREATE_RM),
+        _patch_cf_client(mock_gw_info),
     ):
         result = await hass.config_entries.flow.async_configure(
             result["flow_id"], POWER_INPUT
@@ -1128,30 +1133,6 @@ def _flow(hass: HomeAssistant) -> HitachiYutakiConfigFlow:
     return flow
 
 
-async def test_outdoor_cycle_in_use_detects_same_cycle_on_same_gateway(
-    hass: HomeAssistant,
-) -> None:
-    """A second unit on the same gateway and outdoor cycle is detected."""
-    _hc_a_entry(unit_id=0, outdoor_cycle=0).add_to_hass(hass)
-    flow = _flow(hass)
-
-    assert flow._outdoor_cycle_in_use(_hc_a_config(unit_id=3, outdoor_cycle=0))
-    assert not flow._outdoor_cycle_in_use(_hc_a_config(unit_id=3, outdoor_cycle=1))
-    # ATW-MBS-02 entries carry no outdoor cycle: never a conflict.
-    assert not flow._outdoor_cycle_in_use(_hc_a_config(unit_id=3, outdoor_cycle=None))
-
-
-async def test_outdoor_cycle_in_use_ignores_other_gateways(
-    hass: HomeAssistant,
-) -> None:
-    """The same cycle number on another gateway is a different outdoor unit."""
-    _hc_a_entry(unit_id=0, outdoor_cycle=0, host="192.0.2.10").add_to_hass(hass)
-
-    assert not _flow(hass)._outdoor_cycle_in_use(
-        _hc_a_config(unit_id=3, outdoor_cycle=0)
-    )
-
-
 async def test_validate_connection_refuses_duplicate_outdoor_cycle(
     hass: HomeAssistant,
 ) -> None:
@@ -1161,8 +1142,7 @@ async def test_validate_connection_refuses_duplicate_outdoor_cycle(
     mock_gw_info = _mock_gateway_info(mock_client)
 
     with (
-        patch(_PATCH_CF_GW_INFO, mock_gw_info),
-        patch(_PATCH_CF_CREATE_RM),
+        _patch_cf_client(mock_gw_info),
     ):
         result = await _flow(hass).async_validate_connection(
             _hc_a_config(unit_id=3, outdoor_cycle=0)
@@ -1183,8 +1163,7 @@ async def test_new_unit_on_a_moved_entrys_old_slot_is_not_refused(
     mock_gw_info = _mock_gateway_info(_mock_api_client())
 
     with (
-        patch(_PATCH_CF_GW_INFO, mock_gw_info),
-        patch(_PATCH_CF_CREATE_RM),
+        _patch_cf_client(mock_gw_info),
     ):
         result = await flow.async_validate_connection(config)
 

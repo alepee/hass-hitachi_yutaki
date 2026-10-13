@@ -8,7 +8,9 @@ from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.api.config_providers.hc_a_mb import (
     HcAMbConfigProvider,
 )
-from custom_components.hitachi_yutaki.api.modbus.unit_table import parse_unit_table
+from custom_components.hitachi_yutaki.api.modbus.hc_a_mb.unit_table import (
+    parse_unit_table,
+)
 
 
 class TestHcAMbConfigProvider:
@@ -132,3 +134,63 @@ class TestHcAMbUnitIdentity:
         config = await self._process([0, 255, 255, 255])
         assert "outdoor_cycle" not in config
         assert "indoor_address" not in config
+
+
+class TestHcAMbEntryRules:
+    """Config entry rules owned by the HC-A provider (#404, #476)."""
+
+    provider = HcAMbConfigProvider()
+    gateway = {"modbus_host": "192.0.2.1", "modbus_port": 502}
+
+    def test_unique_id_suffix_prefers_the_pair(self) -> None:
+        """The (Ou, Iu) pair when known, the slot otherwise (entries before #476)."""
+        config = {"unit_id": 1, "outdoor_cycle": 7}
+        assert self.provider.unique_id_suffix(config) == "1"
+        assert self.provider.unique_id_suffix({**config, "indoor_address": 8}) == (
+            "c7_i8"
+        )
+
+    def test_config_conflict_on_a_used_outdoor_cycle(self) -> None:
+        """A second entry on a cycle used on the same gateway is refused."""
+        existing = [{**self.gateway, "outdoor_cycle": 0}]
+        assert (
+            self.provider.config_conflict(
+                {**self.gateway, "outdoor_cycle": 0}, existing
+            )
+            == "outdoor_cycle_in_use"
+        )
+        assert (
+            self.provider.config_conflict(
+                {**self.gateway, "outdoor_cycle": 1}, existing
+            )
+            is None
+        )
+        assert self.provider.config_conflict(dict(self.gateway), existing) is None
+
+    def test_config_conflict_ignores_other_gateways(self) -> None:
+        """The same cycle on another gateway is a different unit."""
+        existing = [
+            {"modbus_host": "192.0.2.10", "modbus_port": 502, "outdoor_cycle": 0}
+        ]
+        assert (
+            self.provider.config_conflict(
+                {**self.gateway, "outdoor_cycle": 0}, existing
+            )
+            is None
+        )
+
+    def test_unit_identity_needs_the_pair(self) -> None:
+        """The identity is the (Ou, Iu) pair, unknown until both are recorded."""
+        assert self.provider.unit_identity({"outdoor_cycle": 5}) is None
+        assert self.provider.unit_identity(
+            {"outdoor_cycle": 5, "indoor_address": 6}
+        ) == (5, 6)
+
+    def test_diagnostics_show_the_bound_unit(self) -> None:
+        """Diagnostics tell which unit the entry is bound to and its slot."""
+        data = {"unit_id": 2, "outdoor_cycle": 5, "indoor_address": 6}
+        assert self.provider.diagnostics(data) == {
+            "slot": 2,
+            "outdoor_cycle": 5,
+            "indoor_address": 6,
+        }

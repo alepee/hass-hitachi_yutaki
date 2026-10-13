@@ -35,12 +35,9 @@ from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 
 from .adapters.derived_metrics import REFRIGERANT_STORE_VERSION, DerivedMetricsAdapter
-from .api import GATEWAY_INFO, create_register_map
-from .api.modbus.unit_table import (
-    REASON_NOT_SETTLED,
-    resolve_slot,
-    unit_unique_suffix,
-)
+from .api import GATEWAY_INFO, HitachiApiClient, create_api_client
+from .api.base import UnitBindingStatus
+from .api.config_providers import GATEWAY_CONFIG_PROVIDERS, GatewayConfigProvider
 from .const import (
     CIRCUIT_MODE_COOLING,
     CIRCUIT_MODE_HEATING,
@@ -49,21 +46,17 @@ from .const import (
     CONF_CYCLING_DETECTION,
     CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_FLEET_PING,
-    CONF_INDOOR_ADDRESS,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
-    CONF_OUTDOOR_CYCLE,
     CONF_POWER_SUPPLY,
     CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
-    CONF_UNIT_ID,
     DEFAULT_CYCLING_DETECTION,
     DEFAULT_DEVICE_ID,
     DEFAULT_POWER_SUPPLY,
     DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
-    DEFAULT_UNIT_ID,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
     DEVICE_CONTROL_UNIT,
@@ -262,79 +255,45 @@ def _unit_issue_ids(entry_id: str) -> tuple[str, str]:
     return (f"unit_not_found_{entry_id}", f"unit_duplicate_{entry_id}")
 
 
-async def _async_resolve_unit_slot(
-    hass: HomeAssistant, entry: HitachiYutakiConfigEntry
+async def _async_bind_unit(
+    hass: HomeAssistant,
+    entry: HitachiYutakiConfigEntry,
+    api_client: HitachiApiClient,
+    provider: GatewayConfigProvider,
 ) -> None:
-    """Bind an HC-A(16/64)MB entry to its unit's current slot (#353, #476).
+    """Bind the client to the entry's heat pump unit before the first refresh.
 
-    The slot (``unit_id``) keys the indoor register block, but it is not a
-    stable identity: the gateway packs the units sorted by H-LINK address, so a
-    unit missing at enumeration shifts every unit above it down by one slot.
-    The entry stores the unit's ``(Ou, Iu)`` pair instead, and the slot is
-    looked up in the gateway unit table at every setup and persisted.
-
-    Older entries self-heal: those with only ``Ou`` (#353) are matched on the
-    cycle, those with neither adopt their stored slot, as before.
-
-    Raises ``ConfigEntryNotReady`` rather than reading whatever now occupies
-    the old slot, while the table is settling or when the unit is absent; the
-    latter also raises a repair issue. An unreadable table is not fatal: the
-    stored slot is used, and the first refresh decides whether setup proceeds.
+    On a gateway hosting several units, a unit can move to another address
+    between two setups (#476). The client locates it and the entry persists
+    what it found, so it never reads whichever unit took its place. Raises
+    ``ConfigEntryNotReady`` while the gateway is still enumerating its units,
+    and with a repair issue when the unit is missing or already bound to
+    another entry of the same gateway; the client is closed in that case.
     """
-    if entry.data.get("gateway_type") != "modbus_hc_a_mb":
-        return
-
-    not_found_id, duplicate_id = _unit_issue_ids(entry.entry_id)
-    stored_slot = entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
-    outdoor_cycle = entry.data.get(CONF_OUTDOOR_CYCLE)
-    indoor_address = entry.data.get(CONF_INDOOR_ADDRESS)
-
-    gateway_info = GATEWAY_INFO[entry.data["gateway_type"]]
-    client = gateway_info.client_class(
-        hass,
-        name=entry.data[CONF_NAME],
-        host=entry.data[CONF_MODBUS_HOST],
-        port=entry.data[CONF_MODBUS_PORT],
-        slave=entry.data[CONF_MODBUS_DEVICE_ID],
-        register_map=create_register_map(
-            entry.data["gateway_type"],
-            stored_slot,
-            gateway_variant=entry.data.get("gateway_variant"),
-        ),
-    )
-    table = None
     try:
-        if await client.connect():
-            table = await client.async_read_unit_table()
-    except Exception as exc:  # noqa: BLE001 - an unreadable table is not fatal
-        _LOGGER.debug("Error reading the gateway unit table: %s", exc)
-    finally:
-        if client.connected:
-            await client.close()
+        await _async_apply_unit_binding(hass, entry, api_client, provider)
+    except ConfigEntryNotReady:
+        if api_client.connected:
+            await api_client.close()
+        raise
 
-    if table is None:
-        _LOGGER.debug("Unit table unavailable, keeping slot %d", stored_slot)
-        return
 
-    resolution = resolve_slot(table, stored_slot, outdoor_cycle, indoor_address)
-    placeholders = {
-        "name": entry.title,
-        "outdoor_cycle": str(outdoor_cycle),
-        "indoor_address": str(indoor_address),
-        "slot": str(stored_slot),
-    }
+async def _async_apply_unit_binding(
+    hass: HomeAssistant,
+    entry: HitachiYutakiConfigEntry,
+    api_client: HitachiApiClient,
+    provider: GatewayConfigProvider,
+) -> None:
+    """Apply the outcome of ``async_bind_unit``; see ``_async_bind_unit``."""
+    not_found_id, duplicate_id = _unit_issue_ids(entry.entry_id)
+    binding = await api_client.async_bind_unit(entry.data)
+    placeholders = {"name": entry.title, **binding.placeholders}
 
-    if resolution.reason == REASON_NOT_SETTLED:
+    if binding.status is UnitBindingStatus.SETTLING:
         raise ConfigEntryNotReady(
-            "Gateway unit table is still settling (H-LINK enumeration in "
-            "progress); setup will retry"
+            "Gateway is still enumerating its units; setup will retry"
         )
-    unit = resolution.slot
-    if unit is None:
-        if outdoor_cycle is None:
-            # Pre-#353 entry on an empty slot: nothing to compare against,
-            # keep the previous best-effort behaviour.
-            return
+    if binding.status is UnitBindingStatus.MISSING:
         async_create_issue(
             hass,
             DOMAIN,
@@ -345,21 +304,24 @@ async def _async_resolve_unit_slot(
             translation_placeholders=placeholders,
         )
         raise ConfigEntryNotReady(
-            f"Unit (Ou={outdoor_cycle}, Iu={indoor_address}) is not in the "
-            "gateway unit table; setup will retry"
+            "Heat pump unit not found on the gateway; setup will retry"
         )
-
+    if binding.status is UnitBindingStatus.UNVERIFIED:
+        return
     async_delete_issue(hass, DOMAIN, not_found_id)
 
+    data = {**entry.data, **binding.updates}
+    identity = provider.unit_identity(data)
     duplicate = next(
         (
             other
             for other in hass.config_entries.async_entries(DOMAIN)
-            if other.entry_id != entry.entry_id
-            and other.data.get(CONF_MODBUS_HOST) == entry.data[CONF_MODBUS_HOST]
-            and other.data.get(CONF_MODBUS_PORT) == entry.data[CONF_MODBUS_PORT]
-            and other.data.get(CONF_OUTDOOR_CYCLE) == unit.outdoor_cycle
-            and other.data.get(CONF_INDOOR_ADDRESS) == unit.indoor_address
+            if identity is not None
+            and other.entry_id != entry.entry_id
+            and other.data.get("gateway_type") == data["gateway_type"]
+            and other.data.get(CONF_MODBUS_HOST) == data[CONF_MODBUS_HOST]
+            and other.data.get(CONF_MODBUS_PORT) == data[CONF_MODBUS_PORT]
+            and provider.unit_identity(other.data) == identity
         ),
         None,
     )
@@ -371,35 +333,15 @@ async def _async_resolve_unit_slot(
             is_fixable=False,
             severity=IssueSeverity.ERROR,
             translation_key="unit_duplicate",
-            translation_placeholders={
-                **placeholders,
-                "outdoor_cycle": str(unit.outdoor_cycle),
-                "indoor_address": str(unit.indoor_address),
-                "other": duplicate.title,
-            },
+            translation_placeholders={**placeholders, "other": duplicate.title},
         )
         raise ConfigEntryNotReady(
-            f"Unit (Ou={unit.outdoor_cycle}, Iu={unit.indoor_address}) is "
-            f"already bound to entry {duplicate.title!r}"
+            f"Heat pump unit is already bound to entry {duplicate.title!r}"
         )
     async_delete_issue(hass, DOMAIN, duplicate_id)
 
-    if unit.slot != stored_slot and outdoor_cycle is not None:
-        _LOGGER.warning(
-            "Unit (Ou=%d, Iu=%d) moved from slot %d to slot %d in the gateway "
-            "unit table, following it (#476)",
-            unit.outdoor_cycle,
-            unit.indoor_address,
-            stored_slot,
-            unit.slot,
-        )
-    updates = {
-        CONF_UNIT_ID: unit.slot,
-        CONF_OUTDOOR_CYCLE: unit.outdoor_cycle,
-        CONF_INDOOR_ADDRESS: unit.indoor_address,
-    }
-    if any(entry.data.get(key) != value for key, value in updates.items()):
-        hass.config_entries.async_update_entry(entry, data={**entry.data, **updates})
+    if data != dict(entry.data):
+        hass.config_entries.async_update_entry(entry, data=data)
 
 
 def _build_telemetry_collector(
@@ -545,31 +487,15 @@ async def async_setup_entry(
 
     # Add unique_id if missing (for existing installations)
     if entry.unique_id is None:
-        unit_suffix = unit_unique_suffix(
-            entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-            entry.data.get(CONF_OUTDOOR_CYCLE),
-            entry.data.get(CONF_INDOOR_ADDRESS),
-        )
+        unit_suffix = GATEWAY_CONFIG_PROVIDERS[
+            entry.data["gateway_type"]
+        ]().unique_id_suffix(entry.data)
         _LOGGER.info(
             "Config entry has no unique_id, attempting to add one based on hardware identifier"
         )
 
         # Create temporary API client for unique_id retrieval
-        gateway_info = GATEWAY_INFO[entry.data["gateway_type"]]
-        register_map = create_register_map(
-            entry.data["gateway_type"],
-            entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-            gateway_variant=entry.data.get("gateway_variant"),
-            outdoor_cycle=entry.data.get(CONF_OUTDOOR_CYCLE),
-        )
-        temp_client = gateway_info.client_class(
-            hass,
-            name=entry.data[CONF_NAME],
-            host=entry.data[CONF_MODBUS_HOST],
-            port=entry.data[CONF_MODBUS_PORT],
-            slave=entry.data[CONF_MODBUS_DEVICE_ID],
-            register_map=register_map,
-        )
+        temp_client = create_api_client(hass, entry.data)
 
         unique_id = None
         try:
@@ -605,11 +531,6 @@ async def async_setup_entry(
 
         hass.config_entries.async_update_entry(entry, unique_id=unique_id)
 
-    # Bind HC-A(16/64)MB entries to their unit's current slot, and self-heal
-    # the identity of entries created before #353/#476. See
-    # _async_resolve_unit_slot for details.
-    await _async_resolve_unit_slot(hass, entry)
-
     # Get gateway and profile from config entry
     # At this point, these should exist (checked above)
     gateway_type = entry.data["gateway_type"]
@@ -625,21 +546,10 @@ async def async_setup_entry(
     gateway_manufacturer = gateway_info.manufacturer
     gateway_model = gateway_info.model
 
-    # Instantiate gateway client and profile
-    api_client_class = gateway_info.client_class
-    register_map = create_register_map(
-        gateway_type,
-        entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-        gateway_variant=entry.data.get("gateway_variant"),
-        outdoor_cycle=entry.data.get(CONF_OUTDOOR_CYCLE),
-    )
-    api_client = api_client_class(
-        hass,
-        name=entry.data[CONF_NAME],
-        host=entry.data[CONF_MODBUS_HOST],
-        port=entry.data[CONF_MODBUS_PORT],
-        slave=entry.data[CONF_MODBUS_DEVICE_ID],
-        register_map=register_map,
+    # Instantiate the gateway client and bind it to the entry's unit
+    api_client = create_api_client(hass, entry.data)
+    await _async_bind_unit(
+        hass, entry, api_client, GATEWAY_CONFIG_PROVIDERS[gateway_type]()
     )
     profile = PROFILES[profile_key]()
 

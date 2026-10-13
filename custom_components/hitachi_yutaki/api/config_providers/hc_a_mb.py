@@ -6,6 +6,7 @@ and performs connectivity testing and profile detection in one step.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 import logging
 from typing import Any
 
@@ -176,3 +177,58 @@ class HcAMbConfigProvider:
         finally:
             if api_client.connected:
                 await api_client.close()
+
+    # ------------------------------------------------------------------
+    # Config entry rules
+    # ------------------------------------------------------------------
+
+    def unique_id_suffix(self, config: Mapping[str, Any]) -> str:
+        """Return the unit's ``(Ou, Iu)`` pair, or its slot when unknown (#476).
+
+        The slot moves when the gateway renumbers its units, so a slot suffix
+        let an entry whose unit had moved block a new unit added on its old
+        slot. Entries created before #476 keep their slot suffix (their
+        ``unique_id`` is never rewritten, so their telemetry ``device_hash`` is
+        preserved); both formats cannot collide.
+        """
+        identity = self.unit_identity(config)
+        if identity is not None:
+            return f"c{identity[0]}_i{identity[1]}"
+        return str(config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID))
+
+    def config_conflict(
+        self, config: Mapping[str, Any], entries: Iterable[Mapping[str, Any]]
+    ) -> str | None:
+        """Refuse a second entry on an outdoor cycle already in use (#404).
+
+        The outdoor register block is keyed on the refrigerant cycle, not on
+        the slot. Two entries resolving to the same cycle read and drive the
+        same outdoor unit, which silently corrupts the first unit's data.
+        """
+        outdoor_cycle = config.get(CONF_OUTDOOR_CYCLE)
+        if outdoor_cycle is None:
+            return None
+        if any(
+            data.get(CONF_OUTDOOR_CYCLE) == outdoor_cycle
+            and data.get(CONF_MODBUS_HOST) == config[CONF_MODBUS_HOST]
+            and data.get(CONF_MODBUS_PORT) == config[CONF_MODBUS_PORT]
+            for data in entries
+        ):
+            return "outdoor_cycle_in_use"
+        return None
+
+    def unit_identity(self, data: Mapping[str, Any]) -> tuple | None:
+        """Return the unit's ``(Ou, Iu)`` pair, None if not recorded yet."""
+        outdoor_cycle = data.get(CONF_OUTDOOR_CYCLE)
+        indoor_address = data.get(CONF_INDOOR_ADDRESS)
+        if outdoor_cycle is None or indoor_address is None:
+            return None
+        return (outdoor_cycle, indoor_address)
+
+    def diagnostics(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        """Return which unit the entry is bound to and its current slot (#476)."""
+        return {
+            "slot": data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+            "outdoor_cycle": data.get(CONF_OUTDOOR_CYCLE),
+            "indoor_address": data.get(CONF_INDOOR_ADDRESS),
+        }

@@ -46,10 +46,15 @@ Adding a new gateway
 3. Add translations under config.step.<step_id> and options.step.<step_id>
 4. Register in GATEWAY_CONFIG_PROVIDERS below
 5. Add GatewayInfo entry in api/__init__.py
+
+Besides its steps, a provider owns the gateway-specific rules about its config
+entries: the ``unique_id`` suffix, conflicts with entries already configured,
+the identity of the unit an entry is bound to, and its diagnostics section.
 """
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -134,6 +139,39 @@ class GatewayConfigProvider(Protocol):
             (triggers transition to profile selection).
 
         """
+        ...
+
+    def unique_id_suffix(self, config: Mapping[str, Any]) -> str:
+        """Return the per-unit suffix of the config entry ``unique_id``.
+
+        The gateway hardware identifier is shared by every unit of a
+        multi-unit gateway, so the entry ``unique_id`` needs a suffix that
+        tells its units apart (#370).
+        """
+        ...
+
+    def config_conflict(
+        self, config: Mapping[str, Any], entries: Iterable[Mapping[str, Any]]
+    ) -> str | None:
+        """Return a config flow error key if ``config`` clashes with an entry.
+
+        Args:
+            config: Data of the entry being created.
+            entries: Data of the entries already configured.
+
+        """
+        ...
+
+    def unit_identity(self, data: Mapping[str, Any]) -> tuple | None:
+        """Return the stable identity of an entry's unit, None if unknown.
+
+        Two entries of the same gateway with the same identity read and drive
+        the same unit, which setup refuses.
+        """
+        ...
+
+    def diagnostics(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        """Return the gateway-specific section of an entry's diagnostics."""
         ...
 
 

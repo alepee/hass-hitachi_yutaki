@@ -3,13 +3,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from enum import Enum
-from typing import TYPE_CHECKING, Any
+from collections.abc import Mapping
+from dataclasses import dataclass, field
+from enum import Enum, StrEnum
+from typing import Any
 
 from custom_components.hitachi_yutaki.const import CIRCUIT_IDS, CIRCUIT_MODES
-
-if TYPE_CHECKING:
-    from .modbus.unit_table import UnitSlot
 
 
 class ReadResult(Enum):
@@ -31,6 +30,36 @@ class ReadResult(Enum):
 
     SUCCESS = "success"
     GATEWAY_NOT_READY = "gateway_not_ready"
+
+
+class UnitBindingStatus(StrEnum):
+    """Outcome of binding a client to the heat pump unit of its config entry."""
+
+    # The unit is located; persist ``UnitBinding.updates`` in the entry.
+    BOUND = "bound"
+    # The unit could not be checked; carry on with the stored configuration.
+    UNVERIFIED = "unverified"
+    # The gateway is still enumerating its units; retry setup later.
+    SETTLING = "settling"
+    # The unit is absent from the gateway; retry setup later and tell the user.
+    MISSING = "missing"
+
+
+@dataclass(frozen=True)
+class UnitBinding:
+    """Result of ``HitachiApiClient.async_bind_unit``.
+
+    Attributes:
+        status: See ``UnitBindingStatus``.
+        updates: Config entry data to persist when the unit is bound.
+        placeholders: Gateway-specific description of the unit, for the
+            repair issues raised when it is missing or already bound.
+
+    """
+
+    status: UnitBindingStatus
+    updates: dict[str, Any] = field(default_factory=dict)
+    placeholders: dict[str, str] = field(default_factory=dict)
 
 
 class HitachiApiClient(ABC):
@@ -78,14 +107,25 @@ class HitachiApiClient(ABC):
 
         """
 
-    async def async_read_unit_table(
-        self, first_slot: int = 0, slots: int = 16
-    ) -> list[UnitSlot] | None:
-        """Read slots of the gateway unit table (HC-A(16/64)MB only, #476).
+    async def async_bind_unit(self, entry_data: Mapping[str, Any]) -> UnitBinding:
+        """Locate the heat pump unit of a config entry on the gateway.
 
-        Returns None on gateways without a unit table.
+        Called at every setup, before the first refresh. A gateway hosting
+        several units may move a unit to another address between two setups;
+        an implementation then rebinds the client to the unit's current
+        address and returns what to persist. Single-unit gateways have
+        nothing to locate.
         """
-        return None
+        return UnitBinding(UnitBindingStatus.BOUND)
+
+    async def async_verify_unit(self) -> bool | None:
+        """Return whether the client still reads the unit it was bound to.
+
+        Called periodically by the coordinator. False means another unit now
+        sits at the client's address and the entry must be set up again; None
+        means the check could not be made. Always True on single-unit gateways.
+        """
+        return True
 
     @abstractmethod
     async def read_value(self, key: str) -> int | None:

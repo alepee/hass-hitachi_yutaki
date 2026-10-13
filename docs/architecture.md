@@ -60,8 +60,10 @@ custom_components/hitachi_yutaki/
 |   +-- telemetry/               # Anonymous telemetry status sensor
 |
 |-- api/                         # Modbus communication layer
-|   |-- modbus/registers/        # Register definitions (ATW-MBS-02, ATW-MBS-02 pre-2016, HC-A(16/64)MB)
-|   +-- config_providers/        # Per-gateway config + profile detection (ATW-MBS-02, HC-A(16/64)MB)
+|   |-- modbus/                  # Shared Modbus client (ModbusApiClient)
+|   |   |-- registers/           # Register definitions (ATW-MBS-02, ATW-MBS-02 pre-2016, HC-A(16/64)MB)
+|   |   +-- hc_a_mb/             # HC-A(16/64)MB client: unit table, unit binding
+|   +-- config_providers/        # Per-gateway config, profile detection, config entry rules
 |
 |-- profiles/                    # Heat pump model profiles (Yutaki S, S80, M, ...)
 |
@@ -206,6 +208,13 @@ The API layer handles Modbus communication with the ATW-MBS-02 and HC-A(16/64)MB
 - **STATUS** (read-only) -- actual state reported by the heat pump.
 
 Sensor entities must always read from STATUS registers. Reading CONTROL registers only reflects what was last commanded, not the current running state.
+
+Gateway-specific behaviour stays inside `api/`. The rest of the integration only uses gateway-agnostic extension points:
+
+- **Client** (`HitachiApiClient`, created with `create_api_client`): `async_bind_unit` locates the entry's unit at setup and `async_verify_unit` tells the coordinator whether it still reads that unit. Both are no-ops on a single-unit gateway; `HcAMbApiClient` implements them with the gateway unit table, since a unit's slot moves when the bus is re-enumerated (#476).
+- **Config provider** (`GatewayConfigProvider`): besides the config steps, the `unique_id` suffix, conflicts with entries already configured, the identity of the unit an entry is bound to, and the gateway section of the diagnostics.
+
+Setup (`__init__.py`), the coordinator, the config flow and diagnostics call these, and never test `gateway_type`.
 
 See [API Layer & Data Keys](development/api-data-keys.md).
 

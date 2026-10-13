@@ -2,11 +2,24 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
+from typing import Any
 
-from ..const import DEFAULT_UNIT_ID
+from homeassistant.const import CONF_NAME
+from homeassistant.core import HomeAssistant
+
+from ..const import (
+    CONF_MODBUS_DEVICE_ID,
+    CONF_MODBUS_HOST,
+    CONF_MODBUS_PORT,
+    CONF_OUTDOOR_CYCLE,
+    CONF_UNIT_ID,
+    DEFAULT_UNIT_ID,
+)
 from .base import HitachiApiClient
 from .modbus import ModbusApiClient
+from .modbus.hc_a_mb import HcAMbApiClient
 from .modbus.registers import GATEWAY_VARIANTS, HitachiRegisterMap
 from .modbus.registers.hc_a_mb import HcAMbRegisterMap
 
@@ -29,7 +42,7 @@ GATEWAY_INFO = {
     "modbus_hc_a_mb": GatewayInfo(
         manufacturer="Hitachi",
         model="HC-A(16/64)MB",
-        client_class=ModbusApiClient,
+        client_class=HcAMbApiClient,
     ),
 }
 
@@ -59,4 +72,33 @@ def create_register_map(
     return None
 
 
-__all__ = ["HitachiApiClient", "GATEWAY_INFO", "create_register_map"]
+def create_api_client(
+    hass: HomeAssistant, config: Mapping[str, Any]
+) -> HitachiApiClient:
+    """Create the gateway client described by config entry (or flow) data.
+
+    Callers stay gateway-agnostic: the client class and its register map are
+    chosen from ``gateway_type`` and the gateway-specific keys stored with it.
+    """
+    gateway_type = config["gateway_type"]
+    return GATEWAY_INFO[gateway_type].client_class(
+        hass,
+        name=config[CONF_NAME],
+        host=config[CONF_MODBUS_HOST],
+        port=config[CONF_MODBUS_PORT],
+        slave=config[CONF_MODBUS_DEVICE_ID],
+        register_map=create_register_map(
+            gateway_type,
+            config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
+            gateway_variant=config.get("gateway_variant"),
+            outdoor_cycle=config.get(CONF_OUTDOOR_CYCLE),
+        ),
+    )
+
+
+__all__ = [
+    "GATEWAY_INFO",
+    "HitachiApiClient",
+    "create_api_client",
+    "create_register_map",
+]

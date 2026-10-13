@@ -29,13 +29,9 @@ from .const import (
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
     CONF_CYCLING_DETECTION,
-    CONF_INDOOR_ADDRESS,
-    CONF_OUTDOOR_CYCLE,
     CONF_REFRIGERANT_DETECTION,
-    CONF_UNIT_ID,
     DEFAULT_CYCLING_DETECTION,
     DEFAULT_REFRIGERANT_DETECTION,
-    DEFAULT_UNIT_ID,
     DOMAIN,
 )
 from .domain.services.cycling import (
@@ -72,9 +68,9 @@ _CYCLING_DOC_URL = (
 
 _MAX_BACKOFF = timedelta(seconds=300)
 
-# How often a healthy HC-A(16/64)MB entry re-checks that its slot still holds
-# its unit (#476). Also checked on the first poll after any failure, which is
-# when a gateway reboot would have re-enumerated the bus.
+# How often a healthy entry re-checks that the client still reads its unit
+# (#476). Also checked on the first poll after any failure, which is when a
+# gateway reboot would have moved the units.
 _UNIT_CHECK_INTERVAL = 60.0
 
 
@@ -167,44 +163,32 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         """
         return self._gateway_not_ready_count > 0
 
-    async def _async_check_unit_slot(self) -> None:
-        """Reload the entry when its slot no longer holds its unit (#476).
+    async def _async_verify_unit(self) -> None:
+        """Reload the entry when the client no longer reads its unit (#476).
 
-        On an HC-A(16/64)MB gateway the slot is resolved at setup, but a gateway
-        reboot while Home Assistant runs re-enumerates the bus, and a unit
-        missing at that moment shifts the others to new slots. Polling would
-        then carry on reading another unit's data under this entry's name.
-        Raises ``UpdateFailed`` and schedules a reload, which resolves the slot
-        again. An unreadable slot is not treated as a move.
+        On a gateway hosting several units, a gateway reboot while Home
+        Assistant runs can move a unit to another address; polling would then
+        carry on reading another unit's data under this entry's name. Checked
+        on the first good poll after any failure (when such a reboot shows up)
+        and periodically otherwise. Raises ``UpdateFailed`` and schedules a
+        reload, which binds the client to the unit again.
         """
-        data = self.config_entry.data
-        identity = (data.get(CONF_OUTDOOR_CYCLE), data.get(CONF_INDOOR_ADDRESS))
-        if None in identity:
-            return
         now = time.monotonic()
         if (
             self._unit_checked_at is not None
             and now - self._unit_checked_at < _UNIT_CHECK_INTERVAL
         ):
             return
-
-        slot = data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
-        slots = await self.api_client.async_read_unit_table(slot, 1)
-        if not slots:
+        verified = await self.api_client.async_verify_unit()
+        if verified is None:
             return
         self._unit_checked_at = now
-        if slots[0].is_valid and slots[0].identity == identity:
+        if verified:
             return
 
-        _LOGGER.warning(
-            "Slot %d of the gateway unit table no longer holds unit "
-            "(Ou=%d, Iu=%d), reloading to locate it (#476)",
-            slot,
-            *identity,
-        )
         self._unit_checked_at = None
         self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
-        raise UpdateFailed("Unit moved to another slot of the gateway unit table")
+        raise UpdateFailed("Heat pump unit moved to another gateway address")
 
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Hitachi Yutaki."""
@@ -250,7 +234,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             self.system_config = data.get("system_config", 0)
 
-            await self._async_check_unit_slot()
+            await self._async_verify_unit()
 
             # Poll succeeded: clear any connection error issue now, before
             # the post-fetch stages, so an enrichment bug cannot keep it

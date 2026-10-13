@@ -13,7 +13,7 @@ from custom_components.hitachi_yutaki.diagnostics import (
 
 @pytest.mark.asyncio
 async def test_diagnostics_expose_the_unit_identity_and_redact_the_host() -> None:
-    """The unit section shows which machine the entry is bound to (#476)."""
+    """The gateway section shows which unit an HC-A entry is bound to (#476)."""
     entry = MagicMock()
     entry.data = {
         "gateway_type": "modbus_hc_a_mb",
@@ -30,7 +30,7 @@ async def test_diagnostics_expose_the_unit_identity_and_redact_the_host() -> Non
 
     diag = await async_get_config_entry_diagnostics(MagicMock(), entry)
 
-    assert diag["unit"] == {
+    assert diag["gateway"] == {
         "gateway_type": "modbus_hc_a_mb",
         "profile": "yutampo_r32",
         "slot": 2,
