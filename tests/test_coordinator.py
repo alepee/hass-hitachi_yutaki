@@ -39,6 +39,7 @@ def mock_api_client():
     client = MagicMock()
     client.connected = True
     client.read_values = AsyncMock(return_value=ReadResult.SUCCESS)
+    client.async_verify_unit = AsyncMock(return_value=True)
     client.read_value = AsyncMock(return_value=None)
     client.register_map.base_keys = ["system_state"]
     client.is_defrosting = False
@@ -438,3 +439,97 @@ async def test_a_failed_flush_requeues_its_points_only_once(coordinator):
 
     assert coordinator.telemetry_collector.buffer_size == 1
     assert coordinator.telemetry_send_failures == 1
+
+
+# --- Unit check (#476) ---
+
+
+def _set_entry_id(coordinator) -> None:
+    coordinator.config_entry.entry_id = "entry"
+
+
+@pytest.mark.asyncio
+async def test_unit_check_passes_when_the_unit_is_in_place(
+    coordinator, mock_api_client
+):
+    """The client still reads its unit: the poll goes through, checked once a minute."""
+    _set_entry_id(coordinator)
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        await coordinator._async_update_data()
+
+    mock_api_client.async_verify_unit.assert_awaited_once()
+    coordinator.hass.config_entries.async_schedule_reload.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unit_check_reloads_when_the_unit_moved(coordinator, mock_api_client):
+    """Another unit at the client's address: fail the poll and reload."""
+    _set_entry_id(coordinator)
+    mock_api_client.async_verify_unit.return_value = False
+
+    with (
+        patch("custom_components.hitachi_yutaki.coordinator.ir"),
+        pytest.raises(UpdateFailed, match="unit moved"),
+    ):
+        await coordinator._async_update_data()
+
+    coordinator.hass.config_entries.async_schedule_reload.assert_called_once_with(
+        "entry"
+    )
+
+
+@pytest.mark.asyncio
+async def test_unit_check_rechecks_after_gateway_not_ready(
+    coordinator, mock_api_client
+):
+    """A not-ready poll (gateway resyncing) forces a check on the next one."""
+    _set_entry_id(coordinator)
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        mock_api_client.read_values.return_value = ReadResult.GATEWAY_NOT_READY
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        mock_api_client.read_values.return_value = ReadResult.SUCCESS
+        await coordinator._async_update_data()
+
+    assert mock_api_client.async_verify_unit.await_count == 2
+
+
+@pytest.mark.asyncio
+async def test_unit_check_rechecks_after_a_connection_loss(
+    coordinator, mock_api_client
+):
+    """A gateway reboot drops the connection: the next good poll checks the unit."""
+    _set_entry_id(coordinator)
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        mock_api_client.read_values.side_effect = ConnectionError("gateway reboot")
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        mock_api_client.read_values.side_effect = None
+        # After the reboot, another unit sits at the client's address.
+        mock_api_client.async_verify_unit.return_value = False
+        with pytest.raises(UpdateFailed, match="unit moved"):
+            await coordinator._async_update_data()
+
+    coordinator.hass.config_entries.async_schedule_reload.assert_called_once_with(
+        "entry"
+    )
+
+
+@pytest.mark.asyncio
+async def test_unit_check_retries_when_it_cannot_be_made(coordinator, mock_api_client):
+    """An inconclusive check is not a move, and is retried on the next poll."""
+    _set_entry_id(coordinator)
+    mock_api_client.async_verify_unit.return_value = None
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        await coordinator._async_update_data()
+
+    assert mock_api_client.async_verify_unit.await_count == 2
+    coordinator.hass.config_entries.async_schedule_reload.assert_not_called()

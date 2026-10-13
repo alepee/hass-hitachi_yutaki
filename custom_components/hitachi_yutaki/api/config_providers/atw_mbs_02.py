@@ -6,6 +6,7 @@ and profile detection from config_flow.py into a GatewayConfigProvider.
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Mapping
 import logging
 from typing import Any
 
@@ -21,6 +22,7 @@ from ...const import (
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
+    CONF_UNIT_ID,
     DEFAULT_DEVICE_ID,
     DEFAULT_HOST,
     DEFAULT_NAME,
@@ -357,3 +359,25 @@ class AtwMbs02ConfigProvider:
         finally:
             if api_client.connected:
                 await api_client.close()
+
+    # ------------------------------------------------------------------
+    # Config entry rules
+    # ------------------------------------------------------------------
+
+    def unique_id_suffix(self, config: Mapping[str, Any]) -> str:
+        """Return the unit suffix: always the default unit (single-unit gateway)."""
+        return str(config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID))
+
+    def config_conflict(
+        self, config: Mapping[str, Any], entries: Iterable[Mapping[str, Any]]
+    ) -> str | None:
+        """Return None: a duplicate is caught by the unique_id alone."""
+        return None
+
+    def unit_identity(self, data: Mapping[str, Any]) -> tuple | None:
+        """Return None: a single-unit gateway has no unit to tell apart."""
+        return None
+
+    def diagnostics(self, data: Mapping[str, Any]) -> dict[str, Any]:
+        """Return the register map variant in use."""
+        return {"gateway_variant": data.get("gateway_variant")}

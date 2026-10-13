@@ -35,7 +35,9 @@ from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 
 from .adapters.derived_metrics import REFRIGERANT_STORE_VERSION, DerivedMetricsAdapter
-from .api import GATEWAY_INFO, create_register_map
+from .api import GATEWAY_INFO, HitachiApiClient, create_api_client
+from .api.base import UnitBindingStatus
+from .api.config_providers import GATEWAY_CONFIG_PROVIDERS, GatewayConfigProvider
 from .const import (
     CIRCUIT_MODE_COOLING,
     CIRCUIT_MODE_HEATING,
@@ -50,13 +52,11 @@ from .const import (
     CONF_POWER_SUPPLY,
     CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
-    CONF_UNIT_ID,
     DEFAULT_CYCLING_DETECTION,
     DEFAULT_DEVICE_ID,
     DEFAULT_POWER_SUPPLY,
     DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
-    DEFAULT_UNIT_ID,
     DEVICE_CIRCUIT_1,
     DEVICE_CIRCUIT_2,
     DEVICE_CONTROL_UNIT,
@@ -250,54 +250,98 @@ async def _async_restore_energy_state(
                 _LOGGER.debug("Energy restore: %s — no valid state", key)
 
 
-async def _async_heal_outdoor_cycle(
-    hass: HomeAssistant, entry: HitachiYutakiConfigEntry
+def _unit_issue_ids(entry_id: str) -> tuple[str, str]:
+    """Return the per-entry unit identity issue ids (not found, duplicate)."""
+    return (f"unit_not_found_{entry_id}", f"unit_duplicate_{entry_id}")
+
+
+async def _async_bind_unit(
+    hass: HomeAssistant,
+    entry: HitachiYutakiConfigEntry,
+    api_client: HitachiApiClient,
+    provider: GatewayConfigProvider,
 ) -> None:
-    """Detect and persist the outdoor refrigerant cycle for HC-A(16/64)MB (#353).
+    """Bind the client to the entry's heat pump unit before the first refresh.
 
-    The outdoor register block is keyed on the outdoor refrigerant cycle (not
-    the unit_id); entries created before #353 never persisted it, so every unit
-    on a multi-system gateway read cycle-0's compressor data. Detect it once
-    from the gateway unit table and persist it so subsequent setups reuse it.
-    Best-effort: on read failure the persisted value (or the 0 default) applies.
+    On a gateway hosting several units, a unit can move to another address
+    between two setups (#476). The client locates it and the entry persists
+    what it found, so it never reads whichever unit took its place. Raises
+    ``ConfigEntryNotReady`` while the gateway is still enumerating its units,
+    and with a repair issue when the unit is missing or already bound to
+    another entry of the same gateway; the client is closed in that case.
     """
-    if (
-        entry.data.get("gateway_type") != "modbus_hc_a_mb"
-        or "outdoor_cycle" in entry.data
-    ):
-        return
-
-    unit_id = entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
-    gateway_info = GATEWAY_INFO[entry.data["gateway_type"]]
-    detect_client = gateway_info.client_class(
-        hass,
-        name=entry.data[CONF_NAME],
-        host=entry.data[CONF_MODBUS_HOST],
-        port=entry.data[CONF_MODBUS_PORT],
-        slave=entry.data[CONF_MODBUS_DEVICE_ID],
-        register_map=create_register_map(
-            entry.data["gateway_type"],
-            unit_id,
-            gateway_variant=entry.data.get("gateway_variant"),
-        ),
-    )
     try:
-        if await detect_client.connect():
-            cycle = await detect_client.async_get_outdoor_cycle(unit_id)
-            if cycle is not None:
-                hass.config_entries.async_update_entry(
-                    entry, data={**entry.data, "outdoor_cycle": cycle}
-                )
-                _LOGGER.info(
-                    "Detected outdoor refrigerant cycle %d for unit %d (#353)",
-                    cycle,
-                    unit_id,
-                )
-    except Exception as exc:  # noqa: BLE001 - detection is best-effort
-        _LOGGER.debug("Error detecting outdoor cycle (#353): %s", exc)
-    finally:
-        if detect_client.connected:
-            await detect_client.close()
+        await _async_apply_unit_binding(hass, entry, api_client, provider)
+    except ConfigEntryNotReady:
+        if api_client.connected:
+            await api_client.close()
+        raise
+
+
+async def _async_apply_unit_binding(
+    hass: HomeAssistant,
+    entry: HitachiYutakiConfigEntry,
+    api_client: HitachiApiClient,
+    provider: GatewayConfigProvider,
+) -> None:
+    """Apply the outcome of ``async_bind_unit``; see ``_async_bind_unit``."""
+    not_found_id, duplicate_id = _unit_issue_ids(entry.entry_id)
+    binding = await api_client.async_bind_unit(entry.data)
+    placeholders = {"name": entry.title, **binding.placeholders}
+
+    if binding.status is UnitBindingStatus.SETTLING:
+        raise ConfigEntryNotReady(
+            "Gateway is still enumerating its units; setup will retry"
+        )
+    if binding.status is UnitBindingStatus.MISSING:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            not_found_id,
+            is_fixable=False,
+            severity=IssueSeverity.ERROR,
+            translation_key="unit_not_found",
+            translation_placeholders=placeholders,
+        )
+        raise ConfigEntryNotReady(
+            "Heat pump unit not found on the gateway; setup will retry"
+        )
+    if binding.status is UnitBindingStatus.UNVERIFIED:
+        return
+    async_delete_issue(hass, DOMAIN, not_found_id)
+
+    data = {**entry.data, **binding.updates}
+    identity = provider.unit_identity(data)
+    duplicate = next(
+        (
+            other
+            for other in hass.config_entries.async_entries(DOMAIN)
+            if identity is not None
+            and other.entry_id != entry.entry_id
+            and other.data.get("gateway_type") == data["gateway_type"]
+            and other.data.get(CONF_MODBUS_HOST) == data[CONF_MODBUS_HOST]
+            and other.data.get(CONF_MODBUS_PORT) == data[CONF_MODBUS_PORT]
+            and provider.unit_identity(other.data) == identity
+        ),
+        None,
+    )
+    if duplicate is not None:
+        async_create_issue(
+            hass,
+            DOMAIN,
+            duplicate_id,
+            is_fixable=False,
+            severity=IssueSeverity.ERROR,
+            translation_key="unit_duplicate",
+            translation_placeholders={**placeholders, "other": duplicate.title},
+        )
+        raise ConfigEntryNotReady(
+            f"Heat pump unit is already bound to entry {duplicate.title!r}"
+        )
+    async_delete_issue(hass, DOMAIN, duplicate_id)
+
+    if data != dict(entry.data):
+        hass.config_entries.async_update_entry(entry, data=data)
 
 
 def _build_telemetry_collector(
@@ -443,36 +487,22 @@ async def async_setup_entry(
 
     # Add unique_id if missing (for existing installations)
     if entry.unique_id is None:
+        unit_suffix = GATEWAY_CONFIG_PROVIDERS[
+            entry.data["gateway_type"]
+        ]().unique_id_suffix(entry.data)
         _LOGGER.info(
             "Config entry has no unique_id, attempting to add one based on hardware identifier"
         )
 
         # Create temporary API client for unique_id retrieval
-        gateway_info = GATEWAY_INFO[entry.data["gateway_type"]]
-        register_map = create_register_map(
-            entry.data["gateway_type"],
-            entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-            gateway_variant=entry.data.get("gateway_variant"),
-            outdoor_cycle=entry.data.get("outdoor_cycle"),
-        )
-        temp_client = gateway_info.client_class(
-            hass,
-            name=entry.data[CONF_NAME],
-            host=entry.data[CONF_MODBUS_HOST],
-            port=entry.data[CONF_MODBUS_PORT],
-            slave=entry.data[CONF_MODBUS_DEVICE_ID],
-            register_map=register_map,
-        )
+        temp_client = create_api_client(hass, entry.data)
 
         unique_id = None
         try:
             if await temp_client.connect():
                 hw_id = await temp_client.async_get_unique_id()
                 if hw_id:
-                    unique_id = (
-                        f"{DOMAIN}_{hw_id}_"
-                        f"{entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)}"
-                    )
+                    unique_id = f"{DOMAIN}_{hw_id}_{unit_suffix}"
                     _LOGGER.info(
                         "Added hardware-based unique_id to existing config entry: %s",
                         unique_id,
@@ -492,7 +522,7 @@ async def async_setup_entry(
             unique_id = (
                 f"{entry.data[CONF_MODBUS_HOST]}_"
                 f"{entry.data[CONF_MODBUS_DEVICE_ID]}_"
-                f"{entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)}"
+                f"{unit_suffix}"
             )
             _LOGGER.warning(
                 "Could not retrieve hardware identifier, using IP-based unique_id: %s",
@@ -500,11 +530,6 @@ async def async_setup_entry(
             )
 
         hass.config_entries.async_update_entry(entry, unique_id=unique_id)
-
-    # Self-heal the outdoor refrigerant cycle for HC-A(16/64)MB entries created
-    # before #353, so the reporter gets the fix on upgrade without re-adding the
-    # unit. See _async_heal_outdoor_cycle for details.
-    await _async_heal_outdoor_cycle(hass, entry)
 
     # Get gateway and profile from config entry
     # At this point, these should exist (checked above)
@@ -521,21 +546,10 @@ async def async_setup_entry(
     gateway_manufacturer = gateway_info.manufacturer
     gateway_model = gateway_info.model
 
-    # Instantiate gateway client and profile
-    api_client_class = gateway_info.client_class
-    register_map = create_register_map(
-        gateway_type,
-        entry.data.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-        gateway_variant=entry.data.get("gateway_variant"),
-        outdoor_cycle=entry.data.get("outdoor_cycle"),
-    )
-    api_client = api_client_class(
-        hass,
-        name=entry.data[CONF_NAME],
-        host=entry.data[CONF_MODBUS_HOST],
-        port=entry.data[CONF_MODBUS_PORT],
-        slave=entry.data[CONF_MODBUS_DEVICE_ID],
-        register_map=register_map,
+    # Instantiate the gateway client and bind it to the entry's unit
+    api_client = create_api_client(hass, entry.data)
+    await _async_bind_unit(
+        hass, entry, api_client, GATEWAY_CONFIG_PROVIDERS[gateway_type]()
     )
     profile = PROFILES[profile_key]()
 
@@ -1002,6 +1016,7 @@ async def async_remove_entry(
         f"fleet_ping_notice_{entry.entry_id}",
         f"enable_refrigerant_detection_{entry.entry_id}",
         f"refrigerant_charge_alert_{entry.entry_id}",
+        *_unit_issue_ids(entry.entry_id),
     ):
         async_delete_issue(hass, DOMAIN, issue_id)
 

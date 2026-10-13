@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, date, datetime, timedelta
 import logging
+import time
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -67,6 +68,11 @@ _CYCLING_DOC_URL = (
 
 _MAX_BACKOFF = timedelta(seconds=300)
 
+# How often a healthy entry re-checks that the client still reads its unit
+# (#476). Also checked on the first poll after any failure, which is when a
+# gateway reboot would have moved the units.
+_UNIT_CHECK_INTERVAL = 60.0
+
 
 class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Hitachi heat pump data from the API."""
@@ -88,6 +94,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.derived_metrics: DerivedMetricsAdapter | None = None
         self._normal_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
         self._gateway_not_ready_count: int = 0
+        # Monotonic time of the last unit slot check, None to check next poll.
+        self._unit_checked_at: float | None = None
         # Seed from persisted value (0 = unknown / never refreshed) so callers
         # of has_dhw/has_pool/has_circuit get sensible answers before the
         # first successful refresh. The api_client cache is the live source,
@@ -155,6 +163,33 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         """
         return self._gateway_not_ready_count > 0
 
+    async def _async_verify_unit(self) -> None:
+        """Reload the entry when the client no longer reads its unit (#476).
+
+        On a gateway hosting several units, a gateway reboot while Home
+        Assistant runs can move a unit to another address; polling would then
+        carry on reading another unit's data under this entry's name. Checked
+        on the first good poll after any failure (when such a reboot shows up)
+        and periodically otherwise. Raises ``UpdateFailed`` and schedules a
+        reload, which binds the client to the unit again.
+        """
+        now = time.monotonic()
+        if (
+            self._unit_checked_at is not None
+            and now - self._unit_checked_at < _UNIT_CHECK_INTERVAL
+        ):
+            return
+        verified = await self.api_client.async_verify_unit()
+        if verified is None:
+            return
+        self._unit_checked_at = now
+        if verified:
+            return
+
+        self._unit_checked_at = None
+        self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
+        raise UpdateFailed("Heat pump unit moved to another gateway address")
+
     async def _async_update_data(self) -> dict[str, Any]:
         """Fetch data from Hitachi Yutaki."""
         try:
@@ -171,6 +206,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             result = await self.api_client.read_values(keys_to_read)
 
             if result == ReadResult.GATEWAY_NOT_READY:
+                self._unit_checked_at = None
                 self._gateway_not_ready_count += 1
                 backoff = min(
                     self._normal_interval * (2**self._gateway_not_ready_count),
@@ -198,6 +234,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
             self.system_config = data.get("system_config", 0)
 
+            await self._async_verify_unit()
+
             # Poll succeeded: clear any connection error issue now, before
             # the post-fetch stages, so an enrichment bug cannot keep it
             # alive or re-create it.
@@ -209,6 +247,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             raise
 
         except Exception as exc:
+            self._unit_checked_at = None
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,

@@ -795,6 +795,14 @@
       "title": "Hitachi Gateway Unreachable",
       "description": "The integration could not connect to the Hitachi Yutaki gateway. The entities will be unavailable until the connection is restored.\n\n**To resolve this:**\n1. Check if the gateway is powered on and connected to the network.\n2. Verify that the IP address and port configured in Home Assistant are correct."
     },
+    "unit_not_found": {
+      "title": "Heat pump unit not found on the gateway: {name}",
+      "description": "The unit configured as **{name}** (outdoor refrigerant cycle {outdoor_cycle}, indoor address {indoor_address}) is not listed in the gateway unit table. Its entities stay unavailable rather than showing the data of another unit.\n\nThe gateway lists units in their address order, so a unit that was off or disconnected while the gateway started can shift the others.\n\n**To resolve this:**\n1. Check that this unit is powered on and connected to the H-LINK bus.\n2. Restart the gateway with every unit powered on, then wait a few minutes.\n3. If the unit's refrigerant cycle address (DSW) was changed, remove this entry and add the unit again.\n\nSetup retries on its own, and this issue clears once the unit is found."
+    },
+    "unit_duplicate": {
+      "title": "Two entries point to the same heat pump unit: {name}",
+      "description": "**{name}** and **{other}** both point to the unit on outdoor refrigerant cycle {outdoor_cycle}, indoor address {indoor_address}. **{name}** is not set up, so that one unit is not read and controlled twice.\n\n**To resolve this:** remove the entry that does not match a real unit. This issue clears once only one entry points to the unit."
+    },
     "refrigerant_charge_alert": {
       "title": "Possible Refrigerant Charge Loss",
       "fix_flow": {

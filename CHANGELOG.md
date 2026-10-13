@@ -34,6 +34,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A circuit, DHW or pool device that the heat pump no longer declares can now be
   deleted from the device page (#404).
 
+- On an HC-A(16/64)MB gateway, each entry now stays bound to its own heat pump
+  when the gateway renumbers its units (#476). The gateway lists units in their
+  address order, so a unit that is off or disconnected while the gateway starts
+  shifts the others to new slots, and an entry used to silently show another
+  unit's data under its name. Each entry now records the unit's outdoor cycle and
+  indoor address, follows the unit to its new slot at startup, and reloads on its
+  own when the gateway is restarted while Home Assistant runs. If its unit is
+  missing, the entry waits and a repair issue explains what to check, instead of
+  reading whichever unit took its place. Existing entries pick this up on their
+  own, with nothing to reconfigure.
+
+- On an HC-A(16/64)MB gateway, adding a unit could be wrongly refused as
+  "already configured" when another entry had been created on that slot before
+  its unit moved. New entries are now identified by their unit's outdoor cycle
+  and indoor address instead of their slot (#476).
+
+### Added
+
+- Diagnostics download for each entry (device page, "Download diagnostics"): the
+  entry's settings with the gateway address removed, the last poll, and, on an
+  HC-A(16/64)MB gateway, which unit the entry is bound to (#476).
+
 ## [2.2.0-beta.9] - 2026-10-12
 
 ### Added

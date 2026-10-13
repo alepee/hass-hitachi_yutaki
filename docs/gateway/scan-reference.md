@@ -126,12 +126,14 @@ The gateway lists the H-LINK units it enumerated in input registers starting at 
 
 | Offset | Content |
 |--------|---------|
-| +0 | `1` on every sample so far, meaning unknown |
+| +0 | presence flag: `1` on an occupied slot, `0` on an empty one |
 | +1 | `Ou`, outdoor refrigerant cycle (keys the outdoor block); `0xFF` = empty slot |
-| +2 | `Iu`, indoor unit address (equals `Ou + 1` on a monobloc Yutampo) |
-| +3 | slot index on occupied slots; inconsistent on empty ones |
+| +2 | `Iu`, indoor unit address (equals `Ou` on a Yutaki S, `Ou + 1` on a monobloc Yutampo); `0xFF` = empty slot |
+| +3 | slot index on occupied slots (keys the indoor block); `0xFF` on an empty slot |
 
-The slot index is assigned during H-LINK enumeration and is not a stable identity (#476).
+An empty slot reads `0 / 255 / 255 / 255`. Any other combination on a slot that is not fully occupied (presence flag set on a cleared slot, a stale `Ou`/`Iu`, a slot index that does not match) is a record the gateway has not finished writing while it re-enumerates the bus.
+
+The slot index is **not a stable identity** (#476). The gateway lists the units sorted by H-LINK address and packs them from slot 0, so a unit missing at enumeration (powered off, disconnected) shifts every unit with a higher address down by one slot. The integration therefore identifies a unit by its `(Ou, Iu)` pair and looks its slot up in the table at every setup.
 
 ### Key STATUS offsets
 

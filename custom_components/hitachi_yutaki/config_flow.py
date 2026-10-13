@@ -16,7 +16,7 @@ from homeassistant.core import callback
 from homeassistant.data_entry_flow import FlowResult, section
 from homeassistant.helpers import selector
 
-from .api import GATEWAY_INFO, create_register_map
+from .api import GATEWAY_INFO, create_api_client
 from .api.config_providers import GATEWAY_CONFIG_PROVIDERS, GatewayConfigProvider
 from .const import (
     CONF_CYCLING_DETECTION,
@@ -25,12 +25,10 @@ from .const import (
     CONF_FLEET_PING,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
-    CONF_MODBUS_PORT,
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
     CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
-    CONF_UNIT_ID,
     CONF_VOLTAGE_ENTITY,
     CONF_WATER_INLET_TEMP_ENTITY,
     CONF_WATER_OUTLET_TEMP_ENTITY,
@@ -39,7 +37,6 @@ from .const import (
     DEFAULT_POWER_SUPPLY,
     DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
-    DEFAULT_UNIT_ID,
     DOMAIN,
     FLEET_PING_STATS_URL,
 )
@@ -361,43 +358,12 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             errors=errors,
         )
 
-    def _outdoor_cycle_in_use(self, config: dict) -> bool:
-        """Return True if another entry on this gateway uses the same outdoor cycle.
-
-        On an HC-A(16/64)MB gateway the outdoor register block is keyed on the
-        refrigerant cycle, not on unit_id. Two entries resolving to the same
-        cycle read and drive the same outdoor unit, which silently corrupts
-        the first unit's data (#404), so the second one is refused.
-        """
-        outdoor_cycle = config.get("outdoor_cycle")
-        if outdoor_cycle is None:
-            return False
-        return any(
-            entry.data.get("outdoor_cycle") == outdoor_cycle
-            and entry.data.get(CONF_MODBUS_HOST) == config[CONF_MODBUS_HOST]
-            and entry.data.get(CONF_MODBUS_PORT) == config[CONF_MODBUS_PORT]
-            for entry in self._async_current_entries(include_ignore=False)
-        )
-
     async def async_validate_connection(self, config: dict) -> FlowResult:
         """Validate the Modbus connection."""
         errors: dict[str, str] = {}
 
-        api_client_class = GATEWAY_INFO[config["gateway_type"]].client_class
-        register_map = create_register_map(
-            config["gateway_type"],
-            config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID),
-            gateway_variant=config.get("gateway_variant"),
-            outdoor_cycle=config.get("outdoor_cycle"),
-        )
-        api_client = api_client_class(
-            self.hass,
-            name=config[CONF_NAME],
-            host=config[CONF_MODBUS_HOST],
-            port=config[CONF_MODBUS_PORT],
-            slave=config[CONF_MODBUS_DEVICE_ID],
-            register_map=register_map,
-        )
+        provider = GATEWAY_CONFIG_PROVIDERS[config["gateway_type"]]()
+        api_client = create_api_client(self.hass, config)
 
         try:
             if not await api_client.connect():
@@ -419,26 +385,22 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         hw_id = await api_client.async_get_unique_id()
 
                         # The hardware identifier (input registers 0-2) is
-                        # gateway-wide: every unit sharing an HC-A(16/64)MB
-                        # gateway returns the same hw_id, so it must be
-                        # disambiguated by the per-unit H-LINK address. Without
-                        # this, a second unit on the same gateway (especially of
-                        # the same model) collides and is wrongly rejected as
-                        # "already configured" (#370). ATW-MBS-02 is single-unit,
-                        # where unit_id is always the default (0) and the suffix
-                        # is a harmless no-op.
-                        unit_id = config.get(CONF_UNIT_ID, DEFAULT_UNIT_ID)
+                        # gateway-wide: every unit sharing a multi-unit
+                        # gateway returns the same hw_id, so it is
+                        # disambiguated per unit by the gateway's provider
+                        # (#370, #476).
+                        unit_suffix = provider.unique_id_suffix(config)
 
                         if hw_id:
                             # Use hardware identifier with domain prefix
-                            unique_id = f"{DOMAIN}_{hw_id}_{unit_id}"
+                            unique_id = f"{DOMAIN}_{hw_id}_{unit_suffix}"
                             _LOGGER.info(
                                 "Gateway hardware identifier detected: %s",
                                 unique_id,
                             )
                         else:
                             # Fallback to IP+slave if Modbus read failed
-                            unique_id = f"{config[CONF_MODBUS_HOST]}_{config[CONF_MODBUS_DEVICE_ID]}_{unit_id}"
+                            unique_id = f"{config[CONF_MODBUS_HOST]}_{config[CONF_MODBUS_DEVICE_ID]}_{unit_suffix}"
                             _LOGGER.warning(
                                 "Could not retrieve gateway hardware identifier. "
                                 "Using IP-based unique_id: %s. "
@@ -449,8 +411,17 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         await self.async_set_unique_id(unique_id)
                         self._abort_if_unique_id_configured()
 
-                        if self._outdoor_cycle_in_use(config):
-                            errors["base"] = "outdoor_cycle_in_use"
+                        conflict = provider.config_conflict(
+                            config,
+                            (
+                                entry.data
+                                for entry in self._async_current_entries(
+                                    include_ignore=False
+                                )
+                            ),
+                        )
+                        if conflict:
+                            errors["base"] = conflict
                         else:
                             self._pending_config = config
                             # Every profile reaches the panel: short-cycling

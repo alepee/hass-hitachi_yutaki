@@ -795,6 +795,14 @@
       "title": "Passarel·la Hitachi inaccessible",
       "description": "La integració no s'ha pogut connectar a la passarel·la Hitachi Yutaki. Les entitats no estaran disponibles fins que es restableixi la connexió.\n\n**Per resoldre-ho:**\n1. Comproveu que la passarel·la està engegada i connectada a la xarxa.\n2. Verifiqueu que l'adreça IP i el port configurats a Home Assistant són correctes."
     },
+    "unit_not_found": {
+      "title": "No s'ha trobat la unitat de la bomba de calor a la passarel·la: {name}",
+      "description": "La unitat configurada com a **{name}** (cicle frigorífic exterior {outdoor_cycle}, adreça interior {indoor_address}) no apareix a la taula d'unitats de la passarel·la. Les seves entitats es mantenen no disponibles en lloc de mostrar les dades d'una altra unitat.\n\nLa passarel·la ordena les unitats per adreça: una unitat apagada o desconnectada quan s'inicia la passarel·la pot desplaçar les altres.\n\n**Per resoldre-ho:**\n1. Comproveu que la unitat està engegada i connectada al bus H-LINK.\n2. Reinicieu la passarel·la amb totes les unitats engegades i espereu uns minuts.\n3. Si s'ha canviat l'adreça del cicle frigorífic (DSW) de la unitat, elimineu aquesta entrada i torneu a afegir la unitat.\n\nLa configuració es torna a intentar automàticament i aquest problema desapareix quan es troba la unitat."
+    },
+    "unit_duplicate": {
+      "title": "Dues entrades apunten a la mateixa unitat de bomba de calor: {name}",
+      "description": "**{name}** i **{other}** apunten totes dues a la unitat del cicle frigorífic exterior {outdoor_cycle}, adreça interior {indoor_address}. **{name}** no es configura, perquè una mateixa unitat no es llegeixi ni es controli dues vegades.\n\n**Per resoldre-ho:** elimineu l'entrada que no correspon a cap unitat real. Aquest problema desapareix quan només una entrada apunta a la unitat."
+    },
     "refrigerant_charge_alert": {
       "title": "Possible pèrdua de càrrega de refrigerant",
       "fix_flow": {

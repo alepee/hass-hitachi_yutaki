@@ -795,6 +795,14 @@
       "title": "Gateway Hitachi inaccesibil",
       "description": "Integrarea nu s-a putut conecta la gateway-ul Hitachi Yutaki. Entitățile nu vor fi disponibile până la restabilirea conexiunii.\n\n**Pentru a rezolva:**\n1. Verificați dacă gateway-ul este pornit și conectat la rețea.\n2. Verificați dacă adresa IP și portul configurate în Home Assistant sunt corecte."
     },
+    "unit_not_found": {
+      "title": "Unitatea pompei de căldură nu a fost găsită pe gateway: {name}",
+      "description": "Unitatea configurată ca **{name}** (circuit frigorific exterior {outdoor_cycle}, adresă interioară {indoor_address}) nu apare în tabelul de unități al gateway-ului. Entitățile sale rămân indisponibile în loc să afișeze datele altei unități.\n\nGateway-ul ordonează unitățile după adresă: o unitate oprită sau deconectată la pornirea gateway-ului le poate deplasa pe celelalte.\n\n**Pentru a rezolva:**\n1. Verificați că unitatea este pornită și conectată la magistrala H-LINK.\n2. Reporniți gateway-ul cu toate unitățile pornite, apoi așteptați câteva minute.\n3. Dacă adresa circuitului frigorific (DSW) a unității a fost modificată, ștergeți această intrare și adăugați din nou unitatea.\n\nConfigurarea se reîncearcă automat, iar această problemă dispare odată ce unitatea este găsită."
+    },
+    "unit_duplicate": {
+      "title": "Două intrări indică aceeași unitate de pompă de căldură: {name}",
+      "description": "**{name}** și **{other}** indică amândouă unitatea de pe circuitul frigorific exterior {outdoor_cycle}, adresa interioară {indoor_address}. **{name}** nu este configurată, pentru ca aceeași unitate să nu fie citită și controlată de două ori.\n\n**Pentru a rezolva:** ștergeți intrarea care nu corespunde unei unități reale. Această problemă dispare când o singură intrare mai indică unitatea."
+    },
     "refrigerant_charge_alert": {
       "title": "Posibilă pierdere a agentului frigorific",
       "fix_flow": {

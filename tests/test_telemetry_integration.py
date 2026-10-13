@@ -55,6 +55,7 @@ def _make_coordinator(
 
     api_client = MagicMock()
     api_client.is_compressor_running = True
+    api_client.async_verify_unit = AsyncMock(return_value=True)
     api_client.is_defrosting = False
     api_client.has_circuit = MagicMock(return_value=False)
     api_client.has_dhw = False

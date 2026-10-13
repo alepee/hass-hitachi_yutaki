@@ -795,6 +795,14 @@
       "title": "Hitachi Gateway onbereikbaar",
       "description": "De integratie kon geen verbinding maken met de Hitachi Yutaki gateway. De entiteiten zijn niet beschikbaar totdat de verbinding is hersteld.\n\n**Om dit op te lossen:**\n1. Controleer of de gateway is ingeschakeld en verbonden met het netwerk.\n2. Controleer of het IP-adres en de poort in Home Assistant correct zijn geconfigureerd."
     },
+    "unit_not_found": {
+      "title": "Warmtepompunit niet gevonden op de gateway: {name}",
+      "description": "De unit geconfigureerd als **{name}** (buitenkoelcircuit {outdoor_cycle}, binnenadres {indoor_address}) staat niet in de unittabel van de gateway. De entiteiten blijven onbeschikbaar in plaats van de gegevens van een andere unit te tonen.\n\nDe gateway rangschikt de units op adres: een unit die uit stond of losgekoppeld was toen de gateway opstartte, kan de andere verschuiven.\n\n**Om dit op te lossen:**\n1. Controleer of de unit aan staat en op de H-LINK-bus is aangesloten.\n2. Herstart de gateway terwijl alle units aan staan en wacht enkele minuten.\n3. Als het koelcircuitadres (DSW) van de unit is gewijzigd, verwijder deze invoer en voeg de unit opnieuw toe.\n\nDe installatie wordt automatisch opnieuw geprobeerd en dit probleem verdwijnt zodra de unit is gevonden."
+    },
+    "unit_duplicate": {
+      "title": "Twee invoeren verwijzen naar dezelfde warmtepompunit: {name}",
+      "description": "**{name}** en **{other}** verwijzen allebei naar de unit op buitenkoelcircuit {outdoor_cycle}, binnenadres {indoor_address}. **{name}** wordt niet ingesteld, zodat één unit niet twee keer wordt uitgelezen en aangestuurd.\n\n**Om dit op te lossen:** verwijder de invoer die niet bij een echte unit hoort. Dit probleem verdwijnt zodra nog maar één invoer naar de unit verwijst."
+    },
     "refrigerant_charge_alert": {
       "title": "Mogelijk verlies van koudemiddelvulling",
       "fix_flow": {

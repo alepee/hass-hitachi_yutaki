@@ -108,6 +108,9 @@ CONF_WATER_INLET_TEMP_ENTITY = "water_inlet_temp_entity"
 CONF_WATER_OUTLET_TEMP_ENTITY = "water_outlet_temp_entity"
 CONF_UNIT_ID = "unit_id"
 DEFAULT_UNIT_ID = 0
+# HC-A(16/64)MB unit identity read from the gateway unit table (#353, #476).
+CONF_OUTDOOR_CYCLE = "outdoor_cycle"
+CONF_INDOOR_ADDRESS = "indoor_address"
 
 # Telemetry
 CONF_TELEMETRY_LEVEL = "telemetry_level"

@@ -294,6 +294,11 @@ class HcAMbRegisterMap(HitachiRegisterMap):
         self._outdoor_cycle = outdoor_cycle if outdoor_cycle is not None else 0
         self._build_registers()
 
+    @property
+    def unit_id(self) -> int:
+        """Return the gateway slot keying the indoor register block."""
+        return self._unit_id
+
     def _addr(self, offset: int) -> int:
         """Compute absolute address from indoor unit offset."""
         return self._base + offset
