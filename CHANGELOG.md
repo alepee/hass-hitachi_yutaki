@@ -59,6 +59,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   warning at startup on Home Assistant 2026.9 and later, ahead of the parameter's
   removal in 2027.8. Devices are now linked to their parent by registry id on Home
   Assistant 2026.8+, and by identifier as before on older releases.
+- The integration no longer fails to set up on Home Assistant 2026.11, which removes
+  the restore-state cache it read at startup to restore the energy, electricity cost
+  and thermal energy totals. It now uses the new accessor on 2026.11 and later, and
+  the old cache as before on older releases (#458).
 
 - Dutch: the power setup step and the power and sensors options step were both titled
   "External sensor configuration", dropping the power supply they configure. They now
