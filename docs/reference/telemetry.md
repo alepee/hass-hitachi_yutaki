@@ -101,3 +101,12 @@ Go to **Settings → Devices & Services → Hitachi Yutaki → Configure** and s
 ## Community discussion
 
 See [Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200) for context and community feedback on this feature.
+
+### Circuit Capacity
+
+In installation telemetry and fleet ping, `max_circuits` is the profile's hardware
+limit, not the number of configured or currently active circuits. It is zero for
+the DHW-only Yutampo R32, one for single-circuit profiles, and two for dual-circuit
+profiles even when only one circuit is configured. `has_dhw`, `has_pool`, and
+`has_cooling` continue to describe configured equipment and modes;
+`has_secondary_compressor` remains a profile capability.

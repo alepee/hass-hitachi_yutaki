@@ -4,8 +4,21 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from pymodbus.exceptions import ModbusException
+import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.hitachi_yutaki.api.base import HitachiApiClient, ReadResult
+from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
+from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
+    AtwMbs02RegisterMap,
+)
+from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
+    AtwMbs02Pre2016RegisterMap,
+)
+from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
+    HcAMbRegisterMap,
+)
 from custom_components.hitachi_yutaki.config_flow import (
     SECTION_PREVENTIVE_MAINTENANCE,
     HitachiYutakiConfigFlow,
@@ -50,18 +63,17 @@ POWER_INPUT = {"power_supply": DEFAULT_POWER_SUPPLY}
 
 def _mock_api_client() -> MagicMock:
     """Create a mock API client."""
-    client = MagicMock()
+    client = MagicMock(spec_set=HitachiApiClient)
     client.connect = AsyncMock(return_value=True)
     client.close = AsyncMock()
     client.connected = True
-    client.read_values = AsyncMock()
+    client.read_values = AsyncMock(return_value=ReadResult.SUCCESS)
     client.read_value = AsyncMock(return_value=0)
     client.decode_config = MagicMock(return_value={})
     client.get_model_key = AsyncMock(return_value="yutaki_s")
     client.async_get_unique_id = AsyncMock(return_value="ABCD1234")
-    client.register_map = MagicMock()
-    client.register_map.base_keys = ["system_config", "system_state"]
-    client.register_map.gateway_keys = ["system_state"]
+    client.base_keys = ["system_config", "system_state"]
+    client.gateway_keys = ["system_state"]
     client.is_defrosting = False
     return client
 
@@ -479,13 +491,15 @@ async def test_full_flow_hides_refrigerant_toggle_when_unsupported(
 async def test_validate_connection_system_initializing(
     hass: HomeAssistant,
 ) -> None:
-    """Test system_state=2 returns system_initializing error."""
+    """A deserialized initializing state returns the readiness error."""
     mock_client = _mock_api_client()
-    mock_client.read_value = AsyncMock(return_value=2)
     mock_gw_info = _mock_gateway_info(mock_client)
     mock_profs = _mock_profiles()
 
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
+
+    mock_client.read_value = AsyncMock(return_value="initializing")
+    mock_client.read_values.return_value = ReadResult.GATEWAY_NOT_READY
 
     with (
         _patch_cf_client(mock_gw_info),
@@ -497,15 +511,21 @@ async def test_validate_connection_system_initializing(
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "system_initializing"}
 
+    mock_client.get_model_key.assert_not_awaited()
+    mock_client.async_get_unique_id.assert_not_awaited()
+    mock_client.close.assert_awaited()
+
 
 async def test_validate_connection_desync(hass: HomeAssistant) -> None:
-    """Test system_state=1 returns desync_error."""
+    """A deserialized desynchronized state returns the readiness error."""
     mock_client = _mock_api_client()
-    mock_client.read_value = AsyncMock(return_value=1)
     mock_gw_info = _mock_gateway_info(mock_client)
     mock_profs = _mock_profiles()
 
     result = await _advance_to_power(hass, mock_client, mock_gw_info, mock_profs)
+
+    mock_client.read_value = AsyncMock(return_value="desynchronized")
+    mock_client.read_values.return_value = ReadResult.GATEWAY_NOT_READY
 
     with (
         _patch_cf_client(mock_gw_info),
@@ -516,6 +536,10 @@ async def test_validate_connection_desync(hass: HomeAssistant) -> None:
 
     assert result["type"] is FlowResultType.FORM
     assert result["errors"] == {"base": "desync_error"}
+
+    mock_client.get_model_key.assert_not_awaited()
+    mock_client.async_get_unique_id.assert_not_awaited()
+    mock_client.close.assert_awaited()
 
 
 async def test_validate_connection_invalid_slave(hass: HomeAssistant) -> None:
@@ -1169,3 +1193,115 @@ async def test_new_unit_on_a_moved_entrys_old_slot_is_not_refused(
 
     assert result.get("errors") in (None, {})
     assert flow.unique_id == f"{DOMAIN}_ABCD1234_c7_i8"
+
+
+@pytest.mark.parametrize(
+    ("variant", "raw_state", "error"),
+    [
+        ("gen2", 1, "desync_error"),
+        ("gen2", 2, "system_initializing"),
+        ("gen1", 2, "system_initializing"),
+        ("hc_a_mb", 1, "desync_error"),
+        ("hc_a_mb", 2, "system_initializing"),
+        ("gen1", 1, None),
+    ],
+)
+async def test_validation_uses_real_read_result_and_deserialized_state(
+    hass: HomeAssistant, variant: str, raw_state: int, error: str | None
+) -> None:
+    """Real preflight decoding drives readiness, including nonblocking gen1 state 1."""
+
+    maps = {
+        "gen2": AtwMbs02RegisterMap,
+        "gen1": AtwMbs02Pre2016RegisterMap,
+        "hc_a_mb": HcAMbRegisterMap,
+    }
+    client = ModbusApiClient(hass, "test", "127.0.0.1", 502, 1, maps[variant]())
+    client._client = MagicMock()
+    client._client.is_socket_open.return_value = True
+    response = MagicMock(registers=[raw_state])
+    response.isError.return_value = False
+    client._client.read_holding_registers.return_value = response
+    client.connect = AsyncMock(return_value=True)
+    client.close = AsyncMock()
+    client.get_model_key = AsyncMock(return_value="yutaki_s")
+    client.async_get_unique_id = AsyncMock(return_value="TEST")
+
+    config = {
+        **GATEWAY_CONFIG_INPUT,
+        **PROFILE_INPUT,
+        **POWER_INPUT,
+        "gateway_type": "modbus_hc_a_mb"
+        if variant == "hc_a_mb"
+        else "modbus_atw_mbs_02",
+    }
+    with patch(
+        "custom_components.hitachi_yutaki.config_flow.create_api_client",
+        return_value=client,
+    ):
+        result = await _flow(hass).async_validate_connection(config)
+
+    client.close.assert_awaited_once()
+    if error:
+        assert result["errors"] == {"base": error}
+        client.get_model_key.assert_not_awaited()
+        client.async_get_unique_id.assert_not_awaited()
+        client._client.read_holding_registers.assert_called_once()
+    else:
+        assert result["step_id"] == "advanced_features"
+        client.get_model_key.assert_awaited_once()
+
+
+async def test_transport_error_is_normalized_by_provider(hass: HomeAssistant) -> None:
+    """Transport failures reach the flow as cannot_connect and release the client."""
+    client = _mock_api_client()
+    client.read_values.side_effect = ModbusException("connection lost")
+    config = {
+        **GATEWAY_USER_INPUT,
+        **GATEWAY_CONFIG_INPUT,
+        **PROFILE_INPUT,
+        **POWER_INPUT,
+    }
+    with patch(
+        "custom_components.hitachi_yutaki.config_flow.create_api_client",
+        return_value=client,
+    ):
+        result = await _flow(hass).async_validate_connection(config)
+    assert result["errors"] == {"base": "cannot_connect"}
+    client.get_model_key.assert_not_awaited()
+    client.close.assert_awaited_once()
+
+
+@pytest.mark.parametrize(
+    ("gateway_type", "unit_data", "suffix"),
+    [
+        ("modbus_atw_mbs_02", {}, "0"),
+        ("modbus_hc_a_mb", {"unit_id": 3}, "3"),
+        (
+            "modbus_hc_a_mb",
+            {"unit_id": 3, "outdoor_cycle": 5, "indoor_address": 6},
+            "c5_i6",
+        ),
+    ],
+)
+async def test_flow_preserves_provider_fallback_identity(
+    hass: HomeAssistant, gateway_type: str, unit_data: dict, suffix: str
+) -> None:
+    """Failed hardware identification preserves each gateway's exact fallback ID."""
+    client = _mock_api_client()
+    client.async_get_unique_id.return_value = None
+    config = {
+        **GATEWAY_CONFIG_INPUT,
+        **PROFILE_INPUT,
+        **POWER_INPUT,
+        "gateway_type": gateway_type,
+        **unit_data,
+    }
+    flow = _flow(hass)
+    with patch(
+        "custom_components.hitachi_yutaki.config_flow.create_api_client",
+        return_value=client,
+    ):
+        result = await flow.async_validate_connection(config)
+    assert result["step_id"] == "advanced_features"
+    assert flow.unique_id == f"{DEFAULT_HOST}_{DEFAULT_DEVICE_ID}_{suffix}"

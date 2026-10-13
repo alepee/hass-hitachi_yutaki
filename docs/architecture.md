@@ -86,7 +86,9 @@ The domain layer contains pure business logic. It is completely independent of H
 ### Structure
 
 - **`models/`** -- Pure data models: `COPInput`, `COPQuality`, `PowerMeasurement`, `ThermalPowerInput`, `ThermalEnergyResult`, `CompressorTimingResult`, `ElectricalPowerInput`.
-- **`ports/`** -- Interfaces defining contracts: four `Protocol` classes (`ThermalPowerCalculator`, `ElectricalPowerCalculator`, `DataProvider`, `StateProvider`) plus the `Storage[T]` abstract base class (`abc.ABC`).
+- **`ports/`** -- Interfaces defining contracts, including `Clock` for elapsed
+  durations and installation-local civil time. Storage remains an injected
+  abstraction.
 - **`services/`** -- Business logic services listed below.
 
 ### Key Services
@@ -98,6 +100,9 @@ The domain layer contains pure business logic. It is completely independent of H
 | Electrical | `services/electrical.py` | Electrical power calculation from current and voltage |
 | Timing | `services/timing.py` | Compressor run-time tracking and cycle history |
 | Defrost guard | `services/defrost_guard.py` | Filters defrost cycles and post-cycle thermal inertia from measurements |
+| Electrical energy | `services/electrical_energy.py` | Electrical kWh and tariff accumulation with bounded outage gaps |
+| Circuit activity | `services/circuit.py` | Actual space-conditioning activity, separate from selected global mode |
+| Maintenance alerts | `services/maintenance.py` | Persistent warning policy and age of refrigerant evidence |
 
 ### Strict Rules
 
@@ -106,6 +111,12 @@ The domain layer contains pure business logic. It is completely independent of H
 3. **NEVER** use external libraries -- Python standard library only.
 4. **ALWAYS** use `Protocol` classes to declare dependencies.
 5. All public functions must have type hints and docstrings.
+
+Domain services obtain time from an injected `Clock` or explicit timestamps.
+Elapsed durations use monotonic time; calendar boundaries use the installation's
+local civil time supplied by the adapter. Domain services do not call the system
+clock themselves, and integration cannot decrease energy when an input clock
+moves backwards.
 
 See [Domain Services Reference](reference/domain-services.md) for details.
 
@@ -127,6 +138,12 @@ Adapters are the concrete implementations of the ports defined in the domain. Th
 1. Always implement a domain protocol.
 2. Never expose business logic -- delegate calculations to domain services.
 3. Handle HA-specific errors (`unknown`, `unavailable` states) before passing data to the domain.
+
+Recorder replay retrieves and normalizes historical states, then uses the same
+pure COP measurement rules as live updates. It must preserve directional thermal
+power and measured-power priority, including a valid external power reading when
+reported current is zero. Electrical energy and cost counters belong to the
+domain accumulator, not the coordinator adapter.
 
 ## Entity Layer
 
@@ -167,6 +184,11 @@ def build_<domain>_sensors(
 ```
 
 The `_create_sensors` (and equivalent functions for other entity types) factory in `entities/base/` handles conditional creation: each entity description can carry a `condition` callback that is evaluated against the coordinator to decide whether the entity should be instantiated.
+
+Sensor descriptions also supply feature-specific attribute callbacks. Generic
+base classes do not dispatch behavior by sensor key. Climate entities map a
+domain circuit-activity verdict to `HVACAction`; DHW and pool production do not
+imply space heating merely because global mode is set to Heat.
 
 ### Base Classes
 
@@ -214,6 +236,17 @@ Gateway-specific behaviour stays inside `api/`. The rest of the integration only
 - **Client** (`HitachiApiClient`, created with `create_api_client`): `async_bind_unit` locates the entry's unit at setup and `async_verify_unit` tells the coordinator whether it still reads that unit. Both are no-ops on a single-unit gateway; `HcAMbApiClient` implements them with the gateway unit table, since a unit's slot moves when the bus is re-enumerated (#476).
 - **Config provider** (`GatewayConfigProvider`): besides the config steps, the `unique_id` suffix, conflicts with entries already configured, the identity of the unit an entry is bound to, and the gateway section of the diagnostics.
 
+The client exposes logical `base_keys` and `gateway_keys`, `supports_key`,
+`can_write`, and `supported_unit_modes`. Consumers never inspect a concrete
+register map to discover a feature. Read support and write support are separate,
+and operating-mode controls only offer writable modes. A failed write is surfaced
+to the entity caller.
+
+Providers validate connection readiness and own transport-derived fallback
+identities and optional configuration URLs. Protocol exceptions and raw gateway
+state interpretation are confined to the API. Callers must inspect `ReadResult`
+before consuming fetched values.
+
 Setup (`__init__.py`), the coordinator, the config flow and diagnostics call these, and never test `gateway_type`.
 
 See [API Layer & Data Keys](development/api-data-keys.md).
@@ -223,6 +256,12 @@ See [API Layer & Data Keys](development/api-data-keys.md).
 Data moves through the layers in a single direction during each polling cycle. The Modbus client in the API layer reads registers from the ATW-MBS-02 gateway. The coordinator (`coordinator.py`) caches the raw register values in `coordinator.data`. Domain services -- instantiated with adapter-provided dependencies -- consume that cached data through the `DataProvider` and `StateProvider` ports to compute derived values (COP, thermal energy, electrical power). Entity classes read either raw register values or computed service results and expose them as Home Assistant state. The full path is:
 
 Modbus registers --> API client --> Coordinator cache --> Domain services --> Entity classes --> HA state machine
+
+The coordinator wires polling, adapters and repair presentation. Persistent
+maintenance-alert decisions come from the domain, including whether refrigerant
+evidence is stale. The cycling monitor owns its verdict expiry. Telemetry's
+`max_circuits` comes from the profile hardware capability, including zero; it is
+not inferred from configured circuits.
 
 Failure attribution follows the same boundary: only errors in the fetch path (connect, register reads) raise `UpdateFailed` and surface the `connection_error` repair issue; a failure in a post-fetch stage (derived-metrics enrichment, refrigerant issue update, telemetry collection) is logged as an integration bug with a stack trace and the raw register data is still returned, so register-backed entities remain available.
 

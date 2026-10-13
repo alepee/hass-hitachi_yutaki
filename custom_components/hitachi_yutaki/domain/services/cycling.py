@@ -27,8 +27,10 @@ from datetime import date, datetime, timedelta
 from statistics import median
 from typing import Any
 
+from ..models.clock import Timeline, civil_time
 from ..models.cycling import CyclingDailyAggregate, CyclingInput, CyclingStatus
 from ..models.operation import MODE_HEATING
+from ..ports.clock import Clock
 from ..ports.storage import Storage
 
 # Transition detection
@@ -72,8 +74,12 @@ class CyclingMonitor:
     mid-day cannot reconstruct the transitions it did not see.
     """
 
-    def __init__(self, storage: Storage[CyclingDailyAggregate]) -> None:
+    def __init__(
+        self, storage: Storage[CyclingDailyAggregate], *, clock: Clock | None = None
+    ) -> None:
         """Initialize the monitor with a bounded daily-aggregate storage."""
+        self._clock = clock
+        self._timeline = Timeline(clock)
         self._storage = storage
         self._alert_streak = 0
 
@@ -99,10 +105,10 @@ class CyclingMonitor:
         Returns ``True`` when a daily aggregate was just flushed (a cue for the
         adapter to persist the serialized state).
         """
-        now = timestamp or datetime.now()
+        now = self._timeline.at(timestamp)
 
         flushed = False
-        today = now.date()
+        today = civil_time(self._clock, timestamp).date()
         if self._current_day is None:
             self._current_day = today
         elif today != self._current_day:

@@ -33,9 +33,7 @@ def _build_dhw_switch_descriptions() -> tuple[
             key="boost",
             name="Boost",
             icon="mdi:flash",
-            condition=lambda c: (
-                c.has_dhw() and "dhw_boost" in c.api_client.register_map.all_registers
-            ),
+            condition=lambda c: c.has_dhw() and c.api_client.can_write("dhw_boost"),
             get_fn=lambda api, _: api.get_dhw_boost(),
             set_fn=lambda api, _, enabled: api.set_dhw_boost(enabled),
         ),

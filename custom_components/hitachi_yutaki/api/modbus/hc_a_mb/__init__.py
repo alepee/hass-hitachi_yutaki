@@ -19,10 +19,10 @@ from ....const import (
     CONF_OUTDOOR_CYCLE,
     CONF_UNIT_ID,
     DEFAULT_UNIT_ID,
-    get_pymodbus_device_param,
 )
 from ...base import UnitBinding, UnitBindingStatus
 from .. import ModbusApiClient
+from ..compat import get_pymodbus_device_param
 from ..registers.hc_a_mb import HcAMbRegisterMap
 from .unit_table import (
     REASON_NOT_SETTLED,

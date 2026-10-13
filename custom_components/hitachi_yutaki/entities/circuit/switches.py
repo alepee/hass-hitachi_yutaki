@@ -51,10 +51,7 @@ def _build_circuit_switch_descriptions(
             key="eco_mode",
             name="Eco Mode",
             icon="mdi:leaf",
-            condition=lambda c: (
-                f"circuit{circuit_id}_eco_mode"
-                in c.api_client.register_map.all_registers
-            ),
+            condition=lambda c: c.api_client.can_write(f"circuit{circuit_id}_eco_mode"),
             get_fn=lambda api, circuit_id: api.get_circuit_eco_mode(circuit_id),
             set_fn=lambda api, circuit_id, enabled: api.set_circuit_eco_mode(
                 circuit_id, enabled

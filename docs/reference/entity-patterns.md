@@ -34,6 +34,7 @@ Key fields across entity types:
 | `translation_key` | Maps to the entity translation keys in `translations/en.json` (and other locale files under `translations/`) for localized names. |
 | `value_fn` | Read callback (sensors, binary sensors). Receives the coordinator. |
 | `get_fn` / `set_fn` | Read/write callbacks (switches, numbers, selects). Receive the API client and an optional circuit ID. |
+| `attributes_fn` | Sensor attributes callback. Diagnostic codes belong to control-unit descriptions; the base sensor never dispatches by key. |
 | `condition` | Lambda that receives the coordinator; entity is skipped when it returns `False`. |
 
 ## Builder Pattern
@@ -204,3 +205,18 @@ For the full walkthrough, see [Adding Entities](../development/adding-entities.m
 3. Re-export public `build_*` functions from `__init__.py`
 4. Import and call the builders from the platform orchestrators (`sensor.py`, `switch.py`, etc.)
 5. Update [Architecture](../architecture.md) documentation
+
+## Circuit Activity
+
+Climate entities map `CircuitActivity` verdicts to Home Assistant `HVACAction`.
+`adapters/circuit.py` normalizes API state with the operation-mode provider and
+calls the pure `domain/services/circuit.py` policy. A powered circuit is idle
+while the compressor serves DHW or the pool, or the reported operation is inactive.
+Actual heating/cooling takes precedence over the selected global mode. When the
+operation state is unavailable, explicit heat/cool modes retain their fallback;
+auto without an activity signal remains unknown. Circuit power and defrost retain
+precedence.
+
+Writable modes and ECO availability come from `supported_unit_modes` and
+`can_write` on the API client. With multiple circuits, climate entities only
+control their own power; the control-unit select owns the global mode.

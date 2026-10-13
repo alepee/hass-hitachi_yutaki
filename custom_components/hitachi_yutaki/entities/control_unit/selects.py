@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from homeassistant.components.climate import HVACMode
@@ -27,7 +28,21 @@ def build_control_unit_selects(
     entry_id: str,
 ) -> list[HitachiYutakiSelect]:
     """Build control unit select entities."""
-    descriptions = _build_control_unit_select_descriptions()
+    if not coordinator.api_client.can_write("unit_mode"):
+        return []
+    supported = coordinator.api_client.supported_unit_modes
+    descriptions = tuple(
+        replace(
+            description,
+            options=[option for option in description.options if option in supported],
+            value_map={
+                option: value
+                for option, value in description.value_map.items()
+                if option in supported
+            },
+        )
+        for description in _build_control_unit_select_descriptions()
+    )
     return _create_selects(coordinator, entry_id, descriptions, DEVICE_CONTROL_UNIT)
 
 

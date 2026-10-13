@@ -57,7 +57,7 @@ class TestHcAMbGatewayNotReady:
         client.read_values = AsyncMock(return_value=ReadResult.GATEWAY_NOT_READY)
         client.read_value = AsyncMock(return_value=None)
         client.connected = True
-        client.register_map = MagicMock(base_keys=["system_config", "system_state"])
+        client.base_keys = ["system_config", "system_state"]
 
         info = MagicMock()
         info.client_class = MagicMock(return_value=client)
@@ -100,7 +100,7 @@ class TestHcAMbUnitIdentity:
             return_value=parse_unit_table(slot_registers, first_slot=2)
         )
         client.connected = True
-        client.register_map = MagicMock(base_keys=["system_config"])
+        client.base_keys = ["system_config"]
 
         info = MagicMock()
         info.client_class = MagicMock(return_value=client)

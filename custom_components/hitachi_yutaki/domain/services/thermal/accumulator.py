@@ -5,14 +5,14 @@ Pure business logic isolated from infrastructure concerns.
 
 from __future__ import annotations
 
-from datetime import date, datetime
-from time import time
+from datetime import date
 
 from ...models.operation import (
     HEATING_ONLY_MODES,
     MODE_COOLING,
     MODE_HEATING,
 )
+from ...ports.clock import Clock
 
 
 class ThermalEnergyAccumulator:
@@ -24,25 +24,29 @@ class ThermalEnergyAccumulator:
         initial_total_heating: float = 0.0,
         initial_daily_cooling: float = 0.0,
         initial_total_cooling: float = 0.0,
+        *,
+        clock: Clock,
     ) -> None:
         """Initialize the accumulator.
 
         Args:
+            clock: Injected time source for live measurements.
             initial_daily_heating: Initial daily heating energy value
             initial_total_heating: Initial total heating energy value
             initial_daily_cooling: Initial daily cooling energy value
             initial_total_cooling: Initial total cooling energy value
 
         """
+        self._clock = clock
         self._daily_heating_energy = initial_daily_heating
         self._total_heating_energy = initial_total_heating
         self._daily_cooling_energy = initial_daily_cooling
         self._total_cooling_energy = initial_total_cooling
         self._last_heating_power = 0.0
         self._last_cooling_power = 0.0
-        self._last_measurement_time = 0
-        self._daily_start_time = 0
-        self._last_reset = datetime.now().date()
+        self._last_measurement_time: float | None = None
+        self._daily_start_time: float | None = None
+        self._last_reset = self._clock.now().date()
         self._post_cycle_lock = False
         self._last_mode: str | None = None
 
@@ -77,12 +81,12 @@ class ThermalEnergyAccumulator:
         return self._last_cooling_power
 
     @property
-    def last_measurement_time(self) -> float:
+    def last_measurement_time(self) -> float | None:
         """Return the timestamp of the last measurement."""
         return self._last_measurement_time
 
     @property
-    def daily_start_time(self) -> float:
+    def daily_start_time(self) -> float | None:
         """Return the timestamp of the start of the daily accumulation."""
         return self._daily_start_time
 
@@ -205,11 +209,11 @@ class ThermalEnergyAccumulator:
             mode: Operating mode (MODE_HEATING or MODE_COOLING)
 
         """
-        current_time = time()
-        current_date = datetime.now().date()
+        current_time = self._clock.monotonic()
+        current_date = self._clock.now().date()
 
         # Initialize daily start time if not set for the current day
-        if self._daily_start_time == 0:
+        if self._daily_start_time is None:
             self._daily_start_time = current_time
 
         # Reset daily counters at midnight
@@ -220,8 +224,10 @@ class ThermalEnergyAccumulator:
             self._daily_start_time = current_time  # Reset start time for new day
 
         # Calculate energy since last measurement
-        if self._last_measurement_time > 0:
-            time_diff_hours = (current_time - self._last_measurement_time) / 3600
+        if self._last_measurement_time is not None:
+            time_diff_hours = (
+                max(0.0, current_time - self._last_measurement_time) / 3600
+            )
 
             if mode == MODE_HEATING:
                 avg_power = (thermal_power + self._last_heating_power) / 2

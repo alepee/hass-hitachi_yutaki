@@ -9,6 +9,7 @@ from typing import Any
 from custom_components.hitachi_yutaki.const import DEVICE_TYPES, DOMAIN
 from homeassistant.components.select import SelectEntity, SelectEntityDescription
 from homeassistant.const import EntityCategory
+from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -102,12 +103,13 @@ class HitachiYutakiSelect(
             or option not in self.entity_description.value_map
             or not self.entity_description.set_fn
         ):
-            return
+            raise ServiceValidationError(f"Unsupported option: {option}")
 
         value = self.entity_description.value_map[option]
-        await self.entity_description.set_fn(
+        if not await self.entity_description.set_fn(
             self.coordinator.api_client, self._circuit_id, value
-        )
+        ):
+            raise HomeAssistantError(f"Failed to select option: {option}")
         await self.coordinator.async_request_refresh()
 
 

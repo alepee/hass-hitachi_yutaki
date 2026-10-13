@@ -67,8 +67,26 @@ class HitachiApiClient(ABC):
 
     @property
     @abstractmethod
-    def register_map(self) -> Any:
-        """Return the register map for the gateway."""
+    def base_keys(self) -> list[str]:
+        """Return the keys needed for a normal data refresh."""
+
+    @property
+    @abstractmethod
+    def gateway_keys(self) -> list[str]:
+        """Return the keys needed to validate the gateway."""
+
+    @abstractmethod
+    def supports_key(self, key: str) -> bool:
+        """Return whether the gateway exposes this data key."""
+
+    @abstractmethod
+    def can_write(self, key: str) -> bool:
+        """Return whether the gateway accepts writes for this key."""
+
+    @property
+    @abstractmethod
+    def supported_unit_modes(self) -> tuple[str, ...]:
+        """Return writable global modes, among cool, heat and auto."""
 
     @abstractmethod
     async def connect(self) -> bool:
@@ -128,7 +146,7 @@ class HitachiApiClient(ABC):
         return True
 
     @abstractmethod
-    async def read_value(self, key: str) -> int | None:
+    async def read_value(self, key: str) -> Any:
         """Read a value from the API."""
 
     @abstractmethod
