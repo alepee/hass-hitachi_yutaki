@@ -64,6 +64,15 @@ class InstallationInfo:
     latitude: float | None = None
     longitude: float | None = None
     climate_zone: str | None = None
+    # Preventive-maintenance detectors. Consent is always set by the
+    # integration; the rest only while the detector runs.
+    refrigerant_detection: str | None = None
+    cycling_detection: str | None = None
+    refrigerant_resets_button: int | None = None
+    refrigerant_resets_serviced: int | None = None
+    refrigerant_days_since_reset: int | None = None
+    refrigerant_issue_dismissed: bool | None = None
+    cycling_issue_dismissed: bool | None = None
 
     def to_dict(self) -> dict:
         """Serialize to dict for JSON payload."""
@@ -85,12 +94,27 @@ class InstallationInfo:
             data["longitude"] = self.longitude
         if self.climate_zone is not None:
             data["climate_zone"] = self.climate_zone
+        for key in _MAINTENANCE_FIELDS:
+            value = getattr(self, key)
+            if value is not None:
+                data[key] = value
         return {
             "type": "installation",
             "instance_hash": self.instance_hash,
             "device_hash": self.device_hash,
             "data": data,
         }
+
+
+_MAINTENANCE_FIELDS = (
+    "refrigerant_detection",
+    "cycling_detection",
+    "refrigerant_resets_button",
+    "refrigerant_resets_serviced",
+    "refrigerant_days_since_reset",
+    "refrigerant_issue_dismissed",
+    "cycling_issue_dismissed",
+)
 
 
 @dataclass(frozen=True)

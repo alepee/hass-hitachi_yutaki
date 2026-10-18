@@ -13,7 +13,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.hitachi_yutaki.api.base import ReadResult
-from custom_components.hitachi_yutaki.const import CONF_REFRIGERANT_DETECTION
+from custom_components.hitachi_yutaki.const import (
+    CONF_CYCLING_DETECTION,
+    CONF_REFRIGERANT_DETECTION,
+    RESET_SOURCE_BUTTON,
+    RESET_SOURCE_SERVICED,
+)
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
 from custom_components.hitachi_yutaki.profiles.yutaki_s import YutakiSProfile
 from custom_components.hitachi_yutaki.profiles.yutaki_sc_lite import YutakiScLiteProfile
@@ -205,3 +210,56 @@ async def test_poll_uses_client_keys_without_a_register_map():
     with patch("custom_components.hitachi_yutaki.coordinator.ir"):
         await coord._async_update_data()
     coord.api_client.read_values.assert_awaited_once_with([*_BASE_KEYS, "outdoor_temp"])
+
+
+@pytest.mark.parametrize(
+    ("capability", "options", "expected"),
+    [
+        (False, {CONF_REFRIGERANT_DETECTION: True}, "unsupported"),
+        (True, {}, "undecided"),
+        (True, {CONF_REFRIGERANT_DETECTION: False}, "off"),
+        (True, {CONF_REFRIGERANT_DETECTION: True}, "on"),
+    ],
+)
+def test_maintenance_telemetry_refrigerant_consent(capability, options, expected):
+    """The consent tells an off or unsupported detector from a missing verdict."""
+    coord, _, entry = _make_coordinator({}, system_config_value=0)
+    coord.profile.supports_extended_compressor_sensors = capability
+    entry.options = options
+    coord.derived_metrics = MagicMock(
+        refrigerant_resets={RESET_SOURCE_BUTTON: 0, RESET_SOURCE_SERVICED: 0},
+        refrigerant_days_since_reset=None,
+    )
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        info = coord._maintenance_telemetry()
+    assert info["refrigerant_detection"] == expected
+    assert info["cycling_detection"] == "off"
+    assert ("refrigerant_resets_button" in info) is (expected == "on")
+
+
+def test_maintenance_telemetry_reports_resets_and_dismissed_issues():
+    """Active detectors report their resets and whether their issue was ignored."""
+    coord, _, entry = _make_coordinator({}, system_config_value=0)
+    coord.profile.supports_extended_compressor_sensors = True
+    entry.options = {CONF_REFRIGERANT_DETECTION: True, CONF_CYCLING_DETECTION: True}
+    coord.derived_metrics = MagicMock(
+        refrigerant_resets={RESET_SOURCE_BUTTON: 2, RESET_SOURCE_SERVICED: 1},
+        refrigerant_days_since_reset=12,
+    )
+    dismissed = MagicMock(dismissed_version="2026.10.0")
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        ir_mock.async_get.return_value.async_get_issue.side_effect = (
+            lambda _domain, issue_id: (
+                dismissed if issue_id.startswith("refrigerant") else None
+            )
+        )
+        info = coord._maintenance_telemetry()
+    assert info == {
+        "refrigerant_detection": "on",
+        "cycling_detection": "on",
+        "refrigerant_resets_button": 2,
+        "refrigerant_resets_serviced": 1,
+        "refrigerant_days_since_reset": 12,
+        "refrigerant_issue_dismissed": True,
+        "cycling_issue_dismissed": False,
+    }
