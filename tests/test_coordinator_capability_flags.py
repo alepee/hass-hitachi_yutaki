@@ -15,6 +15,9 @@ import pytest
 from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.const import CONF_REFRIGERANT_DETECTION
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
+from custom_components.hitachi_yutaki.profiles.yutaki_s import YutakiSProfile
+from custom_components.hitachi_yutaki.profiles.yutaki_sc_lite import YutakiScLiteProfile
+from custom_components.hitachi_yutaki.profiles.yutampo_r32 import YutampoR32Profile
 from custom_components.hitachi_yutaki.telemetry import (
     NoopTelemetryClient,
     TelemetryCollector,
@@ -43,7 +46,7 @@ def _make_coordinator(initial_entry_data: dict, system_config_value: int):
     api_client.async_verify_unit = AsyncMock(return_value=True)
     api_client.is_defrosting = False
     api_client.is_compressor_running = False
-    api_client.register_map.base_keys = list(_BASE_KEYS)
+    api_client.base_keys = list(_BASE_KEYS)
 
     async def _read_value(key: str):
         if key == "system_config":
@@ -155,3 +158,50 @@ def test_refrigerant_detection_active(capability, consent, expected):
     coord.profile.supports_extended_compressor_sensors = capability
     entry.options = {CONF_REFRIGERANT_DETECTION: consent}
     assert coord.refrigerant_detection_active is expected
+
+
+@pytest.mark.parametrize(
+    ("profile", "configured_circuits", "expected"),
+    [
+        (YutampoR32Profile(), 0, 0),
+        (YutakiScLiteProfile(), 1, 1),
+        (YutakiSProfile(), 0, 2),
+        (YutakiSProfile(), 1, 2),
+        (YutakiSProfile(), 2, 2),
+    ],
+)
+@pytest.mark.asyncio
+async def test_max_circuits_is_hardware_limit_in_both_payloads(
+    profile, configured_circuits, expected
+):
+    """Installation and fleet ping use profile limits, not enabled circuit count."""
+    coord, hass, _ = _make_coordinator({}, system_config_value=0)
+    coord.profile = profile
+    coord.api_client.has_circuit.side_effect = lambda circuit, mode: (
+        circuit <= configured_circuits and mode == "heating"
+    )
+    coord.api_client.has_dhw = True
+    coord.api_client.has_pool = False
+    coord.data = {"system_state": 0}
+    coord.last_update_success = True
+    hass.config.latitude = 48.85
+    hass.config.longitude = 2.35
+    coord.telemetry_client = AsyncMock()
+    coord.telemetry_client.send_installation.return_value = True
+
+    assert coord._unit_capabilities()["max_circuits"] == expected
+    assert coord.fleet_ping_unit().max_circuits == expected
+    await coord._send_installation_info()
+    info = coord.telemetry_client.send_installation.call_args.args[0]
+    assert info.max_circuits == expected
+
+
+@pytest.mark.asyncio
+async def test_poll_uses_client_keys_without_a_register_map():
+    """Normal polling needs only the gateway-independent key contract."""
+    coord, _, _ = _make_coordinator({}, system_config_value=0)
+    del coord.api_client.register_map
+    coord.profile.extra_register_keys = ["outdoor_temp"]
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coord._async_update_data()
+    coord.api_client.read_values.assert_awaited_once_with([*_BASE_KEYS, "outdoor_temp"])

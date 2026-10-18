@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Gateway validation respects the API readiness result, and operating-mode
+  selectors only offer modes the gateway can write.
+- Circuit climate activity follows the actual operation state, including idle
+  circuits while the unit produces domestic hot water.
+- Installation telemetry reports the profile's circuit limit, including zero
+  for DHW-only units.
+- COP history replay uses the same directional and measured-power rules as live
+  measurements. Energy integration is protected against backward clock steps.
+
+### Changed
+
+- Gateway capabilities, transport metadata and errors stay behind the API
+  boundary. Energy/cost accumulation, time dependencies and maintenance alert
+  decisions are handled through domain services and adapters.
+
 ## [2.2.0-beta.10] - 2026-10-14
 
 ### Fixed

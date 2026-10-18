@@ -40,6 +40,7 @@ from custom_components.hitachi_yutaki.telemetry.anonymizer import (
 )
 from custom_components.hitachi_yutaki.telemetry.http_client import HttpTelemetryClient
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 
 
@@ -231,3 +232,30 @@ async def test_telemetry_client_is_labelled_with_the_entry_title(
 
     assert isinstance(coordinator.telemetry_client, HttpTelemetryClient)
     assert coordinator.telemetry_client._prefix == "[PAC salon] "
+
+
+@pytest.mark.asyncio
+async def test_setup_uses_provider_fallback_and_optional_configuration_url(
+    hass: HomeAssistant,
+) -> None:
+    """Setup delegates identity and device URL without interpreting the transport."""
+    entry = _make_entry(title="PAC", unique_id=None)
+    with (
+        patch(
+            "custom_components.hitachi_yutaki.api.config_providers.hc_a_mb.HcAMbConfigProvider.fallback_unique_id",
+            return_value="provider-fallback",
+        ) as fallback,
+        patch(
+            "custom_components.hitachi_yutaki.api.config_providers.hc_a_mb.HcAMbConfigProvider.configuration_url",
+            return_value=None,
+        ) as url,
+    ):
+        await _setup(hass, entry, hardware_id=None)
+    assert entry.unique_id == "provider-fallback"
+    fallback.assert_called_once_with(entry.data)
+    url.assert_called_once_with(entry.data)
+    gateway = dr.async_get(hass).async_get_device(
+        {(DOMAIN, f"{entry.entry_id}_gateway")}
+    )
+    assert gateway is not None
+    assert gateway.configuration_url is None

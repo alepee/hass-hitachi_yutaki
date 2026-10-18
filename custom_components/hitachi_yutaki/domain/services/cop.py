@@ -7,10 +7,16 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime, timedelta
-from time import time
 
+from ..models.clock import (
+    Timeline,
+    civil_time,
+    elapsed_time,
+    validate_timestamp_awareness,
+)
 from ..models.cop import COPInput, COPQuality, PowerMeasurement
 from ..ports.calculators import ElectricalPowerCalculator, ThermalPowerCalculator
+from ..ports.clock import Clock
 from ..ports.storage import Storage
 
 # Configuration constants
@@ -26,14 +32,22 @@ COP_OPTIMAL_TIME_SPAN = 15  # minutes
 class EnergyAccumulator:
     """Accumulates energy measurements over time for COP calculation."""
 
-    def __init__(self, storage: Storage[PowerMeasurement], period: timedelta) -> None:
+    def __init__(
+        self,
+        storage: Storage[PowerMeasurement],
+        period: timedelta,
+        *,
+        clock: Clock | None = None,
+    ) -> None:
         """Initialize the accumulator.
 
         Args:
+            clock: Injected time source for live measurements.
             storage: Storage implementation for measurements
             period: Time period to keep measurements
 
         """
+        self._clock = clock
         self._storage = storage
         self.period = period
 
@@ -50,7 +64,10 @@ class EnergyAccumulator:
         timestamp: datetime | None = None,
     ) -> None:
         """Add a power measurement to the accumulator."""
-        current_time = timestamp or datetime.now()
+        current_time = civil_time(self._clock, timestamp)
+        validate_timestamp_awareness(
+            [current_time, *(item.timestamp for item in self._storage.get_all())]
+        )
         self._storage.append(
             PowerMeasurement(current_time, thermal_power, electrical_power)
         )
@@ -58,10 +75,12 @@ class EnergyAccumulator:
 
     def bulk_load(self, measurements: Iterable[PowerMeasurement]) -> None:
         """Load multiple historical measurements."""
+        incoming = list(measurements)
+        validate_timestamp_awareness(
+            item.timestamp for item in [*self._storage.get_all(), *incoming]
+        )
         last_timestamp: datetime | None = None
-        for measurement in sorted(
-            measurements, key=lambda measurement: measurement.timestamp
-        ):
+        for measurement in sorted(incoming, key=lambda item: item.timestamp):
             self._storage.append(measurement)
             last_timestamp = measurement.timestamp
 
@@ -167,10 +186,12 @@ class COPService:
         electrical_calculator: ElectricalPowerCalculator,
         *,
         expected_mode: str | None = None,
+        clock: Clock | None = None,
     ) -> None:
         """Initialize the COP service.
 
         Args:
+            clock: Injected time source for live measurements.
             accumulator: Energy accumulator for measurements
             thermal_calculator: Calculator for thermal power
             electrical_calculator: Calculator for electrical power
@@ -178,95 +199,47 @@ class COPService:
                            MODE_DHW, MODE_POOL). If None, all modes are accepted.
 
         """
+        self._clock = clock
+        self._timeline = Timeline(clock)
         self._accumulator = accumulator
         self._thermal_calculator = thermal_calculator
         self._electrical_calculator = electrical_calculator
         self._expected_mode = expected_mode
-        self._last_measurement_time = 0.0
+        self._last_measurement_time: float | None = None
 
-    def update(self, data: COPInput) -> None:
-        """Update COP calculation with new data.
-
-        Args:
-            data: Input data containing temperatures, flow, and currents
-
-        """
-        # Check if compressor is running
-        if not self._is_compressor_running(data):
-            return
-
-        # Filter by HVAC mode for heating/cooling sensors
-        if not self._is_mode_matching(data):
-            return
-
-        # Check if enough time has passed since last measurement
-        current_time = time()
-        if current_time - self._last_measurement_time < COP_MEASUREMENTS_INTERVAL:
-            return
-
-        # Validate input data
-        water_inlet_temp = data.water_inlet_temp
-        water_outlet_temp = data.water_outlet_temp
-        water_flow = data.water_flow
-        compressor_current = data.compressor_current
+    def update(self, data: COPInput, *, timestamp: datetime | None = None) -> None:
+        """Admit and accumulate a live or explicitly timestamped COP sample."""
+        current_time = elapsed_time(self._clock, timestamp)
         if (
-            water_inlet_temp is None
-            or water_outlet_temp is None
-            or water_flow is None
-            or compressor_current is None
+            self._last_measurement_time is not None
+            and current_time - self._last_measurement_time < COP_MEASUREMENTS_INTERVAL
         ):
-            # Transient missing data: do not advance the interval timer, so the
-            # next complete poll within the interval is still accepted (#319).
             return
+        measurement = self.build_measurement(data, self._timeline.at(timestamp))
+        if measurement is not None:
+            self._last_measurement_time = current_time
+            self._accumulator.add_measurement(
+                measurement.thermal_power,
+                measurement.electrical_power,
+                timestamp=measurement.timestamp,
+            )
 
-        # A complete measurement is being attempted: advance the interval timer.
-        self._last_measurement_time = current_time
+    @property
+    def expected_mode(self) -> str | None:
+        """Return the explicit operation-mode filter shared with replay."""
+        return self._expected_mode
 
-        # Calculate thermal power
-        thermal_power = self._thermal_calculator(
-            water_inlet_temp,
-            water_outlet_temp,
-            water_flow,
+    def build_measurement(
+        self, data: COPInput, timestamp: datetime
+    ) -> PowerMeasurement | None:
+        """Apply this service's pure admission and calculators to a replay point."""
+        return build_cop_measurement(
+            data,
+            timestamp,
+            self._thermal_calculator,
+            self._electrical_calculator,
+            expected_mode=self._expected_mode,
         )
-
-        # Use pre-computed electrical power if available, else compute from current.
-        #
-        # Fallback path: call the calculator ONCE with the summed compressor
-        # current. Calling it per compressor and summing would double-count when
-        # the calculator returns a whole-unit measured power (issue #316).
-        if data.electrical_power is not None:
-            electrical_power = data.electrical_power
-        else:
-            total_current = compressor_current
-            if (
-                data.secondary_compressor_current is not None
-                and data.secondary_compressor_frequency is not None
-                and data.secondary_compressor_frequency > 0
-            ):
-                total_current += data.secondary_compressor_current
-            electrical_power = self._electrical_calculator(total_current)
-
-        # Store measurement if valid
-        if thermal_power > 0 and electrical_power > 0:
-            self._accumulator.add_measurement(thermal_power, electrical_power)
-
-    def _is_mode_matching(self, data: COPInput) -> bool:
-        """Check if the current operation state matches the expected mode.
-
-        Args:
-            data: Input data containing operation_mode
-
-        Returns:
-            True if the mode matches or no filtering is required
-
-        """
-        if self._expected_mode is None:
-            return True
-
-        if data.operation_mode is None:
-            return False
-
-        return data.operation_mode == self._expected_mode
 
     def get_value(self) -> float | None:
         """Get current COP value rounded to 2 decimals."""
@@ -281,7 +254,48 @@ class COPService:
         """Preload measurements (used during Recorder replay)."""
         self._accumulator.bulk_load(measurements)
 
-    @staticmethod
-    def _is_compressor_running(data: COPInput) -> bool:
-        """Check if compressor is running based on frequency."""
-        return data.compressor_frequency is not None and data.compressor_frequency > 0
+
+def build_cop_measurement(
+    data: COPInput,
+    timestamp: datetime,
+    thermal_calculator: ThermalPowerCalculator,
+    electrical_calculator: ElectricalPowerCalculator,
+    *,
+    expected_mode: str | None = None,
+) -> PowerMeasurement | None:
+    """Pure admission and power calculation, identical for live and replay.
+
+    A measured whole-unit power overrides current estimates, including zero
+    current. Sum S80 currents before calling the fallback calculator once.
+    """
+    if data.compressor_frequency is None or data.compressor_frequency <= 0:
+        return None
+    if expected_mode is not None and data.operation_mode != expected_mode:
+        return None
+    inlet, outlet, flow = data.water_inlet_temp, data.water_outlet_temp, data.water_flow
+    current = data.compressor_current
+    if inlet is None or outlet is None or flow is None or current is None:
+        return None
+    thermal_power = thermal_calculator(inlet, outlet, flow)
+    electrical_power = calculate_cop_electrical_power(data, electrical_calculator)
+    if thermal_power <= 0 or electrical_power is None or electrical_power <= 0:
+        return None
+    return PowerMeasurement(timestamp, thermal_power, electrical_power)
+
+
+def calculate_cop_electrical_power(
+    data: COPInput, electrical_calculator: ElectricalPowerCalculator
+) -> float | None:
+    """Resolve whole-unit power once, summing active S80 currents for fallback."""
+    if data.electrical_power is not None:
+        return data.electrical_power
+    current = data.compressor_current
+    if current is None:
+        return None
+    if (
+        data.secondary_compressor_current is not None
+        and data.secondary_compressor_frequency is not None
+        and data.secondary_compressor_frequency > 0
+    ):
+        current += data.secondary_compressor_current
+    return electrical_calculator(current)

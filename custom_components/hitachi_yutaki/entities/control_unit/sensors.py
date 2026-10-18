@@ -28,6 +28,26 @@ def build_control_unit_sensors(
     return _create_sensors(coordinator, entry_id, descriptions, DEVICE_CONTROL_UNIT)
 
 
+def _alarm_attributes(
+    coordinator: HitachiYutakiDataCoordinator,
+) -> dict[str, int] | None:
+    """Expose the alarm code only while an alarm is present."""
+    if coordinator.data is None:
+        return None
+    code = coordinator.data.get("alarm_code")
+    return {"code": code} if code is not None and code != 0 else None
+
+
+def _operation_state_attributes(
+    coordinator: HitachiYutakiDataCoordinator,
+) -> dict[str, int] | None:
+    """Expose the raw operation code, including the valid off code zero."""
+    if coordinator.data is None:
+        return None
+    code = coordinator.data.get("operation_state_code")
+    return {"code": code} if code is not None else None
+
+
 def _build_control_unit_sensor_descriptions() -> tuple[
     HitachiYutakiSensorEntityDescription, ...
 ]:
@@ -51,6 +71,7 @@ def _build_control_unit_sensor_descriptions() -> tuple[
             device_class=SensorDeviceClass.ENUM,
             state_class=None,
             value_fn=lambda coordinator: coordinator.data.get("alarm_code"),
+            attributes_fn=_alarm_attributes,
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:alert-circle-outline",
         ),
@@ -59,6 +80,7 @@ def _build_control_unit_sensor_descriptions() -> tuple[
             translation_key="operation_state",
             description="Current operation state of the heat pump",
             value_fn=lambda coordinator: coordinator.data.get("operation_state"),
+            attributes_fn=_operation_state_attributes,
             icon="mdi:state-machine",
         ),
     )

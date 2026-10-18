@@ -11,7 +11,6 @@ from custom_components.hitachi_yutaki.domain.models.operation import (
     MODE_HEATING,
     MODE_POOL,
 )
-from custom_components.hitachi_yutaki.domain.services import cop as cop_module
 from custom_components.hitachi_yutaki.domain.services.cop import (
     COP_MEASUREMENTS_HISTORY_SIZE,
     COP_MEASUREMENTS_INTERVAL,
@@ -19,12 +18,12 @@ from custom_components.hitachi_yutaki.domain.services.cop import (
     COPService,
     EnergyAccumulator,
 )
+from tests.domain.clock import FakeClock
 
 
 def _make_input(
     *,
     operation_mode: str | None = None,
-    hvac_action: str | None = None,
     water_flow: float | None = 15.0,
 ) -> COPInput:
     """Create a COPInput with valid sensor data and the given operation_mode.
@@ -38,7 +37,6 @@ def _make_input(
         water_flow=water_flow,
         compressor_current=5.0,
         compressor_frequency=50.0,
-        hvac_action=hvac_action,
         operation_mode=operation_mode,
     )
 
@@ -62,6 +60,7 @@ def _build_service(*, expected_mode: str | None = None) -> COPService:
         thermal_calculator=thermal_calc,
         electrical_calculator=electrical_calc,
         expected_mode=expected_mode,
+        clock=FakeClock(),
     )
 
 
@@ -172,7 +171,7 @@ class TestCOPTransientNoneTimer:
     measurement is attempted, not on a transient None on a required sensor input.
     """
 
-    def test_transient_none_does_not_block_next_valid_measurement(self, monkeypatch):
+    def test_transient_none_does_not_block_next_valid_measurement(self):
         """A transient None must not consume the interval window.
 
         With the buggy ordering, the first (None) call advances the timer to
@@ -180,7 +179,6 @@ class TestCOPTransientNoneTimer:
         interval gate, dropping a valid measurement.
         """
         fixed_now = 10_000.0
-        monkeypatch.setattr(cop_module, "time", lambda: fixed_now)
 
         service = _build_service(expected_mode=None)
         # Open the gate: last measurement is older than the interval.
@@ -198,10 +196,9 @@ class TestCOPTransientNoneTimer:
             "Valid poll following a transient None must be accepted"
         )
 
-    def test_timer_not_advanced_on_invalid_input(self, monkeypatch):
+    def test_timer_not_advanced_on_invalid_input(self):
         """The interval timer must stay put when a required input is None."""
         fixed_now = 10_000.0
-        monkeypatch.setattr(cop_module, "time", lambda: fixed_now)
 
         service = _build_service(expected_mode=None)
         sentinel = fixed_now - COP_MEASUREMENTS_INTERVAL - 1
@@ -213,10 +210,9 @@ class TestCOPTransientNoneTimer:
             "Timer must not advance on invalid (None) input"
         )
 
-    def test_timer_advanced_on_valid_input(self, monkeypatch):
+    def test_timer_advanced_on_valid_input(self):
         """The interval timer must advance exactly when a valid measurement is attempted."""
         fixed_now = 10_000.0
-        monkeypatch.setattr(cop_module, "time", lambda: fixed_now)
 
         service = _build_service(expected_mode=None)
         service._last_measurement_time = fixed_now - COP_MEASUREMENTS_INTERVAL - 1

@@ -24,7 +24,7 @@ def coordinator():
     api_client.connected = True
     api_client.read_values = AsyncMock()
     api_client.async_verify_unit = AsyncMock(return_value=True)
-    api_client.register_map.base_keys = ["system_state"]
+    api_client.base_keys = ["system_state"]
     profile = MagicMock()
     profile.extra_register_keys = []
     entry = MagicMock()

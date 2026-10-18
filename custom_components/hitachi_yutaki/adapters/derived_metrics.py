@@ -11,7 +11,6 @@ and delegates computation to domain services.
 from __future__ import annotations
 
 import logging
-import time
 from typing import Any
 
 from homeassistant.const import CONF_SCAN_INTERVAL
@@ -21,7 +20,6 @@ from ..adapters.calculators.electrical import ElectricalPowerCalculatorAdapter
 from ..adapters.calculators.thermal import (
     thermal_power_calculator_cooling_wrapper,
     thermal_power_calculator_heating_wrapper,
-    thermal_power_calculator_wrapper,
 )
 from ..adapters.providers.operation_mode import (
     get_accepted_operation_states,
@@ -45,6 +43,7 @@ from ..domain.models.refrigerant import (
     RefrigerantInput,
     RefrigerantStatus,
 )
+from ..domain.ports.clock import Clock
 from ..domain.services.cop import (
     COP_MEASUREMENTS_HISTORY_SIZE,
     COP_MEASUREMENTS_PERIOD,
@@ -56,28 +55,16 @@ from ..domain.services.cycling import (
     CyclingMonitor,
 )
 from ..domain.services.defrost_guard import DefrostGuard
+from ..domain.services.electrical_energy import ElectricalEnergyAccumulator
 from ..domain.services.refrigerant import (
     HISTORY_DAYS as REFRIGERANT_HISTORY_DAYS,
     RefrigerantMonitor,
 )
 from ..domain.services.thermal import ThermalEnergyAccumulator, ThermalPowerService
 from ..domain.services.timing import CompressorHistory, CompressorTimingService
+from .clock import HomeAssistantClock
 
 _LOGGER = logging.getLogger(__name__)
-
-# Energy integration tolerates polls up to this many configured scan intervals
-# apart, and never less than ENERGY_GAP_TOLERANCE_MIN_S. Beyond that the gap is
-# treated as an outage: the increment is clamped to the tolerance rather than
-# dropped, so a late poll costs at most that much phantom energy instead of the
-# whole increment. See #403.
-#
-# The floor matters at the default 5 s interval: HA schedules the next poll
-# after the previous one completes, so the gap is scan_interval plus the Modbus
-# read time, and fleet telemetry shows reads of 10-12 s on some gateways (gaps
-# up to 17 s at p99). 3 x 5 s would still clamp 1-3% of the energy there; the
-# rare gaps beyond 30 s are still clamped.
-ENERGY_GAP_TOLERANCE_INTERVALS = 3
-ENERGY_GAP_TOLERANCE_MIN_S = 30.0
 
 COMPRESSOR_HISTORY_SIZE = 100
 
@@ -104,8 +91,11 @@ class DerivedMetricsAdapter:
         superheat_observed_band: tuple[float, float] | None = None,
         refrigerant_detection_enabled: bool = True,
         cycling_detection_enabled: bool = False,
+        *,
+        clock: Clock | None = None,
     ) -> None:
         """Initialize the adapter with domain services."""
+        self._clock = clock if clock is not None else HomeAssistantClock(hass)
         self._hass = hass
         self._config_entry = config_entry
         self._config_entry_data: dict[str, Any] = (
@@ -116,11 +106,11 @@ class DerivedMetricsAdapter:
         self._is_three_phase = power_supply == "three"
 
         # Defrost guard (shared across all derived metrics)
-        self.defrost_guard = DefrostGuard()
+        self.defrost_guard = DefrostGuard(clock=self._clock)
 
         # Thermal power service
         self._thermal_service = ThermalPowerService(
-            accumulator=ThermalEnergyAccumulator()
+            accumulator=ThermalEnergyAccumulator(clock=self._clock)
         )
 
         # Electrical power calculator
@@ -137,7 +127,7 @@ class DerivedMetricsAdapter:
         # Compressor timing services
         storage_t = InMemoryStorage(max_len=COMPRESSOR_HISTORY_SIZE)
         history_t = CompressorHistory(
-            storage=storage_t, max_history=COMPRESSOR_HISTORY_SIZE
+            storage=storage_t, max_history=COMPRESSOR_HISTORY_SIZE, clock=self._clock
         )
         self._primary_timing = CompressorTimingService(history=history_t)
 
@@ -145,7 +135,9 @@ class DerivedMetricsAdapter:
         if supports_secondary_compressor:
             storage_t2 = InMemoryStorage(max_len=COMPRESSOR_HISTORY_SIZE)
             history_t2 = CompressorHistory(
-                storage=storage_t2, max_history=COMPRESSOR_HISTORY_SIZE
+                storage=storage_t2,
+                max_history=COMPRESSOR_HISTORY_SIZE,
+                clock=self._clock,
             )
             self._secondary_timing = CompressorTimingService(history=history_t2)
 
@@ -153,13 +145,9 @@ class DerivedMetricsAdapter:
         scan_interval = self._config_entry_data.get(
             CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
         )
-        self._max_energy_gap: float = max(
-            float(scan_interval * ENERGY_GAP_TOLERANCE_INTERVALS),
-            ENERGY_GAP_TOLERANCE_MIN_S,
+        self._energy_accumulator = ElectricalEnergyAccumulator(
+            float(scan_interval), clock=self._clock
         )
-        self._last_energy_time: float | None = None
-        self._accumulated_energy: float = 0.0  # kWh integrated from electrical_power
-        self._electricity_cost: float = 0.0
 
         # Refrigerant-circuit anomaly detection (extended-sensor profiles only)
         self._refrigerant_monitor: RefrigerantMonitor | None = None
@@ -171,6 +159,7 @@ class DerivedMetricsAdapter:
             self._refrigerant_monitor = RefrigerantMonitor(
                 InMemoryStorage(max_len=REFRIGERANT_HISTORY_DAYS),
                 superheat_plausible_range or (-10.0, 80.0),
+                clock=self._clock,
             )
             entry_id = getattr(config_entry, "entry_id", None)
             if hass is not None and entry_id:
@@ -187,7 +176,7 @@ class DerivedMetricsAdapter:
         self._cycling_status: CyclingStatus | None = None
         if cycling_detection_enabled:
             self._cycling_monitor = CyclingMonitor(
-                InMemoryStorage(max_len=CYCLING_HISTORY_DAYS)
+                InMemoryStorage(max_len=CYCLING_HISTORY_DAYS), clock=self._clock
             )
             entry_id = getattr(config_entry, "entry_id", None)
             if hass is not None and entry_id:
@@ -210,6 +199,7 @@ class DerivedMetricsAdapter:
             thermal_calculator=thermal_calculator,
             electrical_calculator=self._electrical_calculator,
             expected_mode=expected_mode,
+            clock=self._clock,
         )
 
     def _init_cop_services(
@@ -277,79 +267,14 @@ class DerivedMetricsAdapter:
         return None
 
     def _update_energy(self, data: dict[str, Any]) -> None:
-        """Integrate electrical power over time for energy and cost accumulation.
-
-        Uses data["electrical_power"] (kW) computed by _update_cop() which
-        already handles the priority chain (power_entity > I×U calculated)
-        and sums both compressors for S80.
-
-        The elapsed time since the previous poll is clamped to
-        ``max(ENERGY_GAP_TOLERANCE_INTERVALS × scan_interval,
-        ENERGY_GAP_TOLERANCE_MIN_S)``: a poll arriving late
-        (slow gateway, HA jitter) is integrated in full, while a long gap
-        (gateway outage, HA suspended) only contributes that bounded amount
-        instead of integrating the stale power over the whole outage.
-        """
-        now = time.monotonic()
-        electrical_power = data.get("electrical_power", 0)
-
-        # Integrate electrical power over time for energy (kWh)
-        delta_kwh = 0.0
-        raw_dt = (
-            (now - self._last_energy_time)
-            if self._last_energy_time is not None
-            else 0.0
-        )
-        if self._last_energy_time is not None and electrical_power > 0:
-            dt = min(raw_dt, self._max_energy_gap)
-            delta_kwh = electrical_power * (dt / 3600)
-            self._accumulated_energy += delta_kwh
-
-        data["electrical_energy_consumed"] = round(self._accumulated_energy, 3)
-
-        # Cost accumulation (only when price entity is configured)
+        """Normalize HA price input and expose domain energy/cost totals."""
         price_entity = self._config_entry_data.get(CONF_ELECTRICITY_PRICE_ENTITY)
+        price = self._get_float_from_entity(price_entity) if price_entity else None
+        self._energy_accumulator.update(data.get("electrical_power", 0.0), price)
+        data["electrical_energy_consumed"] = round(self._energy_accumulator.energy, 3)
         if price_entity:
-            price = self._get_float_from_entity(price_entity)
             data["_current_price"] = price
-
-            if price is not None and delta_kwh > 0:
-                self._electricity_cost += round(delta_kwh * price, 6)
-
-            data["electricity_cost"] = round(self._electricity_cost, 2)
-
-        _LOGGER.debug(
-            "Energy: power=%.3f kW, dt=%.1fs (max %.0fs), energy=%.3f kWh, "
-            "cost=%.4f %s, price=%s",
-            electrical_power,
-            raw_dt,
-            self._max_energy_gap,
-            self._accumulated_energy,
-            self._electricity_cost,
-            self._config_entry_data.get(CONF_ELECTRICITY_PRICE_ENTITY, "n/a"),
-            data.get("_current_price"),
-        )
-
-        self._last_energy_time = now
-
-    def _get_hvac_action(self, data: dict[str, Any]) -> str | None:
-        """Detect the current HVAC action from unit mode and temperatures."""
-        unit_mode = data.get("unit_mode")
-        if unit_mode == 1:
-            return "heating"
-        elif unit_mode == 0:
-            return "cooling"
-        elif unit_mode == 2:
-            # AUTO: detect from temperature delta
-            inlet = data.get("water_inlet_temp")
-            outlet = data.get("water_outlet_temp")
-            if inlet is not None and outlet is not None:
-                delta = outlet - inlet
-                if delta > 0.5:
-                    return "heating"
-                elif delta < -0.5:
-                    return "cooling"
-        return None
+            data["electricity_cost"] = round(self._energy_accumulator.cost, 2)
 
     def _update_cop(self, data: dict[str, Any]) -> None:
         """Compute electrical power and COP for all configured modes."""
@@ -393,7 +318,6 @@ class DerivedMetricsAdapter:
         )
 
         # Build COP input
-        hvac_action = self._get_hvac_action(data)
         operation_mode = resolve_operation_mode(data.get("operation_state"))
 
         cop_input = COPInput(
@@ -406,7 +330,7 @@ class DerivedMetricsAdapter:
             water_flow=data.get("water_flow"),
             compressor_current=data.get("compressor_current"),
             compressor_frequency=data.get("compressor_frequency"),
-            electrical_power=data["electrical_power"],
+            electrical_power=electrical_power,
             secondary_compressor_current=(
                 data.get("secondary_compressor_current")
                 if self._supports_secondary_compressor
@@ -417,7 +341,6 @@ class DerivedMetricsAdapter:
                 if self._supports_secondary_compressor
                 else None
             ),
-            hvac_action=hvac_action,
             operation_mode=operation_mode,
         )
 
@@ -493,11 +416,11 @@ class DerivedMetricsAdapter:
 
     def restore_electricity_cost(self, value: float) -> None:
         """Restore electricity cost state from HA last state cache."""
-        self._electricity_cost = value
+        self._energy_accumulator.restore_cost(value)
 
     def restore_accumulated_energy(self, value: float) -> None:
         """Restore accumulated energy state from HA last state cache."""
-        self._accumulated_energy = value
+        self._energy_accumulator.restore_energy(value)
 
     async def async_rehydrate_cop(self) -> None:
         """Replay Recorder data to rebuild COP measurement buffers."""
@@ -563,6 +486,12 @@ class DerivedMetricsAdapter:
                 if eid:
                     entity_map[key] = eid
 
+        defrost_id = registry.async_get_entity_id(
+            "binary_sensor", DOMAIN, f"{entry_id}_defrost"
+        )
+        if defrost_id:
+            entity_map["is_defrosting"] = defrost_id
+
         # Optional external power/voltage meters (#316): include their *historical*
         # values so each replayed point uses its own power, not a single live read.
         power_entity = self._config_entry_data.get(CONF_POWER_ENTITY)
@@ -575,14 +504,14 @@ class DerivedMetricsAdapter:
         # Rehydrate each COP service
         for cop_key, service in self._cop_services.items():
             accepted_states: set[str] | None = None
-            if service._expected_mode:
-                accepted_states = get_accepted_operation_states(service._expected_mode)
+            if service.expected_mode:
+                accepted_states = get_accepted_operation_states(service.expected_mode)
 
             try:
                 measurements = await async_replay_cop_history(
                     hass=self._hass,
                     entity_ids=entity_map,
-                    thermal_calculator=thermal_power_calculator_wrapper,
+                    measurement_builder=service.build_measurement,
                     window=COP_MEASUREMENTS_PERIOD,
                     measurement_interval=COP_MEASUREMENTS_INTERVAL,
                     max_measurements=COP_MEASUREMENTS_HISTORY_SIZE,

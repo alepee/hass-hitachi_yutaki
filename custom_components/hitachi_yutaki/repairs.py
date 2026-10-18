@@ -12,7 +12,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import issue_registry as ir, selector
 from homeassistant.helpers.issue_registry import async_delete_issue
 
-from .api import GATEWAY_INFO
+from .api import DEFAULT_GATEWAY_TYPE, GATEWAY_INFO
 from .const import (
     CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_FLEET_PING,
@@ -71,7 +71,7 @@ class MissingConfigRepairFlow(RepairsFlow):
             # Update the config entry with the missing parameters
             new_data = {
                 **entry.data,
-                "gateway_type": user_input.get("gateway_type", "modbus_atw_mbs_02"),
+                "gateway_type": user_input.get("gateway_type", DEFAULT_GATEWAY_TYPE),
                 "profile": user_input.get("profile"),
             }
 
@@ -95,7 +95,7 @@ class MissingConfigRepairFlow(RepairsFlow):
                     "gateway_type",
                     default=gateway_options[0]
                     if gateway_options
-                    else "modbus_atw_mbs_02",
+                    else DEFAULT_GATEWAY_TYPE,
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=gateway_options,

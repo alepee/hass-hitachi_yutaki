@@ -6,8 +6,6 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
-    ENERGY_GAP_TOLERANCE_INTERVALS,
-    ENERGY_GAP_TOLERANCE_MIN_S,
     DerivedMetricsAdapter,
 )
 from custom_components.hitachi_yutaki.const import DEFAULT_SCAN_INTERVAL
@@ -18,6 +16,10 @@ from custom_components.hitachi_yutaki.domain.models.refrigerant import (
 from custom_components.hitachi_yutaki.domain.services.electrical import (
     POWER_FACTOR,
     VOLTAGE_SINGLE_PHASE,
+)
+from custom_components.hitachi_yutaki.domain.services.electrical_energy import (
+    ENERGY_GAP_TOLERANCE_INTERVALS,
+    ENERGY_GAP_TOLERANCE_MIN_S,
 )
 
 
@@ -209,30 +211,14 @@ class TestCOP:
         adapter_yes.update(data2)
         assert "cop_pool" in data2
 
-    def test_hvac_action_heating(self):
-        """HVAC action is 'heating' when unit_mode is 1."""
-        adapter = _make_adapter()
-        data = _sample_data(unit_mode=1)
-        assert adapter._get_hvac_action(data) == "heating"
-
-    def test_hvac_action_cooling(self):
-        """HVAC action is 'cooling' when unit_mode is 0."""
-        adapter = _make_adapter()
-        data = _sample_data(unit_mode=0)
-        assert adapter._get_hvac_action(data) == "cooling"
-
-    def test_hvac_action_auto_detects_from_delta(self):
-        """HVAC action in auto mode is detected from temperature delta."""
-        adapter = _make_adapter()
-        data_heat = _sample_data(
-            unit_mode=2, water_inlet_temp=30.0, water_outlet_temp=35.0
-        )
-        assert adapter._get_hvac_action(data_heat) == "heating"
-
-        data_cool = _sample_data(
-            unit_mode=2, water_inlet_temp=35.0, water_outlet_temp=30.0
-        )
-        assert adapter._get_hvac_action(data_cool) == "cooling"
+    @pytest.mark.parametrize("unit_mode", [0, 1, 2])
+    def test_cop_uses_operation_state_independently_of_unit_mode(self, unit_mode):
+        """Removing unused HVAC action keeps COP admission on operation_state."""
+        adapter = _make_adapter(has_cooling=True)
+        data = _sample_data(unit_mode=unit_mode)
+        adapter.update(data)
+        assert data["cop_heating_measurements"] == 1
+        assert data["cop_cooling_measurements"] == 0
 
     def test_reinit_cop_services(self):
         """_init_cop_services replaces existing services."""
@@ -281,7 +267,7 @@ class TestEnergyAndCost:
         data1 = _sample_data(compressor_current=8.5)
         adapter.update(data1)
         # Simulate 5 seconds elapsed (within gap threshold)
-        adapter._last_energy_time -= 5
+        adapter._energy_accumulator._last_time -= 5
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
         assert data2["electrical_energy_consumed"] > 0
@@ -302,7 +288,7 @@ class TestEnergyAndCost:
         adapter.update(data1)
         power_kw = data1["electrical_power"]
 
-        adapter._last_energy_time -= 20
+        adapter._energy_accumulator._last_time -= 20
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
@@ -325,7 +311,7 @@ class TestEnergyAndCost:
         adapter.update(data1)
         power_kw = data1["electrical_power"]
 
-        adapter._last_energy_time -= 3600  # one hour without a poll
+        adapter._energy_accumulator._last_time -= 3600  # one hour without a poll
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
@@ -344,7 +330,7 @@ class TestEnergyAndCost:
         assert DEFAULT_SCAN_INTERVAL * ENERGY_GAP_TOLERANCE_INTERVALS < (
             ENERGY_GAP_TOLERANCE_MIN_S
         )
-        assert adapter._max_energy_gap == ENERGY_GAP_TOLERANCE_MIN_S
+        assert adapter._energy_accumulator.max_gap == ENERGY_GAP_TOLERANCE_MIN_S
 
     def test_electrical_energy_slow_read_at_default_interval_not_clamped(self):
         """A 25 s gap at the default 5 s interval is integrated in full."""
@@ -353,12 +339,12 @@ class TestEnergyAndCost:
         adapter.update(data1)
         power_kw = data1["electrical_power"]
 
-        adapter._last_energy_time -= 25
+        adapter._energy_accumulator._last_time -= 25
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
         # rel: time.monotonic() keeps running between the two update() calls
-        assert adapter._accumulated_energy == pytest.approx(
+        assert adapter._energy_accumulator.energy == pytest.approx(
             power_kw * 25 / 3600, rel=1e-3
         )
 
@@ -369,11 +355,11 @@ class TestEnergyAndCost:
         adapter.update(data1)
         power_kw = data1["electrical_power"]
 
-        adapter._last_energy_time -= 50
+        adapter._energy_accumulator._last_time -= 50
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
-        assert adapter._accumulated_energy == pytest.approx(
+        assert adapter._energy_accumulator.energy == pytest.approx(
             power_kw * ENERGY_GAP_TOLERANCE_MIN_S / 3600, rel=1e-3
         )
 
@@ -384,7 +370,9 @@ class TestEnergyAndCost:
         adapter = DerivedMetricsAdapter(
             hass=None, config_entry=config_entry, power_supply="single"
         )
-        assert adapter._max_energy_gap == 60 * ENERGY_GAP_TOLERANCE_INTERVALS
+        assert (
+            adapter._energy_accumulator.max_gap == 60 * ENERGY_GAP_TOLERANCE_INTERVALS
+        )
 
     def test_electrical_energy_zero_when_compressor_off(self):
         """electrical_energy_consumed stays at 0 when compressor is off."""
@@ -444,7 +432,7 @@ class TestEnergyAndCost:
         # At 1.76 kW and 0.18 €/kWh, need enough cycles for cost > 0.005 (rounds to 0.01)
         # 0.005 / 0.18 = 0.028 kWh → 0.028 / 1.76 = 0.016h = 57s → ~12 cycles of 5s
         for _ in range(15):
-            adapter._last_energy_time -= 5
+            adapter._energy_accumulator._last_time -= 5
             data = _sample_data(compressor_current=8.5)
             adapter.update(data)
 
@@ -472,7 +460,7 @@ class TestEnergyAndCost:
 
         # Twenty polls at the configured 30 s interval: 10 minutes of running
         for _ in range(20):
-            adapter._last_energy_time -= 30
+            adapter._energy_accumulator._last_time -= 30
             data = _sample_data(compressor_current=8.5)
             adapter.update(data)
 
@@ -507,7 +495,7 @@ class TestEnergyAndCost:
 
         data1 = _sample_data(compressor_current=8.5)
         adapter.update(data1)
-        adapter._last_energy_time -= 5
+        adapter._energy_accumulator._last_time -= 5
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
         assert data2["electricity_cost"] == 0
@@ -569,7 +557,9 @@ class TestEnergyAndCost:
         adapter.update(data1)
 
         # Simulate a long gap (60s >> 10s threshold)
-        adapter._last_energy_time = adapter._last_energy_time - 60
+        adapter._energy_accumulator._last_time = (
+            adapter._energy_accumulator._last_time - 60
+        )
 
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
