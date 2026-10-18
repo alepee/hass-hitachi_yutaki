@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0-beta.12] - 2026-10-18
+
 ### Added
 
 - **Telemetry: preventive-maintenance feedback.** With anonymous telemetry on, the daily installation info now says whether each preventive-maintenance detector is turned on, how often the refrigerant baseline was reset (from the button or the "circuit was serviced" repair flow), and whether a detector's repair issue was ignored. The detectors' verdicts were already part of the metrics; they are now documented, and pinned by a test so no new key reaches the archive unreviewed. Nothing changes in the fleet ping.
