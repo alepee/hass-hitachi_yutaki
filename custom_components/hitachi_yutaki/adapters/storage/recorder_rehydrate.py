@@ -2,9 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta
-from itertools import groupby
 import logging
 
 from homeassistant.components.recorder import get_instance, history
@@ -22,6 +21,12 @@ from ..calculators.thermal import thermal_power_calculator_wrapper
 from ..providers.operation_mode import resolve_operation_mode
 
 _LOGGER = logging.getLogger(__name__)
+
+# Home Assistant stamps each entity's state when that entity writes it, so the
+# readings of one gateway poll land a few microseconds to milliseconds apart in
+# Recorder. Events closer than this belong to the same poll. Kept below the
+# shortest scan interval (1 s) so two polls are never merged.
+_POLL_WINDOW = timedelta(seconds=0.5)
 
 ThermalCalculator = Callable[[float, float, float], float]
 ElectricalCalculator = Callable[[float], float]
@@ -144,10 +149,9 @@ async def async_replay_cop_history(
     measurements: list[PowerMeasurement] = []
 
     guard = DefrostGuard()
-    # Apply every change at a timestamp before admitting a sample. Otherwise
-    # entity iteration order can attach the preceding meter value or mode.
-    for timestamp, changes in groupby(timeline, key=lambda item: item[0]):
-        observations = {key: value for _, key, value in changes}
+    # Apply every change of a poll before admitting a sample. Otherwise entity
+    # write order can attach the preceding meter value or mode.
+    for timestamp, observations in _poll_windows(timeline):
         latest.update(observations)
         inlet = latest.get("water_inlet_temp")
         outlet = latest.get("water_outlet_temp")
@@ -191,6 +195,28 @@ async def async_replay_cop_history(
         measurements = measurements[-max_measurements:]
 
     return measurements
+
+
+def _poll_windows(
+    timeline: list[tuple[datetime, str, float | str]],
+) -> Iterator[tuple[datetime, dict[str, float | str]]]:
+    """Group a sorted timeline into gateway polls.
+
+    A poll starts at its first event and takes every event within
+    ``_POLL_WINDOW`` of it; the poll is stamped with its first event. Within a
+    poll, the last value of each key wins.
+    """
+    window_start: datetime | None = None
+    observations: dict[str, float | str] = {}
+    for timestamp, key, value in timeline:
+        if window_start is not None and timestamp - window_start >= _POLL_WINDOW:
+            yield window_start, observations
+            window_start, observations = None, {}
+        if window_start is None:
+            window_start = timestamp
+        observations[key] = value
+    if window_start is not None:
+        yield window_start, observations
 
 
 async def async_replay_compressor_states(

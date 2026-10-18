@@ -134,6 +134,22 @@ complete thermal observations. The regression
 `test_partial_temperature_record_invalidates_recovery` failed before that fix
 and passes after it. The defrost/replay suite passes **29 tests**.
 
+A later independent review found that Recorder replay grouped events by exact
+timestamp. Home Assistant stamps each entity's state when that entity writes it,
+so the inlet and outlet readings of one poll land microseconds apart and never
+share a timestamp. Replay therefore never saw a complete thermal observation,
+recovery after defrost always waited for its 300-second timeout, and samples
+could be admitted on a partially applied poll. The fixtures hid this by giving
+every entity of a poll the same timestamp.
+
+Replay now groups events into poll windows: events within 0.5 seconds of a
+window's first event belong to the same poll (below the 1-second shortest scan
+interval, far above the write skew between entities). The parity fixtures stamp
+each entity write a few microseconds apart, as Home Assistant does; ten of the
+fifteen parity tests failed with exact-timestamp grouping and pass with poll
+windows. `test_poll_windows_merge_one_poll_and_split_consecutive_polls` pins the
+window boundary. The complete suite passes **906 tests**.
+
 ### Final local result and review verdict
 
 After the recovery and timestamp corrections, the complete suite passes

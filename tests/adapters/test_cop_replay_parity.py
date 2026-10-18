@@ -14,6 +14,15 @@ from homeassistant.core import State
 from tests.domain.clock import FakeClock
 
 
+def _written_at(when, index):
+    """Stamp the index-th entity write of a poll the way Home Assistant does.
+
+    Each entity stamps its state when it writes it, so the readings of one poll
+    land microseconds apart in Recorder, never on the same timestamp.
+    """
+    return when + timedelta(microseconds=37 * index)
+
+
 def _state(value, when, unit=None):
     state = MagicMock()
     state.state = str(value)
@@ -100,8 +109,10 @@ async def test_live_replay_identical_samples(
             power = _state(2000 if index == 0 else 4000, clock.wall, "W")
             states["sensor.power"].append(power)
             hass.states.get.return_value = power
-        for key, value in raw.items():
-            states[entity_ids[key]].append(_state(value, clock.wall))
+        for index, (key, value) in enumerate(raw.items()):
+            states[entity_ids[key]].append(
+                _state(value, _written_at(clock.wall, index))
+            )
         adapter.update(dict(raw))
 
     async def fetch(*_args, **_kwargs):
@@ -169,8 +180,8 @@ async def test_meter_events_do_not_end_defrost_recovery(monkeypatch, thermal_rec
     entity_ids["power_entity"] = "sensor.power"
     states = {entity_id: [] for entity_id in entity_ids.values()}
 
-    def record(entity_id, value, elapsed, unit=None):
-        when = start + timedelta(seconds=elapsed)
+    def record(entity_id, value, elapsed, unit=None, index=0):
+        when = _written_at(start + timedelta(seconds=elapsed), index)
         state = State(
             entity_id,
             str(value),
@@ -188,14 +199,14 @@ async def test_meter_events_do_not_end_defrost_recovery(monkeypatch, thermal_rec
         hass.states.get.return_value = record(
             "sensor.power", 2000 + elapsed, elapsed, "W"
         )
-        for key, value in raw.items():
+        for index, (key, value) in enumerate(raw.items()):
             if (
                 not thermal_records
                 and elapsed != 0
                 and key in {"water_inlet_temp", "water_outlet_temp"}
             ):
                 continue
-            record(entity_ids[key], value, elapsed)
+            record(entity_ids[key], value, elapsed, index=index)
         adapter.update(dict(raw))
 
     for elapsed in (101, 102, 103):
@@ -271,15 +282,16 @@ async def test_partial_temperature_record_invalidates_recovery(monkeypatch):
         )
         states["sensor.power"].append(power)
         hass.states.get.return_value = power
-        for key, value in raw.items():
+        for index, (key, value) in enumerate(raw.items()):
             if key in last_values and last_values[key] == value:
                 continue
+            written = _written_at(clock.wall, index)
             states[entity_ids[key]].append(
                 State(
                     entity_ids[key],
                     str(value),
-                    last_changed=clock.wall,
-                    last_updated=clock.wall,
+                    last_changed=written,
+                    last_updated=written,
                 )
             )
             last_values[key] = value
@@ -300,3 +312,21 @@ async def test_partial_temperature_record_invalidates_recovery(monkeypatch):
     live = service._accumulator.measurements
     assert [(point.timestamp - start).total_seconds() for point in live] == [0, 130]
     assert replay == live
+
+
+def test_poll_windows_merge_one_poll_and_split_consecutive_polls():
+    """Writes of one poll share a window; polls 1 s apart (shortest scan) do not."""
+    start = FakeClock().wall
+    timeline = [
+        (start, "water_inlet_temp", 30.0),
+        (_written_at(start, 1), "water_outlet_temp", 35.0),
+        (_written_at(start, 2), "water_inlet_temp", 31.0),
+        (start + timedelta(seconds=1), "water_inlet_temp", 32.0),
+    ]
+
+    windows = list(recorder_rehydrate._poll_windows(timeline))
+
+    assert windows == [
+        (start, {"water_inlet_temp": 31.0, "water_outlet_temp": 35.0}),
+        (start + timedelta(seconds=1), {"water_inlet_temp": 32.0}),
+    ]
