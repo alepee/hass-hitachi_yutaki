@@ -23,6 +23,7 @@ from .const import (
     DEFAULT_TELEMETRY_LEVEL,
     DOMAIN,
     FLEET_PING_STATS_URL,
+    RESET_SOURCE_SERVICED,
 )
 from .profiles import PROFILES
 
@@ -364,7 +365,7 @@ class RefrigerantServicedRepairFlow(RepairsFlow):
             coordinator = entry.runtime_data
             # The reset already deletes the repair issue; no config change, so
             # no reload is needed (unlike the other repair flows).
-            await coordinator.async_reset_refrigerant_baseline()
+            await coordinator.async_reset_refrigerant_baseline(RESET_SOURCE_SERVICED)
             return self.async_create_entry(data={})
 
         # The stale variant carries {last_valid_day}/{days_since_valid_data} in

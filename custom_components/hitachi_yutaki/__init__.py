@@ -34,7 +34,12 @@ from homeassistant.helpers.restore_state import async_get as async_get_restore_d
 from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 
-from .adapters.derived_metrics import REFRIGERANT_STORE_VERSION, DerivedMetricsAdapter
+from .adapters.derived_metrics import (
+    CYCLING_STORE_VERSION,
+    MAINTENANCE_EVENTS_STORE_VERSION,
+    REFRIGERANT_STORE_VERSION,
+    DerivedMetricsAdapter,
+)
 from .api import GATEWAY_INFO, HitachiApiClient, create_api_client
 from .api.base import UnitBindingStatus
 from .api.config_providers import GATEWAY_CONFIG_PROVIDERS, GatewayConfigProvider
@@ -996,6 +1001,15 @@ async def async_remove_entry(
     await Store(
         hass, REFRIGERANT_STORE_VERSION, f"{DOMAIN}_refrigerant_{entry.entry_id}"
     ).async_remove()
+    # Cycling detector Store and the reset counters kept beside the detectors.
+    await Store(
+        hass, CYCLING_STORE_VERSION, f"{DOMAIN}_cycling_{entry.entry_id}"
+    ).async_remove()
+    await Store(
+        hass,
+        MAINTENANCE_EVENTS_STORE_VERSION,
+        f"{DOMAIN}_maintenance_events_{entry.entry_id}",
+    ).async_remove()
 
     # Per-entry repair issues (async_delete_issue is idempotent).
     for issue_id in (
@@ -1005,6 +1019,7 @@ async def async_remove_entry(
         f"fleet_ping_notice_{entry.entry_id}",
         f"enable_refrigerant_detection_{entry.entry_id}",
         f"refrigerant_charge_alert_{entry.entry_id}",
+        f"compressor_short_cycling_{entry.entry_id}",
         *_unit_issue_ids(entry.entry_id),
     ):
         async_delete_issue(hass, DOMAIN, issue_id)

@@ -10,6 +10,7 @@ and delegates computation to domain services.
 
 from __future__ import annotations
 
+from datetime import date
 import logging
 from typing import Any
 
@@ -34,6 +35,8 @@ from ..const import (
     CONF_WATER_OUTLET_TEMP_ENTITY,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    RESET_SOURCE_BUTTON,
+    RESET_SOURCE_SERVICED,
 )
 from ..domain.models.cop import COPInput
 from ..domain.models.cycling import CyclingInput, CyclingStatus
@@ -70,6 +73,7 @@ COMPRESSOR_HISTORY_SIZE = 100
 
 REFRIGERANT_STORE_VERSION = 1
 CYCLING_STORE_VERSION = 1
+MAINTENANCE_EVENTS_STORE_VERSION = 1
 REFRIGERANT_SAVE_DELAY_S = 600  # debounce persisted writes (flush is daily)
 CYCLING_SAVE_DELAY_S = 600  # same debounce, same daily flush cadence
 
@@ -155,6 +159,12 @@ class DerivedMetricsAdapter:
         self._refrigerant_status: RefrigerantStatus | None = None
         self._refrigerant_observed_band = superheat_observed_band
         self._refrigerant_baseline_seen = False
+        # Reset events live in their own Store: reset() wipes the detector's.
+        self._events_store: Store | None = None
+        self._refrigerant_resets = dict.fromkeys(
+            (RESET_SOURCE_BUTTON, RESET_SOURCE_SERVICED), 0
+        )
+        self._refrigerant_last_reset: date | None = None
         if supports_extended_compressor_sensors and refrigerant_detection_enabled:
             self._refrigerant_monitor = RefrigerantMonitor(
                 InMemoryStorage(max_len=REFRIGERANT_HISTORY_DAYS),
@@ -167,6 +177,11 @@ class DerivedMetricsAdapter:
                     hass,
                     REFRIGERANT_STORE_VERSION,
                     f"{DOMAIN}_refrigerant_{entry_id}",
+                )
+                self._events_store = Store(
+                    hass,
+                    MAINTENANCE_EVENTS_STORE_VERSION,
+                    f"{DOMAIN}_maintenance_events_{entry_id}",
                 )
 
         # Compressor short-cycling detection (no capability gate: every profile
@@ -619,6 +634,7 @@ class DerivedMetricsAdapter:
 
     async def async_restore_refrigerant(self) -> None:
         """Load persisted refrigerant state from the Store into the monitor."""
+        await self._async_restore_events()
         if self._refrigerant_monitor is None or self._refrigerant_store is None:
             return
         try:
@@ -642,14 +658,67 @@ class DerivedMetricsAdapter:
                     self._refrigerant_monitor.get_status().baseline is not None
                 )
 
-    async def async_reset_refrigerant(self) -> None:
-        """Clear the monitor and delete its persisted state."""
+    async def async_reset_refrigerant(self, source: str) -> None:
+        """Clear the monitor, delete its persisted state and count the reset."""
         if self._refrigerant_monitor is not None:
             self._refrigerant_monitor.reset()
             self._refrigerant_status = None
             self._refrigerant_baseline_seen = False
+            self._refrigerant_resets[source] = (
+                self._refrigerant_resets.get(source, 0) + 1
+            )
+            self._refrigerant_last_reset = self._clock.now().date()
         if self._refrigerant_store is not None:
             await self._refrigerant_store.async_remove()
+        if self._events_store is not None:
+            await self._events_store.async_save(self._serialize_events())
+
+    @property
+    def refrigerant_resets(self) -> dict[str, int]:
+        """Return the number of baseline resets per source."""
+        return dict(self._refrigerant_resets)
+
+    @property
+    def refrigerant_days_since_reset(self) -> int | None:
+        """Return the days elapsed since the last reset, None if never reset."""
+        if self._refrigerant_last_reset is None:
+            return None
+        return max(0, (self._clock.now().date() - self._refrigerant_last_reset).days)
+
+    def _serialize_events(self) -> dict[str, Any]:
+        """Serialize the reset counters for their Store."""
+        return {
+            "refrigerant_resets": dict(self._refrigerant_resets),
+            "refrigerant_last_reset": (
+                self._refrigerant_last_reset.isoformat()
+                if self._refrigerant_last_reset
+                else None
+            ),
+        }
+
+    async def _async_restore_events(self) -> None:
+        """Load the reset counters; a missing or corrupt Store starts at zero."""
+        if self._events_store is None:
+            return
+        try:
+            state = await self._events_store.async_load()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("Failed to load maintenance events", exc_info=True)
+            return
+        if not isinstance(state, dict):
+            return
+        resets = state.get("refrigerant_resets")
+        if isinstance(resets, dict):
+            for source in self._refrigerant_resets:
+                count = resets.get(source)
+                if isinstance(count, int) and count >= 0:
+                    self._refrigerant_resets[source] = count
+        last_reset = state.get("refrigerant_last_reset")
+        if isinstance(last_reset, str):
+            try:
+                self._refrigerant_last_reset = date.fromisoformat(last_reset)
+            except ValueError:
+                self._refrigerant_last_reset = None
 
     async def async_flush_refrigerant(self) -> None:
         """Persist the current refrigerant state immediately (e.g. on unload)."""
@@ -718,14 +787,6 @@ class DerivedMetricsAdapter:
                     "the detector restarts in learning mode",
                     exc_info=True,
                 )
-
-    async def async_reset_cycling(self) -> None:
-        """Clear the monitor and delete its persisted state."""
-        if self._cycling_monitor is not None:
-            self._cycling_monitor.reset()
-            self._cycling_status = None
-        if self._cycling_store is not None:
-            await self._cycling_store.async_remove()
 
     async def async_flush_cycling(self) -> None:
         """Persist the current cycling state immediately (e.g. on unload)."""

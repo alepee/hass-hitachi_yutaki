@@ -127,6 +127,12 @@ DEFAULT_REFRIGERANT_DETECTION = False
 CONF_CYCLING_DETECTION = "cycling_detection"
 DEFAULT_CYCLING_DETECTION = False
 
+# Who reset the refrigerant baseline. The serviced fix flow confirms an
+# intervention on the circuit; the button may just silence an alert. Counted
+# per source for the anonymous telemetry, to tell the two apart.
+RESET_SOURCE_BUTTON = "button"
+RESET_SOURCE_SERVICED = "serviced"
+
 # COP calculation parameters
 COP_MEASUREMENTS_INTERVAL = 60  # seconds
 COP_MEASUREMENTS_PERIOD = 30  # minutes

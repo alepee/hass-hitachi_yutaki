@@ -1,5 +1,6 @@
 """Tests for DerivedMetricsAdapter."""
 
+from datetime import timedelta
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
@@ -8,7 +9,11 @@ import pytest
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
     DerivedMetricsAdapter,
 )
-from custom_components.hitachi_yutaki.const import DEFAULT_SCAN_INTERVAL
+from custom_components.hitachi_yutaki.const import (
+    DEFAULT_SCAN_INTERVAL,
+    RESET_SOURCE_BUTTON,
+    RESET_SOURCE_SERVICED,
+)
 from custom_components.hitachi_yutaki.domain.models.refrigerant import (
     RefrigerantBaseline,
     RefrigerantStatus,
@@ -21,6 +26,7 @@ from custom_components.hitachi_yutaki.domain.services.electrical_energy import (
     ENERGY_GAP_TOLERANCE_INTERVALS,
     ENERGY_GAP_TOLERANCE_MIN_S,
 )
+from tests.domain.clock import FakeClock
 
 
 def _sample_data(**overrides) -> dict:
@@ -904,7 +910,115 @@ class TestBaselineSeenGuard:
 
         with caplog.at_level(logging.WARNING):
             adapter._update_refrigerant(_sample_data())  # warns once
-            await adapter.async_reset_refrigerant()  # re-arms
+            await adapter.async_reset_refrigerant(RESET_SOURCE_BUTTON)  # re-arms
             adapter._update_refrigerant(_sample_data())  # warns again
 
         assert len(_off_band_warnings(caplog)) == 2
+
+
+class TestRefrigerantResetCounters:
+    """Baseline resets are counted per source and survive the detector's reset."""
+
+    @staticmethod
+    def _adapter(hass, clock) -> DerivedMetricsAdapter:
+        config_entry = _make_config_entry()
+        config_entry.entry_id = "entry1"
+        return DerivedMetricsAdapter(
+            hass=hass,
+            config_entry=config_entry,
+            power_supply="single",
+            supports_extended_compressor_sensors=True,
+            superheat_plausible_range=(-10.0, 80.0),
+            clock=clock,
+        )
+
+    async def test_resets_counted_per_source_and_restored(self, hass, hass_storage):
+        """Counters and the reset date persist in their own Store."""
+        clock = FakeClock()
+        adapter = self._adapter(hass, clock)
+        await adapter.async_restore_refrigerant()
+        assert adapter.refrigerant_resets == {
+            RESET_SOURCE_BUTTON: 0,
+            RESET_SOURCE_SERVICED: 0,
+        }
+        assert adapter.refrigerant_days_since_reset is None
+
+        await adapter.async_reset_refrigerant(RESET_SOURCE_BUTTON)
+        await adapter.async_reset_refrigerant(RESET_SOURCE_SERVICED)
+        await adapter.async_reset_refrigerant(RESET_SOURCE_SERVICED)
+        assert "hitachi_yutaki_refrigerant_entry1" not in hass_storage
+        assert "hitachi_yutaki_maintenance_events_entry1" in hass_storage
+
+        clock.wall += timedelta(days=5)
+        restored = self._adapter(hass, clock)
+        await restored.async_restore_refrigerant()
+        assert restored.refrigerant_resets == {
+            RESET_SOURCE_BUTTON: 1,
+            RESET_SOURCE_SERVICED: 2,
+        }
+        assert restored.refrigerant_days_since_reset == 5
+
+    async def test_corrupt_events_store_starts_at_zero(self, hass, hass_storage):
+        """A malformed events Store is ignored rather than breaking the restore."""
+        hass_storage["hitachi_yutaki_maintenance_events_entry1"] = {
+            "version": 1,
+            "key": "hitachi_yutaki_maintenance_events_entry1",
+            "data": {
+                "refrigerant_resets": {"button": -3, "serviced": "x"},
+                "refrigerant_last_reset": "not-a-date",
+            },
+        }
+        adapter = self._adapter(hass, FakeClock())
+        await adapter.async_restore_refrigerant()
+        assert adapter.refrigerant_resets == {
+            RESET_SOURCE_BUTTON: 0,
+            RESET_SOURCE_SERVICED: 0,
+        }
+        assert adapter.refrigerant_days_since_reset is None
+
+
+def test_detector_keys_sent_to_telemetry_are_frozen():
+    """Pin the detector keys injected into coordinator.data.
+
+    The telemetry collector forwards every key of ``coordinator.data`` and the
+    Worker keeps any primitive value, so a key added here reaches the archive
+    without review. Changing this set must come with an update of
+    docs/reference/telemetry.md.
+    """
+    adapter = DerivedMetricsAdapter(
+        hass=None,
+        config_entry=_make_config_entry(),
+        power_supply="single",
+        supports_extended_compressor_sensors=True,
+        superheat_plausible_range=(-10.0, 80.0),
+        refrigerant_detection_enabled=True,
+        cycling_detection_enabled=True,
+        clock=FakeClock(),
+    )
+    data = _sample_data()
+    adapter.update(data)
+    detector_keys = {
+        key
+        for key in data
+        if key.startswith(("refrigerant_charge_", "compressor_cycling_"))
+    }
+    assert detector_keys == {
+        "refrigerant_charge_status",
+        "refrigerant_charge_superheat_delta",
+        "refrigerant_charge_exv_delta",
+        "refrigerant_charge_evaporation_temp_delta",
+        "refrigerant_charge_baseline_days",
+        "refrigerant_charge_valid_days",
+        "refrigerant_charge_alert_streak",
+        "refrigerant_charge_last_valid_day",
+        "refrigerant_charge_days_since_valid_data",
+        "compressor_cycling_status",
+        "compressor_cycling_cycles_today",
+        "compressor_cycling_peak_starts",
+        "compressor_cycling_median_period",
+        "compressor_cycling_median_run",
+        "compressor_cycling_valid_days",
+        "compressor_cycling_alert_streak",
+        "compressor_cycling_last_valid_day",
+        "compressor_cycling_days_since_valid_day",
+    }

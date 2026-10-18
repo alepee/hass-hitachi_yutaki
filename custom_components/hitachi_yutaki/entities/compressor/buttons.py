@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING
 
 from homeassistant.const import EntityCategory
 
-from ...const import DEVICE_PRIMARY_COMPRESSOR
+from ...const import DEVICE_PRIMARY_COMPRESSOR, RESET_SOURCE_BUTTON
 from ..base.button import (
     HitachiYutakiButton,
     HitachiYutakiButtonEntityDescription,
@@ -43,8 +43,8 @@ def _build_refrigerant_button_descriptions() -> tuple[
                 "refrigerant top-up or expansion-valve service so a new reference "
                 "is learned from scratch."
             ),
-            action_fn=lambda coordinator: (
-                coordinator.async_reset_refrigerant_baseline()
+            action_fn=lambda coordinator: coordinator.async_reset_refrigerant_baseline(
+                RESET_SOURCE_BUTTON
             ),
         ),
     )

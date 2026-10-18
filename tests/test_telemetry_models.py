@@ -73,6 +73,30 @@ class TestInstallationInfo:
         # instance_hash should NOT appear in data (it's at the top level)
         assert "instance_hash" not in d["data"]
 
+    def test_to_dict_omits_unset_maintenance_fields(self):
+        """Detector fields are absent until the integration sets them."""
+        data = self._make_info().to_dict()["data"]
+        assert "refrigerant_detection" not in data
+        assert "refrigerant_resets_button" not in data
+
+    def test_to_dict_emits_maintenance_fields(self):
+        """Set detector fields reach the payload, falsy values included."""
+        data = self._make_info(
+            refrigerant_detection="on",
+            cycling_detection="off",
+            refrigerant_resets_button=0,
+            refrigerant_resets_serviced=1,
+            refrigerant_days_since_reset=4,
+            refrigerant_issue_dismissed=False,
+        ).to_dict()["data"]
+        assert data["refrigerant_detection"] == "on"
+        assert data["cycling_detection"] == "off"
+        assert data["refrigerant_resets_button"] == 0
+        assert data["refrigerant_resets_serviced"] == 1
+        assert data["refrigerant_days_since_reset"] == 4
+        assert data["refrigerant_issue_dismissed"] is False
+        assert "cycling_issue_dismissed" not in data
+
 
 class TestDeviceHashInPayloads:
     """Every payload type carries both identities (#395)."""
