@@ -24,6 +24,7 @@ from ..adapters.calculators.thermal import (
 )
 from ..adapters.providers.operation_mode import (
     get_accepted_operation_states,
+    resolve_cycling_regime,
     resolve_operation_mode,
 )
 from ..adapters.storage.in_memory import InMemoryStorage
@@ -737,7 +738,7 @@ class DerivedMetricsAdapter:
             return
 
         cycling_input = CyclingInput(
-            operation_mode=resolve_operation_mode(data.get("operation_state")),
+            operation_mode=resolve_cycling_regime(data.get("operation_state")),
             compressor_running=data.get("is_compressor_running"),
             data_reliable=self.defrost_guard.is_data_reliable,
         )
