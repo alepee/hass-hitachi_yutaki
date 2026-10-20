@@ -104,6 +104,8 @@ Only one of these two selects is created per install (mutually exclusive): `oper
 | thermal_energy_cooling_daily | sensor | Daily thermal cooling energy (cooling circuits only) | kWh | - |
 | thermal_energy_cooling_total | sensor | Total cumulative thermal cooling energy (cooling circuits only) | kWh | - |
 
+All four energy counters use `state_class: total_increasing`: the daily ones reset at midnight, which Home Assistant statistics treat as a new meter cycle.
+
 ### Performance (COP)
 
 | Entity | Type | Description | Category |

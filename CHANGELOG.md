@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- `thermal_energy_heating_daily` and `thermal_energy_cooling_daily` now use `state_class: total_increasing` instead of `total`. Declared `total` without a `last_reset`, every midnight reset was recorded by Home Assistant statistics as negative production equal to the whole previous day, so their long-term statistics (hourly/daily bars, the `sum` used by the Energy dashboard) drifted around zero instead of adding up. Existing statistics keep their history; only new hours are compiled correctly.
+
 ## [2.2.0-beta.12] - 2026-10-18
 
 ### Added
