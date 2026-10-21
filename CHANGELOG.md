@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Short-cycling detection never counted a cycle.** The detector treated the controller's thermo-off state as leaving space heating, but thermo-off (the unit stopping the compressor once the water target is reached) and demand-off (a room thermostat ending the demand) are the off half of a heating cycle. The cycle chain broke at every stop, so starts were seen but no cycle period was ever measured, and the sensor stayed in `learning` with `cycles_today` at 0 on every installation. Both now count as heating; a change of regime (DHW, pool, cooling) and defrosts still break the chain. The first verdict comes after one heating day with enough cycles, and installations that genuinely short-cycle can reach `alert` after three.
 - `thermal_energy_heating_daily` and `thermal_energy_cooling_daily` now use `state_class: total_increasing` instead of `total`. Declared `total` without a `last_reset`, every midnight reset was recorded by Home Assistant statistics as negative production equal to the whole previous day, so their long-term statistics (hourly/daily bars, the `sum` used by the Energy dashboard) drifted around zero instead of adding up. Existing statistics keep their history; only new hours are compiled correctly.
 
 ## [2.2.0-beta.12] - 2026-10-18

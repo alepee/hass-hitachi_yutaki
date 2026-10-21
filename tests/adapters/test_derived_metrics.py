@@ -1022,3 +1022,63 @@ def test_detector_keys_sent_to_telemetry_are_frozen():
         "compressor_cycling_last_valid_day",
         "compressor_cycling_days_since_valid_day",
     }
+
+
+def _cycling_replay(rest_state: str, cycles: int = 8) -> dict:
+    """Replay real-shaped heating cycles and return the last coordinator data.
+
+    Each cycle follows the shape seen on a real Yutaki S80: ``heat_thermo_on``
+    25 s before the compressor starts, a 4 min run, ``rest_state`` 25 s before
+    it stops, then a 5 min rest held in ``rest_state``.
+    """
+    clock = FakeClock()
+    adapter = DerivedMetricsAdapter(
+        hass=None,
+        config_entry=_make_config_entry(),
+        power_supply="single",
+        cycling_detection_enabled=True,
+        clock=clock,
+    )
+
+    def hold(state: str, running: bool, seconds: int) -> dict:
+        data = {}
+        for _ in range(seconds // 5):
+            data = _sample_data(operation_state=state, is_compressor_running=running)
+            adapter.update(data)
+            clock.seconds += 5
+            clock.wall += timedelta(seconds=5)
+        return data
+
+    data = {}
+    for _ in range(cycles):
+        hold("operation_state_heat_thermo_on", False, 25)
+        hold("operation_state_heat_thermo_on", True, 215)
+        hold(rest_state, True, 25)
+        data = hold(rest_state, False, 275)
+    return data
+
+
+@pytest.mark.parametrize(
+    "rest_state",
+    ["operation_state_heat_thermo_off", "operation_state_heat_demand_off"],
+)
+def test_cycling_counts_heating_cycles_through_the_off_phase(rest_state):
+    """Thermo-off and demand-off are the off half of a heating cycle.
+
+    Resolving them as "not heating" broke the cycle chain at every stop, so
+    the detector saw starts but never measured a period and stayed in
+    ``learning`` forever.
+    """
+    data = _cycling_replay(rest_state)
+
+    # 8 starts, the first one opens the chain: 7 measured periods of 9 min.
+    assert data["compressor_cycling_cycles_today"] == 7
+    assert data["compressor_cycling_median_period"] == pytest.approx(9.0)
+    assert data["compressor_cycling_median_run"] == pytest.approx(4.0)
+
+
+def test_cycling_chain_still_breaks_on_a_dhw_rest():
+    """A DHW phase between two heating runs is a regime change, not a rest."""
+    data = _cycling_replay("operation_state_dhw_on")
+
+    assert data["compressor_cycling_cycles_today"] == 0
