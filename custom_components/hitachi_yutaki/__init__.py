@@ -404,6 +404,11 @@ async def async_setup_entry(
         supports_secondary_compressor=profile.supports_secondary_compressor,
     )
 
+    # Restore counters before the first poll publishes coordinator.data, so
+    # TOTAL_INCREASING sensors never expose a transient zero after a restart.
+    await _async_restore_thermal_energy(hass, entry, coordinator)
+    await _async_restore_energy_state(hass, entry, coordinator)
+
     # Initial poll. A transient gateway_not_ready (H-LINK still initializing
     # after a gateway power-cycle) must not fail setup of an already-configured
     # entry: log a warning and continue. Entities will go ``available`` on the
@@ -453,12 +458,6 @@ async def async_setup_entry(
             has_dhw=live_caps["dhw"],
             has_pool=live_caps["pool"],
         )
-
-    # Restore thermal energy from last known state
-    await _async_restore_thermal_energy(hass, entry, coordinator)
-
-    # Restore energy accumulators (electrical energy + cost) from last known state
-    await _async_restore_energy_state(hass, entry, coordinator)
 
     # Rehydrate COP measurement buffers from Recorder history
     await coordinator.derived_metrics.async_rehydrate_cop()

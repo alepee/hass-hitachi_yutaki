@@ -204,3 +204,7 @@ For the full walkthrough, see [Adding Entities](../development/adding-entities.m
 3. Re-export public `build_*` functions from `__init__.py`
 4. Import and call the builders from the platform orchestrators (`sensor.py`, `switch.py`, etc.)
 5. Update [Architecture](../architecture.md) documentation
+
+## Energy counter restoration
+
+Thermal and electrical energy counters are restored before the first coordinator poll. This ensures the first published value already includes the restored energy, avoiding a transient zero that `total_increasing` statistics would interpret as a new meter cycle.
