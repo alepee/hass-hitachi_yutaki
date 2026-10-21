@@ -149,6 +149,25 @@ CONTROL register only tells you what was last *commanded*, not the actual
 running state. This is handled entirely within the register map files — entity
 code does not need to know about this distinction.
 
+The gateway acknowledges a CONTROL write at once, but the matching STATUS
+register only follows once the command has gone over H-LINK to the unit and
+back (15–20 s on an ATW-MBS-02). So that a command does not show up, revert and
+show up again, a successful `write_value` publishes the expected value (the
+written raw value passed through the key's deserializer) immediately and ignores
+STATUS reads of that key that still report another value, for up to
+`PENDING_WRITE_TTL` (30 s). A read equal to the expected value confirms the
+write and lifts the shadow earlier; past the deadline the gateway value wins
+again, so a command the unit refused cannot stick. Failed writes publish nothing.
+
+Two known limits of the shadow:
+
+- A fast **A → B → A** sequence on one key: the expected value is A again, so a
+  poll still reporting the first A counts as the confirmation. If the unit had
+  picked up B in between, STATUS can briefly show B.
+- Keys that **share a STATUS register** (`dhw_high_demand`, writable, and
+  `dhw_demand_mode`, read-only, both at 1079 on the ATW-MBS-02): only the written
+  key is shadowed, so the two entities can disagree during the window.
+
 ### Gateway Register Maps
 
 Each gateway has its own register map implementation:
