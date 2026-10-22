@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.hitachi_yutaki.const import DOMAIN
+from custom_components.hitachi_yutaki.const import DOMAIN, RESET_SOURCE_SERVICED
 from custom_components.hitachi_yutaki.repairs import (
     RefrigerantServicedRepairFlow,
     async_create_fix_flow,
@@ -139,7 +139,9 @@ class TestRefrigerantServicedRepairFlow:
         result = await flow.async_step_confirm({})
 
         assert result["type"] is FlowResultType.CREATE_ENTRY
-        coordinator.async_reset_refrigerant_baseline.assert_awaited_once()
+        coordinator.async_reset_refrigerant_baseline.assert_awaited_once_with(
+            RESET_SOURCE_SERVICED
+        )
 
 
 class TestAsyncCreateFixFlowDispatch:

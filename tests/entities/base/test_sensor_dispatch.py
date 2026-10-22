@@ -4,10 +4,15 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
+import pytest
+
 from custom_components.hitachi_yutaki.entities.base.sensor import (
     HitachiYutakiSensor,
     HitachiYutakiSensorEntityDescription,
     _create_sensors,
+)
+from custom_components.hitachi_yutaki.entities.control_unit.sensors import (
+    build_control_unit_sensors,
 )
 
 
@@ -81,3 +86,50 @@ class TestSensorDispatch:
         assert len(sensors) == 2
         assert type(sensors[0]) is HitachiYutakiSensor
         assert type(sensors[1]) is HitachiYutakiSensor
+
+
+@pytest.mark.parametrize(
+    ("data", "alarm", "operation"),
+    [
+        (None, None, None),
+        ({}, None, None),
+        ({"alarm_code": None, "operation_state_code": None}, None, None),
+        ({"alarm_code": 0, "operation_state_code": 0}, None, {"code": 0}),
+        ({"alarm_code": 42, "operation_state_code": 6}, {"code": 42}, {"code": 6}),
+    ],
+)
+def test_control_unit_attributes_preserve_codes(data, alarm, operation):
+    """Diagnostic descriptions own their attributes, including code zero."""
+    coordinator = _make_coordinator()
+    coordinator.data = data
+    sensors = {
+        sensor.entity_description.key: sensor
+        for sensor in build_control_unit_sensors(coordinator, "test_entry")
+    }
+    assert sensors["alarm"].extra_state_attributes == alarm
+    assert sensors["operation_state"].extra_state_attributes == operation
+
+
+@pytest.mark.parametrize("key", ["alarm", "operation_state", "arbitrary_sensor"])
+def test_generic_base_does_not_dispatch_on_key(key):
+    """Reserved-looking names have no implicit diagnostic behavior."""
+    coordinator = _make_coordinator()
+    coordinator.data = {"alarm_code": 42, "operation_state_code": 6}
+    sensor = _create_sensors(
+        coordinator, "test_entry", (_make_description(key),), "control_unit"
+    )[0]
+    assert sensor.extra_state_attributes is None
+
+
+@pytest.mark.parametrize("key", ["alarm", "operation_state", "arbitrary_sensor"])
+def test_attribute_callback_is_generic_and_works_without_poll_data(key):
+    """Computed descriptions can supply attributes before register data exists."""
+    coordinator = _make_coordinator()
+    coordinator.data = None
+    description = _make_description(key)
+    description.attributes_fn = MagicMock(return_value={"custom": 7})
+    sensor = _create_sensors(coordinator, "test_entry", (description,), "control_unit")[
+        0
+    ]
+    assert sensor.extra_state_attributes == {"custom": 7}
+    description.attributes_fn.assert_called_once_with(coordinator)

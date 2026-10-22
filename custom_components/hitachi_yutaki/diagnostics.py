@@ -9,9 +9,6 @@ from homeassistant.core import HomeAssistant
 
 from . import HitachiYutakiConfigEntry
 from .api.config_providers import GATEWAY_CONFIG_PROVIDERS
-from .const import CONF_MODBUS_HOST
-
-TO_REDACT = {CONF_MODBUS_HOST}
 
 
 async def async_get_config_entry_diagnostics(
@@ -24,15 +21,16 @@ async def async_get_config_entry_diagnostics(
     """
     coordinator = entry.runtime_data
     gateway_type = entry.data["gateway_type"]
+    provider = GATEWAY_CONFIG_PROVIDERS[gateway_type]()
     return {
         "entry": {
-            "data": async_redact_data(dict(entry.data), TO_REDACT),
+            "data": async_redact_data(dict(entry.data), provider.sensitive_config_keys),
             "options": dict(entry.options),
         },
         "gateway": {
             "gateway_type": gateway_type,
             "profile": entry.data.get("profile"),
-            **GATEWAY_CONFIG_PROVIDERS[gateway_type]().diagnostics(entry.data),
+            **provider.diagnostics(entry.data),
         },
         "coordinator": {
             "last_update_success": coordinator.last_update_success,

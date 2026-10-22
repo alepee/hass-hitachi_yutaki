@@ -95,8 +95,7 @@ def _build_circuit_number_descriptions(
             entity_category=EntityCategory.CONFIG,
             condition=lambda c: (
                 c.has_circuit(circuit_id, CIRCUIT_MODE_HEATING)
-                and f"circuit{circuit_id}_heat_eco_offset"
-                in c.api_client.register_map.all_registers
+                and c.api_client.can_write(f"circuit{circuit_id}_heat_eco_offset")
             ),
             get_fn=lambda api, circuit_id: (
                 float(value)
@@ -119,8 +118,7 @@ def _build_circuit_number_descriptions(
             entity_category=EntityCategory.CONFIG,
             condition=lambda c: (
                 c.has_circuit(circuit_id, CIRCUIT_MODE_COOLING)
-                and f"circuit{circuit_id}_cool_eco_offset"
-                in c.api_client.register_map.all_registers
+                and c.api_client.can_write(f"circuit{circuit_id}_cool_eco_offset")
             ),
             get_fn=lambda api, circuit_id: (
                 float(value)

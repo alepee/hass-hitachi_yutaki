@@ -54,7 +54,8 @@ def _build_thermal_sensor_descriptions(
             translation_key="thermal_energy_heating_daily",
             description="Daily thermal heating energy production (resets at midnight)",
             device_class=SensorDeviceClass.ENERGY,
-            state_class=SensorStateClass.TOTAL,
+            # A midnight reset is a new meter cycle, not negative production.
+            state_class=SensorStateClass.TOTAL_INCREASING,
             native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
             icon="mdi:heat-wave",
             value_fn=lambda c: c.data.get("thermal_energy_heating_daily"),
@@ -92,7 +93,7 @@ def _build_thermal_sensor_descriptions(
                     translation_key="thermal_energy_cooling_daily",
                     description="Daily thermal cooling energy production (resets at midnight)",
                     device_class=SensorDeviceClass.ENERGY,
-                    state_class=SensorStateClass.TOTAL,
+                    state_class=SensorStateClass.TOTAL_INCREASING,
                     native_unit_of_measurement=UnitOfEnergy.KILO_WATT_HOUR,
                     icon="mdi:snowflake",
                     value_fn=lambda c: c.data.get("thermal_energy_cooling_daily"),

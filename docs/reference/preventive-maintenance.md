@@ -65,3 +65,6 @@ Two standing limitations apply to every detector calibrated so far:
   populations.
 
 Turning on [anonymous telemetry](telemetry.md) is what makes this calibration possible.
+It also carries what a replay cannot see: each detector's live verdict, the user's consent,
+the baseline resets and whether a repair issue was ignored, so the replayed rules can be
+checked against the verdicts installations actually got.

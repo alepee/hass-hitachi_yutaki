@@ -34,6 +34,13 @@ export interface InstallationPayload extends BasePayload {
     latitude?: number | null;
     longitude?: number | null;
     climate_zone?: string | null;
+    refrigerant_detection?: string;
+    cycling_detection?: string;
+    refrigerant_resets_button?: number;
+    refrigerant_resets_serviced?: number;
+    refrigerant_days_since_reset?: number;
+    refrigerant_issue_dismissed?: boolean;
+    cycling_issue_dismissed?: boolean;
   };
 }
 

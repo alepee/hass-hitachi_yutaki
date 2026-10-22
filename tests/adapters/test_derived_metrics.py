@@ -1,16 +1,19 @@
 """Tests for DerivedMetricsAdapter."""
 
+from datetime import timedelta
 import logging
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
 from custom_components.hitachi_yutaki.adapters.derived_metrics import (
-    ENERGY_GAP_TOLERANCE_INTERVALS,
-    ENERGY_GAP_TOLERANCE_MIN_S,
     DerivedMetricsAdapter,
 )
-from custom_components.hitachi_yutaki.const import DEFAULT_SCAN_INTERVAL
+from custom_components.hitachi_yutaki.const import (
+    DEFAULT_SCAN_INTERVAL,
+    RESET_SOURCE_BUTTON,
+    RESET_SOURCE_SERVICED,
+)
 from custom_components.hitachi_yutaki.domain.models.refrigerant import (
     RefrigerantBaseline,
     RefrigerantStatus,
@@ -19,6 +22,11 @@ from custom_components.hitachi_yutaki.domain.services.electrical import (
     POWER_FACTOR,
     VOLTAGE_SINGLE_PHASE,
 )
+from custom_components.hitachi_yutaki.domain.services.electrical_energy import (
+    ENERGY_GAP_TOLERANCE_INTERVALS,
+    ENERGY_GAP_TOLERANCE_MIN_S,
+)
+from tests.domain.clock import FakeClock
 
 
 def _sample_data(**overrides) -> dict:
@@ -209,30 +217,14 @@ class TestCOP:
         adapter_yes.update(data2)
         assert "cop_pool" in data2
 
-    def test_hvac_action_heating(self):
-        """HVAC action is 'heating' when unit_mode is 1."""
-        adapter = _make_adapter()
-        data = _sample_data(unit_mode=1)
-        assert adapter._get_hvac_action(data) == "heating"
-
-    def test_hvac_action_cooling(self):
-        """HVAC action is 'cooling' when unit_mode is 0."""
-        adapter = _make_adapter()
-        data = _sample_data(unit_mode=0)
-        assert adapter._get_hvac_action(data) == "cooling"
-
-    def test_hvac_action_auto_detects_from_delta(self):
-        """HVAC action in auto mode is detected from temperature delta."""
-        adapter = _make_adapter()
-        data_heat = _sample_data(
-            unit_mode=2, water_inlet_temp=30.0, water_outlet_temp=35.0
-        )
-        assert adapter._get_hvac_action(data_heat) == "heating"
-
-        data_cool = _sample_data(
-            unit_mode=2, water_inlet_temp=35.0, water_outlet_temp=30.0
-        )
-        assert adapter._get_hvac_action(data_cool) == "cooling"
+    @pytest.mark.parametrize("unit_mode", [0, 1, 2])
+    def test_cop_uses_operation_state_independently_of_unit_mode(self, unit_mode):
+        """Removing unused HVAC action keeps COP admission on operation_state."""
+        adapter = _make_adapter(has_cooling=True)
+        data = _sample_data(unit_mode=unit_mode)
+        adapter.update(data)
+        assert data["cop_heating_measurements"] == 1
+        assert data["cop_cooling_measurements"] == 0
 
     def test_reinit_cop_services(self):
         """_init_cop_services replaces existing services."""
@@ -281,7 +273,7 @@ class TestEnergyAndCost:
         data1 = _sample_data(compressor_current=8.5)
         adapter.update(data1)
         # Simulate 5 seconds elapsed (within gap threshold)
-        adapter._last_energy_time -= 5
+        adapter._energy_accumulator._last_time -= 5
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
         assert data2["electrical_energy_consumed"] > 0
@@ -302,7 +294,7 @@ class TestEnergyAndCost:
         adapter.update(data1)
         power_kw = data1["electrical_power"]
 
-        adapter._last_energy_time -= 20
+        adapter._energy_accumulator._last_time -= 20
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
@@ -325,7 +317,7 @@ class TestEnergyAndCost:
         adapter.update(data1)
         power_kw = data1["electrical_power"]
 
-        adapter._last_energy_time -= 3600  # one hour without a poll
+        adapter._energy_accumulator._last_time -= 3600  # one hour without a poll
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
@@ -344,7 +336,7 @@ class TestEnergyAndCost:
         assert DEFAULT_SCAN_INTERVAL * ENERGY_GAP_TOLERANCE_INTERVALS < (
             ENERGY_GAP_TOLERANCE_MIN_S
         )
-        assert adapter._max_energy_gap == ENERGY_GAP_TOLERANCE_MIN_S
+        assert adapter._energy_accumulator.max_gap == ENERGY_GAP_TOLERANCE_MIN_S
 
     def test_electrical_energy_slow_read_at_default_interval_not_clamped(self):
         """A 25 s gap at the default 5 s interval is integrated in full."""
@@ -353,12 +345,12 @@ class TestEnergyAndCost:
         adapter.update(data1)
         power_kw = data1["electrical_power"]
 
-        adapter._last_energy_time -= 25
+        adapter._energy_accumulator._last_time -= 25
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
         # rel: time.monotonic() keeps running between the two update() calls
-        assert adapter._accumulated_energy == pytest.approx(
+        assert adapter._energy_accumulator.energy == pytest.approx(
             power_kw * 25 / 3600, rel=1e-3
         )
 
@@ -369,11 +361,11 @@ class TestEnergyAndCost:
         adapter.update(data1)
         power_kw = data1["electrical_power"]
 
-        adapter._last_energy_time -= 50
+        adapter._energy_accumulator._last_time -= 50
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
 
-        assert adapter._accumulated_energy == pytest.approx(
+        assert adapter._energy_accumulator.energy == pytest.approx(
             power_kw * ENERGY_GAP_TOLERANCE_MIN_S / 3600, rel=1e-3
         )
 
@@ -384,7 +376,9 @@ class TestEnergyAndCost:
         adapter = DerivedMetricsAdapter(
             hass=None, config_entry=config_entry, power_supply="single"
         )
-        assert adapter._max_energy_gap == 60 * ENERGY_GAP_TOLERANCE_INTERVALS
+        assert (
+            adapter._energy_accumulator.max_gap == 60 * ENERGY_GAP_TOLERANCE_INTERVALS
+        )
 
     def test_electrical_energy_zero_when_compressor_off(self):
         """electrical_energy_consumed stays at 0 when compressor is off."""
@@ -444,7 +438,7 @@ class TestEnergyAndCost:
         # At 1.76 kW and 0.18 €/kWh, need enough cycles for cost > 0.005 (rounds to 0.01)
         # 0.005 / 0.18 = 0.028 kWh → 0.028 / 1.76 = 0.016h = 57s → ~12 cycles of 5s
         for _ in range(15):
-            adapter._last_energy_time -= 5
+            adapter._energy_accumulator._last_time -= 5
             data = _sample_data(compressor_current=8.5)
             adapter.update(data)
 
@@ -472,7 +466,7 @@ class TestEnergyAndCost:
 
         # Twenty polls at the configured 30 s interval: 10 minutes of running
         for _ in range(20):
-            adapter._last_energy_time -= 30
+            adapter._energy_accumulator._last_time -= 30
             data = _sample_data(compressor_current=8.5)
             adapter.update(data)
 
@@ -507,7 +501,7 @@ class TestEnergyAndCost:
 
         data1 = _sample_data(compressor_current=8.5)
         adapter.update(data1)
-        adapter._last_energy_time -= 5
+        adapter._energy_accumulator._last_time -= 5
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
         assert data2["electricity_cost"] == 0
@@ -569,7 +563,9 @@ class TestEnergyAndCost:
         adapter.update(data1)
 
         # Simulate a long gap (60s >> 10s threshold)
-        adapter._last_energy_time = adapter._last_energy_time - 60
+        adapter._energy_accumulator._last_time = (
+            adapter._energy_accumulator._last_time - 60
+        )
 
         data2 = _sample_data(compressor_current=8.5)
         adapter.update(data2)
@@ -914,7 +910,175 @@ class TestBaselineSeenGuard:
 
         with caplog.at_level(logging.WARNING):
             adapter._update_refrigerant(_sample_data())  # warns once
-            await adapter.async_reset_refrigerant()  # re-arms
+            await adapter.async_reset_refrigerant(RESET_SOURCE_BUTTON)  # re-arms
             adapter._update_refrigerant(_sample_data())  # warns again
 
         assert len(_off_band_warnings(caplog)) == 2
+
+
+class TestRefrigerantResetCounters:
+    """Baseline resets are counted per source and survive the detector's reset."""
+
+    @staticmethod
+    def _adapter(hass, clock) -> DerivedMetricsAdapter:
+        config_entry = _make_config_entry()
+        config_entry.entry_id = "entry1"
+        return DerivedMetricsAdapter(
+            hass=hass,
+            config_entry=config_entry,
+            power_supply="single",
+            supports_extended_compressor_sensors=True,
+            superheat_plausible_range=(-10.0, 80.0),
+            clock=clock,
+        )
+
+    async def test_resets_counted_per_source_and_restored(self, hass, hass_storage):
+        """Counters and the reset date persist in their own Store."""
+        clock = FakeClock()
+        adapter = self._adapter(hass, clock)
+        await adapter.async_restore_refrigerant()
+        assert adapter.refrigerant_resets == {
+            RESET_SOURCE_BUTTON: 0,
+            RESET_SOURCE_SERVICED: 0,
+        }
+        assert adapter.refrigerant_days_since_reset is None
+
+        await adapter.async_reset_refrigerant(RESET_SOURCE_BUTTON)
+        await adapter.async_reset_refrigerant(RESET_SOURCE_SERVICED)
+        await adapter.async_reset_refrigerant(RESET_SOURCE_SERVICED)
+        assert "hitachi_yutaki_refrigerant_entry1" not in hass_storage
+        assert "hitachi_yutaki_maintenance_events_entry1" in hass_storage
+
+        clock.wall += timedelta(days=5)
+        restored = self._adapter(hass, clock)
+        await restored.async_restore_refrigerant()
+        assert restored.refrigerant_resets == {
+            RESET_SOURCE_BUTTON: 1,
+            RESET_SOURCE_SERVICED: 2,
+        }
+        assert restored.refrigerant_days_since_reset == 5
+
+    async def test_corrupt_events_store_starts_at_zero(self, hass, hass_storage):
+        """A malformed events Store is ignored rather than breaking the restore."""
+        hass_storage["hitachi_yutaki_maintenance_events_entry1"] = {
+            "version": 1,
+            "key": "hitachi_yutaki_maintenance_events_entry1",
+            "data": {
+                "refrigerant_resets": {"button": -3, "serviced": "x"},
+                "refrigerant_last_reset": "not-a-date",
+            },
+        }
+        adapter = self._adapter(hass, FakeClock())
+        await adapter.async_restore_refrigerant()
+        assert adapter.refrigerant_resets == {
+            RESET_SOURCE_BUTTON: 0,
+            RESET_SOURCE_SERVICED: 0,
+        }
+        assert adapter.refrigerant_days_since_reset is None
+
+
+def test_detector_keys_sent_to_telemetry_are_frozen():
+    """Pin the detector keys injected into coordinator.data.
+
+    The telemetry collector forwards every key of ``coordinator.data`` and the
+    Worker keeps any primitive value, so a key added here reaches the archive
+    without review. Changing this set must come with an update of
+    docs/reference/telemetry.md.
+    """
+    adapter = DerivedMetricsAdapter(
+        hass=None,
+        config_entry=_make_config_entry(),
+        power_supply="single",
+        supports_extended_compressor_sensors=True,
+        superheat_plausible_range=(-10.0, 80.0),
+        refrigerant_detection_enabled=True,
+        cycling_detection_enabled=True,
+        clock=FakeClock(),
+    )
+    data = _sample_data()
+    adapter.update(data)
+    detector_keys = {
+        key
+        for key in data
+        if key.startswith(("refrigerant_charge_", "compressor_cycling_"))
+    }
+    assert detector_keys == {
+        "refrigerant_charge_status",
+        "refrigerant_charge_superheat_delta",
+        "refrigerant_charge_exv_delta",
+        "refrigerant_charge_evaporation_temp_delta",
+        "refrigerant_charge_baseline_days",
+        "refrigerant_charge_valid_days",
+        "refrigerant_charge_alert_streak",
+        "refrigerant_charge_last_valid_day",
+        "refrigerant_charge_days_since_valid_data",
+        "compressor_cycling_status",
+        "compressor_cycling_cycles_today",
+        "compressor_cycling_peak_starts",
+        "compressor_cycling_median_period",
+        "compressor_cycling_median_run",
+        "compressor_cycling_valid_days",
+        "compressor_cycling_alert_streak",
+        "compressor_cycling_last_valid_day",
+        "compressor_cycling_days_since_valid_day",
+    }
+
+
+def _cycling_replay(rest_state: str, cycles: int = 8) -> dict:
+    """Replay real-shaped heating cycles and return the last coordinator data.
+
+    Each cycle follows the shape seen on a real Yutaki S80: ``heat_thermo_on``
+    25 s before the compressor starts, a 4 min run, ``rest_state`` 25 s before
+    it stops, then a 5 min rest held in ``rest_state``.
+    """
+    clock = FakeClock()
+    adapter = DerivedMetricsAdapter(
+        hass=None,
+        config_entry=_make_config_entry(),
+        power_supply="single",
+        cycling_detection_enabled=True,
+        clock=clock,
+    )
+
+    def hold(state: str, running: bool, seconds: int) -> dict:
+        data = {}
+        for _ in range(seconds // 5):
+            data = _sample_data(operation_state=state, is_compressor_running=running)
+            adapter.update(data)
+            clock.seconds += 5
+            clock.wall += timedelta(seconds=5)
+        return data
+
+    data = {}
+    for _ in range(cycles):
+        hold("operation_state_heat_thermo_on", False, 25)
+        hold("operation_state_heat_thermo_on", True, 215)
+        hold(rest_state, True, 25)
+        data = hold(rest_state, False, 275)
+    return data
+
+
+@pytest.mark.parametrize(
+    "rest_state",
+    ["operation_state_heat_thermo_off", "operation_state_heat_demand_off"],
+)
+def test_cycling_counts_heating_cycles_through_the_off_phase(rest_state):
+    """Thermo-off and demand-off are the off half of a heating cycle.
+
+    Resolving them as "not heating" broke the cycle chain at every stop, so
+    the detector saw starts but never measured a period and stayed in
+    ``learning`` forever.
+    """
+    data = _cycling_replay(rest_state)
+
+    # 8 starts, the first one opens the chain: 7 measured periods of 9 min.
+    assert data["compressor_cycling_cycles_today"] == 7
+    assert data["compressor_cycling_median_period"] == pytest.approx(9.0)
+    assert data["compressor_cycling_median_run"] == pytest.approx(4.0)
+
+
+def test_cycling_chain_still_breaks_on_a_dhw_rest():
+    """A DHW phase between two heating runs is a regime change, not a rest."""
+    data = _cycling_replay("operation_state_dhw_on")
+
+    assert data["compressor_cycling_cycles_today"] == 0

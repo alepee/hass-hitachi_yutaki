@@ -38,6 +38,9 @@ This integration follows **Hexagonal Architecture** (Ports and Adapters) with st
 - **NEVER** import from `adapters.*` or `entities.*`
 - **NEVER** use external libraries (stdlib only)
 - **ALWAYS** use Protocols for dependencies
+- Inject elapsed time and installation-local calendar time through the `Clock`
+  port (or supply explicit timestamps). Never capture the system clock inside
+  domain services. Duration calculations must tolerate invalid/backward inputs.
 - Pure business logic that can be tested without HA mocks
 
 **Adapters Layer** (`adapters/`):
@@ -45,6 +48,8 @@ This integration follows **Hexagonal Architecture** (Ports and Adapters) with st
 - Bridges domain with Home Assistant infrastructure
 - Delegates business logic to domain services
 - Handles HA-specific concerns (state retrieval, entity data)
+- Recorder replay normalizes historical inputs and calls the same pure COP
+  measurement rules as live updates; it does not maintain a second calculator.
 
 **Entity Layer** (`entities/`):
 - Organized by **business domain** (not by entity type)
@@ -60,6 +65,17 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Auto-detected from Modbus data; a profile declares capabilities (DHW, pool, circuits, compressors, water circuit, extended compressor sensors) and temperature ranges.
 - Base class: `HitachiHeatPumpProfile` (`profiles/base.py`); models register in `profiles/__init__.py` (`PROFILES`).
 - Capability flags gate entity creation (via `condition` callbacks), e.g. a DHW-only Yutampo R32 sets `supports_water_circuit=False` and `supports_extended_compressor_sensors=False`.
+- `profile.max_circuits` is the hardware limit, including zero for DHW-only
+  units. Do not replace it with the number of currently configured circuits.
+
+### Gateway API Boundary
+- Consumers use logical `base_keys`/`gateway_keys`, `supports_key`, `can_write`
+  and `supported_unit_modes`; concrete register maps stay inside `api/`.
+- A readable key is not necessarily writable. UI commands must use writable
+  capabilities and propagate failed writes.
+- Providers own transport-specific validation, fallback identity and optional
+  configuration URLs. Setup and config flows do not interpret Modbus states or
+  exceptions.
 
 ### COP Calculation
 - Coefficient of Performance monitoring using energy accumulation over time.
@@ -92,6 +108,7 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Binary consent (Off / On) stored in `entry.options["telemetry_level"]` (`CONF_TELEMETRY_LEVEL`, default `"off"`).
 - **Package** (`telemetry/`): models (three payloads: `InstallationInfo`, `MetricsBatch`, `RegisterSnapshot`), collector (circular buffer), anonymizer (SHA-256 hash, temperature/geolocation rounding; `hash_instance_id` for the per-household `instance_hash` and `hash_device_id` for the per-unit `device_hash`, derived from `f"{instance_id}:{entry.unique_id}"`), HTTP client (gzip + retry), noop client.
 - **Buffering**: the collector's buffer holds 30 minutes of points; `flush()` returns at most `MAX_FLUSH_POINTS` (80) of them, oldest first, and leaves the rest buffered so a backlog cannot grow past the endpoint's 256 KB payload limit (at the cap a batch is ~88 KB on the narrowest profile and ~187 KB on the widest, so the margin is 27% in the worst case). A failed send re-queues its points (`requeue`, dropping anything older than `MAX_POINT_AGE`); the clients return a `SendResult` rather than a bool so the coordinator drops, instead of retrying, a batch refused with HTTP 413.
+- **Detector feedback**: running detectors write their verdict into `coordinator.data`, so it reaches every metrics point (the Worker keeps any primitive metric key); `test_detector_keys_sent_to_telemetry_are_frozen` pins that set. The daily installation info adds the consent per detector, refrigerant baseline resets per source (`RESET_SOURCE_BUTTON`/`RESET_SOURCE_SERVICED`, counted in their own `maintenance_events` Store because a reset wipes the detector's) and dismissed repair issues (`_maintenance_telemetry`). Never in the fleet ping.
 - **Coordinator wiring**: collect on each poll, 5-min metrics flush, one-time installation info + register snapshot on first successful poll (fire-and-forget with `asyncio.Lock` + exponential backoff), and a daily re-send of the installation payload at the UTC day boundary (keeps WAE's 90-day window populated). There is no separate daily-stats aggregator.
 - **Backend**: Cloudflare Worker (ingestion/validation/rate-limit per payload type) → R2 (permanent JSON archive, partitioned Hive-style). Both the rate limit and the R2 archive keys are keyed per unit (`device_hash`), not per household, so a multi-gateway installation no longer has its units starve each other's rate-limit budget. Installation payloads are mirrored to Workers Analytics Engine (dataset `hitachi_installations`) for a Grafana fleet dashboard, which keeps `instance_hash` as its index (`blob1`, unchanged, so existing panels keep working) and appends `device_hash` as `blob8`; the integration re-sends installation daily to keep WAE's 90-day window populated.
 - **Consent flows**: options flow step (after sensors), repair flow for existing users.
@@ -108,6 +125,10 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 
 ### When Adding New Entities
 Follow the domain builder pattern. See [docs/development/adding-entities.md](docs/development/adding-entities.md). **Never** add business logic to entity classes; gate optional entities with a `condition` callback on the entity description.
+Feature-specific sensor attributes belong in description callbacks, not in
+sensor-key dispatch inside generic base classes. Climate entities translate the
+domain's actual-activity verdict; selected global mode alone does not establish
+that a circuit is heating while the unit produces DHW or heats the pool.
 
 ### When Modifying Calculations
 Domain logic goes in `domain/services/`, adapter logic in `adapters/`. See [docs/reference/domain-services.md](docs/reference/domain-services.md). The domain layer must remain HA-agnostic.

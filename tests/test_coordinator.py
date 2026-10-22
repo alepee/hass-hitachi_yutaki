@@ -9,9 +9,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from custom_components.hitachi_yutaki.api.base import ReadResult
-from custom_components.hitachi_yutaki.const import DOMAIN
+from custom_components.hitachi_yutaki.const import (
+    CONF_CYCLING_DETECTION,
+    CONF_REFRIGERANT_DETECTION,
+    DOMAIN,
+)
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
+from custom_components.hitachi_yutaki.domain.models.cycling import CyclingStatus
 from custom_components.hitachi_yutaki.domain.models.refrigerant import RefrigerantStatus
+from custom_components.hitachi_yutaki.domain.services.defrost_guard import DefrostState
 from custom_components.hitachi_yutaki.domain.services.refrigerant import (
     ALERT_PERSIST_DAYS,
     STALE_AFTER_DAYS,
@@ -30,6 +36,8 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 def mock_hass():
     """Create a mock Home Assistant instance."""
     hass = MagicMock()
+    # The fake HA instance does not schedule tasks; close background telemetry.
+    hass.async_create_task.side_effect = lambda coroutine: coroutine.close()
     return hass
 
 
@@ -41,7 +49,7 @@ def mock_api_client():
     client.read_values = AsyncMock(return_value=ReadResult.SUCCESS)
     client.async_verify_unit = AsyncMock(return_value=True)
     client.read_value = AsyncMock(return_value=None)
-    client.register_map.base_keys = ["system_state"]
+    client.base_keys = ["system_state"]
     client.is_defrosting = False
     return client
 
@@ -533,3 +541,91 @@ async def test_unit_check_retries_when_it_cannot_be_made(coordinator, mock_api_c
 
     assert mock_api_client.async_verify_unit.await_count == 2
     coordinator.hass.config_entries.async_schedule_reload.assert_not_called()
+
+
+def test_fallback_defrost_guard_has_infrastructure_clock(coordinator):
+    """The fallback guard can enter recovery and expire without explicit timestamps."""
+    assert coordinator.derived_metrics is None
+    guard = coordinator.defrost_guard
+    with patch(
+        "custom_components.hitachi_yutaki.adapters.clock.monotonic",
+        side_effect=[100.0, 101.0, 401.0],
+    ):
+        guard.update(True, 5.0)
+        assert guard.state == DefrostState.DEFROST
+        guard.update(False, None)
+        assert guard.state == DefrostState.RECOVERY
+        guard.update(False, None)
+        assert guard.is_data_reliable
+
+
+def test_derived_metrics_defrost_guard_takes_precedence(coordinator):
+    """An attached metrics adapter supplies the shared guard used by entities."""
+    coordinator.derived_metrics = MagicMock()
+    assert coordinator.defrost_guard is coordinator.derived_metrics.defrost_guard
+
+
+@pytest.mark.parametrize("verdict", ["alert", "watch", "ok", "learning", None])
+def test_cycling_issue_translates_detector_verdict(coordinator, verdict):
+    """The coordinator presents the domain decision without deriving a streak."""
+    coordinator.config_entry.options = {CONF_CYCLING_DETECTION: True}
+    coordinator.derived_metrics = MagicMock()
+    coordinator.derived_metrics.cycling_status = (
+        CyclingStatus(
+            status=verdict,
+            cycles_today=0,
+            peak_starts_today=None,
+            median_period_today=None,
+            median_run_today=None,
+            valid_days=3,
+            alert_streak=3,
+        )
+        if verdict is not None
+        else None
+    )
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        coordinator._update_cycling_issue()
+    if verdict == "alert":
+        mock_ir.async_create_issue.assert_called_once()
+        kwargs = mock_ir.async_create_issue.call_args.kwargs
+        assert kwargs["translation_key"] == "compressor_short_cycling"
+        assert kwargs["is_fixable"] is False
+        assert kwargs["is_persistent"] is False
+        assert kwargs["translation_placeholders"] == {"period": "15"}
+        assert kwargs["learn_more_url"].endswith("docs/reference/cycling-monitoring.md")
+        mock_ir.async_delete_issue.assert_not_called()
+    else:
+        mock_ir.async_create_issue.assert_not_called()
+        mock_ir.async_delete_issue.assert_called_once()
+
+
+@pytest.mark.parametrize("detector", ["refrigerant", "cycling"])
+def test_no_consent_clears_warning_without_evaluating_policy(coordinator, detector):
+    """Extraction preserves each detector's consent gate."""
+    coordinator.config_entry.options = {}
+    with (
+        patch(
+            f"custom_components.hitachi_yutaki.coordinator.{detector}_alert_policy"
+        ) as policy,
+        patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir,
+    ):
+        getattr(coordinator, f"_update_{detector}_issue")()
+    policy.assert_not_called()
+    mock_ir.async_create_issue.assert_not_called()
+    mock_ir.async_delete_issue.assert_called_once()
+
+
+def test_refrigerant_missing_capability_clears_warning(coordinator):
+    """Consent cannot enable a refrigerant warning on an unsupported profile."""
+    coordinator.config_entry.options = {CONF_REFRIGERANT_DETECTION: True}
+    coordinator.profile.supports_extended_compressor_sensors = False
+    with (
+        patch(
+            "custom_components.hitachi_yutaki.coordinator.refrigerant_alert_policy"
+        ) as policy,
+        patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir,
+    ):
+        coordinator._update_refrigerant_issue()
+    policy.assert_not_called()
+    mock_ir.async_create_issue.assert_not_called()
+    mock_ir.async_delete_issue.assert_called_once()

@@ -252,6 +252,41 @@ describe("hardening (#414)", () => {
     });
   });
 
+  describe("preventive-maintenance installation fields", () => {
+    it("archives the detector consent, resets and dismissed issues", async () => {
+      const bucket = createFakeBucket();
+      const detectors = {
+        refrigerant_detection: "on",
+        cycling_detection: "off",
+        refrigerant_resets_button: 0,
+        refrigerant_resets_serviced: 1,
+        refrigerant_days_since_reset: 12,
+        refrigerant_issue_dismissed: false,
+      };
+
+      const res = await worker.fetch(
+        makeRequest(installationPayload(detectors)),
+        makeEnv(bucket),
+      );
+
+      expect(res.status).toBe(202);
+      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      expect(archived.data).toMatchObject(detectors);
+    });
+
+    it("drops a reset counter of the wrong type", async () => {
+      const bucket = createFakeBucket();
+
+      await worker.fetch(
+        makeRequest(installationPayload({ refrigerant_resets_button: "two" })),
+        makeEnv(bucket),
+      );
+
+      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      expect(archived.data.refrigerant_resets_button).toBeUndefined();
+    });
+  });
+
   describe("installation fields of the wrong type are dropped, not archived", () => {
     it("drops a non-numeric latitude and still accepts the payload", async () => {
       const bucket = createFakeBucket();

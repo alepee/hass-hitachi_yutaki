@@ -41,6 +41,16 @@ const INSTALLATION_FIELDS = new Map<string, "string" | "number" | "boolean">([
   ["latitude", "number"],
   ["longitude", "number"],
   ["climate_zone", "string"],
+  // Preventive-maintenance detectors: consent, baseline resets per source,
+  // and whether the user ignored the repair issue. The verdicts themselves
+  // travel in the metrics points.
+  ["refrigerant_detection", "string"],
+  ["cycling_detection", "string"],
+  ["refrigerant_resets_button", "number"],
+  ["refrigerant_resets_serviced", "number"],
+  ["refrigerant_days_since_reset", "number"],
+  ["refrigerant_issue_dismissed", "boolean"],
+  ["cycling_issue_dismissed", "boolean"],
 ]);
 
 /** Allowed daily stats data fields (whitelist). */

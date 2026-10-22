@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0-beta.13] - 2026-10-21
+
+### Fixed
+
+- **Short-cycling detection never counted a cycle.** The detector treated the controller's thermo-off state as leaving space heating, but thermo-off (the unit stopping the compressor once the water target is reached) and demand-off (a room thermostat ending the demand) are the off half of a heating cycle. The cycle chain broke at every stop, so starts were seen but no cycle period was ever measured, and the sensor stayed in `learning` with `cycles_today` at 0 on every installation. Both now count as heating; a change of regime (DHW, pool, cooling) and defrosts still break the chain. The first verdict comes after one heating day with enough cycles, and installations that genuinely short-cycle can reach `alert` after three.
+- `thermal_energy_heating_daily` and `thermal_energy_cooling_daily` now use `state_class: total_increasing` instead of `total`. Declared `total` without a `last_reset`, every midnight reset was recorded by Home Assistant statistics as negative production equal to the whole previous day, so their long-term statistics (hourly/daily bars, the `sum` used by the Energy dashboard) drifted around zero instead of adding up. Existing statistics keep their history; only new hours are compiled correctly.
+
+## [2.2.0-beta.12] - 2026-10-18
+
+### Added
+
+- **Telemetry: preventive-maintenance feedback.** With anonymous telemetry on, the daily installation info now says whether each preventive-maintenance detector is turned on, how often the refrigerant baseline was reset (from the button or the "circuit was serviced" repair flow), and whether a detector's repair issue was ignored. The detectors' verdicts were already part of the metrics; they are now documented, and pinned by a test so no new key reaches the archive unreviewed. Nothing changes in the fleet ping.
+
+### Fixed
+
+- Removing a config entry now also deletes the short-cycling detector's stored state and its repair issue.
+
+## [2.2.0-beta.11] - 2026-10-18
+
+### Fixed
+
+- Gateway validation respects the API readiness result, and operating-mode
+  selectors only offer modes the gateway can write.
+- Circuit climate activity follows the actual operation state, including idle
+  circuits while the unit produces domestic hot water.
+- Installation telemetry reports the profile's circuit limit, including zero
+  for DHW-only units.
+- COP history replay uses the same directional and measured-power rules as live
+  measurements. Energy integration is protected against backward clock steps.
+
+### Changed
+
+- Gateway capabilities, transport metadata and errors stay behind the API
+  boundary. Energy/cost accumulation, time dependencies and maintenance alert
+  decisions are handled through domain services and adapters.
+
 ## [2.2.0-beta.10] - 2026-10-14
 
 ### Fixed

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-import itertools
 
 import pytest
 
@@ -20,19 +19,6 @@ from custom_components.hitachi_yutaki.domain.services.refrigerant import (
     STATUS_WATCH,
     RefrigerantMonitor,
 )
-
-
-@pytest.fixture(autouse=True)
-def _fake_time(monkeypatch: pytest.MonkeyPatch) -> None:
-    """Advance the throttle clock by one interval on every call.
-
-    The service records at most one sample per SAMPLE_MIN_INTERVAL_S. Returning a
-    value one interval later on each call lets tests feed many samples per day.
-    """
-    counter = itertools.count(
-        start=refr.SAMPLE_MIN_INTERVAL_S, step=refr.SAMPLE_MIN_INTERVAL_S
-    )
-    monkeypatch.setattr(refr, "time", lambda: float(next(counter)))
 
 
 def _make_input(
@@ -79,6 +65,7 @@ def _feed_days(
         ts = datetime(day.year, day.month, day.day, 12, 0, 0)
         for _ in range(samples):
             monitor.update(_make_input(**spec), timestamp=ts)
+            ts += timedelta(seconds=refr.SAMPLE_MIN_INTERVAL_S)
     flush_day = start + timedelta(days=len(specs))
     flush_ts = datetime(flush_day.year, flush_day.month, flush_day.day, 0, 0, 0)
     # off-mode update: no new sample, but triggers the flush of the last real day.
@@ -115,6 +102,7 @@ class TestSamplingGate:
         ts = datetime(2026, 1, 1, 12, 0, 0)
         for _ in range(MIN_SAMPLES_PER_DAY):
             monitor.update(_make_input(**override), timestamp=ts)
+            ts += timedelta(seconds=refr.SAMPLE_MIN_INTERVAL_S)
         assert monitor.get_status().today_samples == 0
 
     def test_valid_samples_accumulate(self) -> None:
@@ -123,6 +111,7 @@ class TestSamplingGate:
         ts = datetime(2026, 1, 1, 12, 0, 0)
         for _ in range(MIN_SAMPLES_PER_DAY):
             monitor.update(_make_input(), timestamp=ts)
+            ts += timedelta(seconds=refr.SAMPLE_MIN_INTERVAL_S)
         assert monitor.get_status().today_samples == MIN_SAMPLES_PER_DAY
 
     def test_high_superheat_within_widened_range_accumulates(self) -> None:
@@ -135,6 +124,7 @@ class TestSamplingGate:
         ts = datetime(2026, 1, 1, 12, 0, 0)
         for _ in range(MIN_SAMPLES_PER_DAY):
             monitor.update(_make_input(sh=50.0), timestamp=ts)
+            ts += timedelta(seconds=refr.SAMPLE_MIN_INTERVAL_S)
         assert monitor.get_status().today_samples == MIN_SAMPLES_PER_DAY
 
     def test_range_is_required(self) -> None:
@@ -148,6 +138,7 @@ class TestSamplingGate:
         ts = datetime(2026, 1, 1, 12, 0, 0)
         for _ in range(MIN_SAMPLES_PER_DAY):
             monitor.update(_make_input(sh=20.0), timestamp=ts)
+            ts += timedelta(seconds=refr.SAMPLE_MIN_INTERVAL_S)
         assert monitor.get_status().today_samples == 0
 
 
@@ -463,6 +454,7 @@ class TestThresholdBoundaries:
         ts = datetime(2026, 1, 1, 12, 0, 0)
         for _ in range(MIN_SAMPLES_PER_DAY):
             monitor.update(_make_input(freq=freq), timestamp=ts)
+            ts += timedelta(seconds=refr.SAMPLE_MIN_INTERVAL_S)
         assert monitor.get_status().today_samples == MIN_SAMPLES_PER_DAY
 
 

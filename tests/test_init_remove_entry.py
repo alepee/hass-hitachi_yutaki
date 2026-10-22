@@ -177,3 +177,31 @@ async def test_end_to_end_removal(
     registry = ir.async_get(hass)
     assert registry.async_get_issue(DOMAIN, issue_id) is None
     assert registry.async_get_issue(DOMAIN, "connection_error") is None
+
+
+async def test_cycling_and_events_stores_and_issue_deleted(
+    hass: HomeAssistant, hass_storage: dict[str, Any]
+) -> None:
+    """The cycling Store, the reset counters and the cycling issue go too."""
+    entry = _make_entry()
+    keys = [
+        f"{DOMAIN}_cycling_{entry.entry_id}",
+        f"{DOMAIN}_maintenance_events_{entry.entry_id}",
+    ]
+    for key in keys:
+        await Store(hass, 1, key).async_save({"x": 1})
+    issue_id = f"compressor_short_cycling_{entry.entry_id}"
+    ir.async_create_issue(
+        hass,
+        DOMAIN,
+        issue_id,
+        is_fixable=False,
+        severity=IssueSeverity.WARNING,
+        translation_key="connection_error",
+    )
+
+    await async_remove_entry(hass, entry)
+
+    for key in keys:
+        assert key not in hass_storage
+    assert ir.async_get(hass).async_get_issue(DOMAIN, issue_id) is None

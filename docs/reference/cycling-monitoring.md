@@ -89,7 +89,11 @@ and the reason the domain now carries two detection patterns.
   defrost guard breaks the cycle chain.
 - **Regime**: DHW, pool, and cooling cycles are excluded. A heating cycle followed by a
   DHW cycle is not short cycling, and mixing them was the single easiest way to get this
-  wrong.
+  wrong. Thermo-off and demand-off belong to the heating regime: they are how the
+  controller stops the compressor once the water target is reached, or a room thermostat
+  ends the demand, so they are the off half of a heating cycle. Treating them as a regime
+  change broke the chain at every stop and no period was ever measured (fixed in
+  2.2.0-beta.13).
 - **First observed state**: the state the detector wakes up in is never counted as a
   start; there is no transition timestamp to measure a period from.
 

@@ -34,7 +34,12 @@ from homeassistant.helpers.restore_state import async_get as async_get_restore_d
 from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 
-from .adapters.derived_metrics import REFRIGERANT_STORE_VERSION, DerivedMetricsAdapter
+from .adapters.derived_metrics import (
+    CYCLING_STORE_VERSION,
+    MAINTENANCE_EVENTS_STORE_VERSION,
+    REFRIGERANT_STORE_VERSION,
+    DerivedMetricsAdapter,
+)
 from .api import GATEWAY_INFO, HitachiApiClient, create_api_client
 from .api.base import UnitBindingStatus
 from .api.config_providers import GATEWAY_CONFIG_PROVIDERS, GatewayConfigProvider
@@ -46,9 +51,6 @@ from .const import (
     CONF_CYCLING_DETECTION,
     CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_FLEET_PING,
-    CONF_MODBUS_DEVICE_ID,
-    CONF_MODBUS_HOST,
-    CONF_MODBUS_PORT,
     CONF_POWER_SUPPLY,
     CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
@@ -319,8 +321,7 @@ async def _async_apply_unit_binding(
             if identity is not None
             and other.entry_id != entry.entry_id
             and other.data.get("gateway_type") == data["gateway_type"]
-            and other.data.get(CONF_MODBUS_HOST) == data[CONF_MODBUS_HOST]
-            and other.data.get(CONF_MODBUS_PORT) == data[CONF_MODBUS_PORT]
+            and provider.same_gateway(other.data, data)
             and provider.unit_identity(other.data) == identity
         ),
         None,
@@ -487,9 +488,8 @@ async def async_setup_entry(
 
     # Add unique_id if missing (for existing installations)
     if entry.unique_id is None:
-        unit_suffix = GATEWAY_CONFIG_PROVIDERS[
-            entry.data["gateway_type"]
-        ]().unique_id_suffix(entry.data)
+        provider = GATEWAY_CONFIG_PROVIDERS[entry.data["gateway_type"]]()
+        unit_suffix = provider.unique_id_suffix(entry.data)
         _LOGGER.info(
             "Config entry has no unique_id, attempting to add one based on hardware identifier"
         )
@@ -513,17 +513,9 @@ async def async_setup_entry(
             if temp_client.connected:
                 await temp_client.close()
 
-        # Fallback to IP+slave+unit if hardware ID unavailable. The unit id is
-        # part of it, exactly as in the config flow: without it, every entry of
-        # a multi-unit HC-A(16/64)MB gateway would back-fill to the same value,
-        # hence to the same telemetry device_hash (#395). The back-fill only
-        # runs while unique_id is None, so a collision here never self-heals.
+        # Preserve the provider's legacy fallback identity for existing entries.
         if unique_id is None:
-            unique_id = (
-                f"{entry.data[CONF_MODBUS_HOST]}_"
-                f"{entry.data[CONF_MODBUS_DEVICE_ID]}_"
-                f"{unit_suffix}"
-            )
+            unique_id = provider.fallback_unique_id(entry.data)
             _LOGGER.warning(
                 "Could not retrieve hardware identifier, using IP-based unique_id: %s",
                 unique_id,
@@ -702,7 +694,9 @@ async def async_setup_entry(
         model=gateway_model,
         name=DEVICE_GATEWAY.title(),  # Fallback name
         translation_key="gateway",
-        configuration_url=f"http://{entry.data[CONF_MODBUS_HOST]}",
+        configuration_url=GATEWAY_CONFIG_PROVIDERS[gateway_type]().configuration_url(
+            entry.data
+        ),
     )
 
     # Add main unit device
@@ -1007,6 +1001,15 @@ async def async_remove_entry(
     await Store(
         hass, REFRIGERANT_STORE_VERSION, f"{DOMAIN}_refrigerant_{entry.entry_id}"
     ).async_remove()
+    # Cycling detector Store and the reset counters kept beside the detectors.
+    await Store(
+        hass, CYCLING_STORE_VERSION, f"{DOMAIN}_cycling_{entry.entry_id}"
+    ).async_remove()
+    await Store(
+        hass,
+        MAINTENANCE_EVENTS_STORE_VERSION,
+        f"{DOMAIN}_maintenance_events_{entry.entry_id}",
+    ).async_remove()
 
     # Per-entry repair issues (async_delete_issue is idempotent).
     for issue_id in (
@@ -1016,6 +1019,7 @@ async def async_remove_entry(
         f"fleet_ping_notice_{entry.entry_id}",
         f"enable_refrigerant_detection_{entry.entry_id}",
         f"refrigerant_charge_alert_{entry.entry_id}",
+        f"compressor_short_cycling_{entry.entry_id}",
         *_unit_issue_ids(entry.entry_id),
     ):
         async_delete_issue(hass, DOMAIN, issue_id)

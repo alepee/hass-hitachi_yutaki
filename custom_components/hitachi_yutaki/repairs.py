@@ -12,7 +12,7 @@ from homeassistant.data_entry_flow import FlowResult
 from homeassistant.helpers import issue_registry as ir, selector
 from homeassistant.helpers.issue_registry import async_delete_issue
 
-from .api import GATEWAY_INFO
+from .api import DEFAULT_GATEWAY_TYPE, GATEWAY_INFO
 from .const import (
     CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_FLEET_PING,
@@ -23,6 +23,7 @@ from .const import (
     DEFAULT_TELEMETRY_LEVEL,
     DOMAIN,
     FLEET_PING_STATS_URL,
+    RESET_SOURCE_SERVICED,
 )
 from .profiles import PROFILES
 
@@ -71,7 +72,7 @@ class MissingConfigRepairFlow(RepairsFlow):
             # Update the config entry with the missing parameters
             new_data = {
                 **entry.data,
-                "gateway_type": user_input.get("gateway_type", "modbus_atw_mbs_02"),
+                "gateway_type": user_input.get("gateway_type", DEFAULT_GATEWAY_TYPE),
                 "profile": user_input.get("profile"),
             }
 
@@ -95,7 +96,7 @@ class MissingConfigRepairFlow(RepairsFlow):
                     "gateway_type",
                     default=gateway_options[0]
                     if gateway_options
-                    else "modbus_atw_mbs_02",
+                    else DEFAULT_GATEWAY_TYPE,
                 ): selector.SelectSelector(
                     selector.SelectSelectorConfig(
                         options=gateway_options,
@@ -364,7 +365,7 @@ class RefrigerantServicedRepairFlow(RepairsFlow):
             coordinator = entry.runtime_data
             # The reset already deletes the repair issue; no config change, so
             # no reload is needed (unlike the other repair flows).
-            await coordinator.async_reset_refrigerant_baseline()
+            await coordinator.async_reset_refrigerant_baseline(RESET_SOURCE_SERVICED)
             return self.async_create_entry(data={})
 
         # The stale variant carries {last_valid_day}/{days_since_valid_data} in
