@@ -19,6 +19,7 @@ from homeassistant.helpers.update_coordinator import (
     UpdateFailed,
 )
 
+from .adapters.clock import HomeAssistantClock
 from .adapters.derived_metrics import DerivedMetricsAdapter
 from .api import HitachiApiClient
 from .api.base import ReadResult
@@ -33,15 +34,16 @@ from .const import (
     DEFAULT_CYCLING_DETECTION,
     DEFAULT_REFRIGERANT_DETECTION,
     DOMAIN,
+    RESET_SOURCE_BUTTON,
+    RESET_SOURCE_SERVICED,
 )
 from .domain.services.cycling import (
-    ALERT_PERSIST_DAYS as CYCLING_ALERT_PERSIST_DAYS,
     PERIOD_THRESHOLD_MIN as CYCLING_PERIOD_THRESHOLD_MIN,
 )
 from .domain.services.defrost_guard import DefrostGuard
-from .domain.services.refrigerant import (
-    ALERT_PERSIST_DAYS as REFRIGERANT_ALERT_PERSIST_DAYS,
-    STALE_AFTER_DAYS as REFRIGERANT_STALE_AFTER_DAYS,
+from .domain.services.maintenance import (
+    cycling_alert_policy,
+    refrigerant_alert_policy,
 )
 from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
@@ -88,7 +90,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.api_client = api_client
         self.profile = profile
         self.entities: list[Any] = []
-        self._defrost_guard = DefrostGuard()
+        self._defrost_guard = DefrostGuard(clock=HomeAssistantClock(hass))
 
         # Derived metrics adapter (injected by async_setup_entry)
         self.derived_metrics: DerivedMetricsAdapter | None = None
@@ -197,10 +199,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 await self.api_client.connect()
 
             # Build full list of keys and fetch all data
-            keys_to_read = (
-                self.api_client.register_map.base_keys
-                + self.profile.extra_register_keys
-            )
+            keys_to_read = self.api_client.base_keys + self.profile.extra_register_keys
 
             _LOGGER.debug("Reading %d keys from gateway", len(keys_to_read))
             result = await self.api_client.read_values(keys_to_read)
@@ -364,15 +363,11 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             CIRCUIT_PRIMARY_ID, CIRCUIT_MODE_COOLING
         ) or self.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
 
-        has_circuit2 = self.has_circuit(
-            CIRCUIT_SECONDARY_ID, "heating"
-        ) or self.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_COOLING)
-
         return {
             "has_dhw": self.has_dhw(),
             "has_pool": self.has_pool(),
             "has_cooling": has_cooling,
-            "max_circuits": 2 if has_circuit2 else 1,
+            "max_circuits": self.profile.max_circuits,
             "has_secondary_compressor": self.profile.supports_secondary_compressor,
         }
 
@@ -392,6 +387,48 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             **self._unit_capabilities(),
         )
 
+    def _issue_dismissed(self, issue_id: str) -> bool:
+        """Return True when the user dismissed (ignored) this repair issue."""
+        issue = ir.async_get(self.hass).async_get_issue(DOMAIN, issue_id)
+        return issue is not None and issue.dismissed_version is not None
+
+    def _maintenance_telemetry(self) -> dict[str, Any]:
+        """Describe the preventive-maintenance detectors for the daily payload.
+
+        The verdicts already travel in the metrics points; this adds what the
+        points cannot tell: the user's consent (so a missing verdict reads as
+        "off" or "unsupported" rather than "unknown"), the baseline resets per
+        source, and whether the user ignored the repair issue.
+        """
+        options = self.config_entry.options
+        if not self.profile.supports_extended_compressor_sensors:
+            refrigerant = "unsupported"
+        elif CONF_REFRIGERANT_DETECTION not in options:
+            refrigerant = "undecided"
+        else:
+            refrigerant = "on" if options[CONF_REFRIGERANT_DETECTION] else "off"
+        info: dict[str, Any] = {
+            "refrigerant_detection": refrigerant,
+            "cycling_detection": "on" if self.cycling_detection_active else "off",
+        }
+        if self.refrigerant_detection_active and self.derived_metrics is not None:
+            resets = self.derived_metrics.refrigerant_resets
+            info.update(
+                refrigerant_resets_button=resets[RESET_SOURCE_BUTTON],
+                refrigerant_resets_serviced=resets[RESET_SOURCE_SERVICED],
+                refrigerant_days_since_reset=(
+                    self.derived_metrics.refrigerant_days_since_reset
+                ),
+                refrigerant_issue_dismissed=self._issue_dismissed(
+                    self._refrigerant_issue_id()
+                ),
+            )
+        if self.cycling_detection_active:
+            info["cycling_issue_dismissed"] = self._issue_dismissed(
+                self._cycling_issue_id()
+            )
+        return info
+
     async def _send_installation_info(self) -> None:
         """Build and send installation info on first successful poll."""
         meta = self._telemetry_meta
@@ -407,6 +444,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             latitude=self.hass.config.latitude,
             longitude=self.hass.config.longitude,
             **self._unit_capabilities(),
+            **self._maintenance_telemetry(),
         )
         info = anonymize_installation_info(info)
 
@@ -559,7 +597,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         several *valid* days, and cleared when the in-season verdict recovers or
         the user confirms the circuit was serviced (the fix flow resets the
         baseline). A frozen alert does NOT self-clear off-season, so its data age
-        is annotated: beyond ``REFRIGERANT_STALE_AFTER_DAYS`` calendar days the
+        is annotated: when the domain policy marks the evidence stale, the
         issue switches to the dedicated stale text. It complements and does not
         replace the mandatory F-Gas inspection.
         """
@@ -569,12 +607,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         status = getattr(self.derived_metrics, "refrigerant_status", None)
         issue_id = self._refrigerant_issue_id()
-        if status is not None and status.alert_streak >= REFRIGERANT_ALERT_PERSIST_DAYS:
-            days_since = status.days_since_valid_data
-            is_stale = (
-                days_since is not None and days_since > REFRIGERANT_STALE_AFTER_DAYS
-            )
-            if is_stale:
+        alert = refrigerant_alert_policy(status)
+        if alert.persistent:
+            if alert.stale:
                 ir.async_create_issue(
                     self.hass,
                     DOMAIN,
@@ -620,7 +655,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             return
 
         status = getattr(self.derived_metrics, "cycling_status", None)
-        if status is not None and status.alert_streak >= CYCLING_ALERT_PERSIST_DAYS:
+        if cycling_alert_policy(status).persistent:
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -637,8 +672,12 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         else:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
-    async def async_reset_refrigerant_baseline(self) -> None:
-        """Reset the refrigerant detector baseline (after a top-up or service)."""
+    async def async_reset_refrigerant_baseline(self, source: str) -> None:
+        """Reset the refrigerant detector baseline (after a top-up or service).
+
+        ``source`` tells who asked (``RESET_SOURCE_BUTTON`` or
+        ``RESET_SOURCE_SERVICED``); it is counted for the anonymous telemetry.
+        """
         if self.derived_metrics is not None:
-            await self.derived_metrics.async_reset_refrigerant()
+            await self.derived_metrics.async_reset_refrigerant(source)
         ir.async_delete_issue(self.hass, DOMAIN, self._refrigerant_issue_id())

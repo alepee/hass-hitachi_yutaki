@@ -56,8 +56,7 @@ def _build_dhw_sensor_descriptions() -> tuple[
             icon="mdi:water-thermometer",
             options=[DHW_DEMAND_MODE_STANDARD, DHW_DEMAND_MODE_HIGH_DEMAND],
             condition=lambda c: (
-                c.has_dhw()
-                and "dhw_demand_mode" in c.api_client.register_map.all_registers
+                c.has_dhw() and c.api_client.supports_key("dhw_demand_mode")
             ),
             value_fn=_dhw_demand_mode_value,
         ),

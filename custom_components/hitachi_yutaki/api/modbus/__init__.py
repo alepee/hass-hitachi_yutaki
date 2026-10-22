@@ -21,9 +21,9 @@ from ...const import (
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
     DOMAIN,
-    get_pymodbus_device_param,
 )
 from ..base import HitachiApiClient, ReadResult
+from .compat import get_pymodbus_device_param
 from .registers import HitachiRegisterMap, RegisterDefinition
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
@@ -111,6 +111,40 @@ class ModbusApiClient(HitachiApiClient):
         """Return the register map for the gateway."""
         return self._register_map
 
+    @property
+    def base_keys(self) -> list[str]:
+        """Return the keys needed for a normal data refresh."""
+        return list(self._register_map.base_keys)
+
+    @property
+    def gateway_keys(self) -> list[str]:
+        """Return the keys needed to validate the gateway."""
+        return list(self._register_map.gateway_keys)
+
+    def supports_key(self, key: str) -> bool:
+        """Return whether the register map exposes this key."""
+        return key in self._register_map.all_registers
+
+    def can_write(self, key: str) -> bool:
+        """Return whether the register map accepts writes for this key."""
+        return self.supports_key(key) and key in self._register_map.writable_keys
+
+    @property
+    def supported_unit_modes(self) -> tuple[str, ...]:
+        """Return the global modes supported by writable registers."""
+        if not self.can_write("unit_mode"):
+            return ()
+        rmap = self._register_map
+        return tuple(
+            mode
+            for mode, value in (
+                ("cool", rmap.hvac_unit_mode_cool),
+                ("heat", rmap.hvac_unit_mode_heat),
+                ("auto", rmap.hvac_unit_mode_auto),
+            )
+            if value is not None
+        )
+
     async def connect(self) -> bool:
         """Connect to the API."""
         return await self._ensure_connection()
@@ -186,7 +220,7 @@ class ModbusApiClient(HitachiApiClient):
             )
             return None
 
-    async def read_value(self, key: str) -> int | None:
+    async def read_value(self, key: str) -> Any:
         """Read a value from the API."""
         return self._data.get(key)
 

@@ -155,8 +155,14 @@ one poll cycle. A corrupt snapshot is validated when it is loaded, discarded wit
 warning (the restore is atomic, so partial state can never be applied), and the detector
 restarts in `learning`.
 
-The `Store` (`.storage/hitachi_yutaki_refrigerant_<entry_id>`) is deleted automatically when
-the config entry is removed (`async_remove_entry`), leaving no orphaned baseline behind.
+Each reset is counted by source (the button, or the "circuit was serviced" repair flow) in
+a separate `Store` (`.storage/hitachi_yutaki_maintenance_events_<entry_id>`), since the reset
+itself wipes the detector's. The counts only leave Home Assistant with
+[anonymous telemetry](telemetry.md#preventive-maintenance-detectors) turned on.
+
+Both `Store`s (`.storage/hitachi_yutaki_refrigerant_<entry_id>` and
+`.storage/hitachi_yutaki_maintenance_events_<entry_id>`) are deleted automatically when the
+config entry is removed (`async_remove_entry`), leaving no orphaned baseline behind.
 
 ## Limitations (expected)
 

@@ -16,6 +16,18 @@ No personal information is ever collected. All data is identified by a non-rever
 | **Off** | Nothing | — |
 | **On** | Installation info (model, gateway type, configuration) + fine-grained metrics (temperatures, compressor frequency, power consumption) + a one-time register snapshot | Metrics every 5 min; installation info re-sent once per day; snapshot once after opt-in |
 
+### Preventive-maintenance detectors
+
+When telemetry is on, the data also says how the opt-in [preventive-maintenance detectors](preventive-maintenance.md) behave, so their thresholds can be checked against real installations instead of a replay:
+
+- **In every metrics point**, while a detector runs, its current verdict and counters: `refrigerant_charge_status`, `_superheat_delta`, `_exv_delta`, `_evaporation_temp_delta`, `_baseline_days`, `_valid_days`, `_alert_streak`, `_last_valid_day`, `_days_since_valid_data` for the refrigerant detector; `compressor_cycling_status`, `_cycles_today`, `_peak_starts`, `_median_period`, `_median_run`, `_valid_days`, `_alert_streak`, `_last_valid_day`, `_days_since_valid_day` for the short-cycling detector. This set is pinned by a test, so a new key cannot reach the archive unnoticed.
+- **In the daily installation info**, what the points cannot tell:
+  - `refrigerant_detection` (`unsupported`, `undecided`, `off` or `on`) and `cycling_detection` (`off` or `on`): the consent, so a missing verdict reads as "turned off" rather than "unknown".
+  - `refrigerant_resets_button`, `refrigerant_resets_serviced`, `refrigerant_days_since_reset`: how often the refrigerant baseline was reset, and from where. A reset confirmed through the "circuit was serviced" repair flow is the closest thing to a confirmed alert the detector can get; a reset with the button right after an alert may just silence it.
+  - `refrigerant_issue_dismissed`, `cycling_issue_dismissed`: whether you ignored the detector's repair issue.
+
+None of this goes into the [fleet ping](#fleet-ping).
+
 ## Identities
 
 Every payload carries two non-reversible SHA-256 hashes:
@@ -101,3 +113,12 @@ Go to **Settings → Devices & Services → Hitachi Yutaki → Configure** and s
 ## Community discussion
 
 See [Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200) for context and community feedback on this feature.
+
+### Circuit Capacity
+
+In installation telemetry and fleet ping, `max_circuits` is the profile's hardware
+limit, not the number of configured or currently active circuits. It is zero for
+the DHW-only Yutampo R32, one for single-circuit profiles, and two for dual-circuit
+profiles even when only one circuit is configured. `has_dhw`, `has_pool`, and
+`has_cooling` continue to describe configured equipment and modes;
+`has_secondary_compressor` remains a profile capability.

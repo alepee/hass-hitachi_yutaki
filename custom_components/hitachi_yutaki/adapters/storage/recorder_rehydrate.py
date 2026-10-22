@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import datetime, timedelta
 import logging
 
@@ -12,11 +12,21 @@ from homeassistant.core import HomeAssistant, State
 from homeassistant.util import dt as dt_util
 from homeassistant.util.unit_conversion import PowerConverter
 
-from ...domain.models.cop import PowerMeasurement
+from ...domain.models.cop import COPInput, PowerMeasurement
 from ...domain.models.electrical import ElectricalPowerInput
+from ...domain.services.cop import build_cop_measurement, calculate_cop_electrical_power
+from ...domain.services.defrost_guard import DefrostGuard
 from ...domain.services.electrical import calculate_electrical_power
+from ..calculators.thermal import thermal_power_calculator_wrapper
+from ..providers.operation_mode import resolve_operation_mode
 
 _LOGGER = logging.getLogger(__name__)
+
+# Home Assistant stamps each entity's state when that entity writes it, so the
+# readings of one gateway poll land a few microseconds to milliseconds apart in
+# Recorder. Events closer than this belong to the same poll. Kept below the
+# shortest scan interval (1 s) so two polls are never merged.
+_POLL_WINDOW = timedelta(seconds=0.5)
 
 ThermalCalculator = Callable[[float, float, float], float]
 ElectricalCalculator = Callable[[float], float]
@@ -26,13 +36,15 @@ async def async_replay_cop_history(
     hass: HomeAssistant,
     *,
     entity_ids: dict[str, str],
-    thermal_calculator: ThermalCalculator,
+    thermal_calculator: ThermalCalculator = thermal_power_calculator_wrapper,
     electrical_calculator: ElectricalCalculator | None = None,
     window: timedelta,
     measurement_interval: int,
     max_measurements: int,
     accepted_operation_states: set[str] | None = None,
     is_three_phase: bool = False,
+    measurement_builder: Callable[[COPInput, datetime], PowerMeasurement | None]
+    | None = None,
 ) -> list[PowerMeasurement]:
     """Reconstruct power measurements from Recorder sensor history.
 
@@ -77,7 +89,7 @@ async def async_replay_cop_history(
         if key == "operation_state":
             timeline.extend(
                 (
-                    _as_local_naive(state.last_changed or state.last_updated),
+                    _as_utc(state.last_changed or state.last_updated),
                     key,
                     state.state,
                 )
@@ -93,7 +105,7 @@ async def async_replay_cop_history(
                     continue
                 timeline.append(
                     (
-                        _as_local_naive(state.last_changed or state.last_updated),
+                        _as_utc(state.last_changed or state.last_updated),
                         "measured_power",
                         parsed,
                     )
@@ -105,20 +117,24 @@ async def async_replay_cop_history(
                     continue
                 timeline.append(
                     (
-                        _as_local_naive(state.last_changed or state.last_updated),
+                        _as_utc(state.last_changed or state.last_updated),
                         "voltage",
                         parsed,
                     )
                 )
         else:
-            parser = _parse_bool if key.endswith("_running") else _parse_float
+            parser = (
+                _parse_bool
+                if key.endswith("_running") or key == "is_defrosting"
+                else _parse_float
+            )
             for state in states:
                 parsed = parser(state)
                 if parsed is None:
                     continue
                 timeline.append(
                     (
-                        _as_local_naive(state.last_changed or state.last_updated),
+                        _as_utc(state.last_changed or state.last_updated),
                         key,
                         parsed,
                     )
@@ -132,38 +148,75 @@ async def async_replay_cop_history(
     last_measurement: datetime | None = None
     measurements: list[PowerMeasurement] = []
 
-    for timestamp, key, value in timeline:
-        latest[key] = value
-        if not required_keys.issubset(latest):
+    guard = DefrostGuard()
+    # Apply every change of a poll before admitting a sample. Otherwise entity
+    # write order can attach the preceding meter value or mode.
+    for timestamp, observations in _poll_windows(timeline):
+        latest.update(observations)
+        inlet = latest.get("water_inlet_temp")
+        outlet = latest.get("water_outlet_temp")
+        delta_t = outlet - inlet if inlet is not None and outlet is not None else None
+        guard.update(
+            bool(latest.get("is_defrosting", False)),
+            delta_t,
+            timestamp=timestamp.timestamp(),
+            # A complete thermal observation may stand for a gateway poll.
+            # Recorder omits unchanged readings: without both temperatures,
+            # retain recovery conservatively until its elapsed-time timeout.
+            # Unrelated meter events never count cached delta-T as a new sample.
+            new_temperature_sample={"water_inlet_temp", "water_outlet_temp"}.issubset(
+                observations
+            ),
+        )
+        if not guard.is_data_reliable or not required_keys.issubset(latest):
             continue
-        if latest["compressor_frequency"] <= 0 or latest["compressor_current"] <= 0:
-            continue
-        # Filter by operation_state when mode filtering is requested
-        if accepted_operation_states is not None:
-            current_op_state = latest.get("operation_state")
-            if current_op_state not in accepted_operation_states:
-                continue
         if (
-            last_measurement
+            accepted_operation_states is not None
+            and latest.get("operation_state") not in accepted_operation_states
+        ):
+            continue
+        if (
+            last_measurement is not None
             and (timestamp - last_measurement).total_seconds() < measurement_interval
         ):
             continue
-
         measurement = _build_power_measurement(
             timestamp,
             latest,
             thermal_calculator,
             is_three_phase=is_three_phase,
+            measurement_builder=measurement_builder,
         )
-        if measurement is None:
-            continue
-        measurements.append(measurement)
-        last_measurement = timestamp
+        if measurement is not None:
+            measurements.append(measurement)
+            last_measurement = timestamp
 
     if len(measurements) > max_measurements:
         measurements = measurements[-max_measurements:]
 
     return measurements
+
+
+def _poll_windows(
+    timeline: list[tuple[datetime, str, float | str]],
+) -> Iterator[tuple[datetime, dict[str, float | str]]]:
+    """Group a sorted timeline into gateway polls.
+
+    A poll starts at its first event and takes every event within
+    ``_POLL_WINDOW`` of it; the poll is stamped with its first event. Within a
+    poll, the last value of each key wins.
+    """
+    window_start: datetime | None = None
+    observations: dict[str, float | str] = {}
+    for timestamp, key, value in timeline:
+        if window_start is not None and timestamp - window_start >= _POLL_WINDOW:
+            yield window_start, observations
+            window_start, observations = None, {}
+        if window_start is None:
+            window_start = timestamp
+        observations[key] = value
+    if window_start is not None:
+        yield window_start, observations
 
 
 async def async_replay_compressor_states(
@@ -185,7 +238,7 @@ async def async_replay_compressor_states(
         parsed = _parse_bool(state)
         if parsed is None:
             continue
-        timestamp = _as_local_naive(state.last_changed or state.last_updated)
+        timestamp = _as_utc(state.last_changed or state.last_updated)
         entries.append((timestamp, bool(parsed)))
 
     if len(entries) > max_states:
@@ -200,6 +253,8 @@ def _build_power_measurement(
     thermal_calculator: ThermalCalculator,
     *,
     is_three_phase: bool = False,
+    measurement_builder: Callable[[COPInput, datetime], PowerMeasurement | None]
+    | None = None,
 ) -> PowerMeasurement | None:
     """Build a single COP measurement from the per-point historical snapshot.
 
@@ -208,42 +263,37 @@ def _build_power_measurement(
     already in kW); otherwise an I×U estimate is computed from the summed
     historical compressor currents and the historical (or default) voltage.
     """
-    try:
-        water_inlet = latest["water_inlet_temp"]
-        water_outlet = latest["water_outlet_temp"]
-        water_flow = latest["water_flow"]
-        compressor_current = latest["compressor_current"]
-    except KeyError:
-        return None
-
-    thermal_power = thermal_calculator(water_inlet, water_outlet, water_flow)
-    if thermal_power <= 0:
-        return None
-
-    measured_power = latest.get("measured_power")
-    voltage = latest.get("voltage")
-
-    # Sum compressor currents (S80) so a single calculation covers the whole
-    # unit. For the measured_power path the current is ignored anyway; for the
-    # I×U path U×(I1+I2) == U×I1 + U×I2.
-    total_current = compressor_current
-    secondary_frequency = latest.get("secondary_compressor_frequency")
-    secondary_current = latest.get("secondary_compressor_current")
-    if secondary_frequency and secondary_frequency > 0 and secondary_current:
-        total_current += secondary_current
-
-    electrical_power = calculate_electrical_power(
-        ElectricalPowerInput(
-            current=total_current,
-            measured_power=measured_power,
-            voltage=voltage,
-            is_three_phase=is_three_phase,
-        )
+    data = COPInput(
+        water_inlet_temp=latest.get("water_inlet_temp"),
+        water_outlet_temp=latest.get("water_outlet_temp"),
+        water_flow=latest.get("water_flow"),
+        compressor_current=latest.get("compressor_current"),
+        compressor_frequency=latest.get("compressor_frequency"),
+        secondary_compressor_current=latest.get("secondary_compressor_current"),
+        secondary_compressor_frequency=latest.get("secondary_compressor_frequency"),
+        operation_mode=resolve_operation_mode(latest.get("operation_state")),
     )
-    if electrical_power <= 0:
-        return None
 
-    return PowerMeasurement(timestamp, thermal_power, electrical_power)
+    def historical_power(current: float) -> float:
+        return calculate_electrical_power(
+            ElectricalPowerInput(
+                current=current,
+                measured_power=latest.get("measured_power"),
+                voltage=latest.get("voltage"),
+                is_three_phase=is_three_phase,
+            )
+        )
+
+    if measurement_builder is None:
+        return build_cop_measurement(
+            data, timestamp, thermal_calculator, historical_power
+        )
+    # Supply historical power explicitly: the service must never read its live
+    # HA meter while replaying history. Thermal admission belongs to the service.
+    data.electrical_power = calculate_cop_electrical_power(data, historical_power)
+    if data.electrical_power is None:
+        return None
+    return measurement_builder(data, timestamp)
 
 
 def _parse_float(state: State) -> float | None:
@@ -304,6 +354,6 @@ async def _async_fetch_history(
         return {}
 
 
-def _as_local_naive(timestamp: datetime | None) -> datetime:
+def _as_utc(timestamp: datetime | None) -> datetime:
     ts = timestamp or dt_util.utcnow()
-    return dt_util.as_local(ts).replace(tzinfo=None)
+    return dt_util.as_utc(ts)

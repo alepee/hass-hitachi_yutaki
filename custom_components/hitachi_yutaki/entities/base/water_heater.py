@@ -63,7 +63,7 @@ class HitachiYutakiWaterHeater(
             PRESET_DHW_HEAT_PUMP,
         ]
         # High demand mode requires the dhw_high_demand register
-        if "dhw_high_demand" in coordinator.api_client.register_map.all_registers:
+        if coordinator.api_client.can_write("dhw_high_demand"):
             self._attr_operation_list.append(PRESET_DHW_HIGH_DEMAND)
 
     def _apply_profile_overrides(self) -> None:
@@ -139,9 +139,7 @@ class HitachiYutakiWaterHeater(
     @property
     def _has_high_demand(self) -> bool:
         """Return True if the register map supports high demand mode."""
-        return (
-            "dhw_high_demand" in self.coordinator.api_client.register_map.all_registers
-        )
+        return self.coordinator.api_client.can_write("dhw_high_demand")
 
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new operation mode."""

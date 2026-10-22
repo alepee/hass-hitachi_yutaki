@@ -6,6 +6,14 @@ dependencies -- only stdlib imports. This makes them testable without mocks or a
 running HA instance. See [Architecture](../architecture.md) for how this layer fits
 into the hexagonal design.
 
+## Time dependency
+
+The `domain/ports/clock.py` protocol separates monotonic elapsed seconds from
+timezone-aware local civil time. `adapters/clock.py` implements it using HA's
+configured timezone. Services receive that clock or explicit historical
+timestamps; they do not read the system clock themselves. Monotonic durations
+keep integration and recovery timers stable across wall-clock adjustments.
+
 ---
 
 ## COP Calculation
@@ -49,6 +57,20 @@ Valid range: 0.5 -- 8.0. Measurements are taken at most once per 60 seconds.
 
 `ThermalPowerCalculator` and `ElectricalPowerCalculator` are injected as protocols.
 A `Storage[PowerMeasurement]` backend holds the sliding window.
+The clock supplies the live measurement interval and timestamps. Historical
+inputs use explicit timestamps.
+
+### Live and historical admission
+
+`build_cop_measurement` owns the shared pure validation and calculation rules.
+`COPService.build_measurement` applies the configured mode filter and calculators
+to a historical input without mutating live state. The Recorder adapter
+normalizes each historical snapshot and passes it through that same path.
+Directional thermal calculators remain directional during replay. A measured
+whole-unit electrical power reading has priority, including when compressor
+current is zero, and secondary currents are summed before a fallback estimate.
+History buffers reject a mixture of naive and timezone-aware timestamps before
+mutation; the production Recorder path supplies UTC-aware timestamps.
 
 ---
 
@@ -133,6 +155,12 @@ if guard.is_data_reliable:
     # safe to feed data into COP / thermal services
 ```
 
+Construct the guard with an injected clock, or pass an explicit elapsed
+`timestamp` to `update`. Its timeout uses elapsed time rather than civil dates.
+Historical electrical events may advance timeout checks but do not count as
+fresh stable thermal readings. If Recorder omits complete temperature
+observations, replay conservatively waits for the recovery timeout.
+
 ---
 
 ## Compressor Timing
@@ -158,6 +186,37 @@ durations for diagnostics.
 - `resttime` -- average compressor off duration
 
 Historical states can be preloaded from the Recorder for continuity across restarts.
+
+## Electrical Energy and Cost
+
+**File:** `domain/services/electrical_energy.py`
+
+`ElectricalEnergyAccumulator` integrates electrical kW into kWh and accumulates
+cost using the optional price for the current poll. Its gap bound is the larger
+of three configured scan intervals and 30 seconds. Negative elapsed durations
+contribute no energy. Missing prices preserve energy accumulation while leaving
+cost unchanged. Restore methods seed existing counters without integrating HA
+downtime; the adapter owns HA state retrieval and persistence.
+
+## Circuit Activity
+
+**File:** `domain/services/circuit.py`
+
+`resolve_circuit_activity` receives normalized circuit power, compressor,
+defrost and operation-mode observations. Actual operation state has priority
+over the selected global mode: DHW and pool production leave a powered
+space-conditioning circuit idle. The adapter supplies observations and the
+entity only maps `CircuitActivity` to HA's `HVACAction`.
+
+## Maintenance Warning Policy
+
+**File:** `domain/services/maintenance.py`
+
+`refrigerant_alert_policy` requires the configured persistent alert streak and
+marks aged evidence as stale without clearing a frozen off-season warning.
+`cycling_alert_policy` consumes the cycling monitor's persistent verdict; that
+monitor already owns expiry. Their `MaintenanceAlert` output is independent of
+HA issue severity, translations and presentation, which remain infrastructure.
 
 ---
 

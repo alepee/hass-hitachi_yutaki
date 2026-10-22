@@ -8,7 +8,9 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import datetime
 
+from ..models.clock import Timeline, validate_timestamp_awareness
 from ..models.timing import CompressorTimingResult
+from ..ports.clock import Clock
 from ..ports.storage import Storage
 
 
@@ -16,15 +18,21 @@ class CompressorHistory:
     """Tracks compressor state history for timing calculations."""
 
     def __init__(
-        self, storage: Storage[tuple[datetime, bool]], max_history: int
+        self,
+        storage: Storage[tuple[datetime, bool]],
+        max_history: int,
+        *,
+        clock: Clock | None = None,
     ) -> None:
         """Initialize the history.
 
         Args:
+            clock: Injected time source for live measurements.
             storage: Storage implementation for state history
             max_history: Maximum number of timing records to keep
 
         """
+        self._timeline = Timeline(clock)
         self._storage = storage
         self.max_history = max_history
         self._cycles: list[float] = []  # minutes
@@ -36,11 +44,12 @@ class CompressorHistory:
 
         Args:
             is_running: Whether the compressor is currently running
-            timestamp: Optional timestamp to use (defaults to datetime.now)
+            timestamp: Optional timestamp to use (otherwise uses the injected clock)
 
         """
-        now = timestamp or datetime.now()
+        now = self._timeline.at(timestamp)
         states = self._storage.get_all()
+        validate_timestamp_awareness([now, *(timestamp for timestamp, _ in states)])
 
         # If we have a previous state
         if states:
@@ -50,12 +59,9 @@ class CompressorHistory:
             if last_state != is_running:
                 duration = (now - last_time).total_seconds() / 60  # Convert to minutes
 
-                # A negative duration means the incoming timestamp predates the
-                # last recorded one. This happens when Recorder-replayed states
-                # (local wall-clock) interleave with live ``datetime.now()``
-                # readings across a clock/DST shift. Such a value is physically
-                # impossible, so record the transition but skip the bogus
-                # duration to keep averages sane (issue #365).
+                # Out-of-order historical states can predate the latest live
+                # transition. Keep the transition but discard negative durations
+                # so replay cannot corrupt the average run/rest/cycle times.
                 is_valid_duration = duration >= 0
 
                 # Calculate times based on the state change
@@ -92,7 +98,11 @@ class CompressorHistory:
 
     def bulk_load(self, states: Iterable[tuple[datetime, bool]]) -> None:
         """Load historical compressor states."""
-        for timestamp, is_running in sorted(states, key=lambda state: state[0]):
+        incoming = list(states)
+        validate_timestamp_awareness(
+            timestamp for timestamp, _ in [*self._storage.get_all(), *incoming]
+        )
+        for timestamp, is_running in sorted(incoming, key=lambda state: state[0]):
             self.add_state(is_running, timestamp=timestamp)
 
     def get_average_times(self) -> tuple[float | None, float | None, float | None]:
@@ -135,16 +145,19 @@ class CompressorTimingService:
         """
         self._history = history
 
-    def update(self, compressor_frequency: float | None) -> None:
+    def update(
+        self, compressor_frequency: float | None, *, timestamp: datetime | None = None
+    ) -> None:
         """Update compressor state based on current frequency.
 
         Args:
+            timestamp: Optional explicit replay timestamp.
             compressor_frequency: Current compressor frequency in Hz.
                                   None or 0 means compressor is not running.
 
         """
         is_running = compressor_frequency is not None and compressor_frequency > 0
-        self._history.add_state(is_running)
+        self._history.add_state(is_running, timestamp=timestamp)
 
     def get_timing(self) -> CompressorTimingResult:
         """Get current timing statistics.
