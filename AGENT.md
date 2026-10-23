@@ -169,6 +169,7 @@ Tests live in `tests/` (mirrors the package layout):
 - `tests/entities/`, `tests/adapters/`, `tests/api/`, `tests/profiles/`: layer-specific tests.
 - `tests/test_telemetry_*.py`: telemetry unit + integration tests.
 - Uses `pytest` and `pytest-asyncio`. Run with `make test`.
+- `uv.lock` pins the HA version the regular CI tests against. A daily canary (`ha-beta.yml`, not a required check) runs the latest stable release and `main` against each new HA beta published through `pytest-homeassistant-custom-component`, and opens a `ha-beta-regression` issue for tests that fail on the beta but pass on the current stable HA.
 
 ## Dependencies
 All dependencies are declared in `pyproject.toml` (single source of truth).
