@@ -29,6 +29,11 @@ from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
 _LOGGER = logging.getLogger(__name__)
 
+# How long a successful write shadows its STATUS register: the gateway takes
+# 15-20 s (H-LINK round trip) to reflect a CONTROL write, so polls in between
+# report the old value. Past this the gateway value wins again.
+PENDING_WRITE_TTL = 30.0
+
 
 class ModbusApiClient(HitachiApiClient):
     """Modbus client for Hitachi heat pumps."""
@@ -57,6 +62,8 @@ class ModbusApiClient(HitachiApiClient):
         self._connection_retries = 0
         self._gateway_not_ready_since: float | None = None
         self._gateway_not_ready_last_log: float = 0.0
+        # key -> (expected deserialized value, monotonic deadline)
+        self._pending_writes: dict[str, tuple[Any, float]] = {}
 
     async def _ensure_connection(self) -> bool:
         """Ensure we have a working Modbus connection with retry logic."""
@@ -253,6 +260,7 @@ class ModbusApiClient(HitachiApiClient):
                     _LOGGER.error("Error writing to register %s: %s", key, result)
                     raise ModbusException(f"Error writing to register {key}: {result}")
 
+                self._shadow_written_value(key, reg, value)
                 return True
 
             except (ModbusException, ConnectionError, OSError) as exc:
@@ -360,6 +368,45 @@ class ModbusApiClient(HitachiApiClient):
 
     # Internal marker to distinguish sentinel-filtered None from read errors
     _SENTINEL_FILTERED = object()
+
+    def _shadow_written_value(
+        self, key: str, definition: RegisterDefinition, raw: int
+    ) -> None:
+        """Publish a written value at once and shadow STATUS reads of ``key``.
+
+        The expected value is the deserialized raw value, i.e. what a STATUS
+        read reports once the unit has applied the command.
+        """
+        expected = definition.deserializer(raw) if definition.deserializer else raw
+        if expected is None:
+            return
+        self._data[key] = expected
+        self._pending_writes[key] = (expected, time.monotonic() + PENDING_WRITE_TTL)
+
+    def _is_shadowed_by_pending_write(self, key: str, value: Any) -> bool:
+        """Return True when a fresh STATUS read of ``key`` must be ignored.
+
+        A read equal to the expected value confirms the write; one past the
+        deadline yields to the gateway, so a refused command cannot stick.
+        """
+        pending = self._pending_writes.get(key)
+        if pending is None:
+            return False
+        expected, deadline = pending
+        if value == expected:
+            del self._pending_writes[key]
+            return False
+        if time.monotonic() >= deadline:
+            del self._pending_writes[key]
+            _LOGGER.debug(
+                "Write of %s=%s not confirmed within %.0f s, gateway reports %s",
+                key,
+                expected,
+                PENDING_WRITE_TTL,
+                value,
+            )
+            return False
+        return True
 
     async def _read_register(
         self, definition: RegisterDefinition, device_param: str
@@ -500,6 +547,8 @@ class ModbusApiClient(HitachiApiClient):
                         value = await self._read_register(
                             definition.fallback, device_param
                         )
+                    if self._is_shadowed_by_pending_write(name, value):
+                        continue
                     if value is self._SENTINEL_FILTERED:
                         # Sensor/module unavailable — clear any stale value
                         self._data.pop(name, None)

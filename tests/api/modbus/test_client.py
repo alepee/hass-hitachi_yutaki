@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pymodbus.exceptions import ModbusException
@@ -47,6 +48,7 @@ def api_client(mock_hass, mock_client):
         api._hass = mock_hass
         api._client = mock_client
         api._slave = 1
+        api._pending_writes = {}
         return api
 
 
@@ -326,6 +328,7 @@ def _make_preflight_api_client(mock_hass, mock_client):
         api._register_map = AtwMbs02RegisterMap()
         api._gateway_not_ready_since = None
         api._gateway_not_ready_last_log = 0.0
+        api._pending_writes = {}
         return api
 
 
@@ -608,6 +611,7 @@ def pre2016_api_client(mock_hass, mock_client):
         api._slave = 1
         api._register_map = AtwMbs02Pre2016RegisterMap()
         api._data = {}
+        api._pending_writes = {}
         write_result = MagicMock()
         write_result.isError.return_value = False
         mock_client.write_register.return_value = write_result
@@ -737,3 +741,138 @@ async def test_read_values_system_state_ffff_is_not_ready(
     assert mock_client.read_holding_registers.call_count == 1
     mock_ir.async_create_issue.assert_called_once()
     assert mock_ir.async_create_issue.call_args.args[2] == "no_data_warning"
+
+
+# --- Pending writes: a command must not show up, revert, then show up again ---
+
+
+@pytest.mark.asyncio
+async def test_write_value_publishes_expected_value_at_once(mock_hass, mock_client):
+    """A successful write is visible in ``_data`` before any poll, deserialized."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._data["circuit1_target_temp"] = 21.0
+    mock_client.write_register.return_value = _make_modbus_result(0)
+
+    assert await api.write_value("circuit1_target_temp", 225) is True
+
+    assert api._data["circuit1_target_temp"] == 22.5
+    assert api._pending_writes["circuit1_target_temp"][0] == 22.5
+    assert mock_client.write_register.call_args.kwargs["address"] == 1011
+
+
+@pytest.mark.asyncio
+async def test_failed_write_shadows_nothing(mock_hass, mock_client):
+    """A refused write leaves both the data and the pending map untouched (#322)."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._data["unit_power"] = 0
+    mock_client.write_register.return_value = _make_modbus_error()
+    api._ensure_connection = AsyncMock(return_value=False)
+
+    assert await api.write_value("unit_power", 1) is False
+
+    assert api._data["unit_power"] == 0
+    assert api._pending_writes == {}
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_ignores_stale_status_after_write(
+    _mock_ir, mock_hass, mock_client
+):
+    """Polls still reporting the pre-write value do not revert the entity."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.write_register.return_value = _make_modbus_result(0)
+    await api.write_value("unit_power", 1)
+
+    # [preflight system_state, unit_power still 0 on the gateway]
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(0),
+    ]
+    assert await api.read_values(["unit_power"]) == ReadResult.SUCCESS
+    assert api._data["unit_power"] == 1
+
+    # A read error in the window keeps the expected value too (not #320's clear).
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_error(),
+    ]
+    assert await api.read_values(["unit_power"]) == ReadResult.SUCCESS
+    assert api._data["unit_power"] == 1
+    assert "unit_power" in api._pending_writes
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_confirms_write_and_lifts_shadow(
+    _mock_ir, mock_hass, mock_client
+):
+    """A STATUS read equal to the written value ends the shadow."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.write_register.return_value = _make_modbus_result(0)
+    await api.write_value("unit_power", 1)
+
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(1),
+    ]
+    await api.read_values(["unit_power"])
+    assert api._pending_writes == {}
+
+    # From then on the gateway is the truth again (e.g. the unit turned off).
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(0),
+    ]
+    await api.read_values(["unit_power"])
+    assert api._data["unit_power"] == 0
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_accepts_gateway_value_after_ttl(
+    _mock_ir, mock_hass, mock_client
+):
+    """Past the deadline an unconfirmed write yields to the gateway value."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.write_register.return_value = _make_modbus_result(0)
+    await api.write_value("unit_power", 1)
+    api._pending_writes["unit_power"] = (1, time.monotonic() - 1)
+
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(0),
+    ]
+    await api.read_values(["unit_power"])
+
+    assert api._data["unit_power"] == 0
+    assert api._pending_writes == {}
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_successive_writes_last_value_wins_and_rearms_deadline(
+    _mock_ir, mock_hass, mock_client
+):
+    """On -> off on one key: the last expected value, with a later deadline."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.write_register.return_value = _make_modbus_result(0)
+    await api.write_value("unit_power", 1)
+    expected, deadline = api._pending_writes["unit_power"]
+    earlier = deadline - 5
+    api._pending_writes["unit_power"] = (expected, earlier)
+
+    await api.write_value("unit_power", 0)
+
+    expected, deadline = api._pending_writes["unit_power"]
+    assert (expected, api._data["unit_power"]) == (0, 0)
+    assert deadline > earlier
+
+    # The first write's value is stale now, not a confirmation.
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(1),
+    ]
+    await api.read_values(["unit_power"])
+    assert api._data["unit_power"] == 0
+    assert "unit_power" in api._pending_writes
