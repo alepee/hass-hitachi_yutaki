@@ -167,25 +167,31 @@ observations, replay conservatively waits for the recovery timeout.
 
 **File:** `domain/services/timing.py`
 
-Tracks compressor on/off transitions and derives average cycle, runtime, and rest
-durations for diagnostics.
+Tracks compressor on/off transitions and derives typical (median) cycle, runtime,
+and rest durations for diagnostics.
 
 ### Key classes
 
 | Class | Role |
 |---|---|
 | `CompressorTimingService` | Accepts compressor frequency updates and delegates to history. |
-| `CompressorHistory` | Records state transitions, computes averages from the last N events. |
+| `CompressorHistory` | Records state transitions, computes medians from the last N events. |
 
 ### Output
 
 `CompressorTimingResult` with three optional fields (all in minutes):
 
-- `cycle_time` -- average full cycle (on + off)
-- `runtime` -- average compressor on duration
-- `resttime` -- average compressor off duration
+- `cycle_time` -- median full cycle (start to next start)
+- `runtime` -- median compressor on duration
+- `resttime` -- median compressor off duration
 
-Historical states can be preloaded from the Recorder for continuity across restarts.
+An off period longer than `STANDBY_THRESHOLD_MIN` (60 min) is a standby (no
+demand, night setback), not the rest phase of a cycle: the restart that ends it
+records neither a cycle nor a rest time, the next cycle is measured from it.
+
+Historical states are preloaded from the Recorder (48 h lookback, enough to refill
+the 100-cycle window) so the values do not depend on when Home Assistant last
+restarted.
 
 ## Electrical Energy and Cost
 

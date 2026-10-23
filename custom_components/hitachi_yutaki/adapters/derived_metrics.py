@@ -71,6 +71,12 @@ from .clock import HomeAssistantClock
 _LOGGER = logging.getLogger(__name__)
 
 COMPRESSOR_HISTORY_SIZE = 100
+# Recorder lookback used to rebuild timing on restart. Long enough to refill
+# the COMPRESSOR_HISTORY_SIZE window (100 cycles of ~12 min is ~20 h, plus any
+# standby), so the value does not depend on when Home Assistant last restarted.
+TIMING_REHYDRATE_LOOKBACK_H = 48
+# Two transitions (start + stop) per cycle, plus the state opening the window.
+TIMING_REHYDRATE_MAX_STATES = 2 * COMPRESSOR_HISTORY_SIZE + 1
 
 REFRIGERANT_STORE_VERSION = 1
 CYCLING_STORE_VERSION = 1
@@ -807,7 +813,7 @@ class DerivedMetricsAdapter:
             async_replay_compressor_states,
         )
 
-        LOOKBACK = timedelta(hours=6)
+        LOOKBACK = timedelta(hours=TIMING_REHYDRATE_LOOKBACK_H)
         registry = er.async_get(self._hass)
         entry_id = self._config_entry.entry_id
 
@@ -821,7 +827,7 @@ class DerivedMetricsAdapter:
                     hass=self._hass,
                     entity_id=entity_id,
                     window=LOOKBACK,
-                    max_states=COMPRESSOR_HISTORY_SIZE,
+                    max_states=TIMING_REHYDRATE_MAX_STATES,
                 )
                 if states:
                     self._primary_timing.preload_states(states)
@@ -844,7 +850,7 @@ class DerivedMetricsAdapter:
                         hass=self._hass,
                         entity_id=entity_id,
                         window=LOOKBACK,
-                        max_states=COMPRESSOR_HISTORY_SIZE,
+                        max_states=TIMING_REHYDRATE_MAX_STATES,
                     )
                     if states:
                         self._secondary_timing.preload_states(states)

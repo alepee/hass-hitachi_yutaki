@@ -78,3 +78,75 @@ class TestNegativeDurationGuard:
         # The valid post-seam transitions still produce real positive averages.
         assert run == 60
         assert rest == 60
+
+
+class TestStandbyExclusion:
+    """A standby must not count as a cycle or a rest (long idle pauses)."""
+
+    def _run(self, history: CompressorHistory, start: datetime, cycles: int):
+        """Feed ``cycles`` regular 12-min cycles (4 min on, 8 min off)."""
+        for i in range(cycles):
+            t = start + timedelta(minutes=12 * i)
+            history.add_state(True, timestamp=t)
+            history.add_state(False, timestamp=t + timedelta(minutes=4))
+        return start + timedelta(minutes=12 * cycles)
+
+    def test_restart_after_standby_records_no_cycle_nor_rest(self):
+        """A 10-hour pause is neither a 10-hour cycle nor a 10-hour rest."""
+        base = datetime(2026, 10, 22, 12, 0, 0)
+        history = _history()
+        end = self._run(history, base, 5)
+        # Last stop at end - 8 min, then 10 hours of standby before restarting.
+        restart = end - timedelta(minutes=8) + timedelta(hours=10)
+        self._run(history, restart, 5)
+
+        cycle, run, rest = history.get_average_times()
+        assert cycle == 12
+        assert run == 4
+        assert rest == 8
+
+    def test_rest_at_threshold_still_counts(self):
+        """A stop exactly at the threshold is still the rest of a cycle."""
+        base = datetime(2026, 10, 22, 12, 0, 0)
+        history = _history()
+        history.add_state(True, timestamp=base)
+        history.add_state(False, timestamp=base + timedelta(minutes=10))
+        history.add_state(True, timestamp=base + timedelta(minutes=70))
+
+        cycle, _run, rest = history.get_average_times()
+        assert rest == 60
+        assert cycle == 70
+
+    def test_custom_threshold(self):
+        """The threshold is configurable."""
+        base = datetime(2026, 10, 22, 12, 0, 0)
+        history = CompressorHistory(
+            InMemoryStorage(), max_history=10, standby_threshold=30
+        )
+        history.add_state(True, timestamp=base)
+        history.add_state(False, timestamp=base + timedelta(minutes=10))
+        history.add_state(True, timestamp=base + timedelta(minutes=50))
+
+        cycle, _run, rest = history.get_average_times()
+        assert cycle is None
+        assert rest is None
+
+
+class TestMedian:
+    """Typical values resist the occasional outlier."""
+
+    def test_one_long_cycle_does_not_drag_the_value(self):
+        """A single 50-min cycle among 12-min ones leaves the median at 12."""
+        base = datetime(2026, 10, 22, 12, 0, 0)
+        history = _history()
+        t = base
+        for rest in (8, 8, 8, 46, 8, 8):
+            history.add_state(True, timestamp=t)
+            history.add_state(False, timestamp=t + timedelta(minutes=4))
+            t += timedelta(minutes=4 + rest)
+        history.add_state(True, timestamp=t)
+
+        cycle, run, rest = history.get_average_times()
+        assert cycle == 12
+        assert run == 4
+        assert rest == 8

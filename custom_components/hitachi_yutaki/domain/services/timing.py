@@ -7,11 +7,17 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from datetime import datetime
+from statistics import median
 
 from ..models.clock import Timeline, validate_timestamp_awareness
 from ..models.timing import CompressorTimingResult
 from ..ports.clock import Clock
 from ..ports.storage import Storage
+
+# An off period longer than this is the heat pump idling (no demand, night
+# setback, mild weather), not the rest phase of a cycle. Counting it would turn
+# a 10-hour standby into a 10-hour "cycle" and swamp the real 10-15 min ones.
+STANDBY_THRESHOLD_MIN = 60.0
 
 
 class CompressorHistory:
@@ -23,6 +29,7 @@ class CompressorHistory:
         max_history: int,
         *,
         clock: Clock | None = None,
+        standby_threshold: float = STANDBY_THRESHOLD_MIN,
     ) -> None:
         """Initialize the history.
 
@@ -30,11 +37,14 @@ class CompressorHistory:
             clock: Injected time source for live measurements.
             storage: Storage implementation for state history
             max_history: Maximum number of timing records to keep
+            standby_threshold: Off duration (minutes) beyond which the stop is
+                a standby rather than the rest phase of a cycle
 
         """
         self._timeline = Timeline(clock)
         self._storage = storage
         self.max_history = max_history
+        self.standby_threshold = standby_threshold
         self._cycles: list[float] = []  # minutes
         self._run_times: list[float] = []  # minutes
         self._rest_times: list[float] = []  # minutes
@@ -63,6 +73,11 @@ class CompressorHistory:
                 # transition. Keep the transition but discard negative durations
                 # so replay cannot corrupt the average run/rest/cycle times.
                 is_valid_duration = duration >= 0
+
+                # A restart after a standby closes no cycle and no rest: the
+                # chain simply starts again from this start.
+                if is_running and duration > self.standby_threshold:
+                    is_valid_duration = False
 
                 # Calculate times based on the state change
                 if is_running:  # Changing from off to on
@@ -106,20 +121,19 @@ class CompressorHistory:
             self.add_state(is_running, timestamp=timestamp)
 
     def get_average_times(self) -> tuple[float | None, float | None, float | None]:
-        """Get average cycle, run and rest times.
+        """Get typical cycle, run and rest times.
+
+        The median is used rather than the mean so that a few outliers (a data
+        hole, a defrost, a long run) do not drag the whole value.
 
         Returns:
-            Tuple of (average_cycle_time, average_runtime, average_resttime) in minutes
+            Tuple of (cycle_time, runtime, resttime) medians in minutes
 
         """
-        avg_cycle = sum(self._cycles) / len(self._cycles) if self._cycles else None
-        avg_run = (
-            sum(self._run_times) / len(self._run_times) if self._run_times else None
-        )
-        avg_rest = (
-            sum(self._rest_times) / len(self._rest_times) if self._rest_times else None
-        )
-        return avg_cycle, avg_run, avg_rest
+        cycle = median(self._cycles) if self._cycles else None
+        run = median(self._run_times) if self._run_times else None
+        rest = median(self._rest_times) if self._rest_times else None
+        return cycle, run, rest
 
     def clear(self) -> None:
         """Clear all timing history."""
