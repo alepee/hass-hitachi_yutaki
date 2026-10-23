@@ -1,0 +1,211 @@
+name: HA beta canary
+
+# Runs the test suite of the latest stable release and of main against each
+# new Home Assistant beta, so a breaking change in core surfaces before it
+# ships. Only tests failing on the beta but passing on the current stable HA
+# count as a regression. pytest-homeassistant-custom-component (phac) publishes a release
+# pinned to most HA betas; a new beta is detected through the HA version that
+# the newest phac release pins.
+
+on:
+  schedule:
+    - cron: "17 6 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Run even if this beta was already tested"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    outputs:
+      phac: ${{ steps.beta.outputs.phac }}
+      ha: ${{ steps.beta.outputs.ha }}
+      phac_stable: ${{ steps.beta.outputs.phac_stable }}
+      ha_stable: ${{ steps.beta.outputs.ha_stable }}
+      stable: ${{ steps.stable.outputs.tag }}
+      run: ${{ steps.decide.outputs.run }}
+    steps:
+      # Outputs the newest phac (and the HA it pins), plus the newest phac
+      # pinning a stable HA, used as the baseline.
+      - name: Find the HA versions pinned by phac
+        id: beta
+        run: |
+          python3 - <<'EOF' >> "$GITHUB_OUTPUT"
+          import json, urllib.request
+          base = "https://pypi.org/pypi/pytest-homeassistant-custom-component"
+          releases = json.load(urllib.request.urlopen(f"{base}/json"))["releases"]
+          recent = sorted(
+              (v for v, files in releases.items() if files),
+              key=lambda v: releases[v][0]["upload_time_iso_8601"],
+              reverse=True,
+          )[:20]
+
+          def pinned_ha(phac):
+              info = json.load(urllib.request.urlopen(f"{base}/{phac}/json"))["info"]
+              return next(
+                  r.split("==", 1)[1]
+                  for r in info["requires_dist"]
+                  if r.startswith("homeassistant==")
+              )
+
+          print(f"phac={recent[0]}")
+          print(f"ha={pinned_ha(recent[0])}")
+          for phac in recent:
+              ha = pinned_ha(phac)
+              if "b" not in ha:
+                  print(f"phac_stable={phac}")
+                  print(f"ha_stable={ha}")
+                  break
+          EOF
+          cat "$GITHUB_OUTPUT"
+
+      - name: Resolve the latest stable release
+        id: stable
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: echo "tag=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)" >> "$GITHUB_OUTPUT"
+
+      # One cache entry per tested beta acts as the "already tested" marker.
+      - name: Check whether this beta was already tested
+        id: seen
+        uses: actions/cache/restore@v4
+        with:
+          path: .ha-beta-marker
+          key: ha-beta-${{ steps.beta.outputs.ha }}
+          lookup-only: true
+
+      - name: Decide
+        id: decide
+        env:
+          HA: ${{ steps.beta.outputs.ha }}
+          SEEN: ${{ steps.seen.outputs.cache-hit }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          if [[ "$HA" != *b* ]]; then
+            echo "HA $HA is not a beta, nothing to do"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          elif [[ "$SEEN" == "true" && "$FORCE" != "true" ]]; then
+            echo "HA $HA already tested"
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  test:
+    needs: detect
+    if: needs.detect.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [stable, main]
+    name: "Tests (${{ matrix.target }} / HA ${{ needs.detect.outputs.ha }})"
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ matrix.target == 'stable' && needs.detect.outputs.stable || 'main' }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Set up Python
+        run: uv python install 3.14
+
+      - name: Install dependencies
+        run: uv sync --frozen --group dev
+
+      # A failure only counts when it is new on the beta: a test already
+      # failing on the current stable HA is not a beta regression.
+      # --no-sync keeps uv from reverting the pinned phac to the locked one.
+      - name: Baseline on HA ${{ needs.detect.outputs.ha_stable }}
+        run: |
+          uv pip install pytest-homeassistant-custom-component==${{ needs.detect.outputs.phac_stable }}
+          uv run --no-sync pytest -q --junitxml=stable.xml || true
+
+      - name: Run on HA ${{ needs.detect.outputs.ha }}
+        run: |
+          uv pip install --prerelease=allow pytest-homeassistant-custom-component==${{ needs.detect.outputs.phac }}
+          uv run --no-sync python -c "from homeassistant.const import __version__; print('HA version:', __version__)"
+          uv run --no-sync pytest -q --junitxml=beta.xml || true
+
+      - name: Compare
+        env:
+          HA: ${{ needs.detect.outputs.ha }}
+          HA_STABLE: ${{ needs.detect.outputs.ha_stable }}
+        run: |
+          python3 - <<'EOF'
+          import os, sys, xml.etree.ElementTree as ET
+
+          def failing(path):
+              try:
+                  root = ET.parse(path).getroot()
+              except (OSError, ET.ParseError):
+                  return None
+              return {
+                  f"{tc.get('classname')}::{tc.get('name')}"
+                  for tc in root.iter("testcase")
+                  if tc.find("failure") is not None or tc.find("error") is not None
+              }
+
+          stable, beta = failing("stable.xml"), failing("beta.xml")
+          if beta is None:
+              sys.exit("No test report on the beta: the suite did not run")
+          new = sorted(beta - (stable or set()))
+          lines = [
+              f"HA {os.environ['HA_STABLE']}: {len(stable or ())} failing, "
+              f"HA {os.environ['HA']}: {len(beta)} failing, {len(new)} new",
+              *(f"- `{t}`" for t in new),
+          ]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a") as f:
+              f.write("\n".join(lines) + "\n")
+          print("\n".join(lines))
+          sys.exit(1 if new else 0)
+          EOF
+
+  report:
+    needs: [detect, test]
+    if: always() && needs.detect.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Open, update or close the regression issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RESULT: ${{ needs.test.result }}
+          HA: ${{ needs.detect.outputs.ha }}
+          STABLE: ${{ needs.detect.outputs.stable }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create ha-beta-regression --color B60205 \
+            --description "Tests fail against a Home Assistant beta" 2>/dev/null || true
+          issue=$(gh issue list --label ha-beta-regression --state open --json number -q '.[0].number')
+          if [[ "$RESULT" == "success" ]]; then
+            if [[ -n "$issue" ]]; then
+              gh issue close "$issue" --comment "Tests pass again against HA $HA ($RUN_URL)."
+            fi
+          elif [[ -n "$issue" ]]; then
+            gh issue comment "$issue" --body "Still failing against HA $HA ($STABLE and main): $RUN_URL"
+          else
+            gh issue create --label ha-beta-regression \
+              --title "Tests fail against Home Assistant $HA" \
+              --body "The HA beta canary failed against HA $HA (stable $STABLE and/or main): $RUN_URL"
+          fi
+
+      - name: Mark this beta as tested
+        run: mkdir -p .ha-beta-marker && echo "$HA" > .ha-beta-marker/version
+        env:
+          HA: ${{ needs.detect.outputs.ha }}
+
+      - uses: actions/cache/save@v4
+        with:
+          path: .ha-beta-marker
+          key: ha-beta-${{ needs.detect.outputs.ha }}
