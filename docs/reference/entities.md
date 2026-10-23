@@ -131,7 +131,7 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 | compressor_te_evaporator_temp | sensor | Evaporator temperature | °C | diagnostic |
 | compressor_evi_indoor_expansion_valve_opening | sensor | Indoor expansion valve opening | % | diagnostic |
 | compressor_evo_outdoor_expansion_valve_opening | sensor | Outdoor expansion valve opening | % | diagnostic |
-| compressor_cycle_time | sensor | Average time between compressor starts | min | diagnostic |
+| compressor_cycle_time | sensor | Median time between compressor starts (standby excluded) | min | diagnostic |
 | compressor_runtime | sensor | Compressor runtime | min | diagnostic |
 | compressor_resttime | sensor | Compressor rest time | min | diagnostic |
 | compressor_cycling_status | sensor (ENUM) | Short-cycling detection in space heating (learning/ok/watch/alert); advisory. All profiles, opt-in. See [cycling monitoring](cycling-monitoring.md) | - | diagnostic |
@@ -149,7 +149,7 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 | secondary_compressor_suction_temp | sensor | Suction temperature | °C | diagnostic |
 | secondary_compressor_discharge_pressure | sensor | Discharge pressure | bar | diagnostic |
 | secondary_compressor_suction_pressure | sensor | Suction pressure | bar | diagnostic |
-| secondary_compressor_cycle_time | sensor | Average time between compressor starts | min | diagnostic |
+| secondary_compressor_cycle_time | sensor | Median time between compressor starts (standby excluded) | min | diagnostic |
 | secondary_compressor_runtime | sensor | Compressor runtime | min | diagnostic |
 | secondary_compressor_resttime | sensor | Compressor rest time | min | diagnostic |
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The compressor cycle time and rest time no longer count a standby as a cycle. When the heat pump stopped for hours (no demand, night setback), the restart recorded a cycle of several hours, so the cycle time jumped from ~13 min to ~50 min and took hours to come back down. A stop longer than 60 minutes is now treated as a standby and ignored, and the three timing sensors (cycle, run, rest) show the median of the recent cycles instead of the mean, so an occasional outlier no longer drags the value. After a restart, the history is rebuilt from the last 48 hours instead of 6, so the value no longer depends on when Home Assistant last restarted.
+
 ## [2.2.0-beta.13] - 2026-10-21
 
 ### Fixed
