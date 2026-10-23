@@ -30,7 +30,11 @@ from homeassistant.helpers.issue_registry import (
     async_create_issue,
     async_delete_issue,
 )
-from homeassistant.helpers.restore_state import async_get as async_get_restore_data
+from homeassistant.helpers.restore_state import (
+    RestoreStateData,
+    StoredState,
+    async_get as async_get_restore_data,
+)
 from homeassistant.helpers.storage import Store
 from homeassistant.loader import async_get_integration
 
@@ -186,6 +190,20 @@ def _should_reinit_cop_services(
     )
 
 
+def _get_stored_state(
+    restore_data: RestoreStateData, entity_id: str
+) -> StoredState | None:
+    """Return the stored state of an entity, if any.
+
+    HA 2026.11 removes `last_states` in favour of `async_get_stored_state`
+    (stored states are now keyed by entity registry id). Older releases only
+    have the dict (#458).
+    """
+    if hasattr(restore_data, "async_get_stored_state"):
+        return restore_data.async_get_stored_state(entity_id)
+    return restore_data.last_states.get(entity_id)
+
+
 async def _async_restore_thermal_energy(
     hass: HomeAssistant,
     entry: HitachiYutakiConfigEntry,
@@ -198,17 +216,18 @@ async def _async_restore_thermal_energy(
     for key in _THERMAL_ENERGY_KEYS:
         unique_id = f"{entry.entry_id}_{key}"
         entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
-        if entity_id and entity_id in restore_data.last_states:
-            last = restore_data.last_states[entity_id]
-            if (
-                last
-                and last.state
-                and last.state.state not in (None, "unknown", "unavailable", "")
-            ):
-                with suppress(ValueError, TypeError):
-                    coordinator.derived_metrics.restore_thermal_energy(
-                        key, float(last.state.state)
-                    )
+        if entity_id is None:
+            continue
+        last = _get_stored_state(restore_data, entity_id)
+        if (
+            last
+            and last.state
+            and last.state.state not in (None, "unknown", "unavailable", "")
+        ):
+            with suppress(ValueError, TypeError):
+                coordinator.derived_metrics.restore_thermal_energy(
+                    key, float(last.state.state)
+                )
 
 
 async def _async_restore_energy_state(
@@ -231,25 +250,22 @@ async def _async_restore_energy_state(
     for key, restore_fn in restore_map.items():
         unique_id = f"{entry.entry_id}_{key}"
         entity_id = entity_registry.async_get_entity_id("sensor", DOMAIN, unique_id)
+        last = _get_stored_state(restore_data, entity_id) if entity_id else None
         _LOGGER.debug(
             "Energy restore: key=%s unique_id=%s entity_id=%s in_restore=%s",
             key,
             unique_id,
             entity_id,
-            entity_id in restore_data.last_states if entity_id else "no_entity",
+            last is not None if entity_id else "no_entity",
         )
-        if entity_id and entity_id in restore_data.last_states:
-            last = restore_data.last_states[entity_id]
-            if (
-                last
-                and last.state
-                and last.state.state not in (None, "unknown", "unavailable", "")
-            ):
-                _LOGGER.debug("Energy restore: %s = %s", key, last.state.state)
-                with suppress(ValueError, TypeError):
-                    restore_fn(float(last.state.state))
-            else:
-                _LOGGER.debug("Energy restore: %s — no valid state", key)
+        if last is None:
+            continue
+        if last.state and last.state.state not in (None, "unknown", "unavailable", ""):
+            _LOGGER.debug("Energy restore: %s = %s", key, last.state.state)
+            with suppress(ValueError, TypeError):
+                restore_fn(float(last.state.state))
+        else:
+            _LOGGER.debug("Energy restore: %s, no valid state", key)
 
 
 def _unit_issue_ids(entry_id: str) -> tuple[str, str]:
