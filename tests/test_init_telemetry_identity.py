@@ -43,6 +43,8 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 
+pytestmark = pytest.mark.usefixtures("unload_entries")
+
 
 def _make_entry(
     *,
@@ -99,6 +101,10 @@ async def _setup(
         patch(
             "custom_components.hitachi_yutaki.api.modbus.ModbusApiClient.close",
             AsyncMock(),
+        ),
+        patch(
+            "custom_components.hitachi_yutaki.api.modbus.hc_a_mb.HcAMbApiClient.async_read_unit_table",
+            AsyncMock(return_value=None),
         ),
         patch.object(
             hass.config_entries,
@@ -254,8 +260,11 @@ async def test_setup_uses_provider_fallback_and_optional_configuration_url(
     assert entry.unique_id == "provider-fallback"
     fallback.assert_called_once_with(entry.data)
     url.assert_called_once_with(entry.data)
-    gateway = dr.async_get(hass).async_get_device(
-        {(DOMAIN, f"{entry.entry_id}_gateway")}
+    gateway = next(
+        device
+        for device in dr.async_entries_for_config_entry(
+            dr.async_get(hass), entry.entry_id
+        )
+        if (DOMAIN, f"{entry.entry_id}_gateway") in device.identifiers
     )
-    assert gateway is not None
     assert gateway.configuration_url is None

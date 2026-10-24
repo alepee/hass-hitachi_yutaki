@@ -13,6 +13,8 @@ from homeassistant.helpers import issue_registry as ir
 
 from .test_init_telemetry_identity import _make_entry, _setup
 
+pytestmark = pytest.mark.usefixtures("unload_entries")
+
 _REGISTER = "custom_components.hitachi_yutaki.async_register_fleet_ping"
 
 

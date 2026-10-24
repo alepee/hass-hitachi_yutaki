@@ -169,6 +169,7 @@ Tests live in `tests/` (mirrors the package layout):
 - `tests/entities/`, `tests/adapters/`, `tests/api/`, `tests/profiles/`: layer-specific tests.
 - `tests/test_telemetry_*.py`: telemetry unit + integration tests.
 - Uses `pytest` and `pytest-asyncio`. Run with `make test`.
+- CI (`tests.yml`) runs the suite on the oldest supported HA (2025.1.0, Python 3.13) and on the HA versions locked in `uv.lock` for Python 3.13 and 3.14. `uv run` must be called with `--no-sync` after pinning a phac version, otherwise it re-syncs the environment back to the lock; `UV_PYTHON` selects the matrix Python over `.python-version`.
 
 ## Dependencies
 All dependencies are declared in `pyproject.toml` (single source of truth).

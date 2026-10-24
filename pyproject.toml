@@ -11,6 +11,9 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest-homeassistant-custom-component",
+    # HA 2026.10+ needs Python 3.14.2: without this floor, the universal lock
+    # keeps the 3.14.2+ fork on an old phac shared with the 3.13 one.
+    "pytest-homeassistant-custom-component>=0.13.373; python_full_version >= '3.14.2'",
     "pytest",
     "pytest-asyncio",
     "ruff==0.17.0",
