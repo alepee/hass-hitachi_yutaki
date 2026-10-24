@@ -106,6 +106,10 @@ jobs:
       matrix:
         target: [stable, main]
     name: "Tests (${{ matrix.target }} / HA ${{ needs.detect.outputs.ha }})"
+    # HA betas need the newest Python; without it uv follows the checked-out
+    # ref's .python-version.
+    env:
+      UV_PYTHON: "3.14"
     steps:
       - uses: actions/checkout@v7
         with:
