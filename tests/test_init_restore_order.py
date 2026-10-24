@@ -30,6 +30,8 @@ from custom_components.hitachi_yutaki.const import (
 )
 from homeassistant.core import HomeAssistant
 
+pytestmark = pytest.mark.usefixtures("unload_entries")
+
 RESTORED_ENERGY_KWH = 1234.567
 RESTORED_THERMAL_KWH = 4321.5
 

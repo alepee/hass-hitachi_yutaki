@@ -36,10 +36,14 @@ jobs:
       matrix:
         include:
           # Oldest supported HA version
+          # pycares 4.9+ leaves a shutdown thread that HA 2025.1's test
+          # harness reports as lingering; that release shipped with an older one.
           - ha-version: "2025.1.0"
             phac-version: "0.13.201"
             python-version: "3.13"
-          # Latest HA (resolved dynamically via latest phac)
+            extra-pins: "pycares<4.9"
+          # Latest HA available on each Python, as locked in uv.lock: newer HA
+          # releases need Python 3.14, so the 3.13 job stays on HA 2026.2.
           - ha-version: "latest"
             phac-version: ""
             python-version: "3.13"
@@ -48,6 +52,10 @@ jobs:
             python-version: "3.14"
 
     name: "Tests (HA ${{ matrix.ha-version }} / Python ${{ matrix.python-version }})"
+
+    # Without it uv follows .python-version, whatever the matrix says.
+    env:
+      UV_PYTHON: ${{ matrix.python-version }}
 
     steps:
       - uses: actions/checkout@v7
@@ -63,10 +71,16 @@ jobs:
 
       - name: Pin HA ${{ matrix.ha-version }}
         if: matrix.phac-version != ''
-        run: uv pip install --prerelease=allow pytest-homeassistant-custom-component==${{ matrix.phac-version }}
+        env:
+          EXTRA_PINS: ${{ matrix.extra-pins }}
+        run: |
+          # EXTRA_PINS is left unquoted on purpose: one argument per pin.
+          # shellcheck disable=SC2086
+          uv pip install --prerelease=allow pytest-homeassistant-custom-component==${{ matrix.phac-version }} $EXTRA_PINS
 
+      # --no-sync keeps uv run from reverting the pinned HA to the locked one.
       - name: Show resolved HA version
-        run: uv run python -c "from homeassistant.const import __version__; print('HA version:', __version__)"
+        run: uv run --no-sync python -c "import sys; from homeassistant.const import __version__; print('HA version:', __version__, '/ Python', sys.version.split()[0])"
 
       - name: Run tests with pytest
-        run: uv run pytest
+        run: uv run --no-sync pytest
