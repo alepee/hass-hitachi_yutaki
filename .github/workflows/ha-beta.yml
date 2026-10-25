@@ -74,7 +74,7 @@ jobs:
       # One cache entry per tested beta acts as the "already tested" marker.
       - name: Check whether this beta was already tested
         id: seen
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v6
         with:
           path: .ha-beta-marker
           key: ha-beta-${{ steps.beta.outputs.ha }}
@@ -116,7 +116,7 @@ jobs:
           ref: ${{ matrix.target == 'stable' && needs.detect.outputs.stable || 'main' }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v5
+        uses: astral-sh/setup-uv@v10.3.2
 
       - name: Set up Python
         run: uv python install 3.14
@@ -209,7 +209,7 @@ jobs:
         env:
           HA: ${{ needs.detect.outputs.ha }}
 
-      - uses: actions/cache/save@v4
+      - uses: actions/cache/save@v6
         with:
           path: .ha-beta-marker
           key: ha-beta-${{ needs.detect.outputs.ha }}
