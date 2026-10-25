@@ -4,7 +4,7 @@ This is the primary onboarding guide for contributors to the Hitachi Yutaki Home
 
 ## Prerequisites
 
-- **Python 3.13+**
+- **Python 3.14** (current Home Assistant releases need 3.14.2+; on Python 3.13 the dev environment resolves to Home Assistant 2026.2)
 - **[uv](https://docs.astral.sh/uv/)** -- Python package manager (used via Makefile)
 - **git**
 

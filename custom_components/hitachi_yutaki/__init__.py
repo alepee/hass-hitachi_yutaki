@@ -1025,7 +1025,11 @@ async def async_remove_entry(
         async_delete_issue(hass, DOMAIN, issue_id)
 
     # Domain-global issues are shared across entries: sweep them only when the
-    # removed entry was the last one (it is already absent from the registry).
-    if not hass.config_entries.async_entries(DOMAIN):
+    # removed entry was the last one. Recent HA calls this once the entry is
+    # out of the registry, older releases (2025.1) while it is still listed.
+    if not any(
+        other.entry_id != entry.entry_id
+        for other in hass.config_entries.async_entries(DOMAIN)
+    ):
         for issue_id in ("connection_error", "desync_warning", "initializing_warning"):
             async_delete_issue(hass, DOMAIN, issue_id)

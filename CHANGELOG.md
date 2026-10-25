@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Removing the last Hitachi entry now also clears the domain-wide repair issues (connection error, desync, initializing) on older Home Assistant releases (2025.1), which call the removal hook while the entry is still registered; they were left behind until restart.
+
 ## [2.2.0-beta.14] - 2026-10-23
 
 ### Fixed

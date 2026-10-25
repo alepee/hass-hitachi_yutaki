@@ -61,6 +61,15 @@ PROFILE_INPUT = {"profile": "yutaki_s"}
 POWER_INPUT = {"power_supply": DEFAULT_POWER_SUPPLY}
 
 
+@pytest.fixture
+def mock_setup_entry():
+    """Keep a created entry from setting up, which would open a Modbus socket."""
+    with patch(
+        "custom_components.hitachi_yutaki.async_setup_entry", return_value=True
+    ) as mock:
+        yield mock
+
+
 def _mock_api_client() -> MagicMock:
     """Create a mock API client."""
     client = MagicMock(spec_set=HitachiApiClient)
@@ -407,7 +416,9 @@ async def test_profile_step_advances_to_power(hass: HomeAssistant) -> None:
 # ── Full flow + validation tests ──
 
 
-async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
+async def test_full_flow_creates_entry(
+    hass: HomeAssistant, mock_setup_entry: AsyncMock
+) -> None:
     """Test the complete flow from user to entry creation."""
     mock_client = _mock_api_client()
     mock_gw_info = _mock_gateway_info(mock_client)
@@ -443,7 +454,7 @@ async def test_full_flow_creates_entry(hass: HomeAssistant) -> None:
 
 
 async def test_full_flow_hides_refrigerant_toggle_when_unsupported(
-    hass: HomeAssistant,
+    hass: HomeAssistant, mock_setup_entry: AsyncMock
 ) -> None:
     """A profile without extended sensors still gets the panel, minus that toggle.
 
