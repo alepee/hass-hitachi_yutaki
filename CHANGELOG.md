@@ -7,260 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Fixed
+## [2.2.0] - 2026-10-25
 
-- Removing the last Hitachi entry now also clears the domain-wide repair issues (connection error, desync, initializing) on older Home Assistant releases (2025.1), which call the removal hook while the entry is still registered; they were left behind until restart.
-
-## [2.2.0-beta.14] - 2026-10-23
-
-### Fixed
-
-- Changing a setting (a switch, select, number, climate or water-heater command) no longer shows the new value, reverts to the old one for 15-20 s and then shows the new value again. The gateway acknowledges a CONTROL write at once, but its STATUS registers only reflect it once the command has travelled over H-LINK to the unit and back, so the refresh right after the write, and the next few polls, still reported the old state. The Modbus client now publishes the written value immediately and ignores STATUS reads of that key that still report the old value, for up to 30 s. A matching read confirms the write earlier; past the deadline the gateway value wins again, so a command the unit refused cannot stick. Failed writes publish nothing (#322).
-- The compressor cycle time and rest time no longer count a standby as a cycle. When the heat pump stopped for hours (no demand, night setback), the restart recorded a cycle of several hours, so the cycle time jumped from ~13 min to ~50 min and took hours to come back down. A stop longer than 60 minutes is now treated as a standby and ignored, and the three timing sensors (cycle, run, rest) show the median of the recent cycles instead of the mean, so an occasional outlier no longer drags the value. After a restart, the history is rebuilt from the last 48 hours instead of 6, so the value no longer depends on when Home Assistant last restarted.
-
-## [2.2.0-beta.13] - 2026-10-21
-
-### Fixed
-
-- **Short-cycling detection never counted a cycle.** The detector treated the controller's thermo-off state as leaving space heating, but thermo-off (the unit stopping the compressor once the water target is reached) and demand-off (a room thermostat ending the demand) are the off half of a heating cycle. The cycle chain broke at every stop, so starts were seen but no cycle period was ever measured, and the sensor stayed in `learning` with `cycles_today` at 0 on every installation. Both now count as heating; a change of regime (DHW, pool, cooling) and defrosts still break the chain. The first verdict comes after one heating day with enough cycles, and installations that genuinely short-cycle can reach `alert` after three.
-- `thermal_energy_heating_daily` and `thermal_energy_cooling_daily` now use `state_class: total_increasing` instead of `total`. Declared `total` without a `last_reset`, every midnight reset was recorded by Home Assistant statistics as negative production equal to the whole previous day, so their long-term statistics (hourly/daily bars, the `sum` used by the Energy dashboard) drifted around zero instead of adding up. Existing statistics keep their history; only new hours are compiled correctly.
-
-## [2.2.0-beta.12] - 2026-10-18
+This release adds two opt-in preventive-maintenance detectors (slow refrigerant charge loss and compressor short cycling), an anonymous daily fleet ping with public statistics, and per-entry diagnostics. It makes HC-A(16/64)MB multi-unit installations robust to unit renumbering, fixes several energy accounting errors (power sensor ignored at 0 A, under-counted consumption at slow polling, negative daily statistics, zero after restart), reads ATW-MBS-02 settings from STATUS registers, and stops written settings from bouncing back for 15-20 s. It is ready for Home Assistant 2026.11.
 
 ### Added
-
-- **Telemetry: preventive-maintenance feedback.** With anonymous telemetry on, the daily installation info now says whether each preventive-maintenance detector is turned on, how often the refrigerant baseline was reset (from the button or the "circuit was serviced" repair flow), and whether a detector's repair issue was ignored. The detectors' verdicts were already part of the metrics; they are now documented, and pinned by a test so no new key reaches the archive unreviewed. Nothing changes in the fleet ping.
-
-### Fixed
-
-- Removing a config entry now also deletes the short-cycling detector's stored state and its repair issue.
-
-## [2.2.0-beta.11] - 2026-10-18
-
-### Fixed
-
-- Gateway validation respects the API readiness result, and operating-mode
-  selectors only offer modes the gateway can write.
-- Circuit climate activity follows the actual operation state, including idle
-  circuits while the unit produces domestic hot water.
-- Installation telemetry reports the profile's circuit limit, including zero
-  for DHW-only units.
-- COP history replay uses the same directional and measured-power rules as live
-  measurements. Energy integration is protected against backward clock steps.
+- **Refrigerant charge-loss detection (beta, opt-in)**: a local early warning for a slow refrigerant charge loss, built from the compressor signals the integration already reads. A diagnostic sensor `Refrigerant Charge Status` (`learning`/`ok`/`watch`/`alert`, Primary Compressor device) tracks the joint drift of the gas-line superheat (`Tg − Te`) and the outdoor expansion-valve opening (`EVO`) against a per-installation baseline learned over about two weeks of heating; `EVO` is only compared at equivalent outdoor temperature. A repair issue is raised when the alert persists for several days: it clears on recovery in season, is annotated as stale (`last_valid_day` / `days_since_valid_data`) when frozen at the end of the heating season, and offers a "circuit was serviced" fix that resets the baseline, as does the `Reset Refrigerant Baseline` button. Plausibility bounds live per heat-pump profile. Advisory only: it complements and does not replace the mandatory F-Gas inspection, and an alert is a hint to look closer, not a diagnosis. Off by default; not available on the Yutampo R32 (#310, #393).
+- **Compressor short-cycling detection (beta, opt-in)**: a diagnostic sensor warns when the compressor starts and stops too often in space heating, which wears it out and costs seasonal efficiency (heating curve too high, too little buffer volume, oversized unit). A day is faulted when the compressor reaches at least 6 starts within an hour *and* a median cycle period at or under 15 minutes; three faulted days raise a repair issue that clears on its own and expires after two weeks without a heating day. Thresholds were calibrated on the anonymous telemetry archive: the usual "3 starts per hour" rule flags about a third of real installations. No learned baseline, since short cycling is a stable state rather than a drift. Off by default; available on every profile.
+- "Advanced features (beta)" panel, in the setup flow and the integration options, with a **"Preventive maintenance" section holding one consent toggle per detector**. Existing installations on a capable profile get a one-time notification offering the refrigerant detector.
+- **Anonymous daily fleet ping** (#468), separate from telemetry and with its own setting. Once a day, one tiny payload per Home Assistant instance: integration and Home Assistant versions, Köppen climate zone (computed locally), and the model, gateway and capabilities of each heat pump. No identifier, no location, no measurement. On by default, turned off from the integration options (telemetry On implies it); a one-time repair notice presents it. Aggregated results are public, one chart per attribute: [fleet stats](https://alepee.github.io/hass-hitachi_yutaki/fleet-stats.html).
+- Telemetry (when enabled) reports whether each preventive-maintenance detector is on, how often the refrigerant baseline was reset and whether a detector's repair issue was ignored; detector verdicts are part of the metrics. Nothing changes in the fleet ping.
+- Diagnostics download for each entry (device page, "Download diagnostics"): settings with the gateway address removed, the last poll, and, on an HC-A(16/64)MB gateway, which unit the entry is bound to (#476).
+- Repair issue when the gateway answers but receives no data from the heat pump (every register reads `0xFFFF`), asking to check that the whole system is powered on and connected (#404).
+- Catalan translation, open for review on [Weblate](https://hosted.weblate.org/engage/hass-hitachi_yutaki/).
 
 ### Changed
-
-- Gateway capabilities, transport metadata and errors stay behind the API
-  boundary. Energy/cost accumulation, time dependencies and maintenance alert
-  decisions are handled through domain services and adapters.
-
-## [2.2.0-beta.10] - 2026-10-14
-
-### Fixed
-
-- Setup no longer continues while the gateway is not ready (H-LINK initializing
-  or desynchronized) (#404). It used to go ahead on empty data: devices were
-  created from the saved capabilities, but every entity that depends on them was
-  skipped, leaving devices with no entities until a manual reload. Setup is now
-  deferred: after a gateway restart the entry shows "Retrying setup" for a few
-  minutes, and Home Assistant retries it on its own until the gateway is ready.
-
-- A garbage `system_config` read (`0xFFFF`) is no longer taken as a heat pump
-  declaring every capability, which created phantom `Circuit 2`, `DHW` and
-  `Pool` devices (#404).
-
-- A gateway that answers but receives no data from the heat pump (every
-  register reads `0xFFFF`, its state included) is no longer treated as healthy.
-  It is now reported as not ready, with a new repair issue asking to check that
-  the whole system is powered on and connected, instead of loading entities full
-  of meaningless values (#404). The desynchronization repair issue asks the same.
-
-- On an HC-A(16/64)MB gateway, adding a unit whose outdoor refrigerant cycle is
-  already used by another configured unit is now refused with a clear error.
-  Two entries on one cycle read and drive the same outdoor unit, which silently
-  corrupted the first unit's data (#404).
-
-- A circuit, DHW or pool device that the heat pump no longer declares can now be
-  deleted from the device page (#404).
-
-- On an HC-A(16/64)MB gateway, each entry now stays bound to its own heat pump
-  when the gateway renumbers its units (#476). The gateway lists units in their
-  address order, so a unit that is off or disconnected while the gateway starts
-  shifts the others to new slots, and an entry used to silently show another
-  unit's data under its name. Each entry now records the unit's outdoor cycle and
-  indoor address, follows the unit to its new slot at startup, and reloads on its
-  own when the gateway is restarted while Home Assistant runs. If its unit is
-  missing, the entry waits and a repair issue explains what to check, instead of
-  reading whichever unit took its place. Existing entries pick this up on their
-  own, with nothing to reconfigure.
-
-- On an HC-A(16/64)MB gateway, adding a unit could be wrongly refused as
-  "already configured" when another entry had been created on that slot before
-  its unit moved. New entries are now identified by their unit's outdoor cycle
-  and indoor address instead of their slot (#476).
-
-### Added
-
-- Diagnostics download for each entry (device page, "Download diagnostics"): the
-  entry's settings with the gateway address removed, the last poll, and, on an
-  HC-A(16/64)MB gateway, which unit the entry is bound to (#476).
-
-## [2.2.0-beta.9] - 2026-10-12
-
-### Added
-
-- Anonymous daily fleet ping (#468), separate from telemetry and with its own
-  setting. Once a day, the integration sends one tiny payload per Home Assistant
-  instance: integration and Home Assistant versions, Köppen climate zone (computed
-  locally), and the model, gateway and capabilities of each heat pump. No
-  identifier, no location, no measurement. On by default, and turned off from the
-  integration options (telemetry On implies it); a one-time repair notice presents
-  it. The aggregated results are public, one chart per attribute:
-  [fleet stats](https://alepee.github.io/hass-hitachi_yutaki/fleet-stats.html).
-  Exact payload in the [telemetry reference](docs/reference/telemetry.md#fleet-ping).
-
-- Catalan translation, seeded from the English source and the French translation
-  and open for review by native speakers on
-  [Weblate](https://hosted.weblate.org/engage/hass-hitachi_yutaki/).
+- Compressor cycle, run and rest times show the median of recent cycles instead of the mean, ignore stops longer than 60 minutes (standby), and are rebuilt from the last 48 hours after a restart instead of 6. A long standby no longer makes the cycle time jump from ~13 to ~50 min for hours.
+- Written settings (switch, select, number, climate, water heater) are published immediately. The gateway's STATUS registers only reflect a write once it has travelled over H-LINK and back, so the value used to revert for 15-20 s; stale reads of that key are now ignored for up to 30 s, and a refused command still reverts after that (#322).
+- `thermal_energy_heating_daily` and `thermal_energy_cooling_daily` use `state_class: total_increasing`. With `total`, each midnight reset was recorded as negative production, so their long-term statistics and the Energy dashboard drifted around zero. Existing statistics keep their history.
+- Telemetry on multi-gateway installations: each entry sends its own `device_hash`, so units no longer share one rate-limit budget nor overwrite each other's archives. Requests are bounded in bytes, the buffer holds 30 minutes at any poll cadence, failed sends are re-queued instead of dropped, a backlog drains through a catch-up flush, and unloading no longer waits on an unreachable endpoint (#395).
+- Docs: `electrical_power` and `power_consumption` are documented as compressor-only estimates (`P ≈ U × I × cosφ`) unless a Power Sensor is configured (#373).
+- Gateway capabilities, transport metadata and errors stay behind the API boundary; energy/cost accumulation, time dependencies and maintenance alert decisions go through domain services.
 
 ### Fixed
-
-- No more `Detected that custom integration 'hitachi_yutaki' calls
-  device_registry.async_get_or_create with a deprecated via_device parameter`
-  warning at startup on Home Assistant 2026.9 and later, ahead of the parameter's
-  removal in 2027.8. Devices are now linked to their parent by registry id on Home
-  Assistant 2026.8+, and by identifier as before on older releases.
-- The integration no longer fails to set up on Home Assistant 2026.11, which removes
-  the restore-state cache it read at startup to restore the energy, electricity cost
-  and thermal energy totals. It now uses the new accessor on 2026.11 and later, and
-  the old cache as before on older releases (#458).
-
-- Dutch: the power setup step and the power and sensors options step were both titled
-  "External sensor configuration", dropping the power supply they configure. They now
-  read "Vermogensconfiguratie" and "Vermogen- en sensorconfiguratie".
-- Dutch: the refrigerant charge status showed "Alarm" in its alert state, the same word
-  as the heat pump's own alarm sensor and alarm codes. It now reads "Waarschuwing", and
-  the refrigerant repair issues name the state accordingly.
-- Dutch: the power and sensors options step now describes the power supply it
-  configures, and the profile repair step asks for the heat pump profile rather than
-  the model.
-
-## [2.2.0-beta.8] - 2026-10-07
-
-### Fixed
-
-- Telemetry no longer drops points every few hours on the widest heat-pump profiles,
-  with a recurring `Telemetry buffer full, N point(s) dropped so far` warning. A
-  request is capped at 180 KB, and when a point grows past about 3 KB that cap lets one
-  5-minute flush carry fewer points than a 5-second poll produces (52 to 56 against
-  60), so the buffer filled up slowly and evicted the surplus. When a delivered batch
-  leaves points behind, a catch-up flush now follows 65 seconds later, which doubles
-  the drain rate while staying inside the endpoint's one-request-per-minute limit. No
-  catch-up follows a failed send. Telemetry only, no effect on the heat pump.
-
-## [2.2.0-beta.7] - 2026-09-17
-
-### Added
-- **Compressor short-cycling detection (beta, opt-in)**: a new diagnostic sensor warns when the compressor starts and stops too often in space heating, which wears it out and costs seasonal efficiency. It usually points at a heating curve set too high, too little buffer volume, or an oversized unit. The verdict (`learning`/`ok`/`watch`/`alert`) needs three days of heating, and a repair issue is raised once the fault has held that long; it clears on its own when the cycling stops, and expires after two weeks without a heating day so it does not linger all summer. Thresholds were calibrated by replaying the anonymous telemetry archive rather than taken from the literature: the usual "3 starts per hour" rule flags about a third of real installations, because these machines genuinely run short cycles (fleet median run 6.7 min). Only the conjunction of at least 6 starts within an hour *and* a median cycle period at or under 15 minutes separates the tail of the distribution. Unlike the refrigerant detector this one has no learned baseline: short cycling is a stable state, not a drift, and a baseline would learn the fault instead of reporting it. Available on every profile.
-- The "Advanced features (beta)" panel now groups the beta detectors in a **"Preventive maintenance" section with one consent toggle per detector**, and is shown to every profile instead of only those with extended compressor sensors. The refrigerant toggle stays hidden where the hardware cannot support it (Yutampo R32), so that profile now gets a detector for the first time. Existing consents are unchanged.
-
-### Fixed
-- Repair issues left behind by a removed Hitachi Yutaki config entry (the "Help Improve Hitachi Yutaki" and "Track Your Heat Pump's Electricity Cost" onboarding prompts and the refrigerant-alert repairs) can now be dismissed: opening one deletes it and explains that its unit is no longer configured, where it previously aborted with a raw `entry_not_found` key and stayed in the list for good. Entries removed on 2.2.0 or later no longer leave such issues behind in the first place (#409).
-
-## [2.2.0-beta.6] - 2026-09-07
-
-### Fixed
-- `power_consumption` and `electricity_cost` under-counted on any installation polling slower than 10 s (down to about 1% of the real consumption at a 20 s interval). The energy integrator discarded every increment whose time since the previous poll exceeded a hard-coded `2 × DEFAULT_SCAN_INTERVAL` (10 s), while the coordinator polls at the *configured* `scan_interval`, so at 20 s only the rare polls landing under 10 s apart were counted. The tolerance now derives from the configured interval (`3 × scan_interval`, never below 30 s: the gap between polls is the interval plus the Modbus read time, and slow gateways at the default 5 s were already losing a quarter to a third of their energy to the old guard), and a longer gap is clamped to that tolerance rather than dropped, so a gateway outage costs at most that much phantom energy instead of losing the increment that ends it. `electrical_power` itself was correct throughout (#403).
-- `power_consumption`, `electricity_cost` and the `thermal_energy_*` totals no longer publish `0.0` for one poll after a Home Assistant restart or an integration reload. Their last recorded state was restored *after* the first poll had already published `coordinator.data`, and nothing re-injected the restored value, so the first state seen by the entities was 0.0 before jumping back to the lifetime total on the next poll. Home Assistant statistics read that as a meter reset followed by new consumption and re-added the whole total to the `sum` statistic at every restart. The counters are now restored before the first poll, as the refrigerant detector state already was (#432).
-
-## [2.2.0-beta.5] - 2026-09-03
-
-### Fixed
-- A configured **Power Sensor** (`power_entity`) is now read even when the compressor reports 0 A. The electrical-power computation was guarded by `compressor_current > 0`, but the measured-power path does not use the current at all, so the external meter was simply ignored whenever the compressor current read zero: standby draw was never counted for anyone, and wherever the gateway itself reports a constant 0 A (an **HC-A(16/64)MB** serves no compressor current for a unit read at a secondary refrigerant cycle, even with the compressor running) `electrical_power`, `power_consumption` and `electricity_cost` were stuck at 0 forever, even with a dedicated meter correctly configured. The `P ≈ U × I × cosφ` estimate is unchanged. Note that DHW COP still cannot be computed on a Yutampo R32: it requires water inlet/outlet temperatures and flow, which that unit does not report (#403).
-
-## [2.2.0-beta.4] - 2026-08-31
-
-### Fixed
-- Telemetry on installations with more than one Hitachi gateway: every config entry
-  shared a single `instance_hash` derived from the Home Assistant instance, so the
-  ingestion endpoint's rate limit (1 request per 60s per identity) rejected all but
-  one flush per 5-minute cycle, permanently. Each entry now sends its own
-  `device_hash`, derived from the gateway hardware identifier, so the rate limit,
-  the R2 archive keys and the fleet dashboard address a heat-pump unit rather than a
-  household. Two silent archive defects are fixed with it: installation payloads from
-  different units no longer overwrite each other, and two entries flushing in the same
-  second no longer collide on the same metrics object name. Failed sends now re-queue
-  their buffered points instead of dropping them (bounded to 30 minutes and to 80
-  points per request, so a backlog drains over several cycles instead of growing into
-  a request the endpoint refuses; a batch refused as too large is dropped rather than
-  retried indefinitely), and every telemetry log line carries the config entry name,
-  with rate-limit rejections raised from DEBUG to WARNING so the cause is visible.
-  Legacy installations whose config entry never got a hardware identifier now include
-  the unit id in their fallback identifier, so several units behind one
-  HC-A(16/64)MB gateway no longer collapse into a single identity. Single-gateway
-  installations are unaffected and their fleet history is continuous (#395).
-- Telemetry no longer loses points on installations polling faster than about 3.75
-  seconds. A flush carries at most 80 points, so a faster poll produced more per
-  5-minute cycle than one request could take and the buffer silently discarded the
-  surplus forever. Collection is now thinned to one poll out of N so a cycle never
-  outruns what a flush can send, and any point a full buffer still evicts is counted
-  and logged instead of vanishing. The default 5-second interval, and anything
-  slower, collects every poll exactly as before (#395).
-- Telemetry no longer archives the same points twice after a lost response. When a
-  send timed out on a batch the endpoint had in fact stored, the immediate retry hit
-  the rate-limit window that very attempt had armed, and the points were re-queued
-  and sent again on the next cycle. Such a rejection is now recognised for what it
-  is and the batch is not re-queued (#395).
-- Telemetry requests are now bounded in bytes rather than in points. A point carries
-  one field per register plus the derived metrics, so its size depends on the
-  heat-pump profile: 80 points measure about 90 KB on the narrowest profile but
-  about 233 KB on the widest, against a 256 KB limit at the endpoint. A wide
-  installation that had one failed send could therefore build a batch the endpoint
-  refuses, losing those points. A batch is now filled up to a serialized budget, so
-  a wide profile sends fewer points per request instead of an oversized body (#395).
-- The telemetry buffer now holds the same 30 minutes at any poll cadence. Its size
-  was a fixed number of points, which meant 30 minutes at the default 5-second poll
-  but six hours at a 60-second one, while re-queued points were discarded after 30
-  minutes either way (#395).
-- Buffered telemetry points are no longer lost when Home Assistant shuts down while
-  a send is in flight. The cancellation that shutdown raises does not derive from
-  `Exception`, so the points already taken out of the buffer were dropped instead of
-  being put back for the final flush (#395).
-- Unloading or reloading the integration no longer waits on an unreachable telemetry
-  endpoint. The final flush retried three times with backoff, holding up a Home
-  Assistant shutdown for the better part of a minute for anonymous, best-effort data;
-  it is now bounded to about one attempt (#395).
-- A batch rejected as too large is now dropped even when the connection breaks before
-  the error body can be read. The read failure was previously mistaken for a
-  transient error, so the batch was re-queued and rejected again on every cycle
-  (#395).
-
-## [2.2.0-beta.3] - 2026-07-26
-
-### Changed
-- Refrigerant charge detection (beta) is now opt-in and off by default. It lives in a new "Advanced features (beta)" panel (its first toggle) shown as the last step of setup and in the integration Options (the cog), and existing installations get a one-time onboarding notification ("Try refrigerant charge monitoring (beta)") whose fix flow enables it. The panel is only offered on profiles with the extended compressor sensors (never the Yutampo R32). The consent text strongly cautions that the feature is experimental, rests on very little validation data, and will only be considered stable after a full winter heating season: any alert is a hint to look closer, not a diagnosis (it can be a false positive), so do not call a technician or pay for a service on an alert alone, always double-check first. It also invites enabling anonymous telemetry so the detector's reliability can be validated across the fleet. The detector, its `Refrigerant Charge Status` sensor, the `Reset Refrigerant Baseline` button and the repair issue now run only when both the heat-pump profile exposes the extended compressor sensors and you have consented (#393).
-- Refrigerant charge alert: the repair issue is now fixable: confirming the circuit was serviced resets the detection baseline (same as the Reset Refrigerant Baseline button) (#384).
-- Refrigerant charge detection (beta): the gas-line superheat plausibility bounds now live per heat-pump profile (`gas_superheat_plausible_range`, all provisionally `(-10, 80)` K) instead of a fixed module cap. The previous `40 K` cap came from a wrong reading of the physics (`Tg`, register 1206, is the THMg gas-pipe thermistor, so `Tg - Te` is a condensing-side lift of about 40-60 K in heating, not a suction superheat) and it starved the detector on Yutaki S80 and Yutaki M, which risked staying in `learning` or freezing a biased baseline. Detection is unchanged in principle (drifts are measured against a per-installation learned baseline). When a baseline is frozen outside its model's observed fleet band, a diagnostic warning is now logged (helps catch profile misdetection or a multi-unit HC-A(16/64)MB topology). Documentation now states clearly that this detection is in test (beta) and will likely remain so for at least 1 to 2 years while cross-season fleet data is collected. **Upgrade note (action required):** raising the plausibility cap changes which samples are collected, so baselines learned under the old cap (notably on S80 and M) are biased. After updating, press **Reset Refrigerant Baseline** (Primary Compressor device) to re-learn a clean reference. No stored-data migration is performed (#393).
-
-### Fixed
-- Refrigerant charge status: an alert frozen at end of heating season is now annotated as stale (new `last_valid_day` / `days_since_valid_data` sensor attributes, dedicated issue text) instead of silently reporting months-old data (#384).
-- Refrigerant anomaly detection: hardened the persisted-state restore path. The detector state is now restored **before** the coordinator's first poll, so a Home Assistant restart no longer briefly flaps the `Refrigerant Charge Status` sensor to a spurious `learning` state: the persisted verdict (and its repair issue, when an alert is active) is re-established from the very first poll. A corrupt or malformed persisted snapshot no longer fails the integration setup: the payload is fully validated before any state is touched (restore is atomic), a warning is logged, and the detector restarts cleanly in `learning` mode (#383).
-- Coordinator: a crash in a post-fetch stage (derived-metrics enrichment, refrigerant repair-issue update, telemetry collection or `system_config` persistence) was misreported as a gateway `connection_error` repair issue and marked every entity unavailable, even though the Modbus poll had returned complete valid register data. Such failures are now logged with a full stack trace as integration bugs and the raw register data is returned: register-backed entities keep updating and no `connection_error` issue is raised (derived sensors may read `unknown` for the affected cycles). Real Modbus/communication failures keep the exact previous behavior: `connection_error` issue, `UpdateFailed`, and gateway-not-ready backoff (#386).
-- Removing the integration's config entry now cleans up everything it persisted: the refrigerant detector's baseline file (`.storage/hitachi_yutaki_refrigerant_<entry_id>`) and the per-entry repair issues (refrigerant charge alert, missing configuration, telemetry and energy-cost onboarding). Domain-wide issues (`connection_error`, gateway desync/initializing warnings) are also swept when the last entry is removed. Previously these were orphaned forever after deleting the entry (#385).
-
-## [2.2.0-beta.2] - 2026-07-22
-
-### Added
-- Refrigerant-circuit anomaly detection (first iteration): a continuous, local early-warning for a **slow refrigerant charge loss**, built from the compressor signals the integration already reads. A new diagnostic sensor `Refrigerant Charge Status` (`learning`/`ok`/`watch`/`alert`, on the Primary Compressor device) tracks the joint drift of suction superheat (`Tg − Te`) and the outdoor expansion-valve opening (`EVO`) against a per-installation baseline learned over ~2 weeks of heating; superheat (a regulated, season-robust quantity) is the primary signal and `EVO` is only compared at equivalent outdoor temperature to avoid weather-driven false alarms. A self-clearing repair issue is raised when the alert persists for several days, and a `Reset Refrigerant Baseline` button re-learns the reference after a refrigerant top-up or expansion-valve service. The baseline persists across restarts. Advisory only — it **complements** and does **not** replace the mandatory F-Gas leak-tightness inspection. Available on all profiles with extended compressor sensors (every model except the Yutampo R32). See [docs/reference/refrigerant-monitoring.md](docs/reference/refrigerant-monitoring.md) (#310).
-
-### Changed
-- Docs: clarified that `electrical_power` and `power_consumption` are compressor-only estimates (`P ≈ U × I × cosφ`), not full-unit measurements. They exclude the electric backup/immersion heater, pumps, fan and standby loads, so they structurally under-report (notably on Yutampo/DHW-only setups); a configured **Power Sensor** takes priority and yields accurate readings. Fixed the misleading "Total electrical energy consumed by the unit" description in `docs/reference/entities.md` and documented the scope in `docs/reference/domain-services.md` (#373).
-
-## [2.2.0-beta.1] - 2026-07-21
-
-### Fixed
-- Config flow: a second unit on the same HC-A(16/64)MB gateway was wrongly rejected as "already configured" when it shared the same model as an existing unit. The hardware identifier read for the `unique_id` (input registers 0-2) is gateway-wide, so every unit on one gateway produced the same `unique_id`; two identical models therefore collided (two different models only avoided it by coincidence). The `unique_id` is now suffixed with the per-unit H-LINK address (`unit_id`) on both the hardware-id and IP-fallback paths, so physically distinct units — even of the same model — no longer collide. Existing config entries keep their stored `unique_id` and are unaffected. Upgrade note: entries created before this version keep the old (unsuffixed) `unique_id`, so the duplicate guard will not recognise them if you *re-add the same already-configured unit* through the setup flow without removing the old entry first — remove the old entry first, or delete the resulting duplicate. New and re-created entries are fully deduplicated (#370).
-- HC-A(8/16/64)MB: read each unit's outdoor-unit registers (Primary Compressor discharge `Td`, evaporator `Te`, current, frequency and outdoor expansion valve `EVO`) from the correct refrigerant-cycle block. The outdoor block is keyed on the **outdoor refrigerant cycle** (`30000 + Cycle × 100 + offset`, datasheet PMML0351 rev.6 §5.2.3), but the map read it at a fixed base `30000`, so on a gateway hosting several independent systems every unit reported cycle-0's compressor data. The cycle is arbitrary and is **not** the `unit_id` (on the reporter's hardware units 0/1/2 map to cycles 0/5/7), so it is now detected from the gateway unit table (input register `200 + unit_id × 4 + 1`, `0xFF` meaning "no unit"), persisted at config time under `outdoor_cycle`, and used to address the outdoor block. Existing installations self-heal on the next setup: the cycle is detected from the gateway and stored automatically, with no need to re-add the unit. When the cycle cannot be read the map falls back to cycle 0, preserving the previous behaviour (#353).
+- ATW-MBS-02: settings are read from STATUS registers instead of CONTROL, which only reflect what was last commanded. Fixes silent divergences when the unit overrides a setpoint (anti-legionella, OTC adjustment, central control) on both Line-up 2016 and Before Line-up 2016 maps (#293, #295).
+- A configured Power Sensor (`power_entity`) is read even when the compressor reports 0 A. Standby draw was never counted, and where the gateway always reports 0 A (HC-A(16/64)MB secondary refrigerant cycle) `electrical_power`, `power_consumption` and `electricity_cost` were stuck at 0 (#403).
+- `power_consumption` and `electricity_cost` no longer under-count at polling intervals above 10 s (down to about 1% at 20 s): the gap tolerance now derives from the configured interval, and a longer gap is clamped instead of dropped (#403).
+- `power_consumption`, `electricity_cost` and the `thermal_energy_*` totals no longer publish `0.0` for one poll after a restart or reload, which statistics read as a meter reset and re-added the whole total to `sum` (#432).
+- Setup is deferred while the gateway is not ready (H-LINK initializing or desynchronized) instead of creating devices without entities until a manual reload; a garbage `system_config` (`0xFFFF`) no longer creates phantom Circuit 2, DHW and Pool devices; a circuit, DHW or pool device the heat pump no longer declares can be deleted (#404).
+- HC-A(16/64)MB: each entry stays bound to its own heat pump when the gateway renumbers its units, by recording the unit's outdoor cycle and indoor address; if the unit is missing the entry waits with a repair issue instead of reading another unit. Adding a unit on an outdoor cycle already used by another entry is refused, and a unit is no longer wrongly refused as "already configured". Existing entries migrate on their own (#404, #476).
+- Operating-mode selectors only offer modes the gateway can write, and circuit climate activity follows the actual operation state, including idle circuits while the unit produces domestic hot water.
+- COP history replay uses the same rules as live measurements, and energy integration is protected against backward clock steps.
+- Setup no longer fails on Home Assistant 2026.11, which removes the restore-state cache used to restore the energy, electricity cost and thermal energy totals (#458).
+- No more deprecated `via_device` warning at startup on Home Assistant 2026.9 and later.
+- Repair issues left behind by a removed entry can be dismissed, and removing an entry now deletes its stored detector state and repair issues. Removing the last entry also clears the domain-wide issues (connection error, desync, initializing), including on Home Assistant 2025.1 (#385, #409).
+- A crash in a post-poll stage (derived metrics, telemetry, repair update) is logged as an integration bug instead of being reported as a gateway `connection_error` that made every entity unavailable (#386).
+- Dutch: clearer power setup titles, and the refrigerant alert state reads "Waarschuwing" instead of the heat pump's "Alarm".
+- Telemetry backend: an R2 archive is written even when the database insert fails (#284).
 
 ## [2.1.6] - 2026-07-21
 
