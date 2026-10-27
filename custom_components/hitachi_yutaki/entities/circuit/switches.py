@@ -39,8 +39,8 @@ def _build_circuit_switch_descriptions(
             key="thermostat",
             name="Thermostat",
             icon="mdi:thermostat",
-            condition=lambda c: c.data.get(
-                f"circuit{circuit_id}_thermostat_available", False
+            condition=lambda c: c.api_client.can_write(
+                f"circuit{circuit_id}_thermostat"
             ),
             get_fn=lambda api, circuit_id: api.get_circuit_thermostat(circuit_id),
             set_fn=lambda api, circuit_id, enabled: api.set_circuit_thermostat(

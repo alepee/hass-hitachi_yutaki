@@ -161,7 +161,7 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 |--------|------|-------------|--------|
 | climate | climate | Main climate control entity | off/heat/cool/auto or off/heat_cool |
 | eco_mode | switch | Enable ECO mode (reduced temperatures). On Before Line-up 2016 units this per-circuit switch does not exist; use the global ECO mode switch on the Control Unit device instead | on/off |
-| thermostat | switch | Enable Modbus thermostat function (if available) | on/off |
+| thermostat | switch | Enable the Modbus thermostat (room/target temperature written over Modbus act as a demand on/off); created when the gateway map can write the circuit's thermostat flag (before Line-up 2016: circuit 1 only) | on/off |
 
 ### Configuration
 

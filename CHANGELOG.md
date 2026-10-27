@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- The circuit **Thermostat** switch was never created on any gateway: its visibility read a `circuit{id}_thermostat_available` data key that nothing produced, so the Modbus thermostat enable/disable was unreachable from the UI. The switch is now created wherever the gateway map can write the circuit's thermostat flag, like the eco-mode switch (every map for circuit 1; before Line-up 2016 has no circuit 2 flag). It is deliberately not gated on the room-thermostat bits of `system_config`: field testing in #137 showed those bits report a bound Hitachi thermostat, which overrules Modbus, so the Modbus thermostat is used precisely when they are clear (#338).
+
 ## [2.2.0] - 2026-10-25
 
 This release adds two opt-in preventive-maintenance detectors (slow refrigerant charge loss and compressor short cycling), an anonymous daily fleet ping with public statistics, and per-entry diagnostics. It makes HC-A(16/64)MB multi-unit installations robust to unit renumbering, fixes several energy accounting errors (power sensor ignored at 0 A, under-counted consumption at slow polling, negative daily statistics, zero after restart), reads ATW-MBS-02 settings from STATUS registers, and stops written settings from bouncing back for 15-20 s. It is ready for Home Assistant 2026.11.
