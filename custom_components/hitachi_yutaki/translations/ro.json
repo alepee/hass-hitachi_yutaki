@@ -308,6 +308,9 @@
       "water_outlet_3_temp": {
         "name": "Temperatură ieșire apă 3"
       },
+      "mixing_valve_position": {
+        "name": "Poziția vanei de amestec"
+      },
       "water_target_temp": {
         "name": "Temperatură țintă corectată"
       },
@@ -446,6 +449,12 @@
       "secondary_compressor_current": {
         "name": "Curent compresor secundar"
       },
+      "secondary_compressor_valve_opening": {
+        "name": "Deschidere ventil de expansiune compresor secundar"
+      },
+      "secondary_compressor_retry_code": {
+        "name": "Cod de reîncercare compresor secundar"
+      },
       "cop_heating": {
         "name": "COP încălzire",
         "state_attributes": {
@@ -565,6 +574,15 @@
           "synchronized": "Sincronizat",
           "desynchronized": "Desincronizat",
           "initializing": "Inițializare"
+        }
+      },
+      "central_control_mode": {
+        "name": "Mod de control central",
+        "state": {
+          "local": "Local",
+          "air": "Aer",
+          "water": "Apă",
+          "full": "Complet"
         }
       },
       "telemetry_status": {

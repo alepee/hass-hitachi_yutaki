@@ -223,6 +223,10 @@ REGISTER_CIRCUIT_2 = {
     ),
     "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1063, write_address=1014),
     "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1064, write_address=1015),
+    # "MVP: Mixing valve position" (1215, %), circuit 2 only, read-only.
+    "circuit2_mixing_valve_position": RegisterDefinition(
+        1215, sentinel_values=frozenset({0xFFFF})
+    ),
     # No circuit2_thermostat: pre-2016 has a single global thermostat-available
     # flag (modelled as circuit1_thermostat at address 1029). See #318.
 }

@@ -51,6 +51,8 @@ class TestKeyNamingCompatibility:
             "power_consumption",
             "software_pcb",
             "software_lcd",
+            "central_control_mode",
+            "circuit2_mixing_valve_position",
         ]
         for key in shared_keys:
             assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"

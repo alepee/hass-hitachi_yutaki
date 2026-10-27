@@ -352,6 +352,10 @@ REGISTER_CIRCUIT_2 = {
     "circuit2_current_temp": RegisterDefinition(
         1073, deserializer=convert_from_tenths, write_address=1023
     ),
+    # "MVP: Mixing valve position" (1216, %), circuit 2 only, read-only.
+    "circuit2_mixing_valve_position": RegisterDefinition(
+        1216, sentinel_values=frozenset({0xFFFF})
+    ),
 }
 
 REGISTER_DHW = {

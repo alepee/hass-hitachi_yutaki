@@ -308,6 +308,9 @@
       "water_outlet_3_temp": {
         "name": "Wateruitlaattemperatuur 3"
       },
+      "mixing_valve_position": {
+        "name": "Mengklepstand"
+      },
       "water_target_temp": {
         "name": "Gecorrigeerde doeltemperatuur"
       },
@@ -446,6 +449,12 @@
       "secondary_compressor_current": {
         "name": "Stroom secundaire compressor"
       },
+      "secondary_compressor_valve_opening": {
+        "name": "Expansieventielopening secundaire compressor"
+      },
+      "secondary_compressor_retry_code": {
+        "name": "Herstartcode secundaire compressor"
+      },
       "cop_heating": {
         "name": "COP verwarming",
         "state_attributes": {
@@ -565,6 +574,15 @@
           "synchronized": "Gesynchroniseerd",
           "desynchronized": "Gedesynchroniseerd",
           "initializing": "Initialiseren"
+        }
+      },
+      "central_control_mode": {
+        "name": "Centrale regelmodus",
+        "state": {
+          "local": "Lokaal",
+          "air": "Lucht",
+          "water": "Water",
+          "full": "Volledig"
         }
       },
       "telemetry_status": {
