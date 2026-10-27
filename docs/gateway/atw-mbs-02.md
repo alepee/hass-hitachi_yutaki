@@ -360,7 +360,7 @@ Register 1223 (address 1222):
 | 1095 | 1094 | H-LINK communication state | See [H-LINK State Values](#h-link-communication-state-values) | R |
 | 1096 | 1095 | Software PCB | — | R |
 | 1097 | 1096 | Software LCD | — | R |
-| 1098 | 1097 | Unit Capacity | 0~255 kWh | R |
+| 1098 | 1097 | Unit Capacity | 0~255 kWh (a slowly increasing value on an 8 HP Yutaki S: 145 → 152 within a day, so a rolling counter rather than the unit size) | R |
 | 1099 | 1098 | Unit Power consumption | 0~255 kWh | R |
 
 ### System Configuration Bits (2016)

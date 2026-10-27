@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Firmware versions in the device info.** The Control Unit device shows the heat pump's software numbers as its firmware version (`PCB H-0289 / LCD H-0272`, the notation of the LCD controller's About → System Information screen), read from the gateway's "Software PCB" / "Software LCD" registers (ATW-MBS-02 `1095`/`1096`, Before Line-up 2016 `1085`/`1084`, HC-A(16/64)MB offsets `146`/`147`). On the Before Line-up 2016 map the Gateway device also shows the ATW-MBS-02's own hardware and software version numbers (`hw_version` / `sw_version`, status registers `1081` / `1082`); the Line-up 2016 map and HC-A(16/64)MB do not document an equivalent. New read-only data keys `software_pcb`, `software_lcd`, `gateway_hw_version` and `gateway_sw_version`; no new entity.
+
 ## [2.2.0] - 2026-10-25
 
 This release adds two opt-in preventive-maintenance detectors (slow refrigerant charge loss and compressor short cycling), an anonymous daily fleet ping with public statistics, and per-entry diagnostics. It makes HC-A(16/64)MB multi-unit installations robust to unit renumbering, fixes several energy accounting errors (power sensor ignored at 0 A, under-counted consumption at slow polling, negative daily statistics, zero after restart), reads ATW-MBS-02 settings from STATUS registers, and stops written settings from bouncing back for 15-20 s. It is ready for Home Assistant 2026.11.

@@ -176,6 +176,17 @@ class TestPre2016RegisterMap:
         """eco_offset must not appear in the 2016+ register map."""
         assert "eco_offset" not in AtwMbs02RegisterMap().all_registers
 
+    def test_software_number_registers(self):
+        """LCD Software number is at 1084, PCB1 Software number at 1085."""
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        regs = reg_map.all_registers
+        assert regs["software_lcd"].address == 1084
+        assert regs["software_pcb"].address == 1085
+        for key in ("software_pcb", "software_lcd"):
+            assert regs[key].write_address is None
+            assert key not in reg_map.writable_keys
+            assert key in reg_map.control_unit_keys
+
 
 class TestPre2016UnitModelDeserializer:
     """Test the before-2016 unit model deserializer."""
@@ -193,3 +204,31 @@ class TestPre2016UnitModelDeserializer:
     def test_none(self):
         """None input returns 'unknown'."""
         assert deserialize_unit_model_pre2016(None) == "unknown"
+
+
+class TestGatewayVersionRegisters:
+    """Gateway hardware/software version (PMML0419 rev.3, before-2016 status map)."""
+
+    def test_addresses(self):
+        """Hardware version is at 1081, software version at 1082."""
+        regs = AtwMbs02Pre2016RegisterMap().all_registers
+        assert regs["gateway_hw_version"].address == 1081
+        assert regs["gateway_sw_version"].address == 1082
+
+    def test_read_only_gateway_keys(self):
+        """Both are read-only gateway keys, polled with the base keys."""
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        for key in ("gateway_hw_version", "gateway_sw_version"):
+            reg = reg_map.all_registers[key]
+            assert reg.write_address is None
+            assert reg.deserializer is None
+            assert 0xFFFF in reg.sentinel_values
+            assert key not in reg_map.writable_keys
+            assert key in reg_map.gateway_keys
+            assert key in reg_map.base_keys
+
+    def test_absent_from_2016_map(self):
+        """The 2016 map does not document the gateway's own versions."""
+        regs = AtwMbs02RegisterMap().all_registers
+        assert "gateway_hw_version" not in regs
+        assert "gateway_sw_version" not in regs
