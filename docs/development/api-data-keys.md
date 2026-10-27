@@ -70,6 +70,22 @@ device:
 | DHW | Domestic hot water | `dhw_power`, `dhw_current_temp` |
 | Pool | Pool heating | `pool_power`, `pool_current_temp` |
 
+Not every key backs an entity. Two groups of read-only version keys only feed
+the device registry when the devices are registered at setup, in `__init__.py`:
+
+- The control-unit keys `software_pcb` and `software_lcd` (the unit's board and
+  controller software numbers, on all three maps: ATW-MBS-02 `1095`/`1096`,
+  pre-2016 `1085`/`1084`, HC-A(16/64)MB offsets `146`/`147`) are formatted by
+  `_unit_sw_version` into the Control Unit device's `sw_version`
+  (`PCB H-0289 / LCD H-0272`, Hitachi's own notation: the raw decimal value,
+  zero-padded to four digits behind `H-`).
+- On the Before Line-up 2016 map only, the gateway keys `gateway_hw_version`
+  and `gateway_sw_version` (the ATW-MBS-02's own "Hardware version" /
+  "Software version", status registers `1081` / `1082`) are rendered by
+  `_version_text` into the Gateway device's `hw_version` / `sw_version`. The
+  Line-up 2016 map and HC-A(16/64)MB do not document an equivalent, so the keys
+  do not exist there and the device carries no version.
+
 ## Data Flow
 
 ### Reading (hardware → entity)

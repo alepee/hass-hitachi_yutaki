@@ -97,6 +97,10 @@ REGISTER_GATEWAY = {
     "system_config": RegisterDefinition(1074, sentinel_values=frozenset({0xFFFF})),
     "system_status": RegisterDefinition(1222),
     "system_state": RegisterDefinition(1083, deserializer=deserialize_system_state),
+    # Gateway "Hardware version" (1081) / "Software version" (1082), read-only.
+    # 0xFFFF is a garbage read, not a version (#404).
+    "gateway_hw_version": RegisterDefinition(1081, sentinel_values=frozenset({0xFFFF})),
+    "gateway_sw_version": RegisterDefinition(1082, sentinel_values=frozenset({0xFFFF})),
 }
 
 REGISTER_CONTROL_UNIT = {
@@ -129,6 +133,10 @@ REGISTER_CONTROL_UNIT = {
     # Global eco offset register (addr 1090, write_address=1030).
     # Write range 1~10, validated in set_eco_offset(). Not present in 2016+ map.
     "eco_offset": RegisterDefinition(1090, write_address=1030),
+    # "PCB1 Software number" (1085) and "LCD Software number" (1084), read-only.
+    # 0xFFFF is a garbage read, not a version (#404).
+    "software_pcb": RegisterDefinition(1085, sentinel_values=frozenset({0xFFFF})),
+    "software_lcd": RegisterDefinition(1084, sentinel_values=frozenset({0xFFFF})),
 }
 
 REGISTER_PRIMARY_COMPRESSOR = {

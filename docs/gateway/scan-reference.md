@@ -79,7 +79,9 @@ make scan SCAN_ARGS="--host 192.168.0.4 --gateway hc-a-mb" > scan.txt  # HC-A(16
 | 1092 | `water_inlet_temp` | Yes | Signed 16-bit |
 | 1093 | `water_outlet_temp` (fallback) | Yes | Signed 16-bit. Fallback only — the `water_outlet_temp` key primarily reads register 1200 (HP-level outlet, correct for all modes including DHW/pool) and falls back to 1093 only if 1200 is unavailable |
 | 1094 | `system_state` | Yes | 0=sync, 1=desync, 2=init |
-| 1095-1097 | **Unknown** | No | Consistently non-zero, possibly timing/counter |
+| 1095 | `software_pcb` | Yes | Unit board software number, decimal (e.g. 289 on a Yutaki S, shown as "Indoor PCB firmware H-0289" on the LCD); part of the Control Unit device `sw_version` |
+| 1096 | `software_lcd` | Yes | Controller (LCD) software number, decimal (e.g. 272 on a Yutaki S, shown as "Controller firmware H-0272" on the LCD); part of the Control Unit device `sw_version` |
+| 1097 | Unit Capacity | No | Documented "0~255 kWh", not mapped. Not the unit size: on an 8 HP Yutaki S it read 145, 151 and 152 within one day, a slowly increasing value, so it behaves like an 8-bit rolling energy counter (heat delivered?) next to 1098; being verified against the integration's energy counters (discussion #503) |
 | 1098 | `power_consumption` | Yes | Watts |
 | 1099 | **Unknown** | No | Non-zero, possibly accumulated energy |
 
@@ -147,6 +149,8 @@ The slot index is **not a stable identity** (#476). The gateway lists the units 
 | 143 | `water_inlet_temp` | 1092 |
 | 144 | `water_outlet_temp` | 1093 |
 | 145 | `system_state` | 1094 |
+| 146 | `software_pcb` | 1095 |
+| 147 | `software_lcd` | 1096 |
 | 149 | `power_consumption` | 1098 |
 | 162 | `unit_model` | 1218 |
 | 163 | `water_target_temp` | 1219 |

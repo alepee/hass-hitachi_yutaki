@@ -377,6 +377,14 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             ),
             "pump_speed": RegisterDefinition(self._addr(165)),
             "power_consumption": RegisterDefinition(self._addr(149)),
+            # Unit board (PCB) and controller (LCD) software numbers, read-only.
+            # 0xFFFF is a garbage read, not a version (#404).
+            "software_pcb": RegisterDefinition(
+                self._addr(146), sentinel_values=frozenset({0xFFFF})
+            ),
+            "software_lcd": RegisterDefinition(
+                self._addr(147), sentinel_values=frozenset({0xFFFF})
+            ),
         }
 
         # --- Circuit 1 (CONTROL + STATUS) ---

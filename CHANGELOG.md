@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **Firmware versions in the device info.** The Control Unit device shows the heat pump's software numbers as its firmware version (`PCB H-0289 / LCD H-0272`, the notation of the LCD controller's About → System Information screen), read from the gateway's "Software PCB" / "Software LCD" registers (ATW-MBS-02 `1095`/`1096`, Before Line-up 2016 `1085`/`1084`, HC-A(16/64)MB offsets `146`/`147`). On the Before Line-up 2016 map the Gateway device also shows the ATW-MBS-02's own hardware and software version numbers (`hw_version` / `sw_version`, status registers `1081` / `1082`); the Line-up 2016 map and HC-A(16/64)MB do not document an equivalent. New read-only data keys `software_pcb`, `software_lcd`, `gateway_hw_version` and `gateway_sw_version`; no new entity.
+
 ### Fixed
 
 - The circuit **Thermostat** switch was never created on any gateway: its visibility read a `circuit{id}_thermostat_available` data key that nothing produced, so the Modbus thermostat enable/disable was unreachable from the UI. The switch is now created wherever the gateway map can write the circuit's thermostat flag, like the eco-mode switch (every map for circuit 1; before Line-up 2016 has no circuit 2 flag). It is deliberately not gated on the room-thermostat bits of `system_config`: field testing in #137 showed those bits report a bound Hitachi thermostat, which overrules Modbus, so the Modbus thermostat is used precisely when they are clear (#338).
