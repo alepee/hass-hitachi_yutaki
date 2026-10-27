@@ -15,6 +15,11 @@ For patterns and conventions used to build these entities, see
 | system_state | sensor | Gateway synchronization state with the heat pump | diagnostic |
 | telemetry_status | sensor | Current telemetry consent level (off/on) with send tracking attributes | diagnostic |
 
+On the Before Line-up 2016 register map the device also carries the gateway's
+own hardware and firmware numbers (`hw_version` / `sw_version`, from the
+ATW-MBS-02 status registers 1081 / 1082, read at setup). The Line-up 2016 map
+and HC-A(16/64)MB do not document them, so the fields stay empty there.
+
 ## Heat Pump Control Unit Device
 
 ### Controls

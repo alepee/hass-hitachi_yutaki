@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- The Gateway device shows the ATW-MBS-02's own hardware and software version numbers (`hw_version` / `sw_version`) on the Before Line-up 2016 register map, read from its "Hardware version" / "Software version" status registers (`1081` / `1082`). The Line-up 2016 map and HC-A(16/64)MB do not document an equivalent, so nothing changes there. New read-only data keys `gateway_hw_version` and `gateway_sw_version`; no new entity.
+
 ## [2.2.0] - 2026-10-25
 
 This release adds two opt-in preventive-maintenance detectors (slow refrigerant charge loss and compressor short cycling), an anonymous daily fleet ping with public statistics, and per-entry diagnostics. It makes HC-A(16/64)MB multi-unit installations robust to unit renumbering, fixes several energy accounting errors (power sensor ignored at 0 A, under-counted consumption at slow polling, negative daily statistics, zero after restart), reads ATW-MBS-02 settings from STATUS registers, and stops written settings from bouncing back for 15-20 s. It is ready for Home Assistant 2026.11.

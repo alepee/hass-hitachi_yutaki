@@ -394,6 +394,12 @@ def _via(parent: dr.DeviceEntry) -> dict[str, Any]:
     return {"via_device": next(iter(parent.identifiers))}
 
 
+def _version_text(data: dict[str, Any] | None, key: str) -> str | None:
+    """Return a polled version number as device-registry text, if reported."""
+    value = (data or {}).get(key)
+    return None if value is None else str(value)
+
+
 def _schedule_telemetry_flush(
     hass: HomeAssistant,
     entry: HitachiYutakiConfigEntry,
@@ -708,6 +714,8 @@ async def async_setup_entry(
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}")},
         manufacturer=gateway_manufacturer,
         model=gateway_model,
+        hw_version=_version_text(coordinator.data, "gateway_hw_version"),
+        sw_version=_version_text(coordinator.data, "gateway_sw_version"),
         name=DEVICE_GATEWAY.title(),  # Fallback name
         translation_key="gateway",
         configuration_url=GATEWAY_CONFIG_PROVIDERS[gateway_type]().configuration_url(

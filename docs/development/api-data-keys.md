@@ -70,6 +70,14 @@ device:
 | DHW | Domestic hot water | `dhw_power`, `dhw_current_temp` |
 | Pool | Pool heating | `pool_power`, `pool_current_temp` |
 
+Not every key backs an entity. On the Before Line-up 2016 map the gateway keys
+`gateway_hw_version` and `gateway_sw_version` (the ATW-MBS-02's own "Hardware
+version" / "Software version", status registers `1081` / `1082`, read-only) are
+only formatted into the Gateway device's `hw_version` / `sw_version` by
+`_version_text` in `__init__.py` when the device is registered. The Line-up
+2016 map and HC-A(16/64)MB do not document an equivalent, so the keys do not
+exist there and the device carries no version.
+
 ## Data Flow
 
 ### Reading (hardware → entity)

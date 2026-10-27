@@ -97,6 +97,10 @@ REGISTER_GATEWAY = {
     "system_config": RegisterDefinition(1074, sentinel_values=frozenset({0xFFFF})),
     "system_status": RegisterDefinition(1222),
     "system_state": RegisterDefinition(1083, deserializer=deserialize_system_state),
+    # Gateway "Hardware version" (1081) / "Software version" (1082), read-only.
+    # 0xFFFF is a garbage read, not a version (#404).
+    "gateway_hw_version": RegisterDefinition(1081, sentinel_values=frozenset({0xFFFF})),
+    "gateway_sw_version": RegisterDefinition(1082, sentinel_values=frozenset({0xFFFF})),
 }
 
 REGISTER_CONTROL_UNIT = {
