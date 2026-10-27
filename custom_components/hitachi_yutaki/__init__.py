@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Mapping
 from contextlib import suppress
 from datetime import datetime, timedelta
 import logging
@@ -394,6 +395,24 @@ def _via(parent: dr.DeviceEntry) -> dict[str, Any]:
     return {"via_device": next(iter(parent.identifiers))}
 
 
+def _unit_sw_version(data: Mapping[str, Any] | None) -> str | None:
+    """Format the PCB/LCD software numbers as the LCD's About screen (H-0289)."""
+    if not data:
+        return None
+    parts = [
+        f"{label} H-{data[key]:04d}"
+        for label, key in (("PCB", "software_pcb"), ("LCD", "software_lcd"))
+        if data.get(key) is not None
+    ]
+    return " / ".join(parts) or None
+
+
+def _version_text(data: Mapping[str, Any] | None, key: str) -> str | None:
+    """Return a polled version number as device-registry text, if reported."""
+    value = (data or {}).get(key)
+    return None if value is None else str(value)
+
+
 def _schedule_telemetry_flush(
     hass: HomeAssistant,
     entry: HitachiYutakiConfigEntry,
@@ -708,6 +727,8 @@ async def async_setup_entry(
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_GATEWAY}")},
         manufacturer=gateway_manufacturer,
         model=gateway_model,
+        hw_version=_version_text(coordinator.data, "gateway_hw_version"),
+        sw_version=_version_text(coordinator.data, "gateway_sw_version"),
         name=DEVICE_GATEWAY.title(),  # Fallback name
         translation_key="gateway",
         configuration_url=GATEWAY_CONFIG_PROVIDERS[gateway_type]().configuration_url(
@@ -721,6 +742,7 @@ async def async_setup_entry(
         identifiers={(DOMAIN, f"{entry.entry_id}_{DEVICE_CONTROL_UNIT}")},
         manufacturer=MANUFACTURER,
         model=profile.name,
+        sw_version=_unit_sw_version(coordinator.data),
         name=DEVICE_CONTROL_UNIT.replace("_", " ").title(),  # Fallback name
         translation_key="control_unit",
         **_via(gateway_device),

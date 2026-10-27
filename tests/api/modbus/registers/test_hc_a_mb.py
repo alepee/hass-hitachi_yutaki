@@ -122,6 +122,17 @@ class TestAddressComputation:
         assert regs["unit_power"].write_address == 5250
         assert regs["system_config"].address == 5340
 
+    def test_software_number_registers(self):
+        """Software PCB/LCD sit at STATUS offsets 146/147 of the indoor block."""
+        rmap = HcAMbRegisterMap(unit_id=1)
+        regs = rmap.all_registers
+        assert regs["software_pcb"].address == 5346
+        assert regs["software_lcd"].address == 5347
+        for key in ("software_pcb", "software_lcd"):
+            assert regs[key].write_address is None
+            assert key not in rmap.writable_keys
+            assert key in rmap.control_unit_keys
+
 
 class TestDeserializers:
     """Test HC-A(16/64)MB-specific deserializers."""

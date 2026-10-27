@@ -49,6 +49,8 @@ class TestKeyNamingCompatibility:
             "water_flow",
             "pump_speed",
             "power_consumption",
+            "software_pcb",
+            "software_lcd",
         ]
         for key in shared_keys:
             assert key in atw.all_registers, f"{key} missing from ATW-MBS-02"

@@ -264,6 +264,10 @@ REGISTER_CONTROL_UNIT = {
     "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
     "pump_speed": RegisterDefinition(1221),
     "power_consumption": RegisterDefinition(1098),
+    # Unit board (PCB) and controller (LCD) software numbers, read-only.
+    # 0xFFFF is a garbage read, not a version (#404).
+    "software_pcb": RegisterDefinition(1095, sentinel_values=frozenset({0xFFFF})),
+    "software_lcd": RegisterDefinition(1096, sentinel_values=frozenset({0xFFFF})),
 }
 
 REGISTER_PRIMARY_COMPRESSOR = {
