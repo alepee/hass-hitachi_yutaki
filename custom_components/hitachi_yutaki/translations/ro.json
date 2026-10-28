@@ -685,8 +685,8 @@
       "power": {
         "name": "Alimentare"
       },
-      "thermostat": {
-        "name": "Termostat"
+      "external_room_sensor": {
+        "name": "Senzor extern de cameră"
       },
       "eco_mode": {
         "name": "Mod ECO"
@@ -707,6 +707,9 @@
       }
     },
     "number": {
+      "room_temperature": {
+        "name": "Temperatura camerei"
+      },
       "max_flow_temp_heating_otc": {
         "name": "Temperatură maximă tur încălzire"
       },
@@ -890,6 +893,20 @@
         },
         "abort": {
           "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
+        }
+      }
+    },
+    "external_room_sensor_notice": {
+      "title": "Niciun termostat de cameră pe pompa de căldură",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reglare după temperatura camerei",
+            "description": "Pompa de căldură nu raportează niciun termostat de cameră: reglează după curba de încălzire (compensare după temperatura exterioară) și ignoră temperatura camerei.\n\n- Reglați după curba de încălzire, sau un termostat al unui alt producător este cablat la intrarea de cerere a unității: nimic de făcut.\n- Vreți ca Home Assistant să regleze după temperatura camerei: porniți comutatorul **Senzor extern de cameră** al circuitului, apoi țineți la zi **Temperatura camerei**, manual sau printr-o automatizare de la un senzor (acțiunea `hitachi_yutaki.set_room_temperature` face același lucru). La pornire, temperatura camerei este inițializată cu valoarea setată, astfel încât unitatea rămâne oprită până o alimentați.\n\n[Mai multe despre reglarea după temperatura camerei]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această notificare nu mai este configurată. Notificarea a fost eliminată."
         }
       }
     },

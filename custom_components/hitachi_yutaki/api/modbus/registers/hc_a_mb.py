@@ -34,6 +34,10 @@ MASK_DHW = 0x0010
 MASK_POOL = 0x0020
 MASK_CIRCUIT1_THERMOSTAT = 0x0040
 MASK_CIRCUIT2_THERMOSTAT = 0x0080
+MASKS_CIRCUIT_THERMOSTAT = {
+    CIRCUIT_PRIMARY_ID: MASK_CIRCUIT1_THERMOSTAT,
+    CIRCUIT_SECONDARY_ID: MASK_CIRCUIT2_THERMOSTAT,
+}
 MASK_CIRCUIT1_WIRELESS = 0x0100
 MASK_CIRCUIT2_WIRELESS = 0x0200
 MASK_CIRCUIT1_WIRELESS_TEMP = 0x0400
@@ -690,6 +694,11 @@ class HcAMbRegisterMap(HitachiRegisterMap):
     def masks_circuit(self) -> dict:
         """Return circuit configuration bit masks."""
         return MASKS_CIRCUIT
+
+    @property
+    def masks_circuit_thermostat(self) -> dict[int, int]:
+        """Return per-circuit "room thermostat available" bit masks."""
+        return MASKS_CIRCUIT_THERMOSTAT
 
     @property
     def mask_dhw(self) -> int:

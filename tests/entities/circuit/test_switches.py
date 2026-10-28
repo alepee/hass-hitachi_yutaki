@@ -22,6 +22,7 @@ from custom_components.hitachi_yutaki.const import (
 from custom_components.hitachi_yutaki.entities.circuit.switches import (
     _build_circuit_switch_descriptions,
 )
+from homeassistant.const import EntityCategory
 
 
 def _coordinator(writable: set[str]) -> MagicMock:
@@ -38,14 +39,34 @@ def _description(circuit_id, key):
 
 
 @pytest.mark.parametrize("circuit_id", [CIRCUIT_PRIMARY_ID, CIRCUIT_SECONDARY_ID])
-def test_thermostat_switch_gated_on_writable_flag(circuit_id):
+def test_external_room_sensor_switch_gated_on_writable_flag(circuit_id):
     """The switch exists wherever the map can write the thermostat flag (#338)."""
-    thermostat = _description(circuit_id, "thermostat")
-    assert thermostat.condition is not None
-    assert thermostat.condition(_coordinator({f"circuit{circuit_id}_thermostat"}))
-    assert not thermostat.condition(_coordinator(set()))
+    switch = _description(circuit_id, "external_room_sensor")
+    assert switch.condition is not None
+    assert switch.condition(_coordinator({f"circuit{circuit_id}_thermostat"}))
+    assert not switch.condition(_coordinator(set()))
     other = 3 - circuit_id
-    assert not thermostat.condition(_coordinator({f"circuit{other}_thermostat"}))
+    assert not switch.condition(_coordinator({f"circuit{other}_thermostat"}))
+
+
+def test_external_room_sensor_switch_reads_and_writes_through_the_api():
+    """ON means the flag is 1; writes go through the seeding API method."""
+    switch = _description(CIRCUIT_PRIMARY_ID, "external_room_sensor")
+    api = MagicMock()
+    api.get_circuit_thermostat.return_value = True
+    assert switch.get_fn(api, CIRCUIT_PRIMARY_ID) is True
+    api.get_circuit_thermostat.return_value = False
+    assert switch.get_fn(api, CIRCUIT_PRIMARY_ID) is False
+    switch.set_fn(api, CIRCUIT_PRIMARY_ID, True)
+    api.set_external_room_sensor.assert_called_once_with(CIRCUIT_PRIMARY_ID, True)
+
+
+def test_external_room_sensor_switch_is_a_translated_config_entity():
+    """Named from translations, under Configuration, not gated on bits 6/7."""
+    switch = _description(CIRCUIT_PRIMARY_ID, "external_room_sensor")
+    assert switch.translation_key == "external_room_sensor"
+    assert switch.name is None
+    assert switch.entity_category == EntityCategory.CONFIG
 
 
 @pytest.mark.parametrize(

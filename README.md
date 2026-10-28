@@ -1,6 +1,6 @@
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 [![Translation status](https://hosted.weblate.org/widget/hass-hitachi_yutaki/source/svg-badge.svg)](https://hosted.weblate.org/engage/hass-hitachi_yutaki/)
-[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/alepee/hass-hitachi_yutaki)    
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/alepee/hass-hitachi_yutaki)
 [![Validate](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/validate.yml)
 [![Tests](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/tests.yml/badge.svg)](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/tests.yml)
 
@@ -26,7 +26,7 @@ The integration automatically detects your heat pump model and creates devices b
 - **Control Unit** — power, operating mode, temperatures (outdoor, water inlet/outlet), system status (defrost, alarms, compressor, boiler, pumps), hydraulic sensors, electrical and thermal energy tracking
 - **Primary Compressor** — frequency, current, temperatures (gas, liquid, discharge, evaporator), expansion valve openings, cycle timing
 - **Secondary Compressor** (S80 only) — frequency, current, temperatures, pressures, cycle timing
-- **Circuit 1 & 2** — climate control with heating/cooling modes, ECO mode, OTC configuration, thermostat function
+- **Circuit 1 & 2** — climate control with heating/cooling modes, ECO mode, OTC configuration, external room sensor
 - **Domestic Hot Water** — water heater control, boost mode, anti-legionella treatment
 - **Swimming Pool** (if configured) — power and temperature control
 - **COP Sensors** — real-time Coefficient of Performance for heating, cooling, DHW, and pool with quality indicators
@@ -78,7 +78,7 @@ The old sensors counted defrost cycles as energy production, resulting in unreal
 
 ### `hitachi_yutaki.set_room_temperature`
 
-Sets the room thermostat temperature setpoint for a circuit climate entity. This is useful when the circuit is configured in thermostat mode with a room temperature sensor.
+Writes the measured room temperature of a circuit to the heat pump, the same register as the circuit's **Room temperature** number. The heat pump regulates on it when the circuit's **External room sensor** switch is on.
 
 | Parameter | Required | Description |
 |-----------|----------|-------------|

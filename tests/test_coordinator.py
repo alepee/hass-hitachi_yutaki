@@ -629,3 +629,125 @@ def test_refrigerant_missing_capability_clears_warning(coordinator):
     policy.assert_not_called()
     mock_ir.async_create_issue.assert_not_called()
     mock_ir.async_delete_issue.assert_called_once()
+
+
+def _room_api(
+    mock_api_client,
+    *,
+    heating: set[int],
+    thermostat: set[int],
+    enabled: set[int],
+    writable: set[str] = frozenset({"circuit1_thermostat", "circuit2_thermostat"}),
+    unread: set[int] = frozenset(),
+) -> None:
+    mock_api_client.has_circuit.side_effect = lambda cid, mode: (
+        cid in heating and mode == "heating"
+    )
+    mock_api_client.has_room_thermostat.side_effect = lambda cid: cid in thermostat
+    mock_api_client.external_room_sensor_state.side_effect = lambda cid: (
+        None if cid in unread else cid in enabled
+    )
+    mock_api_client.can_write.side_effect = lambda key: key in writable
+
+
+def test_room_notice_raised_without_thermostat_and_sensor_off(
+    coordinator, mock_api_client
+):
+    """No thermostat reported, switch off: the user is told once how it works."""
+    _set_entry_id(coordinator)
+    coordinator.config_entry.options = {}
+    coordinator.system_config = 0x0001
+    _room_api(mock_api_client, heating={1}, thermostat=set(), enabled=set())
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        coordinator._update_external_room_sensor_notice()
+
+    ir_mock.async_create_issue.assert_called_once()
+    assert (
+        ir_mock.async_create_issue.call_args.args[2]
+        == "external_room_sensor_notice_entry"
+    )
+    assert ir_mock.async_create_issue.call_args.kwargs["is_fixable"] is True
+
+
+@pytest.mark.parametrize(
+    ("heating", "thermostat", "enabled"),
+    [
+        ({1}, {1}, set()),  # Hitachi thermostat reported
+        ({1}, set(), {1}),  # external room sensor already on
+        (set(), set(), set()),  # no heating circuit (cooling-only, DHW-only)
+    ],
+    ids=["thermostat_reported", "sensor_on", "no_heating_circuit"],
+)
+def test_room_notice_cleared_when_not_concerned(
+    coordinator, mock_api_client, heating, thermostat, enabled
+):
+    """The notice clears on its own as soon as the situation no longer applies."""
+    _set_entry_id(coordinator)
+    coordinator.config_entry.options = {}
+    coordinator.system_config = 0x0001
+    _room_api(mock_api_client, heating=heating, thermostat=thermostat, enabled=enabled)
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        coordinator._update_external_room_sensor_notice()
+
+    ir_mock.async_create_issue.assert_not_called()
+    ir_mock.async_delete_issue.assert_called_once()
+
+
+def test_room_notice_never_returns_once_read(coordinator, mock_api_client):
+    """Confirming records the choice: the notice does not come back."""
+    _set_entry_id(coordinator)
+    coordinator.config_entry.options = {"external_room_sensor_notice": True}
+    coordinator.system_config = 0x0001
+    _room_api(mock_api_client, heating={1}, thermostat=set(), enabled=set())
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        coordinator._update_external_room_sensor_notice()
+
+    ir_mock.async_create_issue.assert_not_called()
+    ir_mock.async_delete_issue.assert_called_once()
+
+
+def test_room_notice_only_where_the_map_can_write_the_flag(
+    coordinator, mock_api_client
+):
+    """Circuit 2 before Line-up 2016 has no flag of its own: no notice for it."""
+    _set_entry_id(coordinator)
+    coordinator.config_entry.options = {}
+    coordinator.system_config = 0x0002
+    _room_api(
+        mock_api_client,
+        heating={2},
+        thermostat=set(),
+        enabled=set(),
+        writable={"circuit1_thermostat"},
+    )
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        coordinator._update_external_room_sensor_notice()
+
+    ir_mock.async_create_issue.assert_not_called()
+
+
+@pytest.mark.parametrize(
+    ("system_config", "unread"),
+    [(0, set()), (0x0001, {1})],
+    ids=["system_config_unread", "flag_unread"],
+)
+def test_room_notice_untouched_when_a_register_was_not_read(
+    coordinator, mock_api_client, system_config, unread
+):
+    """A failed read must not toggle the notice: it would flap and lose an ignore."""
+    _set_entry_id(coordinator)
+    coordinator.config_entry.options = {}
+    coordinator.system_config = system_config
+    _room_api(
+        mock_api_client, heating={1}, thermostat=set(), enabled=set(), unread=unread
+    )
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        coordinator._update_external_room_sensor_notice()
+
+    ir_mock.async_create_issue.assert_not_called()
+    ir_mock.async_delete_issue.assert_not_called()

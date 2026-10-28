@@ -224,6 +224,15 @@ class TestBitMasks:
         assert atw.masks_circuit == hca.masks_circuit
         assert atw.masks_circuit == pre.masks_circuit
 
+    def test_room_thermostat_masks_identical(self):
+        """Bits 6/7 of system_config report a Hitachi room thermostat per circuit."""
+        for register_map in (
+            AtwMbs02RegisterMap(),
+            AtwMbs02Pre2016RegisterMap(),
+            HcAMbRegisterMap(),
+        ):
+            assert register_map.masks_circuit_thermostat == {1: 0x0040, 2: 0x0080}
+
     def test_status_masks_identical_base(self):
         """Base status masks (bits 0-9) should match across all gateways."""
         atw = AtwMbs02RegisterMap()

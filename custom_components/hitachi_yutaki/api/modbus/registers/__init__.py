@@ -113,6 +113,15 @@ class HitachiRegisterMap(ABC):
 
     @property
     @abstractmethod
+    def masks_circuit_thermostat(self) -> dict[int, int]:
+        """Return per-circuit "room thermostat available" bit masks.
+
+        Reported by the unit for the Hitachi thermostats bound to it; a
+        third-party thermostat on the demand input is not reported.
+        """
+
+    @property
+    @abstractmethod
     def mask_dhw(self) -> int:
         """Return DHW configuration bit mask."""
 
