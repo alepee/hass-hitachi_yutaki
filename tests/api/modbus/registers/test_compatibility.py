@@ -342,3 +342,21 @@ class Test2016ThermostatRegisters:
         assert (
             regs["circuit1_thermostat"].address != regs["circuit2_thermostat"].address
         )
+
+
+class TestThermostatSentinel:
+    """A 0xFFFF garbage read of the thermostat flag must not report as ON (#404)."""
+
+    def test_every_thermostat_flag_filters_0xffff(self):
+        """Every map filters 0xFFFF on read while keeping the key writable."""
+        for register_map in (
+            AtwMbs02RegisterMap(),
+            AtwMbs02Pre2016RegisterMap(),
+            HcAMbRegisterMap(),
+        ):
+            for key in ("circuit1_thermostat", "circuit2_thermostat"):
+                reg = register_map.all_registers.get(key)
+                if reg is None:
+                    continue
+                assert 0xFFFF in reg.sentinel_values, f"{key} on {register_map}"
+                assert key in register_map.writable_keys

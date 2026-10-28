@@ -208,7 +208,10 @@ REGISTER_CIRCUIT_1 = {
     # config register 1075 bits 6/7.) It is modelled once here on circuit 1
     # (always present); there is no per-circuit thermostat *control* register,
     # hence no circuit2_thermostat on this map. See #318.
-    "circuit1_thermostat": RegisterDefinition(1029),
+    # 0xFFFF is a garbage read, not "enabled" (#404).
+    "circuit1_thermostat": RegisterDefinition(
+        1029, sentinel_values=frozenset({0xFFFF})
+    ),
 }
 
 REGISTER_CIRCUIT_2 = {

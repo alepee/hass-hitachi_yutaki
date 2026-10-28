@@ -422,9 +422,11 @@ class HcAMbRegisterMap(HitachiRegisterMap):
                 self._addr(109), write_address=self._addr(59)
             ),
             "circuit1_thermostat": RegisterDefinition(
-                # CONTROL only (offset 60), no STATUS read address
+                # CONTROL only (offset 60), no STATUS read address.
+                # 0xFFFF is a garbage read, not "enabled" (#404).
                 self._addr(60),
                 write_address=self._addr(60),
+                sentinel_values=frozenset({0xFFFF}),
             ),
             "circuit1_target_temp": RegisterDefinition(
                 self._addr(110),
@@ -471,6 +473,7 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             "circuit2_thermostat": RegisterDefinition(
                 self._addr(71),
                 write_address=self._addr(71),
+                sentinel_values=frozenset({0xFFFF}),
             ),
             "circuit2_target_temp": RegisterDefinition(
                 self._addr(122),

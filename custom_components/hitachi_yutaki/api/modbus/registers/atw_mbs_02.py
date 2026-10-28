@@ -327,7 +327,10 @@ REGISTER_CIRCUIT_1 = {
     "circuit1_eco_mode": RegisterDefinition(1057, write_address=1007),
     "circuit1_heat_eco_offset": RegisterDefinition(1058, write_address=1008),
     "circuit1_cool_eco_offset": RegisterDefinition(1059, write_address=1009),
-    "circuit1_thermostat": RegisterDefinition(1010),
+    # 0xFFFF is a garbage read of the CONTROL register, not "enabled" (#404).
+    "circuit1_thermostat": RegisterDefinition(
+        1010, sentinel_values=frozenset({0xFFFF})
+    ),
     "circuit1_target_temp": RegisterDefinition(
         1060, deserializer=convert_from_tenths, write_address=1011
     ),
@@ -349,7 +352,9 @@ REGISTER_CIRCUIT_2 = {
     "circuit2_eco_mode": RegisterDefinition(1069, write_address=1018),
     "circuit2_heat_eco_offset": RegisterDefinition(1070, write_address=1019),
     "circuit2_cool_eco_offset": RegisterDefinition(1071, write_address=1020),
-    "circuit2_thermostat": RegisterDefinition(1021),
+    "circuit2_thermostat": RegisterDefinition(
+        1021, sentinel_values=frozenset({0xFFFF})
+    ),
     "circuit2_target_temp": RegisterDefinition(
         1072, deserializer=convert_from_tenths, write_address=1022
     ),
