@@ -372,6 +372,25 @@ class ModbusApiClient(HitachiApiClient):
             for key in rmap.circuit_2_keys:
                 self._data.pop(key, None)
 
+    @property
+    def outdoor_link_lost(self) -> bool:
+        """Return whether the unit reports it cannot reach its outdoor unit."""
+        return self._data.get("alarm_code") in self._register_map.outdoor_link_alarms
+
+    def _gate_outdoor_link_loss(self) -> None:
+        """Remove the outdoor readings zeroed by a lost outdoor unit (#457).
+
+        On alarm 03 the indoor unit no longer hears from the outdoor unit and
+        reports 0 for every reading it relays from it. 0 is also a valid
+        temperature, so only zeros are dropped, and only during that alarm: an
+        auxiliary outdoor sensor wired to the indoor unit keeps its real value.
+        """
+        if not self.outdoor_link_lost:
+            return
+        for key in self._register_map.outdoor_unit_keys:
+            if self._data.get(key) == 0:
+                self._data.pop(key)
+
     # Internal marker to distinguish sentinel-filtered None from read errors
     _SENTINEL_FILTERED = object()
 
@@ -574,6 +593,7 @@ class ModbusApiClient(HitachiApiClient):
 
                 # Remove data for modules not declared in system_config
                 self._gate_unconfigured_modules()
+                self._gate_outdoor_link_loss()
 
                 # If we got here, read was successful
                 return ReadResult.SUCCESS
