@@ -226,6 +226,15 @@ class TestBitMasks:
         assert atw.masks_circuit == hca.masks_circuit
         assert atw.masks_circuit == pre.masks_circuit
 
+    def test_room_thermostat_masks_identical(self):
+        """Bits 6/7 of system_config report a Hitachi room thermostat per circuit."""
+        for register_map in (
+            AtwMbs02RegisterMap(),
+            AtwMbs02Pre2016RegisterMap(),
+            HcAMbRegisterMap(),
+        ):
+            assert register_map.masks_circuit_thermostat == {1: 0x0040, 2: 0x0080}
+
     def test_status_masks_identical_base(self):
         """Base status masks (bits 0-9) should match across all gateways."""
         atw = AtwMbs02RegisterMap()
@@ -335,3 +344,21 @@ class Test2016ThermostatRegisters:
         assert (
             regs["circuit1_thermostat"].address != regs["circuit2_thermostat"].address
         )
+
+
+class TestThermostatSentinel:
+    """A 0xFFFF garbage read of the thermostat flag must not report as ON (#404)."""
+
+    def test_every_thermostat_flag_filters_0xffff(self):
+        """Every map filters 0xFFFF on read while keeping the key writable."""
+        for register_map in (
+            AtwMbs02RegisterMap(),
+            AtwMbs02Pre2016RegisterMap(),
+            HcAMbRegisterMap(),
+        ):
+            for key in ("circuit1_thermostat", "circuit2_thermostat"):
+                reg = register_map.all_registers.get(key)
+                if reg is None:
+                    continue
+                assert 0xFFFF in reg.sentinel_values, f"{key} on {register_map}"
+                assert key in register_map.writable_keys

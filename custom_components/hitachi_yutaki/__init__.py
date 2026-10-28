@@ -1055,6 +1055,7 @@ async def async_remove_entry(
         f"enable_energy_cost_{entry.entry_id}",
         f"enable_telemetry_{entry.entry_id}",
         f"fleet_ping_notice_{entry.entry_id}",
+        f"external_room_sensor_notice_{entry.entry_id}",
         f"enable_refrigerant_detection_{entry.entry_id}",
         f"refrigerant_charge_alert_{entry.entry_id}",
         f"compressor_short_cycling_{entry.entry_id}",

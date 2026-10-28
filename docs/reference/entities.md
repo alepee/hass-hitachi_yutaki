@@ -175,11 +175,30 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 |--------|------|-------------|--------|
 | climate | climate | Main climate control entity | off/heat/cool/auto or off/heat_cool |
 | eco_mode | switch | Enable ECO mode (reduced temperatures). On Before Line-up 2016 units this per-circuit switch does not exist; use the global ECO mode switch on the Control Unit device instead | on/off |
-| thermostat | switch | Enable Modbus thermostat function (if available) | on/off |
+| room_temperature | number | Room temperature Home Assistant reports to the heat pump (same register as the `set_room_temperature` action, 0.5 °C steps); unavailable while the switch below is off | °C (0–50) |
+
+External room sensor (`external_room_sensor`, a Configuration switch, see below) decides whether the heat pump regulates on that value.
 
 ### Configuration
 
 Only the two `max_flow_temp_*_otc` numbers and the two `otc_calculation_method_*` selects are disabled by default; `heat_eco_offset` and `cool_eco_offset` are enabled by default.
+
+| Entity | Type | Description | Values |
+|--------|------|-------------|--------|
+| external_room_sensor | switch | Writes the gateway's "Thermostat Available" flag. On: the heat pump regulates the circuit on the room temperature Home Assistant writes (`room_temperature` number or `set_room_temperature` action). Off: it follows its water law or a thermostat wired to the unit. Created wherever the map can write the flag (before Line-up 2016 the flag is global, modelled on circuit 1, so only circuit 1 gets the switch and circuit 2 follows it) | on/off |
+
+Turning the switch on first seeds the room register with the circuit's setpoint, so the unit sits in a neutral thermo-off until Home Assistant writes the real temperature, instead of regulating on whatever the register held; an unknown setpoint or a failed seed leaves the switch off, and re-enabling an already enabled switch leaves the room value alone.
+
+#### Room regulation
+
+How the heat pump uses the room value depends on its own configuration, which the switch does not change:
+
+- **No room thermostat declared** (`system_config` bits 6/7 clear): the switch is the whole story. Off, the unit runs on its water law and ignores the room registers; on, it regulates on them, with central control in Air mode (Full is not needed). Field test on a Yutaki M with a PC-ARFH2E controller (#137): raising the room value above the setpoint takes the unit from heating to Thermo-OFF in about 20 s and to Demand-OFF two minutes later; lowering it brings heating back within about four minutes, the unit's minimum ON/OFF time applying.
+- **Hitachi thermostat declared, central control Air or Full**: the unit already regulates on the Modbus room registers, the wall thermostat only displays. The switch has no observable effect (field test on an S80 with a wireless thermostat, #137): keep it on and feed the room temperature from Home Assistant.
+- **Hitachi thermostat declared, central control Local**: the wall thermostat rules and Modbus writes are not honoured; this mode is not supported by the integration (see the README).
+- **Third-party thermostat on the unit's demand input**: invisible to the gateway, it cuts the demand on its own and Home Assistant cannot override it. The same field test found that the Demand ON/OFF input must be unassigned on the unit for the external room sensor to drive the demand alone.
+
+When a heating circuit reports no thermostat and its switch is off, a one-time repair notice (`external_room_sensor_notice_{entry_id}`) explains the above and how to let Home Assistant provide the room temperature. It writes nothing to the unit, clears on its own once the switch is on, and never comes back once confirmed (`external_room_sensor_notice` option).
 
 | Entity | Type | Description | Values/Unit | Category |
 |--------|------|-------------|-------------|----------|

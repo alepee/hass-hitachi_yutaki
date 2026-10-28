@@ -703,8 +703,8 @@
       "power": {
         "name": "Power"
       },
-      "thermostat": {
-        "name": "Thermostat"
+      "external_room_sensor": {
+        "name": "External room sensor"
       },
       "eco_mode": {
         "name": "ECO Mode"
@@ -725,6 +725,9 @@
       }
     },
     "number": {
+      "room_temperature": {
+        "name": "Room temperature"
+      },
       "max_flow_temp_heating_otc": {
         "name": "Maximum Flow Temperature Heating"
       },
@@ -791,7 +794,7 @@
   "services": {
     "set_room_temperature": {
       "name": "Set room temperature",
-      "description": "Write the measured room temperature to the heat pump. Used when the Modbus thermostat is enabled to provide the ambient temperature reading for thermostat regulation.",
+      "description": "Write the measured room temperature to the heat pump, like the circuit's Room temperature number. The heat pump regulates on it when the circuit's External room sensor switch is on.",
       "fields": {
         "temperature": {
           "name": "Temperature",
@@ -888,6 +891,20 @@
         },
         "abort": {
           "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
+        }
+      }
+    },
+    "external_room_sensor_notice": {
+      "title": "No room thermostat on the heat pump",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Room regulation",
+            "description": "The heat pump reports no room thermostat: it regulates on its water law (outdoor temperature compensation) and ignores the room temperature.\n\n- You regulate by the water law, or a third-party thermostat is wired to the unit's demand input: nothing to do.\n- You want Home Assistant to regulate on the room temperature: turn on the circuit's **External room sensor** switch, then keep its **Room temperature** up to date, by hand or with an automation from a temperature sensor (the `hitachi_yutaki.set_room_temperature` action does the same). Turning the switch on seeds the room temperature with the setpoint, so the unit stays idle until you feed it.\n\n[Learn more about room regulation]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "entry_not_found": "The Hitachi Yutaki unit this notice was created for is no longer configured. The notice has been removed."
         }
       }
     },

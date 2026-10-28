@@ -49,13 +49,14 @@ def _build_circuit_switch_descriptions(
 ) -> tuple[HitachiYutakiSwitchEntityDescription, ...]:
     return (
         HitachiYutakiSwitchEntityDescription(
-            key="thermostat",
-            name="Thermostat",
-            condition=lambda c: c.data.get(
-                f"circuit{circuit_id}_thermostat_available", False
+            key="external_room_sensor",
+            translation_key="external_room_sensor",
+            entity_category=EntityCategory.CONFIG,
+            condition=lambda c: c.api_client.can_write(
+                f"circuit{circuit_id}_thermostat"
             ),
             get_fn=lambda api, cid: api.get_circuit_thermostat(cid),
-            set_fn=lambda api, cid, enabled: api.set_circuit_thermostat(cid, enabled),
+            set_fn=lambda api, cid, enabled: api.set_external_room_sensor(cid, enabled),
         ),
     )
 ```
@@ -104,7 +105,7 @@ if coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING):
 **Description level** -- via the `condition` field on individual descriptions:
 
 ```python
-condition=lambda c: c.data.get(f"circuit{circuit_id}_thermostat_available", False)  # hardware flag
+condition=lambda c: c.api_client.can_write(f"circuit{circuit_id}_thermostat")  # writable key
 condition=lambda c: c.has_dhw()   # DHW configured
 condition=lambda c: c.has_pool()  # pool configured
 ```

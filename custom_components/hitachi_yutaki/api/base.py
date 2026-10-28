@@ -172,6 +172,14 @@ class HitachiApiClient(ABC):
     def has_circuit(self, circuit_id: CIRCUIT_IDS, mode: CIRCUIT_MODES) -> bool:
         """Return True if circuit is configured."""
 
+    @abstractmethod
+    def has_room_thermostat(self, circuit_id: CIRCUIT_IDS) -> bool:
+        """Return True if the unit reports a Hitachi room thermostat on the circuit.
+
+        ``system_config`` bits 6/7. A third-party thermostat wired to the
+        unit's demand input is not reported.
+        """
+
     @property
     @abstractmethod
     def has_pool(self) -> bool:
@@ -304,6 +312,63 @@ class HitachiApiClient(ABC):
     @abstractmethod
     def get_circuit_thermostat(self, circuit_id: CIRCUIT_IDS) -> bool | None:
         """Get Modbus thermostat state for a circuit."""
+
+    def _external_room_sensor_flag_key(self, circuit_id: CIRCUIT_IDS) -> str:
+        """Return the thermostat flag key governing the circuit.
+
+        Before Line-up 2016 the flag is a single global register modelled on
+        circuit 1 (#318), so a circuit without its own key follows circuit 1.
+        """
+        key = f"circuit{circuit_id}_thermostat"
+        return key if self.supports_key(key) else "circuit1_thermostat"
+
+    def external_room_sensor_state(self, circuit_id: CIRCUIT_IDS) -> bool | None:
+        """Return the circuit's "Thermostat Available" flag, None if unread."""
+        key = self._external_room_sensor_flag_key(circuit_id)
+        return self.get_circuit_thermostat(int(key[7]))
+
+    def external_room_sensor_enabled(self, circuit_id: CIRCUIT_IDS) -> bool:
+        """Whether the heat pump takes the circuit's room temperature from HA.
+
+        An unread flag counts as off.
+        """
+        return bool(self.external_room_sensor_state(circuit_id))
+
+    def _external_room_sensor_circuits(self, circuit_id: CIRCUIT_IDS) -> list[int]:
+        """Return the circuits whose room value the flag of ``circuit_id`` governs."""
+        if self.supports_key("circuit2_thermostat"):
+            return [circuit_id]
+        return [
+            cid
+            for cid in (1, 2)
+            if self.can_write(f"circuit{cid}_current_temp")
+            and (self.has_circuit(cid, "heating") or self.has_circuit(cid, "cooling"))
+        ]
+
+    async def set_external_room_sensor(
+        self, circuit_id: CIRCUIT_IDS, enabled: bool
+    ) -> bool:
+        """Write the circuit's "Thermostat Available" flag, seeding the room value first.
+
+        Enabling makes the unit regulate on the room register at once,
+        whatever it holds (last value written, or an unknown factory value).
+        The room register is therefore seeded with the circuit's setpoint
+        before the flag is raised: room equals setpoint, so the unit sits in a
+        neutral thermo-off until Home Assistant writes the real temperature.
+        Failing to heat is the safe side of that bet; heating blind is not,
+        so an unknown setpoint or a failed seed leaves the flag down. A flag
+        already up is left alone, so re-enabling never overwrites a room
+        value an automation is feeding. Before Line-up 2016 the flag is
+        global, so every configured circuit the map can feed is seeded.
+        """
+        if enabled and not self.external_room_sensor_enabled(circuit_id):
+            for seeded in self._external_room_sensor_circuits(circuit_id):
+                setpoint = self.get_circuit_target_temperature(seeded)
+                if setpoint is None:
+                    return False
+                if not await self.set_circuit_room_temperature(seeded, setpoint):
+                    return False
+        return await self.set_circuit_thermostat(circuit_id, enabled)
 
     @abstractmethod
     def get_circuit_otc_method_heating(self, circuit_id: CIRCUIT_IDS) -> int | None:

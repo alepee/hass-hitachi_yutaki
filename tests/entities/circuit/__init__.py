@@ -1,1 +1,1 @@
-"""Tests for circuit entities."""
+"""Tests for circuit entity builders."""
