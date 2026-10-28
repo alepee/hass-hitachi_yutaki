@@ -41,6 +41,30 @@ def _build_circuit_number_descriptions(
 ) -> tuple[HitachiYutakiNumberEntityDescription, ...]:
     """Build circuit number descriptions."""
     return (
+        # The room temperature Home Assistant reports to the heat pump, the
+        # same register as the set_room_temperature action. Only meaningful
+        # while the "External room sensor" switch is on, so
+        # the entity is unavailable otherwise rather than silently ignored.
+        HitachiYutakiNumberEntityDescription(
+            key="room_temperature",
+            translation_key="room_temperature",
+            description="Room temperature reported to the heat pump by Home Assistant",
+            native_min_value=0,
+            native_max_value=50,
+            native_step=0.5,
+            native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+            mode=NumberMode.BOX,
+            condition=lambda c: c.api_client.can_write(
+                f"circuit{circuit_id}_current_temp"
+            ),
+            available_fn=lambda api, cid: api.external_room_sensor_enabled(cid),
+            get_fn=lambda api, circuit_id: api.get_circuit_current_temperature(
+                circuit_id
+            ),
+            set_fn=lambda api, circuit_id, value: api.set_circuit_room_temperature(
+                circuit_id, value
+            ),
+        ),
         HitachiYutakiNumberEntityDescription(
             key="max_flow_temp_heating_otc",
             translation_key="max_flow_temp_heating_otc",

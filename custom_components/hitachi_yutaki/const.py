@@ -118,6 +118,8 @@ TELEMETRY_ENDPOINT = "https://hitachi-telemetry.lepee.dev/v1/ingest"
 # telemetry (opt-out, on by default; telemetry ON implies it).
 CONF_FLEET_PING = "fleet_ping"
 DEFAULT_FLEET_PING = True
+# One-time notice about room regulation, recorded once the user has read it.
+CONF_EXTERNAL_ROOM_SENSOR_NOTICE = "external_room_sensor_notice"
 FLEET_PING_ENDPOINT = "https://hitachi-telemetry.lepee.dev/v1/ping"
 FLEET_PING_STATS_URL = "https://alepee.github.io/hass-hitachi_yutaki/fleet-stats.html"
 

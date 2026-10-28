@@ -685,8 +685,8 @@
       "power": {
         "name": "Aan/Uit"
       },
-      "thermostat": {
-        "name": "Thermostaat"
+      "external_room_sensor": {
+        "name": "Externe kamersensor"
       },
       "eco_mode": {
         "name": "ECO-modus"
@@ -707,6 +707,9 @@
       }
     },
     "number": {
+      "room_temperature": {
+        "name": "Kamertemperatuur"
+      },
       "max_flow_temp_heating_otc": {
         "name": "Maximale aanvoertemperatuur verwarming"
       },
@@ -890,6 +893,20 @@
         },
         "abort": {
           "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
+        }
+      }
+    },
+    "external_room_sensor_notice": {
+      "title": "Geen kamerthermostaat op de warmtepomp",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Regeling op kamertemperatuur",
+            "description": "De warmtepomp meldt geen kamerthermostaat: hij regelt op zijn stooklijn (buitentemperatuurcompensatie) en negeert de kamertemperatuur.\n\n- U regelt via de stooklijn, of een thermostaat van een ander merk is op de vraagingang van de unit aangesloten: niets te doen.\n- U wilt dat Home Assistant op de kamertemperatuur regelt: zet de schakelaar **Externe kamersensor** van het circuit aan en houd de **Kamertemperatuur** bij, handmatig of met een automatisering vanaf een temperatuursensor (de actie `hitachi_yutaki.set_room_temperature` doet hetzelfde). Bij het inschakelen wordt de kamertemperatuur op de instelwaarde gezet, zodat de unit stil blijft tot u ze voedt.\n\n[Meer over regeling op kamertemperatuur]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze melding is gemaakt, is niet meer geconfigureerd. De melding is verwijderd."
         }
       }
     },

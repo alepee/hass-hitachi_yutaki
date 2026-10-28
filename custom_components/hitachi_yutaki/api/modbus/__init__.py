@@ -305,6 +305,12 @@ class ModbusApiClient(HitachiApiClient):
             system_config & self._register_map.masks_circuit.get((circuit_id, mode))
         )
 
+    def has_room_thermostat(self, circuit_id: CIRCUIT_IDS) -> bool:
+        """Return True if the unit reports a Hitachi room thermostat on the circuit."""
+        system_config = self._data.get("system_config", 0)
+        mask = self._register_map.masks_circuit_thermostat.get(circuit_id, 0)
+        return bool(system_config & mask)
+
     @property
     def has_pool(self) -> bool:
         """Return True if pool heating is configured."""

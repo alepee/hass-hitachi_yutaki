@@ -685,8 +685,8 @@
       "power": {
         "name": "Alimentation"
       },
-      "thermostat": {
-        "name": "Thermostat"
+      "external_room_sensor": {
+        "name": "Capteur ambiant externe"
       },
       "eco_mode": {
         "name": "Mode ECO"
@@ -707,6 +707,9 @@
       }
     },
     "number": {
+      "room_temperature": {
+        "name": "Température ambiante"
+      },
       "max_flow_temp_heating_otc": {
         "name": "Température de départ maximum en chauffage"
       },
@@ -890,6 +893,20 @@
         },
         "abort": {
           "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
+        }
+      }
+    },
+    "external_room_sensor_notice": {
+      "title": "Aucun thermostat d'ambiance sur la PAC",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Régulation sur la température ambiante",
+            "description": "La PAC ne signale aucun thermostat d'ambiance : elle régule sur sa loi d'eau (compensation par la température extérieure) et ignore la température de la pièce.\n\n- Vous régulez par la loi d'eau, ou un thermostat tiers est câblé sur l'entrée de demande de l'unité : rien à faire.\n- Vous voulez que Home Assistant régule sur la température de la pièce : activez l'interrupteur **Capteur ambiant externe** du circuit, puis tenez sa **Température ambiante** à jour, à la main ou par une automatisation depuis un capteur (l'action `hitachi_yutaki.set_room_temperature` fait la même chose). À l'activation, la température ambiante est amorcée avec la consigne, l'unité reste donc à l'arrêt tant que vous ne l'alimentez pas.\n\n[En savoir plus sur la régulation ambiante]({learn_more_url})"
+          }
+        },
+        "abort": {
+          "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cet avis a été créé n'est plus configurée. L'avis a été supprimé."
         }
       }
     },

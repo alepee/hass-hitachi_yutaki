@@ -12,6 +12,7 @@ from homeassistant.components.number import (
     NumberMode,
 )
 from homeassistant.const import EntityCategory
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
@@ -41,6 +42,9 @@ class HitachiYutakiNumberEntityDescription(NumberEntityDescription):
     get_fn: Callable[[Any, int | None], float | None] | None = None
     set_fn: Callable[[Any, int | None, float], Any] | None = None
     condition: Callable[[HitachiYutakiDataCoordinator], bool] | None = None
+    # Live availability, evaluated on every state read (``condition`` only
+    # decides creation). Receives the API client and the circuit ID.
+    available_fn: Callable[[Any, int | None], bool] | None = None
 
 
 def _create_numbers(
@@ -117,7 +121,13 @@ class HitachiYutakiNumber(
     @property
     def available(self) -> bool:
         """Return True if entity is available."""
-        return self.coordinator.last_update_success
+        if not self.coordinator.last_update_success:
+            return False
+        if self.entity_description.available_fn is None:
+            return True
+        return self.entity_description.available_fn(
+            self.coordinator.api_client, self._circuit_id
+        )
 
     @property
     def native_value(self) -> float | None:
@@ -130,12 +140,17 @@ class HitachiYutakiNumber(
         )
 
     async def async_set_native_value(self, value: float) -> None:
-        """Set new value."""
-        if self.entity_description.set_fn:
-            await self.entity_description.set_fn(
-                self.coordinator.api_client, self._circuit_id, value
+        """Set new value, surfacing a refused write instead of faking it."""
+        if not self.entity_description.set_fn:
+            return
+        result = await self.entity_description.set_fn(
+            self.coordinator.api_client, self._circuit_id, value
+        )
+        await self.coordinator.async_request_refresh()
+        if result is False:
+            raise HomeAssistantError(
+                f"Failed to set {self.entity_description.key} to {value}"
             )
-            await self.coordinator.async_request_refresh()
 
     def set_native_value(self, value: float) -> None:
         """Set new value."""

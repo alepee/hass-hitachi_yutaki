@@ -15,6 +15,7 @@ from homeassistant.helpers.issue_registry import async_delete_issue
 from .api import DEFAULT_GATEWAY_TYPE, GATEWAY_INFO
 from .const import (
     CONF_ELECTRICITY_PRICE_ENTITY,
+    CONF_EXTERNAL_ROOM_SENSOR_NOTICE,
     CONF_FLEET_PING,
     CONF_REFRIGERANT_DETECTION,
     CONF_TELEMETRY_LEVEL,
@@ -28,6 +29,7 @@ from .const import (
 from .profiles import PROFILES
 
 _FLEET_PING_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/telemetry.md#fleet-ping"
+_EXTERNAL_ROOM_SENSOR_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/entities.md#room-regulation"
 _REFRIGERANT_DOC_URL = "https://github.com/alepee/hass-hitachi_yutaki/blob/main/docs/reference/refrigerant-monitoring.md"
 
 
@@ -232,6 +234,46 @@ class FleetPingNoticeRepairFlow(RepairsFlow):
         )
 
 
+class ExternalRoomSensorNoticeRepairFlow(RepairsFlow):
+    """One-time notice on room regulation when no thermostat is reported.
+
+    Informational: it explains what the heat pump does without a room
+    thermostat and how to let Home Assistant provide the room temperature.
+    It deliberately writes nothing to the unit, since enabling the external
+    room sensor without feeding it is the trap it warns about. Confirming
+    records that the notice was read so it does not come back.
+    """
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Redirect to the confirm step (init receives the flow's init data)."""
+        return await self.async_step_confirm()
+
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Show the notice and record that it was read."""
+        entry_id = self.issue_id.removeprefix("external_room_sensor_notice_")
+        entry = self.hass.config_entries.async_get_entry(entry_id)
+        if entry is None or entry.domain != DOMAIN:
+            return _abort_orphaned_issue(self)
+
+        if user_input is not None:
+            self.hass.config_entries.async_update_entry(
+                entry,
+                options={**entry.options, CONF_EXTERNAL_ROOM_SENSOR_NOTICE: True},
+            )
+            async_delete_issue(self.hass, DOMAIN, self.issue_id)
+            return self.async_create_entry(data={})
+
+        return self.async_show_form(
+            step_id="confirm",
+            data_schema=vol.Schema({}),
+            description_placeholders={"learn_more_url": _EXTERNAL_ROOM_SENSOR_DOC_URL},
+        )
+
+
 class EnableRefrigerantDetectionRepairFlow(RepairsFlow):
     """Onboarding flow to enable refrigerant charge detection on existing installs."""
 
@@ -393,6 +435,8 @@ async def async_create_fix_flow(
         return EnableTelemetryRepairFlow()
     if issue_id.startswith("fleet_ping_notice_"):
         return FleetPingNoticeRepairFlow()
+    if issue_id.startswith("external_room_sensor_notice_"):
+        return ExternalRoomSensorNoticeRepairFlow()
     if issue_id.startswith("enable_refrigerant_detection_"):
         return EnableRefrigerantDetectionRepairFlow()
     if issue_id.startswith("refrigerant_charge_alert_"):

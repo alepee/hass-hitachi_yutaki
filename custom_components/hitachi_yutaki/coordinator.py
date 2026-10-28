@@ -26,10 +26,12 @@ from .api.base import ReadResult
 from .const import (
     CIRCUIT_IDS,
     CIRCUIT_MODE_COOLING,
+    CIRCUIT_MODE_HEATING,
     CIRCUIT_MODES,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
     CONF_CYCLING_DETECTION,
+    CONF_EXTERNAL_ROOM_SENSOR_NOTICE,
     CONF_REFRIGERANT_DETECTION,
     DEFAULT_CYCLING_DETECTION,
     DEFAULT_REFRIGERANT_DETECTION,
@@ -285,6 +287,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self.derived_metrics.update(data)
                 self._update_refrigerant_issue()
                 self._update_cycling_issue()
+
+            self._update_external_room_sensor_notice()
 
             # Telemetry: collect metrics from this poll cycle
             # (collector handles level=OFF internally)
@@ -633,6 +637,57 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     severity=ir.IssueSeverity.WARNING,
                     translation_key="refrigerant_charge_alert",
                 )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+
+    def _external_room_sensor_notice_id(self) -> str:
+        """Return the id of the one-time room-regulation notice."""
+        return f"external_room_sensor_notice_{self.config_entry.entry_id}"
+
+    def _update_external_room_sensor_notice(self) -> None:
+        """Tell the user once how room regulation works without a thermostat.
+
+        Raised when a heating circuit has no Hitachi thermostat reported and
+        its External room sensor switch is off: the unit runs on its water
+        law. Fine for a water-law or a third-party-thermostat installation,
+        but a user expecting room regulation needs to turn the switch on and
+        feed the Room temperature. Informational, not a fault: it clears on
+        its own once the switch is on and never comes back once confirmed.
+        Unread registers leave it untouched, so a single failed read cannot
+        make it flap.
+        """
+        issue_id = self._external_room_sensor_notice_id()
+        if self.config_entry.options.get(CONF_EXTERNAL_ROOM_SENSOR_NOTICE):
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+        if not self.system_config:
+            # Unread this poll: judging on a blank bitfield would flap.
+            return
+        api = self.api_client
+        concerned = False
+        for cid in (CIRCUIT_PRIMARY_ID, CIRCUIT_SECONDARY_ID):
+            if (
+                not self.has_circuit(cid, CIRCUIT_MODE_HEATING)
+                or not api.can_write(f"circuit{cid}_thermostat")
+                or api.has_room_thermostat(cid)
+            ):
+                continue
+            state = api.external_room_sensor_state(cid)
+            if state is None:
+                # Flag not read this poll (sentinel or read error): leave the
+                # issue as it is rather than toggling it on a blind spot.
+                return
+            concerned = concerned or not state
+        if concerned:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=True,
+                is_persistent=True,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="external_room_sensor_notice",
+            )
         else:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
