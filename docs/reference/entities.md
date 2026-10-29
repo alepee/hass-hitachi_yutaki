@@ -213,7 +213,7 @@ When a heating circuit reports no thermostat and its switch is off, a one-time r
 
 | Entity | Type | Description | Unit | Category |
 |--------|------|-------------|------|----------|
-| mixing_valve_position | sensor | Opening of the circuit 2 mixing valve ("MVP" register); created only when the gateway reports a value | % | diagnostic |
+| mixing_valve_position | sensor | Opening of the circuit 2 mixing valve ("MVP" register); disabled by default, since the gateway reports 0 rather than a sentinel without a mixing kit and presence cannot be detected | % | diagnostic |
 
 ### Service
 

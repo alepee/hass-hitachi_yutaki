@@ -49,10 +49,12 @@ def _build_circuit_sensor_descriptions(
             native_unit_of_measurement=PERCENTAGE,
             entity_category=EntityCategory.DIAGNOSTIC,
             icon="mdi:valve",
-            condition=lambda c: (
-                c.api_client.supports_key("circuit2_mixing_valve_position")
-                and c.data.get("circuit2_mixing_valve_position") is not None
+            # The gateway reports 0, not a sentinel, without a mixing kit, so
+            # presence cannot be detected: opt-in instead of a fake 0 %.
+            condition=lambda c: c.api_client.supports_key(
+                "circuit2_mixing_valve_position"
             ),
+            entity_registry_enabled_default=False,
             value_fn=lambda c: c.data.get("circuit2_mixing_valve_position"),
         ),
     )

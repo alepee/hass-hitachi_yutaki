@@ -30,9 +30,11 @@ def test_circuit_2_mixing_valve_position():
     assert description.value_fn(_coordinator(42)) == 42
 
 
-def test_mixing_valve_is_created_only_with_a_value():
-    """No entity when the map lacks the key or the gateway reports nothing."""
+def test_mixing_valve_gated_on_the_map_and_disabled_by_default():
+    """Created wherever the map has the key, opt-in: 0 is not a presence signal."""
     (description,) = _build_circuit_sensor_descriptions(CIRCUIT_SECONDARY_ID)
     assert description.condition(_coordinator(42)) is True
-    assert description.condition(_coordinator(None)) is False
+    assert description.condition(_coordinator(0)) is True
+    assert description.condition(_coordinator(None)) is True
     assert description.condition(_coordinator(42, supported=False)) is False
+    assert description.entity_registry_enabled_default is False
