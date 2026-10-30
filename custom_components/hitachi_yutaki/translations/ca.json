@@ -118,10 +118,12 @@
           "energy_entity": "Sensor d'energia (opcional)",
           "water_inlet_temp_entity": "Sensor de temperatura d'entrada d'aigua (opcional)",
           "water_outlet_temp_entity": "Sensor de temperatura de sortida d'aigua (opcional)",
-          "electricity_price_entity": "Sensor de preu de l'electricitat (opcional)"
+          "electricity_price_entity": "Sensor de preu de l'electricitat (opcional)",
+          "keep_external_room_sensor": "Mantenir activat el Sensor ambient extern"
         },
         "data_description": {
-          "electricity_price_entity": "Un sensor que proporciona el preu actual de l'electricitat en la vostra moneda per kWh (p. ex. 0.18 per a 0,18 {currency}/kWh). Activa el sensor de cost de l'electricitat."
+          "electricity_price_entity": "Un sensor que proporciona el preu actual de l'electricitat en la vostra moneda per kWh (p. ex. 0.18 per a 0,18 {currency}/kWh). Activa el sensor de cost de l'electricitat.",
+          "keep_external_room_sensor": "Després d'un reinici de la passarel·la (tall de corrent, reinici), l'interruptor Sensor ambient extern es llegeix desactivat mentre la consigna d'ambient es conserva, de manera que la bomba de calor torna a la seva llei d'aigua. Si s'activa, la integració torna a activar l'interruptor a la següent lectura correcta, inicialitzant el valor d'ambient amb la consigna com quan l'activeu a mà. Deixeu-ho desactivat si l'interruptor es controla des d'un altre lloc."
         }
       },
       "advanced_features": {
@@ -875,6 +877,14 @@
           "entry_not_found": "La unitat Hitachi Yutaki per a la qual es va crear aquesta reparació ja no està configurada. S'ha eliminat la reparació."
         }
       }
+    },
+    "room_target_restore_failed": {
+      "title": "No s'ha pogut restaurar la consigna d'ambient",
+      "description": "La consigna d'ambient del circuit o circuits {circuits} és de 0 °C mentre l'interruptor Sensor ambient extern està activat, normalment després que la passarel·la o la unitat s'hagin quedat sense corrent. La integració ha tornat a escriure diverses vegades l'última consigna vàlida, però la bomba de calor no l'ha conservada, de manera que pot ser que no escalfi.\n\n**Per resoldre-ho:** torneu a definir la consigna a l'entitat de clima del circuit o al controlador. L'avís desapareix sol quan es llegeix una consigna vàlida."
+    },
+    "external_room_sensor_restore_failed": {
+      "title": "No s'ha pogut reactivar el Sensor ambient extern",
+      "description": "L'interruptor Sensor ambient extern del circuit o circuits {circuits} es llegeix desactivat després d'un reinici de la passarel·la, i la integració no l'ha pogut reactivar: la bomba de calor no l'ha conservat després de diversos intents, de manera que funciona amb la seva llei d'aigua.\n\n**Per resoldre-ho:** activeu l'interruptor a mà a la pàgina del dispositiu del circuit. L'avís desapareix sol quan l'interruptor es llegeix activat."
     },
     "external_room_sensor_notice": {
       "title": "Cap termòstat d'ambient a la bomba de calor",

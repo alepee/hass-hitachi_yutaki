@@ -118,10 +118,12 @@
           "energy_entity": "Energiesensor (optioneel)",
           "water_inlet_temp_entity": "Waterinlaattemperatuursensor (optioneel)",
           "water_outlet_temp_entity": "Wateruitlaattemperatuursensor (optioneel)",
-          "electricity_price_entity": "Elektriciteitsprijssensor (optioneel)"
+          "electricity_price_entity": "Elektriciteitsprijssensor (optioneel)",
+          "keep_external_room_sensor": "Externe kamersensor aan houden"
         },
         "data_description": {
-          "electricity_price_entity": "Een sensor die de huidige elektriciteitsprijs levert in uw valuta per kWh (bijv. 0,18 voor 0,18 {currency}/kWh). Schakelt de elektriciteitskostensensor in."
+          "electricity_price_entity": "Een sensor die de huidige elektriciteitsprijs levert in uw valuta per kWh (bijv. 0,18 voor 0,18 {currency}/kWh). Schakelt de elektriciteitskostensensor in.",
+          "keep_external_room_sensor": "Na een reset van de gateway (stroomuitval, herstart) staat de schakelaar Externe kamersensor uit terwijl de kamerdoeltemperatuur bewaard blijft, zodat de warmtepomp terugvalt op zijn stooklijn. Ingeschakeld zet de integratie de schakelaar bij de volgende geslaagde uitlezing weer aan, met de kamerwaarde vooraf op de doeltemperatuur gezet zoals bij handmatig inschakelen. Laat dit uit als de schakelaar elders wordt bediend."
         }
       },
       "advanced_features": {
@@ -895,6 +897,14 @@
           "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
         }
       }
+    },
+    "room_target_restore_failed": {
+      "title": "Kamerdoeltemperatuur kon niet worden hersteld",
+      "description": "De kamerdoeltemperatuur van circuit(s) {circuits} staat op 0 °C terwijl de schakelaar Externe kamersensor aan staat, meestal nadat de gateway of de unit stroom verloor. De integratie heeft de laatste geldige doeltemperatuur meerdere keren teruggeschreven, maar de warmtepomp hield die niet vast, waardoor deze mogelijk niet verwarmt.\n\n**Om dit op te lossen:** stel de doeltemperatuur opnieuw in via de klimaatentiteit van het circuit of op de bediening. De melding verdwijnt vanzelf zodra een geldige doeltemperatuur wordt gelezen."
+    },
+    "external_room_sensor_restore_failed": {
+      "title": "Externe kamersensor kon niet opnieuw worden ingeschakeld",
+      "description": "De schakelaar Externe kamersensor van circuit(s) {circuits} staat uit na een reset van de gateway, en de integratie kon deze niet opnieuw inschakelen: de warmtepomp hield de instelling na meerdere pogingen niet vast en draait dus op zijn stooklijn.\n\n**Om dit op te lossen:** zet de schakelaar handmatig aan op de apparaatpagina van het circuit. De melding verdwijnt vanzelf zodra de schakelaar als aan wordt gelezen."
     },
     "external_room_sensor_notice": {
       "title": "Geen kamerthermostaat op de warmtepomp",

@@ -76,7 +76,7 @@ from .const import (
     MANUFACTURER,
     PLATFORMS,
 )
-from .coordinator import HitachiYutakiDataCoordinator
+from .coordinator import ROOM_TARGET_STORE_VERSION, HitachiYutakiDataCoordinator
 from .entity_migration import async_migrate_entities
 from .profiles import PROFILES
 from .telemetry import (
@@ -677,6 +677,10 @@ async def async_setup_entry(
     # from the first poll, so the persisted alert streak must already be there.
     await coordinator.derived_metrics.async_restore_cycling()
 
+    # The first poll may already have to restore a room target lost in a
+    # gateway power cycle (#511), so the remembered targets load before it.
+    await coordinator.async_restore_room_targets()
+
     # Same rule for the energy counters (#432): restore the thermal and
     # electrical accumulators BEFORE the first poll. That poll publishes
     # ``coordinator.data`` for the entities created later in this function, and
@@ -1015,6 +1019,7 @@ async def async_unload_entry(
         if coordinator.derived_metrics is not None:
             await coordinator.derived_metrics.async_flush_refrigerant()
             await coordinator.derived_metrics.async_flush_cycling()
+        await coordinator.async_flush_room_targets()
 
         # Close API connection
         if coordinator.api_client.connected:
@@ -1048,6 +1053,10 @@ async def async_remove_entry(
         MAINTENANCE_EVENTS_STORE_VERSION,
         f"{DOMAIN}_maintenance_events_{entry.entry_id}",
     ).async_remove()
+    # Remembered room targets (#511).
+    await Store(
+        hass, ROOM_TARGET_STORE_VERSION, f"{DOMAIN}_room_target_{entry.entry_id}"
+    ).async_remove()
 
     # Per-entry repair issues (async_delete_issue is idempotent).
     for issue_id in (
@@ -1059,6 +1068,8 @@ async def async_remove_entry(
         f"enable_refrigerant_detection_{entry.entry_id}",
         f"refrigerant_charge_alert_{entry.entry_id}",
         f"compressor_short_cycling_{entry.entry_id}",
+        f"room_target_restore_failed_{entry.entry_id}",
+        f"external_room_sensor_restore_failed_{entry.entry_id}",
         *_unit_issue_ids(entry.entry_id),
     ):
         async_delete_issue(hass, DOMAIN, issue_id)

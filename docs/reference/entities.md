@@ -186,6 +186,10 @@ Only the two `max_flow_temp_*_otc` numbers and the two `otc_calculation_method_*
 
 Turning the switch on first seeds the room register with the circuit's setpoint, so the unit sits in a neutral thermo-off until Home Assistant writes the real temperature, instead of regulating on whatever the register held; an unknown setpoint or a failed seed leaves the switch off, and re-enabling an already enabled switch leaves the room value alone.
 
+While the switch is on, the integration remembers each circuit's last valid room target (5.0-35.0 °C) across restarts. If a power cut of the gateway or of the controller's board resets the target to 0 while the switch stays on, the integration writes the remembered target back after the next successful poll. If the unit drops it again three times, it stops writing and raises a repair issue (`room_target_restore_failed_{entry_id}`) asking to set the target by hand; the issue clears once a valid target is read (#511). The room temperature itself is not restored: whoever feeds it (the `room_temperature` number or the `set_room_temperature` action) writes it again.
+
+A reset of the gateway alone does the opposite: the switch reads off while the target survives, and the unit silently falls back to its water law. The **Keep the External room sensor on** option (integration options, sensors step, off by default) makes the integration raise the switch again on the first good poll after a connection loss or a Home Assistant restart, through the same seeding as a manual turn-on (room value = target) and after the target itself when both were lost. A switch turned off from Home Assistant while the gateway stays reachable is left off. After three unconfirmed attempts the integration stops and raises `external_room_sensor_restore_failed_{entry_id}`, which clears once the switch reads on. Leave the option off when the flag is operated from elsewhere.
+
 #### Room regulation
 
 How the heat pump uses the room value depends on its own configuration, which the switch does not change:

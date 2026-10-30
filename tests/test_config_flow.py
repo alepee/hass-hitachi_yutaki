@@ -26,6 +26,7 @@ from custom_components.hitachi_yutaki.config_flow import (
 from custom_components.hitachi_yutaki.const import (
     CONF_CYCLING_DETECTION,
     CONF_ENERGY_ENTITY,
+    CONF_KEEP_EXTERNAL_ROOM_SENSOR,
     CONF_MODBUS_DEVICE_ID,
     CONF_MODBUS_HOST,
     CONF_MODBUS_PORT,
@@ -1316,3 +1317,54 @@ async def test_flow_preserves_provider_fallback_identity(
         result = await flow.async_validate_connection(config)
     assert result["step_id"] == "advanced_features"
     assert flow.unique_id == f"{DEFAULT_HOST}_{DEFAULT_DEVICE_ID}_{suffix}"
+
+
+async def test_options_flow_stores_the_keep_external_room_sensor_option(
+    hass: HomeAssistant,
+) -> None:
+    """The opt-in of #511 is offered on the sensors step and stored in the entry."""
+    entry = MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title=DEFAULT_NAME,
+        data={
+            "gateway_type": "modbus_atw_mbs_02",
+            "gateway_variant": "gen2",
+            "name": DEFAULT_NAME,
+            CONF_MODBUS_HOST: DEFAULT_HOST,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
+            "profile": "yutaki_s",
+            "power_supply": DEFAULT_POWER_SUPPLY,
+        },
+    )
+    entry.add_to_hass(hass)
+
+    result = await _walk_options_flow_to_sensors(hass, entry)
+    assert CONF_KEEP_EXTERNAL_ROOM_SENSOR in {
+        str(key) for key in result["data_schema"].schema
+    }
+
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"power_supply": "single", CONF_KEEP_EXTERNAL_ROOM_SENSOR: True},
+    )
+    assert result["step_id"] == "advanced_features"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: False}},
+    )
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"telemetry_level": "off"},
+    )
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {"fleet_ping": True},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.data[CONF_KEEP_EXTERNAL_ROOM_SENSOR] is True

@@ -22,6 +22,7 @@ from .const import (
     CONF_ELECTRICITY_PRICE_ENTITY,
     CONF_ENERGY_ENTITY,
     CONF_FLEET_PING,
+    CONF_KEEP_EXTERNAL_ROOM_SENSOR,
     CONF_POWER_ENTITY,
     CONF_POWER_SUPPLY,
     CONF_REFRIGERANT_DETECTION,
@@ -31,6 +32,7 @@ from .const import (
     CONF_WATER_OUTLET_TEMP_ENTITY,
     DEFAULT_CYCLING_DETECTION,
     DEFAULT_FLEET_PING,
+    DEFAULT_KEEP_EXTERNAL_ROOM_SENSOR,
     DEFAULT_POWER_SUPPLY,
     DEFAULT_REFRIGERANT_DETECTION,
     DEFAULT_TELEMETRY_LEVEL,
@@ -664,6 +666,12 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
                     domain=["sensor", "number", "input_number"],
                 ),
             ),
+            vol.Required(
+                CONF_KEEP_EXTERNAL_ROOM_SENSOR,
+                default=data.get(
+                    CONF_KEEP_EXTERNAL_ROOM_SENSOR, DEFAULT_KEEP_EXTERNAL_ROOM_SENSOR
+                ),
+            ): selector.BooleanSelector(),
         }
 
         # Pre-fill the optional sensor fields with the currently-configured

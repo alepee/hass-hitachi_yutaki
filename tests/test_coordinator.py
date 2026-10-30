@@ -11,6 +11,7 @@ import pytest
 from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.const import (
     CONF_CYCLING_DETECTION,
+    CONF_KEEP_EXTERNAL_ROOM_SENSOR,
     CONF_REFRIGERANT_DETECTION,
     DOMAIN,
 )
@@ -751,3 +752,190 @@ def test_room_notice_untouched_when_a_register_was_not_read(
 
     ir_mock.async_create_issue.assert_not_called()
     ir_mock.async_delete_issue.assert_not_called()
+
+
+def _target_api(mock_api_client, targets: dict[int, float | None], enabled=True):
+    """Circuit 1 heating, writable target, flag ``enabled``, readings from ``targets``."""
+    mock_api_client.has_circuit.side_effect = lambda cid, mode: (
+        cid == 1 and mode == "heating"
+    )
+    mock_api_client.can_write.return_value = True
+    mock_api_client.external_room_sensor_state.return_value = enabled
+    mock_api_client.get_circuit_target_temperature.side_effect = targets.get
+    mock_api_client.set_circuit_target_temperature = AsyncMock(return_value=True)
+    mock_api_client.set_external_room_sensor = AsyncMock(return_value=True)
+
+
+@pytest.mark.asyncio
+async def test_room_target_restored_after_a_gateway_power_cycle(
+    coordinator, mock_api_client
+):
+    """#511: target reads 0 with the sensor on, the last valid one is written back."""
+    _set_entry_id(coordinator)
+    _target_api(mock_api_client, {1: 22.0})
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_keep_room_targets()
+        mock_api_client.get_circuit_target_temperature.side_effect = {1: 0.0}.get
+        await coordinator._async_keep_room_targets()
+
+    mock_api_client.set_circuit_target_temperature.assert_awaited_once_with(1, 22.0)
+
+
+@pytest.mark.asyncio
+async def test_room_target_not_written_with_the_sensor_off(
+    coordinator, mock_api_client
+):
+    """With the flag off the unit ignores the room registers: no write."""
+    _set_entry_id(coordinator)
+    _target_api(mock_api_client, {1: 22.0}, enabled=False)
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_keep_room_targets()
+        mock_api_client.get_circuit_target_temperature.side_effect = {1: 0.0}.get
+        await coordinator._async_keep_room_targets()
+
+    mock_api_client.set_circuit_target_temperature.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_room_target_issue_raised_when_the_restore_never_holds(
+    coordinator, mock_api_client
+):
+    """The unit keeps dropping the target: stop writing and tell the user."""
+    _set_entry_id(coordinator)
+    _target_api(mock_api_client, {1: 22.0})
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        await coordinator._async_keep_room_targets()
+        mock_api_client.get_circuit_target_temperature.side_effect = {1: 0.0}.get
+        for _ in range(5):
+            await coordinator._async_keep_room_targets()
+
+    assert mock_api_client.set_circuit_target_temperature.await_count == 3
+    assert (
+        ir_mock.async_create_issue.call_args.args[2]
+        == "room_target_restore_failed_entry"
+    )
+    assert ir_mock.async_create_issue.call_args.kwargs["translation_placeholders"] == {
+        "circuits": "1"
+    }
+
+
+@pytest.mark.asyncio
+async def test_remembered_room_target_is_saved(coordinator, mock_api_client):
+    """A new valid target schedules a save, so it survives an HA restart."""
+    _set_entry_id(coordinator)
+    _target_api(mock_api_client, {1: 22.0})
+    coordinator._room_target_store = MagicMock()
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_keep_room_targets()
+        await coordinator._async_keep_room_targets()
+
+    coordinator._room_target_store.async_delay_save.assert_called_once()
+
+
+def _keep_flag(coordinator) -> None:
+    coordinator.config_entry.data = {
+        **coordinator.config_entry.data,
+        CONF_KEEP_EXTERNAL_ROOM_SENSOR: True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_external_room_sensor_raised_again_after_a_failed_poll(
+    coordinator, mock_api_client
+):
+    """#511: flag off on the first good poll after a failure, with the opt-in."""
+    _set_entry_id(coordinator)
+    _keep_flag(coordinator)
+    _target_api(mock_api_client, {1: 22.0})
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_keep_room_targets()
+        mock_api_client.read_values.side_effect = OSError("gateway rebooting")
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        mock_api_client.external_room_sensor_state.return_value = False
+        await coordinator._async_keep_room_targets()
+
+    mock_api_client.set_external_room_sensor.assert_awaited_once_with(1, True)
+    mock_api_client.set_circuit_target_temperature.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_external_room_sensor_left_off_without_the_opt_in(
+    coordinator, mock_api_client
+):
+    """Off by default: a lowered flag is the user's business."""
+    _set_entry_id(coordinator)
+    _target_api(mock_api_client, {1: 22.0})
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_keep_room_targets()
+        coordinator._poll_gap = True
+        mock_api_client.external_room_sensor_state.return_value = False
+        await coordinator._async_keep_room_targets()
+
+    mock_api_client.set_external_room_sensor.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_external_room_sensor_turned_off_from_ha_stays_off(
+    coordinator, mock_api_client
+):
+    """No failed poll in between: the switch was turned off, not reset."""
+    _set_entry_id(coordinator)
+    _keep_flag(coordinator)
+    _target_api(mock_api_client, {1: 22.0})
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_keep_room_targets()
+        mock_api_client.external_room_sensor_state.return_value = False
+        await coordinator._async_keep_room_targets()
+
+    mock_api_client.set_external_room_sensor.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_target_restored_before_the_flag_when_both_were_lost(
+    coordinator, mock_api_client
+):
+    """A full power cut: the target is written first, then the flag is raised."""
+    _set_entry_id(coordinator)
+    _keep_flag(coordinator)
+    _target_api(mock_api_client, {1: 22.0})
+    calls: list[str] = []
+    mock_api_client.set_circuit_target_temperature.side_effect = lambda *_: (
+        calls.append("target") or True
+    )
+    mock_api_client.set_external_room_sensor.side_effect = lambda *_: (
+        calls.append("flag") or True
+    )
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_keep_room_targets()
+        coordinator._poll_gap = True
+        mock_api_client.external_room_sensor_state.return_value = False
+        mock_api_client.get_circuit_target_temperature.side_effect = {1: 0.0}.get
+        await coordinator._async_keep_room_targets()
+
+    assert calls == ["target", "flag"]
+
+
+@pytest.mark.asyncio
+async def test_external_room_sensor_issue_raised_when_the_flag_never_holds(
+    coordinator, mock_api_client
+):
+    """The unit keeps the flag down: stop writing and tell the user."""
+    _set_entry_id(coordinator)
+    _keep_flag(coordinator)
+    _target_api(mock_api_client, {1: 22.0})
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        await coordinator._async_keep_room_targets()
+        coordinator._poll_gap = True
+        mock_api_client.external_room_sensor_state.return_value = False
+        for _ in range(5):
+            await coordinator._async_keep_room_targets()
+
+    assert mock_api_client.set_external_room_sensor.await_count == 3
+    assert (
+        ir_mock.async_create_issue.call_args.args[2]
+        == "external_room_sensor_restore_failed_entry"
+    )
+    assert ir_mock.async_create_issue.call_args.kwargs["translation_placeholders"] == {
+        "circuits": "1"
+    }

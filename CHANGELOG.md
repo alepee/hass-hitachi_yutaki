@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **Room target lost after a gateway power cut** (#511): power-cycling the ATW-MBS-02, or a controller board sharing its supply, resets the circuit's room target to 0 °C while the External room sensor switch stays on, so the heat pump stopped heating until someone set the target again. The integration now remembers each circuit's last valid target (5.0-35.0 °C) across restarts and writes it back after the next successful poll when it reads out of range with the switch on. A restore only counts once the unit itself reports it, past the 30 s window in which a written value is echoed; after three unconfirmed attempts the integration stops and raises a repair issue asking to set the target by hand, which clears once a valid target is read. A deliberate change of the target simply becomes the one remembered.
+- **External room sensor switch lost after a gateway reset** (#511): a reset of the ATW-MBS-02 alone (power cut, reboot) lowers the External room sensor flag while the room target survives, so the heat pump silently fell back to its water law. A new opt-in option, **Keep the External room sensor on** (integration options, sensors step), makes the integration raise the switch again on the first good poll after a connection loss or a Home Assistant restart, the room value seeded from the target as when the switch is turned on by hand and the target restored first when both were lost. A switch turned off from Home Assistant while the gateway stays reachable is left off. After three unconfirmed attempts a repair issue asks to turn the switch on by hand; it clears once the switch reads on.
+
 ## [2.3.0] - 2026-10-28
 
 ### Added

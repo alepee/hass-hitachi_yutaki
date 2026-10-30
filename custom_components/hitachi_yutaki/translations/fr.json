@@ -118,10 +118,12 @@
           "energy_entity": "Compteur d'énergie (Optionnel)",
           "water_inlet_temp_entity": "Capteur de température d'entrée d'eau (Optionnel)",
           "water_outlet_temp_entity": "Capteur de température de sortie d'eau (Optionnel)",
-          "electricity_price_entity": "Capteur de prix de l'électricité (Optionnel)"
+          "electricity_price_entity": "Capteur de prix de l'électricité (Optionnel)",
+          "keep_external_room_sensor": "Maintenir le Capteur ambiant externe activé"
         },
         "data_description": {
-          "electricity_price_entity": "Un capteur fournissant le prix actuel de l'électricité dans votre devise par kWh (ex. 0.18 pour 0,18 {currency}/kWh). Active le capteur de coût d'électricité."
+          "electricity_price_entity": "Un capteur fournissant le prix actuel de l'électricité dans votre devise par kWh (ex. 0.18 pour 0,18 {currency}/kWh). Active le capteur de coût d'électricité.",
+          "keep_external_room_sensor": "Après une réinitialisation de la passerelle (coupure de courant, redémarrage), l'interrupteur Capteur ambiant externe est lu désactivé alors que la consigne d'ambiance est conservée : la pompe à chaleur retombe sur sa loi d'eau. Si activé, l'intégration réactive l'interrupteur au prochain relevé réussi, en initialisant la valeur d'ambiance avec la consigne comme lors d'une activation manuelle. Laissez désactivé si l'interrupteur est piloté ailleurs."
         }
       },
       "advanced_features": {
@@ -895,6 +897,14 @@
           "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
         }
       }
+    },
+    "room_target_restore_failed": {
+      "title": "La consigne d'ambiance n'a pas pu être restaurée",
+      "description": "La consigne d'ambiance du ou des circuits {circuits} vaut 0 °C alors que l'interrupteur Capteur ambiant externe est activé, en général après une coupure de courant de la passerelle ou de l'unité. L'intégration a réécrit plusieurs fois la dernière consigne valide, mais la pompe à chaleur ne l'a pas conservée : elle risque de ne pas chauffer.\n\n**Pour résoudre ce problème :** redéfinissez la consigne sur l'entité climat du circuit ou sur la télécommande. L'avertissement disparaît de lui-même dès qu'une consigne valide est lue."
+    },
+    "external_room_sensor_restore_failed": {
+      "title": "Le Capteur ambiant externe n'a pas pu être réactivé",
+      "description": "L'interrupteur Capteur ambiant externe du ou des circuits {circuits} est lu désactivé après une réinitialisation de la passerelle, et l'intégration n'a pas pu le réactiver : la pompe à chaleur ne l'a pas conservé après plusieurs tentatives et fonctionne donc sur sa loi d'eau.\n\n**Pour résoudre ce problème :** activez l'interrupteur à la main sur la page de l'appareil du circuit. L'avertissement disparaît de lui-même dès que l'interrupteur est lu activé."
     },
     "external_room_sensor_notice": {
       "title": "Aucun thermostat d'ambiance sur la PAC",

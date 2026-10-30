@@ -214,6 +214,38 @@ over the selected global mode: DHW and pool production leave a powered
 space-conditioning circuit idle. The adapter supplies observations and the
 entity only maps `CircuitActivity` to HA's `HVACAction`.
 
+## Room Target Keeper
+
+**File:** `domain/services/room_target.py`
+
+`RoomTargetKeeper` remembers each circuit's last valid room target (the
+register's documented 5.0-35.0 °C range) and whether its External room sensor
+flag was on, and decides when to write them back (#511). Two resets were
+reproduced in the field: a controller board power cycle zeroes the target while
+the flag stays on, a gateway reset lowers the flag while the target survives.
+`observe(circuit_id, enabled, target, now, *, keep_enabled, after_gap)` returns
+a `RoomRestore(target, enable)`: the stored target when the flag is on (or
+about to be raised), the reading is out of range and a valid target was seen
+before; `enable=True` when `keep_enabled` (the user's opt-in), the flag reads
+off, it was last seen on and the drop showed up on the first good poll after a
+failure (`after_gap`). A flag lowered while the gateway stayed reachable was
+lowered by Home Assistant and is simply remembered off. The flag is never
+raised on a target of 0: the target comes back first, in the same decision.
+Unread values decide nothing.
+
+A restore is confirmed only by a reading taken `CONFIRM_AFTER_S` (60 s) after
+the write, longer than the gateway client's 30 s pending-write shadow, so the
+echo of its own write never counts. After `MAX_RESTORE_ATTEMPTS` (3)
+unconfirmed restores the circuit is reported by `failed_circuits()` or
+`failed_flag_circuits()` and left alone until the register reads right again. A
+deliberate user change is just a newer valid target. The coordinator reads the
+registers after a successful poll only, writes the target then raises the flag
+through the same seeding path as the switch, raises the
+`room_target_restore_failed_{entry_id}` and
+`external_room_sensor_restore_failed_{entry_id}` repair issues and persists
+`serialize()` in a `Store` (`hitachi_yutaki_room_target_{entry_id}`), loaded
+before the first poll.
+
 ## Maintenance Warning Policy
 
 **File:** `domain/services/maintenance.py`
