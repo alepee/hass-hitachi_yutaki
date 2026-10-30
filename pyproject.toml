@@ -19,7 +19,7 @@ dev = [
     "ruff==0.17.1",
     "pre-commit>=4.3.0",
     "colorlog>=6.9.0",
-    "ty==0.0.89",
+    "ty==0.0.92",
 ]
 
 [tool.pytest.ini_options]
