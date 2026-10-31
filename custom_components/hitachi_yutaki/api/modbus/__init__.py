@@ -1,6 +1,7 @@
 """Modbus client for Hitachi heat pumps."""
 
 import asyncio
+from collections.abc import Callable, Mapping
 import contextlib
 import logging
 import time
@@ -24,6 +25,7 @@ from ...const import (
 )
 from ..base import HitachiApiClient, ReadResult
 from .compat import get_pymodbus_device_param
+from .kept_values import KeptValues
 from .registers import HitachiRegisterMap, RegisterDefinition
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
@@ -64,6 +66,12 @@ class ModbusApiClient(HitachiApiClient):
         self._gateway_not_ready_last_log: float = 0.0
         # key -> (expected deserialized value, monotonic deadline)
         self._pending_writes: dict[str, tuple[Any, float]] = {}
+        # Values the hardware forgets on reboot (#511), see ``Keep``.
+        self._kept = KeptValues(
+            self._register_map.all_registers, self._register_map.writable_keys
+        )
+        # Key being written back, so that write is not mistaken for a command.
+        self._writing_back: str | None = None
 
     async def _ensure_connection(self) -> bool:
         """Ensure we have a working Modbus connection with retry logic."""
@@ -407,6 +415,7 @@ class ModbusApiClient(HitachiApiClient):
             return
         self._data[key] = expected
         self._pending_writes[key] = (expected, time.monotonic() + PENDING_WRITE_TTL)
+        self._kept.written(key, expected, by_restore=self._writing_back == key)
 
     def _is_shadowed_by_pending_write(self, key: str, value: Any) -> bool:
         """Return True when a fresh STATUS read of ``key`` must be ignored.
@@ -432,6 +441,49 @@ class ModbusApiClient(HitachiApiClient):
             )
             return False
         return True
+
+    async def restore_lost_values(self) -> None:
+        """Write back the kept values the last successful read found lost (#511).
+
+        Mechanical: each value goes back raw, through its register's
+        serializer, in the order :class:`KeptValues` plans from the ``Keep``
+        declarations. A write-back is confirmed by the pending-write shadow.
+        """
+        all_regs = self._register_map.all_registers
+        for key, value in self._kept.plan(self._data, self._pending_writes):
+            if not self._kept.wanted(key, value):
+                continue  # Home Assistant wrote it while earlier values went back.
+            serializer = all_regs[key].serializer
+            self._writing_back = key
+            try:
+                written = await self.write_value(
+                    key, serializer(value) if serializer else int(value)
+                )
+            finally:
+                self._writing_back = None
+            if not written:
+                _LOGGER.warning("Writing %s back failed", key)
+
+    def kept_values(self) -> dict[str, Any]:
+        """Return the references of the values the hardware forgets on reboot."""
+        return self._kept.snapshot()
+
+    def restore_kept_values(self, values: Mapping[str, Any]) -> None:
+        """Load persisted references, e.g. before the first poll after a restart."""
+        self._kept.load(values)
+
+    def listen_kept_values(self, listener: Callable[[], None]) -> None:
+        """Call ``listener`` whenever a reference changes, to persist it."""
+        self._kept.listen(listener)
+
+    def retry_restores(self) -> None:
+        """Give every value that could not be written back a fresh set of attempts."""
+        self._kept.retry()
+
+    @property
+    def restore_failed(self) -> bool:
+        """Return True while a lost value could not be written back."""
+        return self._kept.failed
 
     async def _read_register(
         self, definition: RegisterDefinition, device_param: str
@@ -478,6 +530,7 @@ class ModbusApiClient(HitachiApiClient):
         """
         retry_count = 0
         max_read_retries = 1  # Only retry once after reconnection
+        self._kept.discard_lost()
 
         while retry_count <= max_read_retries:
             try:
@@ -563,6 +616,7 @@ class ModbusApiClient(HitachiApiClient):
                     self._gateway_not_ready_since = None
                     self._gateway_not_ready_last_log = 0.0
 
+                fresh: list[str] = []
                 for name, definition in registers_to_read.items():
                     value = await self._read_register(definition, device_param)
                     # Fallback on any None (read error or a sensor-error raw
@@ -579,6 +633,7 @@ class ModbusApiClient(HitachiApiClient):
                         self._data.pop(name, None)
                     elif value is not None:
                         self._data[name] = value
+                        fresh.append(name)
                     else:
                         # No fresh value: a sensor-error raw value (e.g. 0xFFFF)
                         # deserialized to None, or a read error, with no working
@@ -594,6 +649,8 @@ class ModbusApiClient(HitachiApiClient):
                 # Remove data for modules not declared in system_config
                 self._gate_unconfigured_modules()
                 self._gate_outdoor_link_loss()
+
+                self._kept.track(fresh, self._data)
 
                 # If we got here, read was successful
                 return ReadResult.SUCCESS

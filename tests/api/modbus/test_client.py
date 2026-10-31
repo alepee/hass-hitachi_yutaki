@@ -11,7 +11,15 @@ import pytest
 
 from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
-from custom_components.hitachi_yutaki.api.modbus.registers import RegisterDefinition
+from custom_components.hitachi_yutaki.api.modbus.kept_values import (
+    MAX_RESTORE_ATTEMPTS,
+    KeptValues,
+)
+from custom_components.hitachi_yutaki.api.modbus.registers import (
+    Keep,
+    RegisterDefinition,
+    validate_kept_registers,
+)
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
     convert_signed_16bit,
@@ -49,6 +57,12 @@ def api_client(mock_hass, mock_client):
         api._client = mock_client
         api._slave = 1
         api._pending_writes = {}
+        api._writing_back = None
+        api._kept = (
+            KeptValues(api._register_map.all_registers, api._register_map.writable_keys)
+            if hasattr(api, "_register_map")
+            else KeptValues({}, set())
+        )
         return api
 
 
@@ -329,6 +343,12 @@ def _make_preflight_api_client(mock_hass, mock_client):
         api._gateway_not_ready_since = None
         api._gateway_not_ready_last_log = 0.0
         api._pending_writes = {}
+        api._writing_back = None
+        api._kept = (
+            KeptValues(api._register_map.all_registers, api._register_map.writable_keys)
+            if hasattr(api, "_register_map")
+            else KeptValues({}, set())
+        )
         return api
 
 
@@ -612,6 +632,12 @@ def pre2016_api_client(mock_hass, mock_client):
         api._register_map = AtwMbs02Pre2016RegisterMap()
         api._data = {}
         api._pending_writes = {}
+        api._writing_back = None
+        api._kept = (
+            KeptValues(api._register_map.all_registers, api._register_map.writable_keys)
+            if hasattr(api, "_register_map")
+            else KeptValues({}, set())
+        )
         write_result = MagicMock()
         write_result.isError.return_value = False
         mock_client.write_register.return_value = write_result
@@ -972,3 +998,543 @@ async def test_read_values_gates_outdoor_link_loss(_mock_ir, mock_hass, mock_cli
     assert result == ReadResult.SUCCESS
     assert api._data["alarm_code"] == "alarm_code_3"
     assert "outdoor_temp" not in api._data
+
+
+# --- Room settings a reboot takes from the hardware (#511) ---
+
+ROOM_KEYS = ["circuit1_thermostat", "circuit1_target_temp", "circuit1_current_temp"]
+
+
+async def _poll(
+    api, mock_client, flag: int, target: int, room: int = 215, state: int = 0
+):
+    """Run one poll of circuit 1's flag, room target and room value (raw tenths)."""
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(state),
+        _make_modbus_result(flag),
+        _make_modbus_result(target),
+        _make_modbus_result(room),
+    ]
+    result = await api.read_values(ROOM_KEYS)
+    await api.restore_lost_values()
+    return result
+
+
+def _room_api(mock_hass, mock_client):
+    """Client on the 2016 map with writes accepted (circuit 1 is never gated)."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.write_register.return_value = _make_modbus_result(0)
+    return api
+
+
+def _writes(mock_client) -> list[tuple[int, int]]:
+    return [
+        (c.kwargs["address"], c.kwargs["value"])
+        for c in mock_client.write_register.call_args_list
+    ]
+
+
+def _expire_pending(api) -> None:
+    """Move every pending write past its deadline."""
+    for key, (expected, _) in api._pending_writes.items():
+        api._pending_writes[key] = (expected, time.monotonic() - 1)
+
+
+def test_room_settings_are_kept_on_the_2016_map():
+    """Flag, room target and room value of both circuits are declared kept."""
+    regs = AtwMbs02RegisterMap().all_registers
+    for cid in (1, 2):
+        flag = f"circuit{cid}_thermostat"
+        assert regs[flag].keep is not None
+        target = regs[f"circuit{cid}_target_temp"].keep
+        assert (target.valid_range, target.while_on) == ((5.0, 35.0), flag)
+        room = regs[f"circuit{cid}_current_temp"].keep
+        assert (room.while_on, room.seed_from) == (flag, f"circuit{cid}_target_temp")
+
+
+@pytest.mark.parametrize(
+    "register_map",
+    [AtwMbs02RegisterMap(), AtwMbs02Pre2016RegisterMap(), HcAMbRegisterMap()],
+)
+def test_every_register_map_declares_valid_kept_values(register_map):
+    """The client checks the declarations at start; every shipped map passes."""
+    validate_kept_registers(register_map.all_registers, register_map.writable_keys)
+
+
+@pytest.mark.parametrize(
+    "declarations",
+    [
+        {"a": Keep(while_on="missing")},
+        {"a": Keep(while_on="a")},
+        {"a": Keep(while_on="b"), "b": None},
+        {"a": Keep(while_on="b"), "b": Keep(while_on="c"), "c": Keep()},
+        {"a": Keep(seed_from="b", while_on="c"), "b": Keep(), "c": Keep()},
+        {
+            "a": Keep(seed_from="b", while_on="c"),
+            "b": Keep(seed_from="a", while_on="c"),
+            "c": Keep(),
+        },
+        {"a": Keep(seed_from="b"), "b": Keep(), "c": Keep(while_on="b")},
+    ],
+)
+def test_invalid_kept_declarations_are_rejected(declarations):
+    """Dangling, self, chained or cyclic references fail at load, not in production."""
+    registers = {
+        key: RegisterDefinition(1000 + i, keep=keep)
+        for i, (key, keep) in enumerate(declarations.items())
+    }
+    with pytest.raises(ValueError):
+        validate_kept_registers(registers, set(registers))
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_controller_reboot_restores_target_and_seeds_room(
+    _mock_ir, mock_hass, mock_client
+):
+    """Target and room zeroed, flag still on: target back, room = target."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    assert _writes(mock_client) == []
+
+    await _poll(api, mock_client, flag=1, target=0, room=0)
+
+    # Room first; the target waits until the unit confirms it, so the unit
+    # sits at target 0 (idle) rather than target 22 over a room of 0 °C.
+    assert _writes(mock_client) == [(1012, 220)]
+
+    await _poll(api, mock_client, flag=1, target=0, room=220)
+    assert _writes(mock_client) == [(1012, 220), (1011, 220)]
+    assert api._data["circuit1_target_temp"] == 22.0
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_only_queues_lost_values(_mock_ir, mock_hass, mock_client):
+    """Reading never writes; the restore is a separate command."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(1),
+        _make_modbus_result(0),
+        _make_modbus_result(0),
+    ]
+
+    await api.read_values(ROOM_KEYS)
+    assert _writes(mock_client) == []
+
+    await api.restore_lost_values()
+    assert _writes(mock_client) == [(1012, 220)]
+
+    # The queue is consumed: a second call writes nothing more.
+    await api.restore_lost_values()
+    assert len(_writes(mock_client)) == 1
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_target_written_back_keeps_a_room_value_that_survived(
+    _mock_ir, mock_hass, mock_client
+):
+    """A room value still read is the last one fed: it is not overwritten."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+
+    await _poll(api, mock_client, flag=1, target=0, room=215)
+
+    assert _writes(mock_client) == [(1011, 220)]
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_room_target_left_alone_with_the_flag_off(
+    _mock_ir, mock_hass, mock_client
+):
+    """With the flag off the unit ignores the room registers: no write."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=0, target=220)
+    await _poll(api, mock_client, flag=0, target=0)
+
+    assert _writes(mock_client) == []
+    assert api.restore_failed is False
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_gateway_reboot_raises_the_flag_again(_mock_ir, mock_hass, mock_client):
+    """Flag cleared, target and room kept: only the flag is written back."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+
+    await _poll(api, mock_client, flag=0, target=220, room=215)
+
+    assert _writes(mock_client) == [(1010, 1)]
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_flag_raised_on_a_zeroed_room_seeds_it_first(
+    _mock_ir, mock_hass, mock_client
+):
+    """No room value to regulate on: it is seeded before the flag goes up."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+
+    await _poll(api, mock_client, flag=0, target=220, room=0)
+    assert _writes(mock_client) == [(1012, 220)]
+
+    # The flag waits for the unit to confirm the seeded room value.
+    await _poll(api, mock_client, flag=0, target=220, room=220)
+    assert _writes(mock_client) == [(1012, 220), (1010, 1)]
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_full_power_cut_restores_target_then_flag(
+    _mock_ir, mock_hass, mock_client
+):
+    """Gateway, controller and HA restart together: references come from the store."""
+    api = _room_api(mock_hass, mock_client)
+    api.restore_kept_values({"circuit1_thermostat": 1, "circuit1_target_temp": 22.0})
+
+    # While the gateway resyncs nothing is read, nothing written.
+    assert (
+        await _poll(api, mock_client, flag=0, target=0, room=0, state=2)
+        == ReadResult.GATEWAY_NOT_READY
+    )
+    assert _writes(mock_client) == []
+
+    # Room seeded from the target's reference; each next step waits for the
+    # unit to confirm the previous one.
+    await _poll(api, mock_client, flag=0, target=0, room=0)
+    assert _writes(mock_client) == [(1012, 220)]
+
+    await _poll(api, mock_client, flag=0, target=0, room=220)
+    assert _writes(mock_client) == [(1012, 220), (1011, 220)]
+
+    await _poll(api, mock_client, flag=0, target=220, room=220)
+    assert _writes(mock_client) == [(1012, 220), (1011, 220), (1010, 1)]
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_flag_stays_down_while_the_target_is_dropped(
+    _mock_ir, mock_hass, mock_client
+):
+    """A target written back but refused never lets the flag up."""
+    api = _room_api(mock_hass, mock_client)
+    api.restore_kept_values({"circuit1_thermostat": 1, "circuit1_target_temp": 22.0})
+    for _ in range(6):
+        await _poll(api, mock_client, flag=0, target=0, room=0)
+        _expire_pending(api)
+
+    assert (1010, 1) not in _writes(mock_client)
+    assert api.restore_failed is True
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_flag_turned_off_from_home_assistant_stays_off(
+    _mock_ir, mock_hass, mock_client
+):
+    """A flag lowered by a write is the new reference, not a lost value."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    assert await api.set_external_room_sensor(1, False)
+    mock_client.write_register.reset_mock()
+
+    await _poll(api, mock_client, flag=0, target=220)
+
+    assert _writes(mock_client) == []
+    assert api.kept_values()["circuit1_thermostat"] == 0
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_value_changed_by_home_assistant_meanwhile_is_not_written(
+    _mock_ir, mock_hass, mock_client
+):
+    """A reference that moved after the plan wins over the planned write-back."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    assert await api.set_external_room_sensor(1, False)
+    mock_client.write_register.reset_mock()
+
+    with patch.object(api._kept, "plan", return_value=[("circuit1_thermostat", 1)]):
+        await api.restore_lost_values()
+
+    assert _writes(mock_client) == []
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_target_changed_on_the_controller_becomes_the_reference(
+    _mock_ir, mock_hass, mock_client
+):
+    """A valid reading follows the controller, so it is what comes back."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    await _poll(api, mock_client, flag=1, target=195)
+
+    await _poll(api, mock_client, flag=1, target=0)
+
+    assert _writes(mock_client) == [(1011, 195)]
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_flag_without_a_known_target_is_reported(
+    _mock_ir, mock_hass, mock_client
+):
+    """No target to write back: the flag stays down and the user is told."""
+    api = _room_api(mock_hass, mock_client)
+    api.restore_kept_values({"circuit1_thermostat": 1})
+
+    await _poll(api, mock_client, flag=0, target=0, room=0)
+
+    # Raising the flag would make the unit regulate on a 0 °C target.
+    assert _writes(mock_client) == []
+    assert api.restore_failed is True
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_write_back_waits_for_the_pending_write_shadow(
+    _mock_ir, mock_hass, mock_client
+):
+    """Within the shadow a stale 0 is no new attempt; past it, it is."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    await _poll(api, mock_client, flag=1, target=0)
+    assert len(_writes(mock_client)) == 1
+
+    await _poll(api, mock_client, flag=1, target=0)
+    assert len(_writes(mock_client)) == 1
+
+    _expire_pending(api)
+    await _poll(api, mock_client, flag=1, target=0)
+    assert len(_writes(mock_client)) == 2
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_confirmed_write_back_resets_the_attempts(
+    _mock_ir, mock_hass, mock_client
+):
+    """The reading that confirms a write-back ends the restore."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    await _poll(api, mock_client, flag=1, target=0)
+
+    await _poll(api, mock_client, flag=1, target=220)
+
+    assert api._kept._attempts == {}
+    assert api._pending_writes == {}
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_gives_up_after_the_attempt_limit_and_recovers(
+    _mock_ir, mock_hass, mock_client
+):
+    """The unit keeps dropping the target: stop writing, report, clear on recovery."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    for _ in range(6):
+        await _poll(api, mock_client, flag=1, target=0)
+        _expire_pending(api)
+
+    assert len(_writes(mock_client)) == MAX_RESTORE_ATTEMPTS
+    assert api.restore_failed is True
+
+    await _poll(api, mock_client, flag=1, target=210)
+    assert api.restore_failed is False
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_retry_gives_a_fresh_set_of_attempts(_mock_ir, mock_hass, mock_client):
+    """After giving up, a retry from the repair issue writes again, then gives up again."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    for _ in range(4):
+        await _poll(api, mock_client, flag=1, target=0)
+        _expire_pending(api)
+    assert api.restore_failed is True
+
+    api.retry_restores()
+    assert api.restore_failed is False
+    for _ in range(4):
+        await _poll(api, mock_client, flag=1, target=0)
+        _expire_pending(api)
+
+    assert len(_writes(mock_client)) == 2 * MAX_RESTORE_ATTEMPTS
+    assert api.restore_failed is True
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_command_from_home_assistant_clears_a_failed_restore(
+    _mock_ir, mock_hass, mock_client
+):
+    """Setting the target by hand settles the restore, as the issue asks."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    for _ in range(4):
+        await _poll(api, mock_client, flag=1, target=0)
+        _expire_pending(api)
+    assert api.restore_failed is True
+
+    assert await api.set_circuit_target_temperature(1, 21.0)
+
+    assert api.restore_failed is False
+    assert api.kept_values()["circuit1_target_temp"] == 21.0
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_circuit_2_absent_is_never_written(_mock_ir, mock_hass, mock_client):
+    """Circuit 2 keys are gated out before the write-back when it is not configured."""
+    api = _room_api(mock_hass, mock_client)
+    api.restore_kept_values({"circuit2_thermostat": 1, "circuit2_target_temp": 22.0})
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(0),
+        _make_modbus_result(0),
+    ]
+
+    await api.read_values(["circuit2_thermostat", "circuit2_target_temp"])
+    await api.restore_lost_values()
+
+    assert _writes(mock_client) == []
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_failed_seed_holds_its_source_back(_mock_ir, mock_hass, mock_client):
+    """Room write refused: the target stays at 0 rather than heating on 0 °C."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+
+    def refuse_room(**kwargs):
+        if kwargs["address"] == 1012:
+            return _make_modbus_error()
+        return _make_modbus_result(0)
+
+    mock_client.write_register.side_effect = refuse_room
+    api._ensure_connection = AsyncMock(return_value=False)
+    for _ in range(5):
+        await _poll(api, mock_client, flag=1, target=0, room=0)
+        _expire_pending(api)
+
+    assert (1011, 220) not in _writes(mock_client)
+    assert api.restore_failed is True
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_blocked_flag_recovers_once_its_target_is_set(
+    _mock_ir, mock_hass, mock_client
+):
+    """No known target: reported; set on the controller: the flag goes back up."""
+    api = _room_api(mock_hass, mock_client)
+    api.restore_kept_values({"circuit1_thermostat": 1})
+    await _poll(api, mock_client, flag=0, target=0, room=0)
+    assert api.restore_failed is True
+
+    await _poll(api, mock_client, flag=0, target=220, room=215)
+
+    assert _writes(mock_client) == [(1010, 1)]
+    assert api.restore_failed is False
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_unrestorable_value_is_logged_once(
+    _mock_ir, mock_hass, mock_client, caplog
+):
+    """The logs name the setting the issue points to, without repeating every poll."""
+    api = _room_api(mock_hass, mock_client)
+    with caplog.at_level(logging.WARNING):
+        for _ in range(3):
+            await _poll(api, mock_client, flag=1, target=0, room=215)
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert sum("circuit1_target_temp" in m for m in messages) == 1
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_unknown_target_report_clears_when_the_flag_is_off(
+    _mock_ir, mock_hass, mock_client
+):
+    """Switched back to the water law, target 0 is a state the unit accepts."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=0, room=215)
+    assert api.restore_failed is True
+
+    assert await api.set_external_room_sensor(1, False)
+    await _poll(api, mock_client, flag=0, target=0, room=215)
+
+    assert api.restore_failed is False
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_flag_waits_while_a_dependent_went_unread(
+    _mock_ir, mock_hass, mock_client
+):
+    """A read error on the target leaves its state unknown: the flag waits."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(0),
+        _make_modbus_error(),
+        _make_modbus_result(215),
+    ]
+
+    await api.read_values(ROOM_KEYS)
+    await api.restore_lost_values()
+
+    assert _writes(mock_client) == []
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_listener_called_when_a_reference_changes(
+    _mock_ir, mock_hass, mock_client
+):
+    """New references notify at once (to persist them); an unchanged poll does not."""
+    api = _room_api(mock_hass, mock_client)
+    listener = MagicMock()
+    api.listen_kept_values(listener)
+
+    await _poll(api, mock_client, flag=1, target=220)
+    assert listener.call_count == 2  # flag and target, not the seeded room
+
+    await _poll(api, mock_client, flag=1, target=220)
+    assert listener.call_count == 2
+
+    assert await api.set_external_room_sensor(1, False)
+    assert listener.call_count == 3
+    assert api.kept_values() == {"circuit1_thermostat": 0, "circuit1_target_temp": 22.0}
+
+
+def test_restore_kept_values_skips_what_it_cannot_trust(mock_hass, mock_client):
+    """Unknown keys, unkept keys, lost values, odd flags and non-numbers are ignored."""
+    api = _room_api(mock_hass, mock_client)
+    api.restore_kept_values(
+        {
+            "circuit1_thermostat": 0,
+            "circuit2_thermostat": 2,
+            "circuit1_target_temp": 0.0,
+            "circuit2_target_temp": True,
+            "circuit1_current_temp": 21.0,
+            "nonexistent": 1,
+        }
+    )
+    api.restore_kept_values({"circuit2_thermostat": 0.5})
+
+    assert api.kept_values() == {"circuit1_thermostat": 0}

@@ -896,6 +896,20 @@
         }
       }
     },
+    "kept_values_restore_failed": {
+      "title": "Bij een herstart verloren instellingen konden niet worden hersteld",
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Herstel van de instellingen opnieuw proberen",
+            "description": "Meestal na een stroomonderbreking is de gateway of de regelaar bij een herstart enkele instellingen vergeten, en de integratie kon ze niet terugschrijven: ze kende geen waarde om te herstellen, of de warmtepomp heeft die na meerdere pogingen niet behouden. De warmtepomp regelt mogelijk niet zoals ingesteld. De logboeken van Home Assistant noemen elke betrokken instelling.\n\nBevestig hieronder om het opnieuw te proberen: de integratie schrijft de laatst bekende waarden bij de volgende uitlezing terug en toont deze melding opnieuw als ze nog steeds niet blijven staan. Komt ze terug, controleer dan de instellingen van de warmtepomp in Home Assistant of op de regelaar en stel ze handmatig opnieuw in. De melding verdwijnt vanzelf zodra ze kloppen."
+          }
+        },
+        "abort": {
+          "entry_not_found": "De Hitachi Yutaki-unit waarvoor deze reparatie is aangemaakt, is niet meer geconfigureerd. De reparatie is verwijderd."
+        }
+      }
+    },
     "external_room_sensor_notice": {
       "title": "Geen kamerthermostaat op de warmtepomp",
       "fix_flow": {

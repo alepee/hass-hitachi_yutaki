@@ -14,6 +14,7 @@ from homeassistant.const import (
 )
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -78,6 +79,9 @@ _MAX_BACKOFF = timedelta(seconds=300)
 # gateway reboot would have moved the units.
 _UNIT_CHECK_INTERVAL = 60.0
 
+KEPT_VALUES_STORE_VERSION = 1
+_KEPT_VALUES_SAVE_DELAY_S = 10
+
 
 class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
     """Class to manage fetching Hitachi heat pump data from the API."""
@@ -109,6 +113,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         # Alarm the unit currently reports, and when this poll loop first saw it.
         self._alarm_code: str | None = None
         self._alarm_since: datetime | None = None
+
+        # References of the values the gateway writes back after a reboot
+        # (#511), loaded before the first poll.
+        self._kept_values_store: Store | None = None
 
         # Telemetry (injected by async_setup_entry — always set, noop when OFF)
         self.telemetry_collector: TelemetryCollector = None  # type: ignore[assignment]
@@ -222,6 +230,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     "Gateway is not ready (initializing or desynchronized)"
                 )
 
+            # Same unit as before, or nothing below may be written to it.
+            await self._async_verify_unit()
+
+            # Write back what a gateway or controller reboot cleared (#511),
+            # before the values are published.
+            await self.api_client.restore_lost_values()
+
             # Gateway is ready - restore normal interval if needed
             if self._gateway_not_ready_count > 0:
                 _LOGGER.info(
@@ -238,8 +253,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 data[key] = await self.api_client.read_value(key)
 
             self.system_config = data.get("system_config", 0)
-
-            await self._async_verify_unit()
 
             # Poll succeeded: clear any connection error issue now, before
             # the post-fetch stages, so an enrichment bug cannot keep it
@@ -295,6 +308,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self._update_cycling_issue()
 
             self._update_external_room_sensor_notice()
+            self._update_kept_values()
 
             # Telemetry: collect metrics from this poll cycle
             # (collector handles level=OFF internally)
@@ -693,6 +707,64 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 is_persistent=True,
                 severity=ir.IssueSeverity.WARNING,
                 translation_key="external_room_sensor_notice",
+            )
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+
+    async def async_restore_kept_values(self) -> None:
+        """Load the gateway's kept values; call before the first poll."""
+        self._kept_values_store = Store(
+            self.hass,
+            KEPT_VALUES_STORE_VERSION,
+            f"{DOMAIN}_kept_values_{self.config_entry.entry_id}",
+        )
+        try:
+            stored = await self._kept_values_store.async_load()
+        except Exception:  # noqa: BLE001
+            _LOGGER.debug("Failed to load the kept values", exc_info=True)
+        else:
+            if isinstance(stored, dict):
+                self.api_client.restore_kept_values(stored)
+        # Saved as soon as a reference changes, e.g. a switch turned off from
+        # Home Assistant, so a power cut right after does not undo it.
+        self.api_client.listen_kept_values(self._schedule_kept_values_save)
+
+    def _schedule_kept_values_save(self) -> None:
+        """Persist the kept values shortly after a reference changed."""
+        if self._kept_values_store is not None:
+            self._kept_values_store.async_delay_save(
+                self.api_client.kept_values, _KEPT_VALUES_SAVE_DELAY_S
+            )
+
+    async def async_flush_kept_values(self) -> None:
+        """Persist the gateway's kept values immediately (e.g. on unload)."""
+        if self._kept_values_store is not None:
+            await self._kept_values_store.async_save(self.api_client.kept_values())
+
+    def _restore_failed_issue_id(self) -> str:
+        """Return the repair-issue id for settings a reboot took and that would not stick."""
+        return f"kept_values_restore_failed_{self.config_entry.entry_id}"
+
+    async def async_retry_restores(self) -> None:
+        """Retry the write-backs that gave up, from the repair issue's fix flow.
+
+        The issue is raised again by the next poll if they still fail.
+        """
+        self.api_client.retry_restores()
+        ir.async_delete_issue(self.hass, DOMAIN, self._restore_failed_issue_id())
+        await self.async_request_refresh()
+
+    def _update_kept_values(self) -> None:
+        """Report the kept values that would not stick, with a repair issue."""
+        issue_id = self._restore_failed_issue_id()
+        if self.api_client.restore_failed:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=True,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="kept_values_restore_failed",
             )
         else:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)

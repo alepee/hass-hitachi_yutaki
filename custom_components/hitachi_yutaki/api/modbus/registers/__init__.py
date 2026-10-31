@@ -1,7 +1,7 @@
 """Register map for Hitachi heat pumps."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -20,6 +20,116 @@ OUTDOOR_UNIT_KEYS = (
 OUTDOOR_LINK_ALARMS = frozenset({"alarm_code_3"})
 
 
+@dataclass(frozen=True)
+class Keep:
+    """A written value the hardware forgets on reboot, put back by the client.
+
+    The restore is mechanical: the client never interprets the value. A
+    reading of 0, or outside ``valid_range``, is a lost value, written back
+    to its reference (the last value written, or the last reading that was
+    not lost) once a successful read has seen it lost.
+
+    ``while_on`` names a kept value this one depends on (e.g. an enable
+    flag): it is only written back while that value reads non-zero, or is
+    being written back too, and that value is only written back once all of
+    its dependents read right and are confirmed. A CONTROL-only register
+    reads back what was written, so only its dependents, read from STATUS
+    registers, prove the unit applied anything: that is why it goes last.
+
+    ``seed_from`` names another kept value to copy instead of a reference
+    (e.g. a room value seeded with the target, which keeps the unit idle
+    until the real one is written). It is written just before its source,
+    from the source's reference, and the source waits if it fails: a failure
+    in between leaves the state the reboot left rather than a half-restored
+    one.
+    """
+
+    valid_range: tuple[float, float] | None = None
+    while_on: str | None = None
+    seed_from: str | None = None
+
+
+def validate_kept_registers(
+    registers: Mapping[str, "RegisterDefinition"], writable_keys: set[str]
+) -> None:
+    """Check the ``Keep`` declarations of a register map, raising ValueError.
+
+    Each rule below checks one property of a kept register; together they
+    keep the restore order a fixed three steps, with no cycle.
+    """
+    kept = {k: d for k, d in registers.items() if d.keep is not None}
+    for key in kept:
+        for rule in _KEPT_RULES:
+            if problem := rule(key, kept, writable_keys):
+                raise ValueError(f"{key}: {problem}")
+
+
+def _is_writable(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that a kept register is writable."""
+    return None if key in writable else "a kept register must be writable"
+
+
+def _is_serializable(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that a kept register with a deserializer has a serializer."""
+    definition = kept[key]
+    if definition.deserializer is not None and definition.serializer is None:
+        return "a kept register needs a serializer"
+    return None
+
+
+def _links_resolve(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that ``while_on`` and ``seed_from`` name another kept register."""
+    keep = kept[key].keep
+    for name, ref in (("while_on", keep.while_on), ("seed_from", keep.seed_from)):
+        if ref is not None and (ref == key or ref not in kept):
+            return f"{name} must name another kept register"
+    return None
+
+
+def _gate_is_a_root(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that a ``while_on`` target depends on nothing itself."""
+    gate = kept[key].keep.while_on
+    if gate is not None and (
+        kept[gate].keep.while_on is not None or kept[gate].keep.seed_from is not None
+    ):
+        return "while_on target must depend on nothing"
+    return None
+
+
+def _seed_is_a_sibling(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that a ``seed_from`` source shares ``while_on``, unseeded, no gate."""
+    keep = kept[key].keep
+    if keep.seed_from is None:
+        return None
+    source = kept[keep.seed_from].keep
+    is_gate = any(d.keep.while_on == keep.seed_from for d in kept.values())
+    if source.seed_from is not None or source.while_on != keep.while_on or is_gate:
+        return "seed_from source must share while_on"
+    return None
+
+
+# Order matters: the link rules index the targets the first ones resolved.
+_KEPT_RULES: tuple[
+    Callable[[str, Mapping[str, "RegisterDefinition"], set[str]], str | None], ...
+] = (
+    _is_writable,
+    _is_serializable,
+    _links_resolve,
+    _gate_is_a_root,
+    _seed_is_a_sibling,
+)
+
+
 @dataclass
 class RegisterDefinition:
     """Class to define a register.
@@ -36,6 +146,9 @@ class RegisterDefinition:
             unavailable. These are gateway-specific conventions (e.g. -127 for
             absent sensor, -67 for unavailable module). When a read returns one
             of these values, the gateway returns None instead.
+        keep: Set when the hardware forgets the value on reboot: the client
+            writes it back mechanically (see :class:`Keep`). Needs a
+            ``serializer`` when the deserialized value is not the raw one.
 
     """
 
@@ -45,6 +158,7 @@ class RegisterDefinition:
     write_address: int | None = None
     fallback: "RegisterDefinition | None" = None
     sentinel_values: frozenset[int] | None = None
+    keep: Keep | None = None
 
 
 class HitachiRegisterMap(ABC):

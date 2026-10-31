@@ -51,6 +51,8 @@ def mock_api_client():
     client.read_value = AsyncMock(return_value=None)
     client.base_keys = ["system_state"]
     client.is_defrosting = False
+    client.restore_failed = False
+    client.restore_lost_values = AsyncMock()
     return client
 
 
@@ -751,6 +753,120 @@ def test_room_notice_untouched_when_a_register_was_not_read(
 
     ir_mock.async_create_issue.assert_not_called()
     ir_mock.async_delete_issue.assert_not_called()
+
+
+# --- Room settings written back after a reboot (#511) ---
+
+
+def test_reference_change_schedules_a_save(coordinator, mock_api_client):
+    """The listener registered with the client saves the kept values shortly."""
+    _set_entry_id(coordinator)
+    coordinator._kept_values_store = MagicMock()
+
+    coordinator._schedule_kept_values_save()
+
+    save = coordinator._kept_values_store.async_delay_save
+    save.assert_called_once()
+    assert save.call_args.args[0] is mock_api_client.kept_values
+
+
+def test_failed_restore_raises_one_issue(coordinator, mock_api_client):
+    """Settings that would not stick raise a single, generic issue."""
+    _set_entry_id(coordinator)
+    mock_api_client.restore_failed = True
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        coordinator._update_kept_values()
+
+    call = ir_mock.async_create_issue.call_args
+    assert call.args[2] == "kept_values_restore_failed_entry"
+    assert call.kwargs["translation_key"] == "kept_values_restore_failed"
+    assert call.kwargs["is_fixable"] is True
+
+
+@pytest.mark.asyncio
+async def test_retry_from_the_issue_resets_and_polls(coordinator, mock_api_client):
+    """The fix flow resets the attempts, drops the issue and polls at once."""
+    _set_entry_id(coordinator)
+    coordinator.async_request_refresh = AsyncMock()
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        await coordinator.async_retry_restores()
+
+    mock_api_client.retry_restores.assert_called_once()
+    ir_mock.async_delete_issue.assert_called_once_with(
+        coordinator.hass, DOMAIN, "kept_values_restore_failed_entry"
+    )
+    coordinator.async_request_refresh.assert_awaited_once()
+
+
+def test_restore_issue_cleared_once_settings_read_right(coordinator, mock_api_client):
+    """Nothing failing: the issue is deleted."""
+    _set_entry_id(coordinator)
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        coordinator._update_kept_values()
+
+    ir_mock.async_create_issue.assert_not_called()
+    ir_mock.async_delete_issue.assert_called_once_with(
+        coordinator.hass, DOMAIN, "kept_values_restore_failed_entry"
+    )
+
+
+@pytest.mark.asyncio
+async def test_kept_values_loaded_into_the_client(coordinator, mock_api_client):
+    """Persisted references reach the client before the first poll."""
+    _set_entry_id(coordinator)
+    stored = {"circuit1_thermostat": 1, "circuit1_target_temp": 22.0}
+    with patch("custom_components.hitachi_yutaki.coordinator.Store") as store_cls:
+        store_cls.return_value.async_load = AsyncMock(return_value=stored)
+        await coordinator.async_restore_kept_values()
+
+    mock_api_client.restore_kept_values.assert_called_once_with(stored)
+    mock_api_client.listen_kept_values.assert_called_once_with(
+        coordinator._schedule_kept_values_save
+    )
+
+
+@pytest.mark.asyncio
+async def test_unreadable_kept_values_are_ignored(coordinator, mock_api_client):
+    """A store that fails to load, or holds no dict, leaves the client empty."""
+    _set_entry_id(coordinator)
+    with patch("custom_components.hitachi_yutaki.coordinator.Store") as store_cls:
+        store_cls.return_value.async_load = AsyncMock(side_effect=ValueError)
+        await coordinator.async_restore_kept_values()
+        store_cls.return_value.async_load = AsyncMock(return_value=None)
+        await coordinator.async_restore_kept_values()
+
+    mock_api_client.restore_kept_values.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_nothing_restored_when_the_unit_moved(coordinator, mock_api_client):
+    """A unit that no longer answers at its address gets no write-back."""
+    _set_entry_id(coordinator)
+    mock_api_client.async_verify_unit = AsyncMock(return_value=False)
+    coordinator.hass.config_entries.async_schedule_reload = MagicMock()
+    with (
+        patch("custom_components.hitachi_yutaki.coordinator.ir"),
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    mock_api_client.restore_lost_values.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_lost_values_restored_after_a_successful_read(
+    coordinator, mock_api_client
+):
+    """The restore runs once per successful read, never when the gateway is not ready."""
+    _set_entry_id(coordinator)
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        mock_api_client.restore_lost_values.assert_awaited_once()
+
+        mock_api_client.read_values.return_value = ReadResult.GATEWAY_NOT_READY
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+    mock_api_client.restore_lost_values.assert_awaited_once()
 
 
 # --- Alarm repair issue (#457) ---

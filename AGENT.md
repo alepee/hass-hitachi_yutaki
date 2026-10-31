@@ -73,6 +73,9 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
   and `supported_unit_modes`; concrete register maps stay inside `api/`.
 - A readable key is not necessarily writable. UI commands must use writable
   capabilities and propagate failed writes.
+- Values the hardware forgets on reboot are declared with
+  `RegisterDefinition.keep` and written back by the provider (#511); the
+  coordinator only persists the references and raises the repair issue.
 - Providers own transport-specific validation, fallback identity and optional
   configuration URLs. Setup and config flows do not interpret Modbus states or
   exceptions.
