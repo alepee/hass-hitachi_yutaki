@@ -1059,6 +1059,7 @@ async def async_remove_entry(
         f"enable_refrigerant_detection_{entry.entry_id}",
         f"refrigerant_charge_alert_{entry.entry_id}",
         f"compressor_short_cycling_{entry.entry_id}",
+        f"unit_alarm_{entry.entry_id}",
         *_unit_issue_ids(entry.entry_id),
     ):
         async_delete_issue(hass, DOMAIN, issue_id)

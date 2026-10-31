@@ -34,8 +34,11 @@ def _alarm_attributes(
     """Expose the alarm code only while an alarm is present."""
     if coordinator.data is None:
         return None
-    code = coordinator.data.get("alarm_code")
-    return {"code": code} if code is not None and code != 0 else None
+    alarm = coordinator.data.get("alarm_code")
+    if not isinstance(alarm, str) or not alarm.startswith("alarm_code_"):
+        return None
+    code = int(alarm.removeprefix("alarm_code_"))
+    return {"code": code} if code != 0 else None
 
 
 def _operation_state_attributes(

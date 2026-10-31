@@ -5,6 +5,20 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
+# Readings the indoor unit relays from the outdoor unit. Tg, Ti and EVI are
+# measured on the indoor side of a split unit, so they are not listed.
+OUTDOOR_UNIT_KEYS = (
+    "outdoor_temp",
+    "compressor_td_discharge_temp",
+    "compressor_te_evaporator_temp",
+    "compressor_evo_outdoor_expansion_valve_opening",
+    "compressor_frequency",
+    "compressor_current",
+)
+
+# Alarm 03: abnormal transmission between the indoor and the outdoor unit.
+OUTDOOR_LINK_ALARMS = frozenset({"alarm_code_3"})
+
 
 @dataclass
 class RegisterDefinition:
@@ -88,6 +102,16 @@ class HitachiRegisterMap(ABC):
             + self.dhw_keys
             + self.pool_keys
         )
+
+    @property
+    def outdoor_unit_keys(self) -> list[str]:
+        """Return the keys whose value the indoor unit relays from the outdoor unit."""
+        return [key for key in OUTDOOR_UNIT_KEYS if key in self.all_registers]
+
+    @property
+    def outdoor_link_alarms(self) -> frozenset[str]:
+        """Return the alarm codes meaning the outdoor unit is unreachable."""
+        return OUTDOOR_LINK_ALARMS
 
     @property
     @abstractmethod

@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -751,3 +751,83 @@ def test_room_notice_untouched_when_a_register_was_not_read(
 
     ir_mock.async_create_issue.assert_not_called()
     ir_mock.async_delete_issue.assert_not_called()
+
+
+# --- Alarm repair issue (#457) ---
+
+
+def _alarm_issue_kwargs(mock_ir):
+    mock_ir.async_create_issue.assert_called_once()
+    return mock_ir.async_create_issue.call_args.kwargs
+
+
+def test_alarm_issue_raised_with_code_and_start_time(coordinator):
+    """An alarm raises a non-fixable issue naming the code and its start time."""
+    _set_entry_id(coordinator)
+    coordinator.api_client.outdoor_link_lost = False
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        coordinator._update_alarm_issue("alarm_code_42")
+
+    kwargs = _alarm_issue_kwargs(mock_ir)
+    assert mock_ir.async_create_issue.call_args.args[2] == "unit_alarm_entry"
+    assert kwargs["translation_key"] == "unit_alarm"
+    assert kwargs["is_fixable"] is False
+    assert kwargs["is_persistent"] is False
+    assert kwargs["translation_placeholders"]["code"] == "42"
+    assert kwargs["translation_placeholders"]["since"]
+
+
+def test_alarm_issue_explains_outdoor_link_loss(coordinator):
+    """Alarm 03 uses the dedicated text about the lost outdoor unit."""
+    coordinator.api_client.outdoor_link_lost = True
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        coordinator._update_alarm_issue("alarm_code_3")
+
+    kwargs = _alarm_issue_kwargs(mock_ir)
+    assert kwargs["translation_key"] == "unit_alarm_outdoor_link"
+    assert kwargs["translation_placeholders"]["code"] == "3"
+
+
+def test_alarm_issue_keeps_start_time_while_alarm_lasts(coordinator):
+    """Later polls of the same alarm keep the time it was first seen."""
+    coordinator.api_client.outdoor_link_lost = False
+    first = datetime(2026, 10, 28, 9, 0)
+    later = datetime(2026, 10, 28, 9, 5)
+    with (
+        patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir,
+        patch(
+            "custom_components.hitachi_yutaki.coordinator.dt_util.now",
+            side_effect=[first, later],
+        ),
+    ):
+        coordinator._update_alarm_issue("alarm_code_42")
+        coordinator._update_alarm_issue("alarm_code_42")
+        coordinator._update_alarm_issue("alarm_code_2")
+
+    sinces = [
+        c.kwargs["translation_placeholders"]["since"]
+        for c in mock_ir.async_create_issue.call_args_list
+    ]
+    assert sinces == ["2026-10-28 09:00", "2026-10-28 09:00", "2026-10-28 09:05"]
+
+
+def test_alarm_issue_cleared_when_alarm_ends(coordinator):
+    """The issue clears and the start time resets once the alarm is gone."""
+    _set_entry_id(coordinator)
+    coordinator.api_client.outdoor_link_lost = False
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        coordinator._update_alarm_issue("alarm_code_42")
+        coordinator._update_alarm_issue("alarm_code_0")
+
+    mock_ir.async_delete_issue.assert_called_once()
+    assert mock_ir.async_delete_issue.call_args.args[2] == "unit_alarm_entry"
+    assert coordinator._alarm_since is None
+
+
+def test_alarm_issue_untouched_by_failed_read(coordinator):
+    """A poll without an alarm code neither raises nor clears the issue."""
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        coordinator._update_alarm_issue(None)
+
+    mock_ir.async_create_issue.assert_not_called()
+    mock_ir.async_delete_issue.assert_not_called()

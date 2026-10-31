@@ -31,3 +31,9 @@ Hitachi specifies a shielded twisted pair cable (0.75 mm² section), grounded on
 After a power cycle of the gateway or the heat pump, the H-LINK bus needs a few minutes to synchronize. During this time, the integration reports the gateway as "initializing" or "desynchronized." A setup or reload that lands in this window is deferred: Home Assistant shows the entry as "Retrying setup" and tries again on its own, with an increasing delay, until H-LINK is synchronized. The integration waits for a synchronized read because the heat pump capabilities it carries decide which devices and entities are created. Setup is also deferred if the gateway returns an invalid system configuration (`0xFFFF`), which happens while the bus is unstable.
 
 **Fix:** wait 3-5 minutes after a restart. If the issue persists beyond that, check the wiring.
+
+## Outdoor sensors unavailable, alarm 03
+
+Alarm 03 means the indoor unit has lost contact with the outdoor unit (power supply or communication cable between the two units). The gateway is fine: it keeps talking to the indoor unit, which reports `0` for everything it would normally relay from the outdoor unit. While the alarm lasts, the integration shows those readings (outdoor temperature, compressor discharge and evaporator temperatures, outdoor expansion valve, frequency, current) as unavailable rather than a false 0, and raises a repair issue. A non-zero outdoor temperature from an auxiliary sensor wired to the indoor unit is still shown.
+
+**Fix:** check the outdoor unit's power supply and the cable between the two units, then contact your installer if the alarm persists. The repair issue and the sensors come back on their own once the unit no longer reports the alarm.
