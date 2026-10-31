@@ -792,6 +792,22 @@ def test_failed_restore_raises_one_issue(coordinator, mock_api_client):
     call = ir_mock.async_create_issue.call_args
     assert call.args[2] == "kept_values_restore_failed_entry"
     assert call.kwargs["translation_key"] == "kept_values_restore_failed"
+    assert call.kwargs["is_fixable"] is True
+
+
+@pytest.mark.asyncio
+async def test_retry_from_the_issue_resets_and_polls(coordinator, mock_api_client):
+    """The fix flow resets the attempts, drops the issue and polls at once."""
+    _set_entry_id(coordinator)
+    coordinator.async_request_refresh = AsyncMock()
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        await coordinator.async_retry_restores()
+
+    mock_api_client.retry_restores.assert_called_once()
+    ir_mock.async_delete_issue.assert_called_once_with(
+        coordinator.hass, DOMAIN, "kept_values_restore_failed_entry"
+    )
+    coordinator.async_request_refresh.assert_awaited_once()
 
 
 def test_restore_issue_cleared_once_settings_read_right(coordinator, mock_api_client):

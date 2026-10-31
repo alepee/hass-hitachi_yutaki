@@ -396,6 +396,9 @@ class HitachiApiClient(ABC):
         """Return True once after a reference changed and needs saving."""
         return False
 
+    def retry_restores(self) -> None:
+        """Give the values that could not be written back a fresh set of attempts."""
+
     @property
     def restore_failed(self) -> bool:
         """Return True while a value lost in a reboot could not be written back."""

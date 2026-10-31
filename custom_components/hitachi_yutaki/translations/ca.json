@@ -878,7 +878,17 @@
     },
     "kept_values_restore_failed": {
       "title": "No s'han pogut restablir els ajustos perduts en reiniciar",
-      "description": "Normalment després d'un tall de corrent, la passarel·la o el controlador ha oblidat alguns ajustos en reiniciar-se, per exemple l'interruptor Sensor ambient extern o la consigna ambiental d'un circuit. La integració ha tornat a escriure els últims valors coneguts diverses vegades, però la bomba de calor no els ha conservat, de manera que pot deixar de regular com està configurada.\n\n**Per resoldre-ho:** comproveu l'interruptor Sensor ambient extern i la consigna ambiental dels circuits, a les pàgines dels seus dispositius o al controlador, i torneu-los a establir. L'avís desapareix sol quan són correctes."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Torna a intentar restablir els ajustos",
+            "description": "Normalment després d'un tall de corrent, la passarel·la o el controlador ha oblidat alguns ajustos en reiniciar-se, per exemple l'interruptor Sensor ambient extern o la consigna ambiental d'un circuit. La integració no els ha pogut tornar a escriure: o no coneixia cap valor per restablir, o la bomba de calor no l'ha conservat després de diversos intents. És possible que la bomba de calor no reguli com està configurada.\n\nConfirmeu a continuació per tornar-ho a intentar: la integració torna a escriure els últims valors coneguts a la propera lectura i torna a mostrar aquest avís si encara no es mantenen. Si torna a aparèixer, comproveu l'interruptor Sensor ambient extern i la consigna ambiental dels circuits a les pàgines dels seus dispositius o al controlador, i establiu-los manualment. L'avís desapareix sol quan són correctes."
+          }
+        },
+        "abort": {
+          "entry_not_found": "La unitat Hitachi Yutaki per a la qual es va crear aquesta reparació ja no està configurada. S'ha eliminat la reparació."
+        }
+      }
     },
     "external_room_sensor_notice": {
       "title": "Cap termòstat d'ambient a la bomba de calor",

@@ -423,6 +423,34 @@ class RefrigerantServicedRepairFlow(RepairsFlow):
         )
 
 
+class RetryKeptValuesRepairFlow(RepairsFlow):
+    """Retry writing back the settings a reboot took (#511)."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Redirect to the confirm step."""
+        return await self.async_step_confirm()
+
+    async def async_step_confirm(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Retry on confirmation; the next poll raises the issue again on failure."""
+        entry_id = self.issue_id.removeprefix("kept_values_restore_failed_")
+
+        config_entries = self.hass.config_entries.async_entries(DOMAIN)
+        entry = next((e for e in config_entries if e.entry_id == entry_id), None)
+
+        if entry is None:
+            return _abort_orphaned_issue(self)
+
+        if user_input is not None:
+            await entry.runtime_data.async_retry_restores()
+            return self.async_create_entry(data={})
+
+        return self.async_show_form(step_id="confirm", data_schema=vol.Schema({}))
+
+
 async def async_create_fix_flow(
     hass: HomeAssistant,
     issue_id: str,
@@ -441,4 +469,6 @@ async def async_create_fix_flow(
         return EnableRefrigerantDetectionRepairFlow()
     if issue_id.startswith("refrigerant_charge_alert_"):
         return RefrigerantServicedRepairFlow()
+    if issue_id.startswith("kept_values_restore_failed_"):
+        return RetryKeptValuesRepairFlow()
     return MissingConfigRepairFlow()

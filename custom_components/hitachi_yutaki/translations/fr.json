@@ -898,7 +898,17 @@
     },
     "kept_values_restore_failed": {
       "title": "Réglages perdus au redémarrage non rétablis",
-      "description": "En général après une coupure de courant, la passerelle ou le contrôleur a oublié certains réglages au redémarrage, par exemple l'interrupteur Capteur ambiant externe ou la consigne ambiante d'un circuit. L'intégration a réécrit plusieurs fois les dernières valeurs connues, mais la pompe à chaleur ne les a pas gardées : elle risque de ne plus réguler comme configuré.\n\n**Pour résoudre :** vérifiez l'interrupteur Capteur ambiant externe et la consigne ambiante des circuits, depuis leurs pages d'appareil ou sur le contrôleur, et réglez-les de nouveau. L'avis disparaît de lui-même dès qu'ils sont corrects."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Réessayer de rétablir les réglages",
+            "description": "En général après une coupure de courant, la passerelle ou le contrôleur a oublié certains réglages au redémarrage, par exemple l'interrupteur Capteur ambiant externe ou la consigne ambiante d'un circuit. L'intégration n'a pas pu les réécrire : soit elle ne connaissait aucune valeur à rétablir, soit la pompe à chaleur ne l'a pas gardée après plusieurs essais. La pompe à chaleur risque de ne plus réguler comme configuré.\n\nConfirmez ci-dessous pour réessayer : l'intégration réécrit les dernières valeurs connues au prochain relevé, et relève cet avis si elles ne tiennent toujours pas. S'il revient, vérifiez l'interrupteur Capteur ambiant externe et la consigne ambiante des circuits depuis leurs pages d'appareil ou sur le contrôleur, et réglez-les à la main. L'avis disparaît de lui-même dès qu'ils sont corrects."
+          }
+        },
+        "abort": {
+          "entry_not_found": "L'unité Hitachi Yutaki pour laquelle cette réparation a été créée n'est plus configurée. La réparation a été supprimée."
+        }
+      }
     },
     "external_room_sensor_notice": {
       "title": "Aucun thermostat d'ambiance sur la PAC",

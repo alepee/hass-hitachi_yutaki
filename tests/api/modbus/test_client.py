@@ -1353,6 +1353,27 @@ async def test_gives_up_after_the_attempt_limit_and_recovers(
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
 @pytest.mark.asyncio
+async def test_retry_gives_a_fresh_set_of_attempts(_mock_ir, mock_hass, mock_client):
+    """After giving up, a retry from the repair issue writes again, then gives up again."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    for _ in range(4):
+        await _poll(api, mock_client, flag=1, target=0)
+        _expire_pending(api)
+    assert api.restore_failed is True
+
+    api.retry_restores()
+    assert api.restore_failed is False
+    for _ in range(4):
+        await _poll(api, mock_client, flag=1, target=0)
+        _expire_pending(api)
+
+    assert len(_writes(mock_client)) == 2 * MAX_RESTORE_ATTEMPTS
+    assert api.restore_failed is True
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
 async def test_command_from_home_assistant_clears_a_failed_restore(
     _mock_ir, mock_hass, mock_client
 ):

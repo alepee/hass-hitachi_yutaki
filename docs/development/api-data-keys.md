@@ -187,7 +187,10 @@ class RegisterDefinition:
   (`kept_values()`, `restore_kept_values()`, `take_kept_values_changed()`);
   the coordinator persists them in a `Store`
   (`hitachi_yutaki_kept_values_{entry_id}`), loaded before the first poll,
-  and raises the generic `kept_values_restore_failed_{entry_id}` issue.
+  and raises the generic `kept_values_restore_failed_{entry_id}` issue. The
+  issue is fixable: its fix flow calls `retry_restores()` (a fresh set of
+  attempts) and polls at once, and the next poll raises it again if the
+  values still do not stick.
 
   On the 2016 ATW-MBS-02 map the kept values are, per circuit, the
   "Thermostat Available" flag (1010 / 1021), the room target (1060 / 1072,

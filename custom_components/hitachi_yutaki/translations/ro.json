@@ -898,7 +898,17 @@
     },
     "kept_values_restore_failed": {
       "title": "Setările pierdute la repornire nu au putut fi restabilite",
-      "description": "De obicei după o întrerupere a alimentării, gateway-ul sau controlerul a uitat unele setări la repornire, de exemplu comutatorul Senzor extern de cameră sau temperatura dorită a camerei pentru un circuit. Integrarea a rescris de mai multe ori ultimele valori cunoscute, dar pompa de căldură nu le-a păstrat, așa că este posibil să nu mai regleze conform configurației.\n\n**Pentru rezolvare:** verificați comutatorul Senzor extern de cameră și temperatura dorită a camerei pentru circuite, din paginile dispozitivelor sau de pe controler, și setați-le din nou. Notificarea dispare de la sine odată ce sunt corecte."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Reîncercați restabilirea setărilor",
+            "description": "De obicei după o întrerupere a alimentării, gateway-ul sau controlerul a uitat unele setări la repornire, de exemplu comutatorul Senzor extern de cameră sau temperatura dorită a camerei pentru un circuit. Integrarea nu le-a putut rescrie: fie nu cunoștea nicio valoare de restabilit, fie pompa de căldură nu a păstrat-o după mai multe încercări. Este posibil ca pompa de căldură să nu regleze conform configurației.\n\nConfirmați mai jos pentru a reîncerca: integrarea rescrie ultimele valori cunoscute la următoarea citire și afișează din nou această notificare dacă tot nu se păstrează. Dacă revine, verificați comutatorul Senzor extern de cameră și temperatura dorită a camerei pentru circuite, din paginile dispozitivelor sau de pe controler, și setați-le manual. Notificarea dispare de la sine odată ce sunt corecte."
+          }
+        },
+        "abort": {
+          "entry_not_found": "Unitatea Hitachi Yutaki pentru care a fost creată această reparație nu mai este configurată. Reparația a fost eliminată."
+        }
+      }
     },
     "external_room_sensor_notice": {
       "title": "Niciun termostat de cameră pe pompa de căldură",

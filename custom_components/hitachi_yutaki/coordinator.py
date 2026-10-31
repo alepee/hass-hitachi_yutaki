@@ -735,6 +735,15 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         """Return the repair-issue id for settings a reboot took and that would not stick."""
         return f"kept_values_restore_failed_{self.config_entry.entry_id}"
 
+    async def async_retry_restores(self) -> None:
+        """Retry the write-backs that gave up, from the repair issue's fix flow.
+
+        The issue is raised again by the next poll if they still fail.
+        """
+        self.api_client.retry_restores()
+        ir.async_delete_issue(self.hass, DOMAIN, self._restore_failed_issue_id())
+        await self.async_request_refresh()
+
     def _update_kept_values(self) -> None:
         """Persist changed kept values and report the ones that would not stick."""
         api = self.api_client
@@ -748,7 +757,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self.hass,
                 DOMAIN,
                 issue_id,
-                is_fixable=False,
+                is_fixable=True,
                 severity=ir.IssueSeverity.WARNING,
                 translation_key="kept_values_restore_failed",
             )

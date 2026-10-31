@@ -674,6 +674,12 @@ class ModbusApiClient(HitachiApiClient):
         changed, self._kept_changed = self._kept_changed, False
         return changed
 
+    def retry_restores(self) -> None:
+        """Give every value that could not be written back a fresh set of attempts."""
+        self._restore_attempts.clear()
+        self._restore_failed.clear()
+        self._unrestorable.clear()
+
     @property
     def restore_failed(self) -> bool:
         """Return True while a lost value could not be written back."""

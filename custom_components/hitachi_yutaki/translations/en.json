@@ -878,7 +878,17 @@
     },
     "kept_values_restore_failed": {
       "title": "Settings lost in a reboot could not be restored",
-      "description": "The gateway or the controller lost some settings in a reboot, usually a power cut, for example the External room sensor switch or the room target of a circuit. The integration wrote the last known values back several times, but the heat pump did not keep them, so it may not regulate as configured.\n\n**To resolve this:** check the circuits' External room sensor switch and room target, on their device pages or on the controller, and set them again. The notice clears on its own once they read right."
+      "fix_flow": {
+        "step": {
+          "confirm": {
+            "title": "Retry restoring the settings",
+            "description": "The gateway or the controller lost some settings in a reboot, usually a power cut, for example the External room sensor switch or the room target of a circuit. The integration could not write them back: either it had no known value to restore, or the heat pump did not keep it after several attempts. The heat pump may not regulate as configured.\n\nConfirm below to try again: the integration writes the last known values back on the next poll, and raises this notice again if they still do not stick. If it keeps coming back, check the circuits' External room sensor switch and room target on their device pages or on the controller, and set them by hand. The notice clears on its own once they read right."
+          }
+        },
+        "abort": {
+          "entry_not_found": "The Hitachi Yutaki unit this repair was created for is no longer configured. The repair has been removed."
+        }
+      }
     },
     "external_room_sensor_notice": {
       "title": "No room thermostat on the heat pump",
