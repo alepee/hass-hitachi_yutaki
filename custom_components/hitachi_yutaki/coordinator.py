@@ -230,6 +230,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     "Gateway is not ready (initializing or desynchronized)"
                 )
 
+            # Write back what a gateway or controller reboot cleared (#511),
+            # before the values are published.
+            await self.api_client.restore_lost_values()
+
             # Gateway is ready - restore normal interval if needed
             if self._gateway_not_ready_count > 0:
                 _LOGGER.info(

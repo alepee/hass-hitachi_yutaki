@@ -56,7 +56,8 @@ def api_client(mock_hass, mock_client):
         api._kept_changed = False
         api._restore_attempts = {}
         api._restore_failed = set()
-        api._writing_back = False
+        api._writing_back = None
+        api._lost = {}
         return api
 
 
@@ -341,7 +342,8 @@ def _make_preflight_api_client(mock_hass, mock_client):
         api._kept_changed = False
         api._restore_attempts = {}
         api._restore_failed = set()
-        api._writing_back = False
+        api._writing_back = None
+        api._lost = {}
         return api
 
 
@@ -629,7 +631,8 @@ def pre2016_api_client(mock_hass, mock_client):
         api._kept_changed = False
         api._restore_attempts = {}
         api._restore_failed = set()
-        api._writing_back = False
+        api._writing_back = None
+        api._lost = {}
         write_result = MagicMock()
         write_result.isError.return_value = False
         mock_client.write_register.return_value = write_result
@@ -1007,7 +1010,9 @@ async def _poll(
         _make_modbus_result(target),
         _make_modbus_result(room),
     ]
-    return await api.read_values(ROOM_KEYS)
+    result = await api.read_values(ROOM_KEYS)
+    await api.restore_lost_values()
+    return result
 
 
 def _room_api(mock_hass, mock_client):
@@ -1056,6 +1061,30 @@ async def test_controller_reboot_restores_target_and_seeds_room(
     # Without the seed the unit would heat on 0 °C against 22 °C.
     assert _writes(mock_client) == [(1011, 220), (1012, 220)]
     assert api._data["circuit1_target_temp"] == 22.0
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_only_queues_lost_values(_mock_ir, mock_hass, mock_client):
+    """Reading never writes; the restore is a separate command."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=220)
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(1),
+        _make_modbus_result(0),
+        _make_modbus_result(0),
+    ]
+
+    await api.read_values(ROOM_KEYS)
+    assert _writes(mock_client) == []
+
+    await api.restore_lost_values()
+    assert _writes(mock_client) == [(1011, 220), (1012, 220)]
+
+    # The queue is consumed: a second call writes nothing more.
+    await api.restore_lost_values()
+    assert len(_writes(mock_client)) == 2
 
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
@@ -1306,6 +1335,7 @@ async def test_circuit_2_absent_is_never_written(_mock_ir, mock_hass, mock_clien
     ]
 
     await api.read_values(["circuit2_thermostat", "circuit2_target_temp"])
+    await api.restore_lost_values()
 
     assert _writes(mock_client) == []
 

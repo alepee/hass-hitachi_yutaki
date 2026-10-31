@@ -74,6 +74,8 @@ class ModbusApiClient(HitachiApiClient):
         self._kept_changed = False
         self._restore_attempts: dict[str, int] = {}
         self._restore_failed: set[str] = set()
+        # Kept values the last successful read found lost: key -> reference.
+        self._lost: dict[str, Any] = {}
         # Key being written back, so that write is not mistaken for a command.
         self._writing_back: str | None = None
 
@@ -486,20 +488,13 @@ class ModbusApiClient(HitachiApiClient):
             )
         ]
 
-    async def _write_back_lost_values(self, fresh: list[str]) -> None:
-        """Write back the kept values a reboot took from the hardware (#511).
+    def _track_kept_values(self, fresh: list[str]) -> None:
+        """Compare this read's kept values with their references (#511).
 
-        Runs after a successful read only, so neither a communication error
-        nor a gateway still initializing triggers a write. A fresh reading
-        that is not lost becomes the reference. A lost one is written back to
-        its reference, gated values before the flags gating them, and a flag
-        only once its gated values read right. A write-back is confirmed by
-        the pending-write shadow: the reading that lifts it, or the one past
-        its deadline, decides. After ``MAX_RESTORE_ATTEMPTS`` the key is left
-        alone and reported until it reads right again.
+        Bookkeeping only, no I/O: a fresh reading that is not lost becomes the
+        reference, a lost one is queued for ``restore_lost_values``.
         """
         all_regs = self._register_map.all_registers
-        lost: dict[str, Any] = {}
         for key in fresh:
             keep = all_regs[key].keep
             if keep is None or key not in self._data:
@@ -510,8 +505,22 @@ class ModbusApiClient(HitachiApiClient):
                 self._restore_failed.discard(key)
                 self._remember(key, value)
             elif key in self._kept and self._kept[key] != value:
-                lost[key] = self._kept[key]
+                self._lost[key] = self._kept[key]
 
+    async def restore_lost_values(self) -> None:
+        """Write back the kept values a reboot took from the hardware (#511).
+
+        Acts on the last successful read only: a read that failed, or found
+        the gateway initializing or desynchronized, queues nothing. A lost
+        value is written back to its reference, gated values before the flags
+        gating them, and a flag only once its gated values read right. A
+        write-back is confirmed by the pending-write shadow: the reading that
+        lifts it, or the one past its deadline, decides. After
+        ``MAX_RESTORE_ATTEMPTS`` the key is left alone and reported until it
+        reads right again.
+        """
+        all_regs = self._register_map.all_registers
+        lost, self._lost = self._lost, {}
         for key in sorted(lost, key=lambda k: all_regs[k].keep.while_on is None):
             keep = all_regs[key].keep
             if keep.while_on is not None and not (
@@ -673,6 +682,7 @@ class ModbusApiClient(HitachiApiClient):
         """
         retry_count = 0
         max_read_retries = 1  # Only retry once after reconnection
+        self._lost = {}
 
         while retry_count <= max_read_retries:
             try:
@@ -792,7 +802,7 @@ class ModbusApiClient(HitachiApiClient):
                 self._gate_unconfigured_modules()
                 self._gate_outdoor_link_loss()
 
-                await self._write_back_lost_values(fresh)
+                self._track_kept_values(fresh)
 
                 # If we got here, read was successful
                 return ReadResult.SUCCESS

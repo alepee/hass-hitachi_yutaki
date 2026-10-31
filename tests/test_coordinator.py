@@ -53,6 +53,7 @@ def mock_api_client():
     client.is_defrosting = False
     client.take_kept_values_changed.return_value = False
     client.failed_restore_circuits.return_value = []
+    client.restore_lost_values = AsyncMock()
     return client
 
 
@@ -828,6 +829,22 @@ async def test_unreadable_kept_values_are_ignored(coordinator, mock_api_client):
         await coordinator.async_restore_kept_values()
 
     mock_api_client.restore_kept_values.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_lost_values_restored_after_a_successful_read(
+    coordinator, mock_api_client
+):
+    """The restore runs once per successful read, never when the gateway is not ready."""
+    _set_entry_id(coordinator)
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        mock_api_client.restore_lost_values.assert_awaited_once()
+
+        mock_api_client.read_values.return_value = ReadResult.GATEWAY_NOT_READY
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+    mock_api_client.restore_lost_values.assert_awaited_once()
 
 
 # --- Alarm repair issue (#457) ---

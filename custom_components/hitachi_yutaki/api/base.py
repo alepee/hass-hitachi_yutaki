@@ -19,7 +19,9 @@ class ReadResult(Enum):
 
     - SUCCESS: requested keys were read and _data is populated. read_value()
       will return the actual register values (or None if a specific register
-      failed/was filtered as a sentinel).
+      failed/was filtered as a sentinel). read_values() never writes: values
+      a reboot took from the hardware are only queued, and written back by
+      restore_lost_values().
     - GATEWAY_NOT_READY: the gateway reported an unhealthy system_state
       (initializing or desynchronized from the heat pump). read_values()
       short-circuited BEFORE reading any of the requested keys, so _data is
@@ -386,6 +388,9 @@ class HitachiApiClient(ABC):
 
     def restore_kept_values(self, values: Mapping[str, Any]) -> None:
         """Load references persisted by ``kept_values``, before the first poll."""
+
+    async def restore_lost_values(self) -> None:
+        """Write back what the last successful read found lost after a reboot."""
 
     def take_kept_values_changed(self) -> bool:
         """Return True once after a reference changed and needs saving."""

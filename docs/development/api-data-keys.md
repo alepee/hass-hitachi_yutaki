@@ -163,8 +163,10 @@ class RegisterDefinition:
   no reference stays down and is reported). A write-back is confirmed
   through the pending-write shadow and abandoned after
   `MAX_RESTORE_ATTEMPTS` (3), which `failed_restore_circuits()` reports until the value reads right or Home
-  Assistant writes it. Nothing runs while the gateway reports `initializing`
-  or `desynchronized`, since `read_values` returns before reading. The
+  Assistant writes it. `read_values` never writes: it only updates the
+  references and queues the lost values, and the coordinator calls
+  `restore_lost_values()` after a successful read. A read that fails, or
+  finds the gateway `initializing` or `desynchronized`, queues nothing. The
   references go through the port (`kept_values()`,
   `restore_kept_values()`, `take_kept_values_changed()`); the coordinator
   persists them in a `Store` (`hitachi_yutaki_kept_values_{entry_id}`),
