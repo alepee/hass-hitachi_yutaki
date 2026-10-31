@@ -103,15 +103,30 @@ persisted in a `Store`.
 
 ## What to do about an alert
 
-In decreasing order of likelihood on the fleet:
+Nearly every heating stop on the fleet is a **thermo-off**: the outlet water reaches
+the target plus 5 °C and the unit stops the compressor, then restarts it once the water
+is back under the target and at least 3 minutes have passed (service manual SMGB0146,
+"Compressor thermo ON/OFF control"). Neither margin is adjustable. A unit that short
+cycles is therefore almost always a heating circuit that cannot absorb the unit's
+minimum output, and the causes below are the usual reasons why:
 
-1. **A heating curve set too high.** The steeper the curve, the more the installation
-   cycles. Measured across the fleet: reconstructed curve slope against peak starts
-   `rho = -0.53` (the slope being negative by construction, steeper means more cycling),
-   `max_flow_temp_heating_otc` ceiling `+0.52`, applied setpoint at 10 °C outdoors
-   `+0.38`. Lowering the flow temperature is the first thing to try and it costs nothing.
-2. **Too little buffer volume** for the unit's minimum output.
-3. **An oversized unit** for the actual demand. Units that cycle are typically already
+1. **A heating curve set too high.** Water hotter than the house needs reaches its
+   target sooner, and rooms that overheat close their thermostatic valves. A first
+   analysis on raw targets found a clear link (reconstructed curve slope against peak
+   starts `rho = -0.53`, `max_flow_temp_heating_otc` ceiling `+0.52`, applied setpoint
+   at 10 °C outdoors `+0.38`). A later one, with curves corrected for the Eco offset,
+   room compensation and the smoothed outdoor temperature (see discussion
+   [#510](https://github.com/alepee/hass-hitachi_yutaki/discussions/510)), found only a
+   weak link between curve height and starts per hour. The curve is still the first thing
+   to try, because it costs nothing, but it is a lever rather than a proven cause.
+2. **Too few open emitters.** When thermostatic radiator valves or zone valves close,
+   the unit only heats a small part of the circuit and the water volume it actually sees
+   drops, possibly below the manufacturer's minimum (40-50 L on an S80, computed for the
+   same 4-5 K on/off differential). An installation where most valves sit closed in
+   overheated rooms combines this cause with the first one. Keeping some emitters always
+   open gives the unit a load it can rely on.
+3. **Too little buffer volume** for the unit's minimum output.
+4. **An oversized unit** for the actual demand. Units that cycle are typically already
    pinned at their minimum compressor frequency (the fleet converges on **31 Hz**), so
    there is no modulation margin left to recover. Note the correlation between frequency
    floor and peak starts is **negative** (`-0.55`): cycling units are not units that fail
