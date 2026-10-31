@@ -74,7 +74,8 @@ class ModbusApiClient(HitachiApiClient):
         self._kept_changed = False
         self._restore_attempts: dict[str, int] = {}
         self._restore_failed: set[str] = set()
-        self._writing_back = False
+        # Key being written back, so that write is not mistaken for a command.
+        self._writing_back: str | None = None
 
     async def _ensure_connection(self) -> bool:
         """Ensure we have a working Modbus connection with retry logic."""
@@ -420,7 +421,7 @@ class ModbusApiClient(HitachiApiClient):
         self._pending_writes[key] = (expected, time.monotonic() + PENDING_WRITE_TTL)
         if definition.keep is not None:
             self._remember(key, expected)
-            if not self._writing_back:
+            if self._writing_back != key:
                 # A command from Home Assistant settles any restore in progress.
                 self._restore_attempts.pop(key, None)
                 self._restore_failed.discard(key)
@@ -466,18 +467,24 @@ class ModbusApiClient(HitachiApiClient):
             self._kept[key] = value
             self._kept_changed = True
 
-    def _gated_values_lost(self, flag: str) -> bool:
-        """Return True while a value gated by ``flag`` still reads lost.
+    def _gated_values_unsettled(self, flag: str) -> list[str]:
+        """Return the values gated by ``flag`` that do not read right yet.
 
-        Raising the flag then would make the unit regulate on it, e.g. on a
-        room target of 0 °C.
+        A value still reading lost, or written back but not yet confirmed by
+        the unit: raising the flag then could make the unit regulate on it,
+        e.g. on a room target of 0 °C.
         """
-        for key, definition in self._register_map.all_registers.items():
-            keep = definition.keep
-            if keep is not None and keep.while_on == flag and key in self._data:
-                if self._is_lost(keep, self._data[key]):
-                    return True
-        return False
+        return [
+            key
+            for key, definition in self._register_map.all_registers.items()
+            if definition.keep is not None
+            and definition.keep.while_on == flag
+            and key in self._data
+            and (
+                key in self._pending_writes
+                or self._is_lost(definition.keep, self._data[key])
+            )
+        ]
 
     async def _write_back_lost_values(self, fresh: list[str]) -> None:
         """Write back the kept values a reboot took from the hardware (#511).
@@ -514,9 +521,20 @@ class ModbusApiClient(HitachiApiClient):
                 self._restore_attempts.pop(key, None)
                 self._restore_failed.discard(key)
                 continue
-            if key in self._restore_failed or (
-                keep.while_on is None and self._gated_values_lost(key)
+            if key in self._restore_failed:
+                continue
+            if keep.while_on is None and (
+                unsettled := self._gated_values_unsettled(key)
             ):
+                if not any(k in lost or k in self._pending_writes for k in unsettled):
+                    # Nothing known to write them back with: the flag stays down.
+                    _LOGGER.warning(
+                        "%s reads %s but %s has no known value, not raising it",
+                        key,
+                        self._data.get(key),
+                        ", ".join(unsettled),
+                    )
+                    self._restore_failed.add(key)
                 continue
             attempts = self._restore_attempts.get(key, 0)
             if attempts >= MAX_RESTORE_ATTEMPTS:
@@ -541,17 +559,42 @@ class ModbusApiClient(HitachiApiClient):
     async def _write_back(self, key: str, value: Any) -> bool:
         """Write a kept value back through the setter that owns it."""
         circuit_id = int(key[7])
-        self._writing_back = True
+        self._writing_back = key
         try:
             if key.endswith("_thermostat"):
-                # Seeds the room value first, as when the switch is turned on.
-                return await self.set_external_room_sensor(circuit_id, bool(value))
+                return await self._write_back_flag(circuit_id, key, value)
             if key.endswith("_target_temp"):
-                return await self.set_circuit_target_temperature(circuit_id, value)
+                if not await self.set_circuit_target_temperature(circuit_id, value):
+                    return False
+                if self.external_room_sensor_enabled(circuit_id):
+                    # The unit regulates on the room value right away.
+                    return await self._seed_room_if_lost(circuit_id, value)
+                return True
         finally:
-            self._writing_back = False
+            self._writing_back = None
         _LOGGER.error("No write-back for kept value %s", key)
         return False
+
+    async def _seed_room_if_lost(self, circuit_id: int, target: float) -> bool:
+        """Seed a room value a reboot zeroed with the target, as the switch does.
+
+        Room equals target keeps the unit in a neutral thermo-off until Home
+        Assistant writes the real temperature, instead of heating on 0 °C. A
+        room value that survived the reboot is the last one fed, and is kept.
+        """
+        if self.get_circuit_current_temperature(circuit_id):
+            return True
+        return await self.set_circuit_room_temperature(circuit_id, target)
+
+    async def _write_back_flag(self, circuit_id: int, key: str, value: Any) -> bool:
+        """Raise a flag a gateway reboot cleared, its room value seeded first."""
+        target = self.get_circuit_target_temperature(circuit_id)
+        if target is None or not await self._seed_room_if_lost(circuit_id, target):
+            return False
+        if self._kept.get(key) != value:
+            # Home Assistant changed the flag while the room value was written.
+            return True
+        return await self.set_circuit_thermostat(circuit_id, bool(value))
 
     def kept_values(self) -> dict[str, Any]:
         """Return the references of the values the hardware forgets on reboot."""
@@ -569,9 +612,10 @@ class ModbusApiClient(HitachiApiClient):
                 or not isinstance(value, int | float)
             ):
                 continue
-            if definition.keep.valid_range is not None and self._is_lost(
-                definition.keep, value
-            ):
+            if definition.keep.valid_range is None:
+                if value not in (0, 1):
+                    continue
+            elif self._is_lost(definition.keep, value):
                 continue
             self._kept[key] = value
 

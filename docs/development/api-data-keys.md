@@ -159,9 +159,10 @@ class RegisterDefinition:
   0, or outside `Keep.valid_range`. `Keep.while_on` names a kept flag that
   gates the value: it is only written back while that flag reads on, or is
   written back in the same poll, and the flag is only raised once the values
-  it gates read right. A write-back is confirmed through the pending-write
-  shadow and abandoned after `MAX_RESTORE_ATTEMPTS` (3), which
-  `failed_restore_circuits()` reports until the value reads right or Home
+  it gates read right and are no longer pending (a flag whose gated value has
+  no reference stays down and is reported). A write-back is confirmed
+  through the pending-write shadow and abandoned after
+  `MAX_RESTORE_ATTEMPTS` (3), which `failed_restore_circuits()` reports until the value reads right or Home
   Assistant writes it. Nothing runs while the gateway reports `initializing`
   or `desynchronized`, since `read_values` returns before reading. The
   references go through the port (`kept_values()`,
@@ -170,9 +171,10 @@ class RegisterDefinition:
   loaded before the first poll, and raises
   `room_regulation_restore_failed_{entry_id}`. On the 2016 ATW-MBS-02 map the
   kept values are the "Thermostat Available" flags (1010 / 1021) and the room
-  targets (1060 / 1072, 5.0-35.0 °C, gated by their circuit's flag); the
-  write-back goes through `set_external_room_sensor`, which seeds the room
-  value before raising a flag.
+  targets (1060 / 1072, 5.0-35.0 °C, gated by their circuit's flag). Before
+  a flag goes up, and after a target goes back with the flag on, a room value
+  that reads 0 is seeded with the target, as the switch does, so the unit
+  never regulates on 0 °C; a room value that survived the reboot is kept.
 
 ### CONTROL vs STATUS Registers
 
