@@ -81,9 +81,9 @@ make scan SCAN_ARGS="--host 192.168.0.4 --gateway hc-a-mb" > scan.txt  # HC-A(16
 | 1094 | `system_state` | Yes | 0=sync, 1=desync, 2=init |
 | 1095 | `software_pcb` | Yes | Unit board software number, decimal (e.g. 289 on a Yutaki S, shown as "Indoor PCB firmware H-0289" on the LCD); part of the Control Unit device `sw_version` |
 | 1096 | `software_lcd` | Yes | Controller (LCD) software number, decimal (e.g. 272 on a Yutaki S, shown as "Controller firmware H-0272" on the LCD); part of the Control Unit device `sw_version` |
-| 1097 | Unit Capacity | No | Documented "0~255 kWh", not mapped. Not the unit size: on an 8 HP Yutaki S it read 145, 151 and 152 within one day, a slowly increasing value, so it behaves like an 8-bit rolling energy counter (heat delivered?) next to 1098; being verified against the integration's energy counters (discussion #503) |
-| 1098 | `power_consumption` | Yes | Watts |
-| 1099 | **Unknown** | No | Non-zero, possibly accumulated energy |
+| 1097 | Unit Capacity | No | Documented "0~255 kWh". The controller's cumulative capacity (estimated heat output) in whole kWh, wrapping at 255: on a Yutaki S Combi it followed the LCD's "Capacity (Total)" step for step, on an 8 HP Yutaki S its steps did not match the integration's thermal energy. Not usable as a sensor (discussion #503) |
+| 1098 | Unit Power consumption | No | Documented "0~255 kWh". An 8-bit electricity counter that stays constant on many units (no input measurement) and has been seen going backwards. Not usable, no longer read (discussion #503) |
+| 1099 | **Unknown** | No | Non-zero, constant 63 on both a Yutaki S and a Yutaki S80 (discussion #503) |
 
 #### Compressor Zone (1200-1231)
 
@@ -153,7 +153,6 @@ The slot index is **not a stable identity** (#476). The gateway lists the units 
 | 145 | `system_state` | 1094 |
 | 146 | `software_pcb` | 1095 |
 | 147 | `software_lcd` | 1096 |
-| 149 | `power_consumption` | 1098 |
 | 160 | `circuit2_mixing_valve_position` | 1216 |
 | 162 | `unit_model` | 1218 |
 | 163 | `water_target_temp` | 1219 |
@@ -240,5 +239,5 @@ When scanning a new model or gateway, focus on:
 2. **Gateway type**: holding 1218/offset 162 (unit_model) — this is what the integration actually uses for detection. Input register 39 shows `3` in scans but is not read by the code.
 3. **System config**: Holding 1089/offset 140 — determines available features
 4. **Mirror zone**: 1050-1079 — undocumented STATUS readback of CONTROL zone
-5. **Unknown non-zero**: registers 1095-1097, 1099, 1201-1203, 1215 — candidates for new mappings (1098 = `power_consumption` and 1200/1204/1205 = water outlet temps are already mapped)
+5. **Unknown non-zero**: registers 1099, 1201-1203, 1215 — candidates for new mappings (1095/1096 = software numbers and 1200/1204/1205 = water outlet temps are already mapped; 1097/1098 are 8-bit kWh counters judged unusable)
 6. **Full scan differences**: run `--range full`, diff against this reference to spot new registers

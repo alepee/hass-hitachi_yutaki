@@ -130,7 +130,6 @@ REGISTER_CONTROL_UNIT = {
     "water_target_temp": RegisterDefinition(1218, deserializer=convert_signed_16bit),
     "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
     "pump_speed": RegisterDefinition(1221),
-    "power_consumption": RegisterDefinition(1098),
     # Global eco mode register (addr 1027, same address for read and write).
     # Write 1=ECO / 0=Comfort. Not present in 2016+ map.
     "eco_mode": RegisterDefinition(1027, write_address=1027),
