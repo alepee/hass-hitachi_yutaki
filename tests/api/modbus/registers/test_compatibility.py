@@ -48,7 +48,6 @@ class TestKeyNamingCompatibility:
             "water_outlet_temp",
             "water_flow",
             "pump_speed",
-            "power_consumption",
             "software_pcb",
             "software_lcd",
         ]

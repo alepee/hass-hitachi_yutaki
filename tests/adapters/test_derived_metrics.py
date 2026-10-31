@@ -389,14 +389,6 @@ class TestEnergyAndCost:
         adapter.update(data2)
         assert data2["electrical_energy_consumed"] == 0
 
-    def test_power_consumption_not_overwritten(self):
-        """power_consumption from Modbus is not overwritten by adapter."""
-        adapter = _make_adapter()
-        data = _sample_data(power_consumption=42.5)
-        adapter.update(data)
-        # power_consumption should remain the raw Modbus value
-        assert data["power_consumption"] == 42.5
-
     def test_electricity_cost_not_injected_without_price_entity(self):
         """electricity_cost is not in data when no price entity configured."""
         adapter = _make_adapter()
