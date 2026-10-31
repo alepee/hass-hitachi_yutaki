@@ -51,7 +51,6 @@ def mock_api_client():
     client.read_value = AsyncMock(return_value=None)
     client.base_keys = ["system_state"]
     client.is_defrosting = False
-    client.take_kept_values_changed.return_value = False
     client.restore_failed = False
     client.restore_lost_values = AsyncMock()
     return client
@@ -759,27 +758,16 @@ def test_room_notice_untouched_when_a_register_was_not_read(
 # --- Room settings written back after a reboot (#511) ---
 
 
-def test_changed_kept_values_are_saved(coordinator, mock_api_client):
-    """A changed reference schedules a save of the client's kept values."""
+def test_reference_change_schedules_a_save(coordinator, mock_api_client):
+    """The listener registered with the client saves the kept values shortly."""
     _set_entry_id(coordinator)
     coordinator._kept_values_store = MagicMock()
-    mock_api_client.take_kept_values_changed.return_value = True
-    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
-        coordinator._update_kept_values()
+
+    coordinator._schedule_kept_values_save()
 
     save = coordinator._kept_values_store.async_delay_save
     save.assert_called_once()
     assert save.call_args.args[0] is mock_api_client.kept_values
-
-
-def test_unchanged_kept_values_are_not_saved(coordinator, mock_api_client):
-    """No change, no write to disk."""
-    _set_entry_id(coordinator)
-    coordinator._kept_values_store = MagicMock()
-    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
-        coordinator._update_kept_values()
-
-    coordinator._kept_values_store.async_delay_save.assert_not_called()
 
 
 def test_failed_restore_raises_one_issue(coordinator, mock_api_client):
@@ -832,6 +820,9 @@ async def test_kept_values_loaded_into_the_client(coordinator, mock_api_client):
         await coordinator.async_restore_kept_values()
 
     mock_api_client.restore_kept_values.assert_called_once_with(stored)
+    mock_api_client.listen_kept_values.assert_called_once_with(
+        coordinator._schedule_kept_values_save
+    )
 
 
 @pytest.mark.asyncio
@@ -845,6 +836,21 @@ async def test_unreadable_kept_values_are_ignored(coordinator, mock_api_client):
         await coordinator.async_restore_kept_values()
 
     mock_api_client.restore_kept_values.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_nothing_restored_when_the_unit_moved(coordinator, mock_api_client):
+    """A unit that no longer answers at its address gets no write-back."""
+    _set_entry_id(coordinator)
+    mock_api_client.async_verify_unit = AsyncMock(return_value=False)
+    coordinator.hass.config_entries.async_schedule_reload = MagicMock()
+    with (
+        patch("custom_components.hitachi_yutaki.coordinator.ir"),
+        pytest.raises(UpdateFailed),
+    ):
+        await coordinator._async_update_data()
+
+    mock_api_client.restore_lost_values.assert_not_awaited()
 
 
 @pytest.mark.asyncio

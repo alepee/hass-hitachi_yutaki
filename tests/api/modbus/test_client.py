@@ -10,9 +10,10 @@ from pymodbus.exceptions import ModbusException
 import pytest
 
 from custom_components.hitachi_yutaki.api.base import ReadResult
-from custom_components.hitachi_yutaki.api.modbus import (
+from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
+from custom_components.hitachi_yutaki.api.modbus.kept_values import (
     MAX_RESTORE_ATTEMPTS,
-    ModbusApiClient,
+    KeptValues,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers import (
     Keep,
@@ -56,14 +57,12 @@ def api_client(mock_hass, mock_client):
         api._client = mock_client
         api._slave = 1
         api._pending_writes = {}
-        api._kept = {}
-        api._kept_changed = False
-        api._restore_attempts = {}
-        api._restore_failed = set()
         api._writing_back = None
-        api._lost = {}
-        api._unrestorable = set()
-        api._was_unrestorable = set()
+        api._kept = (
+            KeptValues(api._register_map.all_registers, api._register_map.writable_keys)
+            if hasattr(api, "_register_map")
+            else KeptValues({}, set())
+        )
         return api
 
 
@@ -344,14 +343,12 @@ def _make_preflight_api_client(mock_hass, mock_client):
         api._gateway_not_ready_since = None
         api._gateway_not_ready_last_log = 0.0
         api._pending_writes = {}
-        api._kept = {}
-        api._kept_changed = False
-        api._restore_attempts = {}
-        api._restore_failed = set()
         api._writing_back = None
-        api._lost = {}
-        api._unrestorable = set()
-        api._was_unrestorable = set()
+        api._kept = (
+            KeptValues(api._register_map.all_registers, api._register_map.writable_keys)
+            if hasattr(api, "_register_map")
+            else KeptValues({}, set())
+        )
         return api
 
 
@@ -635,14 +632,12 @@ def pre2016_api_client(mock_hass, mock_client):
         api._register_map = AtwMbs02Pre2016RegisterMap()
         api._data = {}
         api._pending_writes = {}
-        api._kept = {}
-        api._kept_changed = False
-        api._restore_attempts = {}
-        api._restore_failed = set()
         api._writing_back = None
-        api._lost = {}
-        api._unrestorable = set()
-        api._was_unrestorable = set()
+        api._kept = (
+            KeptValues(api._register_map.all_registers, api._register_map.writable_keys)
+            if hasattr(api, "_register_map")
+            else KeptValues({}, set())
+        )
         write_result = MagicMock()
         write_result.isError.return_value = False
         mock_client.write_register.return_value = write_result
@@ -1104,7 +1099,11 @@ async def test_controller_reboot_restores_target_and_seeds_room(
 
     await _poll(api, mock_client, flag=1, target=0, room=0)
 
-    # Room first: a failure in between leaves target 0, the idle state.
+    # Room first; the target waits until the unit confirms it, so the unit
+    # sits at target 0 (idle) rather than target 22 over a room of 0 °C.
+    assert _writes(mock_client) == [(1012, 220)]
+
+    await _poll(api, mock_client, flag=1, target=0, room=220)
     assert _writes(mock_client) == [(1012, 220), (1011, 220)]
     assert api._data["circuit1_target_temp"] == 22.0
 
@@ -1126,11 +1125,11 @@ async def test_read_values_only_queues_lost_values(_mock_ir, mock_hass, mock_cli
     assert _writes(mock_client) == []
 
     await api.restore_lost_values()
-    assert _writes(mock_client) == [(1012, 220), (1011, 220)]
+    assert _writes(mock_client) == [(1012, 220)]
 
     # The queue is consumed: a second call writes nothing more.
     await api.restore_lost_values()
-    assert len(_writes(mock_client)) == 2
+    assert len(_writes(mock_client)) == 1
 
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
@@ -1206,9 +1205,12 @@ async def test_full_power_cut_restores_target_then_flag(
     )
     assert _writes(mock_client) == []
 
-    # Room seeded from the target's reference, then the target; the flag
-    # waits for both to be confirmed.
+    # Room seeded from the target's reference; each next step waits for the
+    # unit to confirm the previous one.
     await _poll(api, mock_client, flag=0, target=0, room=0)
+    assert _writes(mock_client) == [(1012, 220)]
+
+    await _poll(api, mock_client, flag=0, target=0, room=220)
     assert _writes(mock_client) == [(1012, 220), (1011, 220)]
 
     await _poll(api, mock_client, flag=0, target=220, room=220)
@@ -1248,23 +1250,19 @@ async def test_flag_turned_off_from_home_assistant_stays_off(
     assert api.kept_values()["circuit1_thermostat"] == 0
 
 
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
 @pytest.mark.asyncio
 async def test_value_changed_by_home_assistant_meanwhile_is_not_written(
-    mock_hass, mock_client
+    _mock_ir, mock_hass, mock_client
 ):
-    """A reference that moved after the read wins over the queued write-back."""
+    """A reference that moved after the plan wins over the planned write-back."""
     api = _room_api(mock_hass, mock_client)
-    api._data.update(
-        {
-            "circuit1_thermostat": 0,
-            "circuit1_target_temp": 22.0,
-            "circuit1_current_temp": 21.5,
-        }
-    )
-    api._kept = {"circuit1_thermostat": 0, "circuit1_target_temp": 22.0}
-    api._lost = {"circuit1_thermostat": 1}
+    await _poll(api, mock_client, flag=1, target=220)
+    assert await api.set_external_room_sensor(1, False)
+    mock_client.write_register.reset_mock()
 
-    await api.restore_lost_values()
+    with patch.object(api._kept, "plan", return_value=[("circuit1_thermostat", 1)]):
+        await api.restore_lost_values()
 
     assert _writes(mock_client) == []
 
@@ -1331,7 +1329,7 @@ async def test_confirmed_write_back_resets_the_attempts(
 
     await _poll(api, mock_client, flag=1, target=220)
 
-    assert api._restore_attempts == {}
+    assert api._kept._attempts == {}
     assert api._pending_writes == {}
 
 
@@ -1505,16 +1503,23 @@ async def test_flag_waits_while_a_dependent_went_unread(
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
 @pytest.mark.asyncio
-async def test_kept_value_changes_are_reported_once(_mock_ir, mock_hass, mock_client):
-    """A new reference asks for one save; an unchanged poll does not."""
+async def test_listener_called_when_a_reference_changes(
+    _mock_ir, mock_hass, mock_client
+):
+    """New references notify at once (to persist them); an unchanged poll does not."""
     api = _room_api(mock_hass, mock_client)
-    await _poll(api, mock_client, flag=1, target=220)
-    assert api.take_kept_values_changed() is True
-    assert api.take_kept_values_changed() is False
+    listener = MagicMock()
+    api.listen_kept_values(listener)
 
     await _poll(api, mock_client, flag=1, target=220)
-    assert api.take_kept_values_changed() is False
-    assert api.kept_values() == {"circuit1_thermostat": 1, "circuit1_target_temp": 22.0}
+    assert listener.call_count == 2  # flag and target, not the seeded room
+
+    await _poll(api, mock_client, flag=1, target=220)
+    assert listener.call_count == 2
+
+    assert await api.set_external_room_sensor(1, False)
+    assert listener.call_count == 3
+    assert api.kept_values() == {"circuit1_thermostat": 0, "circuit1_target_temp": 22.0}
 
 
 def test_restore_kept_values_skips_what_it_cannot_trust(mock_hass, mock_client):

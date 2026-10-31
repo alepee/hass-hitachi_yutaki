@@ -722,9 +722,19 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             stored = await self._kept_values_store.async_load()
         except Exception:  # noqa: BLE001
             _LOGGER.debug("Failed to load the kept values", exc_info=True)
-            return
-        if isinstance(stored, dict):
-            self.api_client.restore_kept_values(stored)
+        else:
+            if isinstance(stored, dict):
+                self.api_client.restore_kept_values(stored)
+        # Saved as soon as a reference changes, e.g. a switch turned off from
+        # Home Assistant, so a power cut right after does not undo it.
+        self.api_client.listen_kept_values(self._schedule_kept_values_save)
+
+    def _schedule_kept_values_save(self) -> None:
+        """Persist the kept values shortly after a reference changed."""
+        if self._kept_values_store is not None:
+            self._kept_values_store.async_delay_save(
+                self.api_client.kept_values, _KEPT_VALUES_SAVE_DELAY_S
+            )
 
     async def async_flush_kept_values(self) -> None:
         """Persist the gateway's kept values immediately (e.g. on unload)."""
@@ -745,14 +755,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         await self.async_request_refresh()
 
     def _update_kept_values(self) -> None:
-        """Persist changed kept values and report the ones that would not stick."""
-        api = self.api_client
-        if api.take_kept_values_changed() and self._kept_values_store is not None:
-            self._kept_values_store.async_delay_save(
-                api.kept_values, _KEPT_VALUES_SAVE_DELAY_S
-            )
+        """Report the kept values that would not stick, with a repair issue."""
         issue_id = self._restore_failed_issue_id()
-        if api.restore_failed:
+        if self.api_client.restore_failed:
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,

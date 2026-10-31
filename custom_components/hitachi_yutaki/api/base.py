@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 from typing import Any
@@ -392,9 +392,8 @@ class HitachiApiClient(ABC):
     async def restore_lost_values(self) -> None:
         """Write back what the last successful read found lost after a reboot."""
 
-    def take_kept_values_changed(self) -> bool:
-        """Return True once after a reference changed and needs saving."""
-        return False
+    def listen_kept_values(self, listener: Callable[[], None]) -> None:
+        """Call ``listener`` whenever a reference changes, to persist it."""
 
     def retry_restores(self) -> None:
         """Give the values that could not be written back a fresh set of attempts."""
