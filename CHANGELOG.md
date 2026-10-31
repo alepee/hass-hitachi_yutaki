@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The **compressor short-cycling** repair issue explains what short cycling almost always means (the heating circuit cannot absorb the unit's minimum output) and lists **too few open emitters** (thermostatic radiator valves or zone valves that close) as a cause. The heating curve stays the first thing to try but is no longer presented as the strongest correlation measured on the fleet, which a corrected analysis did not confirm.
+
 ## [2.3.0] - 2026-10-28
 
 ### Added
