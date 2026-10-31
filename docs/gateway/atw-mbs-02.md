@@ -309,7 +309,7 @@ Register 1223 (address 1222):
 | 1033 | 1032 | Control Block menu (*6) | 0: No, 1: Block | R/W |
 | 1034 | 1033 | Control BMS Alarm (*4) | 0: No Alarm, 1: Alarm | R/W |
 
-> **Room settings across reboots (field observation, #511):** the "Thermostat Available" flags (addresses 1010 / 1021) exist only in this CONTROL block, with no STATUS counterpart and no LCD setting. A reboot of the ATW-MBS-02 clears them while the room targets survive; a reboot of the controller board (ATW-YMM-01 on a Yutaki M) zeroes the room targets (STATUS 1060 / 1072) and room temperatures (1061 / 1073) while the flags survive. The manual says nothing about either. The integration writes the flags and targets back (`RegisterDefinition.keep`, see [api-data-keys](../development/api-data-keys.md)); the room temperature comes back with whoever feeds it.
+> **Room settings across reboots (field observation, #511):** the "Thermostat Available" flags (addresses 1010 / 1021) exist only in this CONTROL block, with no STATUS counterpart and no LCD setting. A reboot of the ATW-MBS-02 clears them while the room targets survive; a reboot of the controller board (ATW-YMM-01 on a Yutaki M) zeroes the room targets (STATUS 1060 / 1072) and room temperatures (1061 / 1073) while the flags survive. The manual says nothing about either. The integration writes the flags and targets back and seeds a zeroed room temperature with the target (`RegisterDefinition.keep`, see [api-data-keys](../development/api-data-keys.md)); the real room temperature comes back with whoever feeds it.
 
 ### Status Registers (R)
 

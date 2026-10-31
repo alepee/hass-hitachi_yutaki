@@ -67,7 +67,9 @@ class ModbusApiClient(HitachiApiClient):
         self._data = {}
         self._unsub_updater = None
         self._register_map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
-        validate_kept_registers(self._register_map.all_registers)
+        validate_kept_registers(
+            self._register_map.all_registers, self._register_map.writable_keys
+        )
         self._max_retries = 3
         self._connection_retries = 0
         self._gateway_not_ready_since: float | None = None
@@ -80,6 +82,9 @@ class ModbusApiClient(HitachiApiClient):
         self._kept_changed = False
         self._restore_attempts: dict[str, int] = {}
         self._restore_failed: set[str] = set()
+        # Lost values that cannot be written back this cycle, re-evaluated on
+        # every read so the report clears as soon as the obstacle goes.
+        self._unrestorable: set[str] = set()
         # Kept values the last successful read found lost: key -> reference.
         self._lost: dict[str, Any] = {}
         # Key being written back, so that write is not mistaken for a command.
@@ -496,11 +501,19 @@ class ModbusApiClient(HitachiApiClient):
         if key not in lost:
             return False
         source = self._register_map.all_registers[key].keep.seed_from
-        return (
-            source is None
-            or not self._kept_reads_lost(source)
-            or self._restorable(source, lost)
-        )
+        return source is None or self._seed_value(source, lost) is not None
+
+    def _seed_value(self, source: str, lost: Mapping[str, Any]) -> Any:
+        """Return what a value seeded from ``source`` is written with, if known.
+
+        The source's reference when it is lost too (it goes back right
+        after), its reading when that is right, None otherwise.
+        """
+        if source in lost:
+            return lost[source]
+        if source in self._data and not self._kept_reads_lost(source):
+            return self._data[source]
+        return None
 
     def _track_kept_values(self, fresh: list[str]) -> None:
         """Compare this read's kept values with their references (#511).
@@ -511,6 +524,7 @@ class ModbusApiClient(HitachiApiClient):
         the value it depends on is on, cannot be restored and is reported.
         """
         all_regs = self._register_map.all_registers
+        self._unrestorable = set()
         for key in fresh:
             keep = all_regs[key].keep
             if keep is None or key not in self._data:
@@ -527,18 +541,23 @@ class ModbusApiClient(HitachiApiClient):
                 if self._kept[key] != value:
                     self._lost[key] = self._kept[key]
             elif keep.while_on is not None and self._data.get(keep.while_on):
-                if key not in self._restore_failed:
-                    _LOGGER.warning(
-                        "%s reads %s with no known value to write back", key, value
-                    )
-                    self._restore_failed.add(key)
+                _LOGGER.debug(
+                    "%s reads %s with no known value to write back", key, value
+                )
+                self._unrestorable.add(key)
 
     def _restore_rank(self, key: str) -> int:
-        """Order write-backs: dependents, then seeded values, then their gates."""
+        """Order write-backs: seeded values, then their sources, then gates.
+
+        A seeded value goes before its source so that a failure in between
+        leaves the source lost, the state the reboot left: e.g. a room value
+        seeded before the target keeps the unit idle if the target write
+        fails, where the reverse order would leave it heating on 0 °C.
+        """
         keep = self._register_map.all_registers[key].keep
         if keep.seed_from is not None:
-            return 1
-        return 2 if self._dependents(key) else 0
+            return 0
+        return 2 if self._dependents(key) else 1
 
     async def restore_lost_values(self) -> None:
         """Write back the kept values a reboot took from the hardware (#511).
@@ -554,6 +573,9 @@ class ModbusApiClient(HitachiApiClient):
         """
         all_regs = self._register_map.all_registers
         lost, self._lost = self._lost, {}
+        # Sources whose seeded value did not go back: writing them would leave
+        # the unit regulating on the unseeded value.
+        held: set[str] = set()
         for key in sorted(lost, key=self._restore_rank):
             keep = all_regs[key].keep
             gate = keep.while_on
@@ -562,28 +584,34 @@ class ModbusApiClient(HitachiApiClient):
                 self._restore_attempts.pop(key, None)
                 self._restore_failed.discard(key)
                 continue
-            if key in self._restore_failed:
+            if key in self._restore_failed or key in held:
+                if keep.seed_from is not None:
+                    held.add(keep.seed_from)
                 continue
             if keep.seed_from is not None:
-                value = self._data.get(keep.seed_from)
-                if value is None or self._kept_reads_lost(keep.seed_from):
+                value = self._seed_value(keep.seed_from, lost)
+                if value is None:
                     continue
             else:
                 value = lost[key]
+                dependents = self._dependents(key)
+                if any(dep not in self._data for dep in dependents):
+                    # A dependent went unread: its state is unknown.
+                    continue
                 unsettled = [
                     dep
-                    for dep in self._dependents(key)
+                    for dep in dependents
                     if dep in self._pending_writes or self._kept_reads_lost(dep)
                 ]
                 if unsettled:
                     if not any(self._restorable(dep, lost) for dep in unsettled):
-                        _LOGGER.warning(
+                        _LOGGER.debug(
                             "%s reads %s but %s cannot be restored, leaving it",
                             key,
                             self._data.get(key),
                             ", ".join(unsettled),
                         )
-                        self._restore_failed.add(key)
+                        self._unrestorable.add(key)
                     continue
                 if self._kept.get(key) != value:
                     # Home Assistant wrote it while earlier values went back.
@@ -597,6 +625,8 @@ class ModbusApiClient(HitachiApiClient):
                     attempts,
                 )
                 self._restore_failed.add(key)
+                if keep.seed_from is not None:
+                    held.add(keep.seed_from)
                 continue
             self._restore_attempts[key] = attempts + 1
             _LOGGER.warning(
@@ -614,6 +644,8 @@ class ModbusApiClient(HitachiApiClient):
                 self._writing_back = None
             if not written:
                 _LOGGER.warning("Writing %s back failed", key)
+                if keep.seed_from is not None:
+                    held.add(keep.seed_from)
 
     def kept_values(self) -> dict[str, Any]:
         """Return the references of the values the hardware forgets on reboot."""
@@ -630,6 +662,7 @@ class ModbusApiClient(HitachiApiClient):
                 or definition.keep.seed_from is not None
                 or isinstance(value, bool)
                 or not isinstance(value, int | float)
+                or (definition.deserializer is None and value != int(value))
             ):
                 continue
             valid_range = definition.keep.valid_range
@@ -644,7 +677,7 @@ class ModbusApiClient(HitachiApiClient):
     @property
     def restore_failed(self) -> bool:
         """Return True while a lost value could not be written back."""
-        return bool(self._restore_failed)
+        return bool(self._restore_failed or self._unrestorable)
 
     async def _read_register(
         self, definition: RegisterDefinition, device_param: str

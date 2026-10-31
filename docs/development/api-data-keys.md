@@ -159,7 +159,9 @@ class RegisterDefinition:
   successful read shows the value lost (a reading of 0, or outside
   `Keep.valid_range`), writes the reference back raw, through the register's
   `serializer`. Two declarative links order the restore, checked by
-  `validate_kept_registers` when the client starts:
+  `validate_kept_registers` when the client starts (along with every kept
+  register being writable and having a `serializer` when it has a
+  `deserializer`):
   - `Keep.while_on` names a kept value this one depends on (an enable flag).
     The dependent is only written back while that value reads non-zero or is
     lost too, and that value is only written back once all its dependents
@@ -167,17 +169,20 @@ class RegisterDefinition:
     written, so only its dependents, read from STATUS registers, prove the
     unit applied anything: that is why it goes last.
   - `Keep.seed_from` names a kept value to copy instead of a reference. It is
-    written right after its source, from the value just written back, and
-    has no reference of its own (nothing to persist).
+    written just before its source, from the source's reference, and the
+    source waits while it fails: a failure in between leaves the state the
+    reboot left (target 0, unit idle) rather than a target over a room value
+    of 0. It has no reference of its own (nothing to persist).
 
   A value lost with no reference while what it depends on is on, or a flag
-  whose dependents cannot be restored, is reported rather than written. A
-  write-back is confirmed through the pending-write shadow and abandoned
-  after `MAX_RESTORE_ATTEMPTS` (3); `restore_failed` stays true until the
-  value reads right or Home Assistant writes it. `read_values` never writes:
+  whose dependents cannot be restored, is reported rather than written, and
+  re-evaluated on every read. A flag also waits while one of its dependents
+  went unread. A write-back is confirmed through the pending-write shadow
+  and abandoned after `MAX_RESTORE_ATTEMPTS` (3). `restore_failed` stays
+  true until the values read right or Home Assistant writes them. `read_values` never writes:
   it updates the references and queues the lost values, and the coordinator
-  calls `restore_lost_values()` after each successful read (a no-op when
-  nothing was lost). A read that fails, or finds the gateway `initializing`
+  calls `restore_lost_values()` after each successful read, once the unit is
+  verified (a no-op when nothing was lost). A read that fails, or finds the gateway `initializing`
   or `desynchronized`, queues nothing. The references go through the port
   (`kept_values()`, `restore_kept_values()`, `take_kept_values_changed()`);
   the coordinator persists them in a `Store`

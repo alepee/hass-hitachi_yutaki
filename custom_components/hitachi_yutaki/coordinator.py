@@ -230,6 +230,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     "Gateway is not ready (initializing or desynchronized)"
                 )
 
+            # Same unit as before, or nothing below may be written to it.
+            await self._async_verify_unit()
+
             # Write back what a gateway or controller reboot cleared (#511),
             # before the values are published.
             await self.api_client.restore_lost_values()
@@ -250,8 +253,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 data[key] = await self.api_client.read_value(key)
 
             self.system_config = data.get("system_config", 0)
-
-            await self._async_verify_unit()
 
             # Poll succeeded: clear any connection error issue now, before
             # the post-fetch stages, so an enrichment bug cannot keep it

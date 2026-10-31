@@ -38,8 +38,10 @@ class Keep:
 
     ``seed_from`` names another kept value to copy instead of a reference
     (e.g. a room value seeded with the target, which keeps the unit idle
-    until the real one is written). It is written right after its source,
-    from the value just written back.
+    until the real one is written). It is written just before its source,
+    from the source's reference, and the source waits if it fails: a failure
+    in between leaves the state the reboot left rather than a half-restored
+    one.
     """
 
     valid_range: tuple[float, float] | None = None
@@ -47,17 +49,27 @@ class Keep:
     seed_from: str | None = None
 
 
-def validate_kept_registers(registers: dict[str, "RegisterDefinition"]) -> None:
+def validate_kept_registers(
+    registers: dict[str, "RegisterDefinition"], writable_keys: set[str]
+) -> None:
     """Check the ``Keep`` declarations of a register map, raising ValueError.
 
-    ``while_on`` and ``seed_from`` must name another kept register; a ``while_on`` target depends on nothing, and a ``seed_from``
-    source shares the same ``while_on`` and is not seeded itself. That keeps
-    the restore order a fixed three steps, with no cycle.
+    A kept register must be writable, and have a ``serializer`` when it has a
+    ``deserializer``. ``while_on`` and ``seed_from`` must name another kept
+    register; a ``while_on`` target depends on nothing, and a ``seed_from``
+    source shares the same ``while_on``, is not seeded itself and is not a
+    ``while_on`` target. That keeps the restore order a fixed three steps,
+    with no cycle.
     """
+    gates = {d.keep.while_on for d in registers.values() if d.keep is not None}
     for key, definition in registers.items():
         keep = definition.keep
         if keep is None:
             continue
+        if key not in writable_keys:
+            raise ValueError(f"{key}: a kept register must be writable")
+        if definition.deserializer is not None and definition.serializer is None:
+            raise ValueError(f"{key}: a kept register needs a serializer")
         for name, ref in (("while_on", keep.while_on), ("seed_from", keep.seed_from)):
             if ref is None:
                 continue
@@ -70,7 +82,11 @@ def validate_kept_registers(registers: dict[str, "RegisterDefinition"]) -> None:
                 raise ValueError(f"{key}: while_on target must depend on nothing")
         if keep.seed_from is not None:
             source = registers[keep.seed_from].keep
-            if source.seed_from is not None or source.while_on != keep.while_on:
+            if (
+                source.seed_from is not None
+                or source.while_on != keep.while_on
+                or keep.seed_from in gates
+            ):
                 raise ValueError(f"{key}: seed_from source must share while_on")
 
 
