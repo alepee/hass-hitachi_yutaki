@@ -1,6 +1,6 @@
 # Gateway Data Filtering
 
-The gateway layer is responsible for ensuring that only meaningful data reaches upstream consumers (coordinator, entities, telemetry). Two mechanisms work together to achieve this.
+The gateway layer is responsible for ensuring that only meaningful data reaches upstream consumers (coordinator, entities, telemetry). Three mechanisms work together to achieve this.
 
 ## 1. Sentinel Value Filtering
 
@@ -78,6 +78,21 @@ The `_gate_unconfigured_modules()` method purges data for modules not declared i
 
 These are handled by entity-level `condition` callbacks, which check the profile.
 
+## 3. Outdoor Link Loss (alarm 03)
+
+On alarm 03 ("abnormal transmission between indoor units and outdoor unit") the indoor unit no longer hears from the outdoor unit and reports a plain `0` for every reading it relays from it, not a sentinel (#457: outdoor temperature, Td, Te, EVO, compressor frequency and current all at `0` while the DHW tank temperature stayed valid).
+
+0 is also a valid temperature, so it cannot be declared as a sentinel. `_gate_outdoor_link_loss()` runs after module gating and, **only while `alarm_code` is one of `outdoor_link_alarms`**, removes the `outdoor_unit_keys` whose value is exactly `0`:
+
+| Register map property | Default (`HitachiRegisterMap`) |
+|---|---|
+| `outdoor_link_alarms` | `alarm_code_3` |
+| `outdoor_unit_keys` | `outdoor_temp`, `compressor_td_discharge_temp`, `compressor_te_evaporator_temp`, `compressor_evo_outdoor_expansion_valve_opening`, `compressor_frequency`, `compressor_current` (those present in the map) |
+
+Gas and liquid temperatures (Tg, Ti) and the indoor expansion valve (EVI) are measured on the indoor side of a split unit, so they are not listed. A non-zero reading is kept: an auxiliary outdoor sensor wired to the indoor unit still reports a real value during the alarm.
+
+The client exposes the state as `outdoor_link_lost`; the coordinator uses it to pick the text of the alarm repair issue (`unit_alarm_outdoor_link` instead of `unit_alarm`).
+
 ## Relationship with Entity Conditions
 
 Entities also check `has_dhw()`, `has_pool()`, etc. to decide whether to create themselves. This is **not duplication** — the two mechanisms serve different purposes:
@@ -107,6 +122,10 @@ _gate_unconfigured_modules()
     ├── DHW not in system_config  → dhw_* removed
     ├── Pool not in system_config → pool_* removed
     └── Circuit 2 not configured  → circuit2_* removed
+    │
+    ▼
+_gate_outdoor_link_loss()
+    └── alarm 03 → outdoor readings at 0 removed
     │
     ▼
 self._data (clean)

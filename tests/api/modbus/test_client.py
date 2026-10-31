@@ -876,3 +876,99 @@ async def test_successive_writes_last_value_wins_and_rearms_deadline(
     await api.read_values(["unit_power"])
     assert api._data["unit_power"] == 0
     assert "unit_power" in api._pending_writes
+
+
+# --- Outdoor readings zeroed by a lost outdoor unit (#457) ---
+
+
+def _outdoor_link_api_client(mock_hass, mock_client, data):
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._data = dict(data)
+    return api
+
+
+@pytest.mark.parametrize(
+    "register_map",
+    [AtwMbs02RegisterMap(), AtwMbs02Pre2016RegisterMap(), HcAMbRegisterMap()],
+    ids=["atw_mbs_02", "atw_mbs_02_pre2016", "hc_a_mb"],
+)
+def test_outdoor_unit_keys_cover_outdoor_side_only(register_map):
+    """Outdoor ambient and outdoor-side compressor data, not indoor Tg/Ti/EVI."""
+    keys = set(register_map.outdoor_unit_keys)
+    assert {"outdoor_temp", "compressor_td_discharge_temp"} <= keys
+    assert keys.isdisjoint(
+        {
+            "compressor_tg_gas_temp",
+            "compressor_ti_liquid_temp",
+            "compressor_evi_indoor_expansion_valve_opening",
+        }
+    )
+    assert keys <= set(register_map.all_registers)
+
+
+def test_outdoor_link_alarm_drops_zeroed_outdoor_readings(mock_hass, mock_client):
+    """On alarm 03 the zeros relayed from the outdoor unit become unavailable."""
+    api = _outdoor_link_api_client(
+        mock_hass,
+        mock_client,
+        {
+            "alarm_code": "alarm_code_3",
+            "outdoor_temp": 0,
+            "compressor_frequency": 0,
+            "compressor_tg_gas_temp": 0,
+            "dhw_current_temp": 36,
+        },
+    )
+    assert api.outdoor_link_lost is True
+
+    api._gate_outdoor_link_loss()
+
+    assert "outdoor_temp" not in api._data
+    assert "compressor_frequency" not in api._data
+    # Indoor-side readings are left alone, even at 0.
+    assert api._data["compressor_tg_gas_temp"] == 0
+    assert api._data["dhw_current_temp"] == 36
+
+
+def test_outdoor_link_alarm_keeps_auxiliary_outdoor_sensor(mock_hass, mock_client):
+    """A non-zero outdoor temperature (auxiliary sensor on the indoor unit) stays."""
+    api = _outdoor_link_api_client(
+        mock_hass, mock_client, {"alarm_code": "alarm_code_3", "outdoor_temp": 7}
+    )
+
+    api._gate_outdoor_link_loss()
+
+    assert api._data["outdoor_temp"] == 7
+
+
+@pytest.mark.parametrize("alarm_code", ["alarm_code_0", "alarm_code_2"])
+def test_zero_outdoor_reading_kept_without_outdoor_link_alarm(
+    mock_hass, mock_client, alarm_code
+):
+    """Outside alarm 03, 0 °C is a real outdoor temperature."""
+    api = _outdoor_link_api_client(
+        mock_hass, mock_client, {"alarm_code": alarm_code, "outdoor_temp": 0}
+    )
+    assert api.outdoor_link_lost is False
+
+    api._gate_outdoor_link_loss()
+
+    assert api._data["outdoor_temp"] == 0
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_gates_outdoor_link_loss(_mock_ir, mock_hass, mock_client):
+    """read_values applies the gate after reading the alarm code."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),  # preflight system_state
+        _make_modbus_result(0),  # outdoor_temp
+        _make_modbus_result(3),  # alarm_code
+    ]
+
+    result = await api.read_values(["outdoor_temp", "alarm_code"])
+
+    assert result == ReadResult.SUCCESS
+    assert api._data["alarm_code"] == "alarm_code_3"
+    assert "outdoor_temp" not in api._data

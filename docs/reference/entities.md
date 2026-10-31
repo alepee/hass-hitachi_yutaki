@@ -56,7 +56,7 @@ Only one of these two selects is created per install (mutually exclusive): `oper
 | Entity | Type | Description | Category |
 |--------|------|-------------|----------|
 | operation_state | sensor | Current operation state with detailed description | diagnostic |
-| alarm | sensor | Current alarm status | diagnostic |
+| alarm | sensor | Current alarm status; the `code` attribute holds the numeric code while an alarm is present, and a repair issue is raised meanwhile | diagnostic |
 | defrost | binary_sensor | Unit is currently in defrost mode | diagnostic |
 | compressor | binary_sensor | Compressor is running | diagnostic |
 | boiler | binary_sensor | Backup boiler is active (if supported) | diagnostic |

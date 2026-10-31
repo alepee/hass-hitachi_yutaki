@@ -940,6 +940,14 @@
     "compressor_short_cycling": {
       "title": "Compressor is short cycling",
       "description": "🧪 Beta detector. Your compressor has been starting and stopping unusually often in space heating for several days: too many starts per hour combined with a cycle period under {period} minutes.\n\nShort cycling wears the compressor and costs seasonal efficiency. It almost always means the heating circuit cannot absorb the unit's minimum output: the water reaches its target, the compressor stops, and it starts again a few minutes later. The usual causes:\n\n- **A heating curve set too high.** Water hotter than the house needs reaches its target sooner, and rooms that overheat close their thermostatic valves. Lowering your flow temperature is the first thing to try, and it costs nothing.\n- **Too few open emitters.** When thermostatic radiator valves or zone valves close, the unit only heats a small part of the circuit. Keeping some emitters always open, typically in the living areas, gives the unit a load it can rely on.\n- **Too little buffer volume** for the unit's minimum output.\n- **An oversized unit** for the actual heat demand. Units that cycle are typically already pinned at their minimum compressor frequency, so there is no modulation margin left to recover.\n\nThis is advisory: the integration cannot tell these apart on its own. The alert clears by itself once the cycling stops."
+    },
+    "unit_alarm": {
+      "title": "Heat pump reports alarm {code}",
+      "description": "Your heat pump reports alarm **{code}**. Home Assistant first saw it on {since}. The **Alarm** sensor gives its description.\n\nAn alarm usually stops the unit, or part of it. Look the code up on the unit's controller and in the installation manual, and contact your installer if it persists.\n\nThis notice clears by itself once the unit no longer reports the alarm."
+    },
+    "unit_alarm_outdoor_link": {
+      "title": "Heat pump has lost contact with its outdoor unit",
+      "description": "Your heat pump reports alarm **{code}**: the indoor unit no longer communicates with the outdoor unit. Home Assistant first saw it on {since}. The unit usually stops, or runs on its backup heater if it has one.\n\nWhile the alarm lasts, the unit reports 0 instead of the readings that come from the outdoor unit (outdoor temperature, compressor data). These sensors show as unavailable rather than a false 0.\n\nCheck the outdoor unit's power supply and the communication cable between the two units, and contact your installer if the alarm persists. This notice clears by itself once the unit no longer reports the alarm."
     }
   }
 }

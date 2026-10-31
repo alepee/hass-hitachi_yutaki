@@ -19,6 +19,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
 )
+from homeassistant.util import dt as dt_util
 
 from .adapters.clock import HomeAssistantClock
 from .adapters.derived_metrics import DerivedMetricsAdapter
@@ -112,6 +113,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         # first successful refresh. The api_client cache is the live source,
         # this attribute only mirrors what's been observed for diagnostics.
         self.system_config: int = entry.data.get("system_config", 0)
+        # Alarm the unit currently reports, and when this poll loop first saw it.
+        self._alarm_code: str | None = None
+        self._alarm_since: datetime | None = None
 
         # Last valid room target per circuit (#511), loaded before the first poll.
         self._room_target_keeper = RoomTargetKeeper()
@@ -293,6 +297,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                         "system_config": self.system_config,
                     },
                 )
+
+            self._update_alarm_issue(data.get("alarm_code"))
 
             # Inject api_client state into data for derived metrics
             data["is_defrosting"] = self.api_client.is_defrosting
@@ -827,6 +833,48 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 )
             else:
                 ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+
+    def _alarm_issue_id(self) -> str:
+        """Return the repair-issue id for an alarm reported by the unit."""
+        return f"unit_alarm_{self.config_entry.entry_id}"
+
+    def _update_alarm_issue(self, alarm_code: str | None) -> None:
+        """Raise or clear the repair issue for an alarm reported by the unit.
+
+        Not fixable: the remedy is on the unit itself. The issue names the code
+        and when this poll loop first saw it, and clears as soon as the unit
+        stops reporting it (#457). A failed read (no code) leaves it as is, so a
+        transient read error neither clears it nor resets its start time.
+        """
+        if alarm_code is None:
+            return
+        issue_id = self._alarm_issue_id()
+        if alarm_code == "alarm_code_0":
+            self._alarm_code = None
+            self._alarm_since = None
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+            return
+
+        if alarm_code != self._alarm_code:
+            self._alarm_code = alarm_code
+            self._alarm_since = dt_util.now()
+        ir.async_create_issue(
+            self.hass,
+            DOMAIN,
+            issue_id,
+            is_fixable=False,
+            is_persistent=False,
+            severity=ir.IssueSeverity.ERROR,
+            translation_key=(
+                "unit_alarm_outdoor_link"
+                if self.api_client.outdoor_link_lost
+                else "unit_alarm"
+            ),
+            translation_placeholders={
+                "code": alarm_code.removeprefix("alarm_code_"),
+                "since": self._alarm_since.strftime("%Y-%m-%d %H:%M"),
+            },
+        )
 
     def _cycling_issue_id(self) -> str:
         """Return the repair-issue id for the short-cycling alert."""

@@ -940,6 +940,14 @@
     "compressor_short_cycling": {
       "title": "De compressor pendelt kort",
       "description": "🧪 Bètadetector. Uw compressor start en stopt al enkele dagen ongewoon vaak tijdens het verwarmen: te veel starts per uur, gecombineerd met een cyclusperiode onder {period} minuten.\n\nKort pendelen verslijt de compressor en kost seizoensrendement. Het betekent bijna altijd dat het verwarmingscircuit het minimumvermogen van de unit niet kan opnemen: het water bereikt zijn streefwaarde, de compressor stopt en start een paar minuten later opnieuw. De gebruikelijke oorzaken:\n\n- **Een te hoog ingestelde stooklijn.** Water dat warmer is dan het huis nodig heeft, bereikt zijn streefwaarde sneller, en ruimtes die oververhit raken sluiten hun thermostatische kranen. Uw aanvoertemperatuur verlagen is het eerste om te proberen, en het kost niets.\n- **Te weinig open afgiftesystemen.** Wanneer thermostatische radiatorkranen of zoneventielen sluiten, verwarmt de unit nog maar een klein deel van het circuit. Enkele radiatoren altijd open laten, meestal in de leefruimtes, geeft de unit een belasting waarop ze kan rekenen.\n- **Te weinig buffervolume** voor het minimumvermogen van de unit.\n- **Een te groot gedimensioneerde unit** voor de werkelijke warmtevraag. Units die pendelen draaien meestal al op hun minimale compressorfrequentie, dus er is geen modulatiemarge meer over.\n\nDit is indicatief: de integratie kan deze oorzaken niet zelf onderscheiden. De waarschuwing verdwijnt vanzelf zodra het pendelen stopt."
+    },
+    "unit_alarm": {
+      "title": "Warmtepomp meldt alarm {code}",
+      "description": "Uw warmtepomp meldt alarm **{code}**. Home Assistant zag het voor het eerst op {since}. De sensor **Alarm** geeft de omschrijving.\n\nEen alarm legt de unit meestal stil, geheel of gedeeltelijk. Zoek de code op in de bediening van de unit en in de installatiehandleiding, en neem contact op met uw installateur als het aanhoudt.\n\nDeze melding verdwijnt vanzelf zodra de unit het alarm niet meer meldt."
+    },
+    "unit_alarm_outdoor_link": {
+      "title": "Warmtepomp heeft geen contact meer met de buitenunit",
+      "description": "Uw warmtepomp meldt alarm **{code}**: de binnenunit communiceert niet meer met de buitenunit. Home Assistant zag het voor het eerst op {since}. De unit stopt meestal, of draait op het bijverwarmingselement als dat aanwezig is.\n\nZolang het alarm duurt, geeft de unit 0 door in plaats van de waarden die van de buitenunit komen (buitentemperatuur, compressorgegevens). Deze sensoren worden als niet beschikbaar getoond in plaats van een onjuiste 0.\n\nControleer de voeding van de buitenunit en de communicatiekabel tussen beide units, en neem contact op met uw installateur als het alarm aanhoudt. Deze melding verdwijnt vanzelf zodra de unit het alarm niet meer meldt."
     }
   }
 }

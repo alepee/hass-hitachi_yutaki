@@ -940,6 +940,14 @@
     "compressor_short_cycling": {
       "title": "Compresorul funcționează în cicluri scurte",
       "description": "🧪 Detector în beta. Compresorul dumneavoastră pornește și se oprește neobișnuit de des în regim de încălzire de câteva zile: prea multe porniri pe oră, combinate cu o perioadă de ciclu sub {period} minute.\n\nCiclurile scurte uzează compresorul și scad randamentul sezonier. Aproape întotdeauna înseamnă că circuitul de încălzire nu poate absorbi puterea minimă a unității: apa își atinge consemnul, compresorul se oprește, apoi repornește după câteva minute. Cauzele obișnuite:\n\n- **O curbă de încălzire setată prea sus.** O apă mai caldă decât are nevoie casa își atinge consemnul mai repede, iar camerele supraîncălzite își închid robinetele termostatice. Scăderea temperaturii pe tur este primul lucru de încercat și nu costă nimic.\n- **Prea puține corpuri de încălzire deschise.** Când robinetele termostatice sau vanele de zonă se închid, unitatea mai încălzește doar o mică parte din circuit. Păstrarea unor corpuri de încălzire mereu deschise, de obicei în spațiile de zi, îi oferă o sarcină pe care se poate baza.\n- **Volum tampon insuficient** pentru puterea minimă a unității.\n- **O unitate supradimensionată** față de necesarul real. Unitățile care ciclează funcționează de obicei deja la frecvența minimă a compresorului, deci nu mai există marjă de modulare.\n\nAcest mesaj este orientativ: integrarea nu poate distinge singură între aceste cauze. Alerta dispare de la sine imediat ce ciclurile scurte încetează."
+    },
+    "unit_alarm": {
+      "title": "Pompa de căldură semnalează alarma {code}",
+      "description": "Pompa de căldură semnalează alarma **{code}**. Home Assistant a observat-o prima dată pe {since}. Senzorul **Alarmă** oferă descrierea ei.\n\nO alarmă oprește de obicei unitatea, total sau parțial. Căutați codul pe controlerul unității și în manualul de instalare și contactați instalatorul dacă persistă.\n\nAceastă notificare dispare de la sine când unitatea nu mai semnalează alarma."
+    },
+    "unit_alarm_outdoor_link": {
+      "title": "Pompa de căldură a pierdut legătura cu unitatea exterioară",
+      "description": "Pompa de căldură semnalează alarma **{code}**: unitatea interioară nu mai comunică cu unitatea exterioară. Home Assistant a observat-o prima dată pe {since}. Unitatea se oprește de obicei sau funcționează pe rezistența de rezervă, dacă are una.\n\nCât timp durează alarma, unitatea trimite 0 în locul valorilor care provin de la unitatea exterioară (temperatura exterioară, datele compresorului). Acești senzori apar indisponibili în loc de un 0 fals.\n\nVerificați alimentarea unității exterioare și cablul de comunicație dintre cele două unități și contactați instalatorul dacă alarma persistă. Această notificare dispare de la sine când unitatea nu mai semnalează alarma."
     }
   }
 }

@@ -1070,6 +1070,7 @@ async def async_remove_entry(
         f"compressor_short_cycling_{entry.entry_id}",
         f"room_target_restore_failed_{entry.entry_id}",
         f"external_room_sensor_restore_failed_{entry.entry_id}",
+        f"unit_alarm_{entry.entry_id}",
         *_unit_issue_ids(entry.entry_id),
     ):
         async_delete_issue(hass, DOMAIN, issue_id)

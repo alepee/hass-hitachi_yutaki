@@ -940,6 +940,14 @@
     "compressor_short_cycling": {
       "title": "El compressor fa cicles curts",
       "description": "🧪 Detector en fase beta. Fa diversos dies que el vostre compressor s'engega i s'atura amb una freqüència anormal en calefacció: massa arrencades per hora, combinades amb un període de cicle inferior a {period} minuts.\n\nEls cicles curts desgasten el compressor i redueixen l'eficiència estacional. Gairebé sempre volen dir que el circuit de calefacció no pot absorbir la potència mínima de la unitat: l'aigua arriba a la consigna, el compressor s'atura i torna a arrencar uns minuts després. Les causes habituals:\n\n- **Una corba de calefacció massa alta.** Una aigua més calenta del que la casa necessita arriba abans a la consigna, i les estances que s'escalfen massa tanquen les seves vàlvules termostàtiques. Baixar la temperatura d'impulsió és el primer que cal provar, i no costa res.\n- **Massa pocs emissors oberts.** Quan les vàlvules termostàtiques o les vàlvules de zona es tanquen, la unitat només escalfa una petita part del circuit. Mantenir alguns emissors sempre oberts, normalment a les zones de dia, li dona una càrrega amb què pot comptar.\n- **Un volum d'inèrcia massa petit** per a la potència mínima de la unitat.\n- **Una unitat sobredimensionada** per a la demanda real de calor. Les unitats que fan cicles curts normalment ja funcionen a la freqüència mínima del compressor, de manera que no els queda marge de modulació per recuperar.\n\nAixò és orientatiu: la integració no pot distingir aquestes causes per si sola. L'alerta desapareix sola quan s'aturen els cicles curts."
+    },
+    "unit_alarm": {
+      "title": "La bomba de calor indica l'alarma {code}",
+      "description": "La bomba de calor indica l'alarma **{code}**. Home Assistant la va detectar per primera vegada el {since}. El sensor **Alarma** en dona la descripció.\n\nUna alarma sol aturar la unitat, o una part d'ella. Consulteu el codi al comandament de la unitat i al manual d'instal·lació, i contacteu amb l'instal·lador si persisteix.\n\nAquest avís desapareix sol quan la unitat deixa d'indicar l'alarma."
+    },
+    "unit_alarm_outdoor_link": {
+      "title": "La bomba de calor ha perdut el contacte amb la unitat exterior",
+      "description": "La bomba de calor indica l'alarma **{code}**: la unitat interior ja no es comunica amb la unitat exterior. Home Assistant la va detectar per primera vegada el {since}. La unitat sol aturar-se, o funciona amb la resistència de suport si en té.\n\nMentre dura l'alarma, la unitat envia 0 en lloc de les lectures que provenen de la unitat exterior (temperatura exterior, dades del compressor). Aquests sensors es mostren no disponibles en lloc d'un 0 fals.\n\nComproveu l'alimentació de la unitat exterior i el cable de comunicació entre les dues unitats, i contacteu amb l'instal·lador si l'alarma persisteix. Aquest avís desapareix sol quan la unitat deixa d'indicar l'alarma."
     }
   }
 }
