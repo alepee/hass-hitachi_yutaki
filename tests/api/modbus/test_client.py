@@ -63,6 +63,7 @@ def api_client(mock_hass, mock_client):
         api._writing_back = None
         api._lost = {}
         api._unrestorable = set()
+        api._was_unrestorable = set()
         return api
 
 
@@ -350,6 +351,7 @@ def _make_preflight_api_client(mock_hass, mock_client):
         api._writing_back = None
         api._lost = {}
         api._unrestorable = set()
+        api._was_unrestorable = set()
         return api
 
 
@@ -640,6 +642,7 @@ def pre2016_api_client(mock_hass, mock_client):
         api._writing_back = None
         api._lost = {}
         api._unrestorable = set()
+        api._was_unrestorable = set()
         write_result = MagicMock()
         write_result.isError.return_value = False
         mock_client.write_register.return_value = write_result
@@ -1446,6 +1449,21 @@ async def test_blocked_flag_recovers_once_its_target_is_set(
 
     assert _writes(mock_client) == [(1010, 1)]
     assert api.restore_failed is False
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_unrestorable_value_is_logged_once(
+    _mock_ir, mock_hass, mock_client, caplog
+):
+    """The logs name the setting the issue points to, without repeating every poll."""
+    api = _room_api(mock_hass, mock_client)
+    with caplog.at_level(logging.WARNING):
+        for _ in range(3):
+            await _poll(api, mock_client, flag=1, target=0, room=215)
+
+    messages = [r.getMessage() for r in caplog.records]
+    assert sum("circuit1_target_temp" in m for m in messages) == 1
 
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")

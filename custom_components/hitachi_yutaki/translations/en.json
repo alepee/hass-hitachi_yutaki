@@ -882,7 +882,7 @@
         "step": {
           "confirm": {
             "title": "Retry restoring the settings",
-            "description": "The gateway or the controller lost some settings in a reboot, usually a power cut, for example the External room sensor switch or the room target of a circuit. The integration could not write them back: either it had no known value to restore, or the heat pump did not keep it after several attempts. The heat pump may not regulate as configured.\n\nConfirm below to try again: the integration writes the last known values back on the next poll, and raises this notice again if they still do not stick. If it keeps coming back, check the circuits' External room sensor switch and room target on their device pages or on the controller, and set them by hand. The notice clears on its own once they read right."
+            "description": "The gateway or the controller lost some settings in a reboot, usually a power cut, and the integration could not write them back: either it had no known value to restore, or the heat pump did not keep it after several attempts. The heat pump may not regulate as configured. The Home Assistant logs name each setting concerned.\n\nConfirm below to try again: the integration writes the last known values back on the next poll, and raises this notice again if they still do not stick. If it keeps coming back, check the heat pump's settings in Home Assistant or on the controller and set them again by hand. The notice clears on its own once they read right."
           }
         },
         "abort": {

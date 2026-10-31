@@ -902,7 +902,7 @@
         "step": {
           "confirm": {
             "title": "Réessayer de rétablir les réglages",
-            "description": "En général après une coupure de courant, la passerelle ou le contrôleur a oublié certains réglages au redémarrage, par exemple l'interrupteur Capteur ambiant externe ou la consigne ambiante d'un circuit. L'intégration n'a pas pu les réécrire : soit elle ne connaissait aucune valeur à rétablir, soit la pompe à chaleur ne l'a pas gardée après plusieurs essais. La pompe à chaleur risque de ne plus réguler comme configuré.\n\nConfirmez ci-dessous pour réessayer : l'intégration réécrit les dernières valeurs connues au prochain relevé, et relève cet avis si elles ne tiennent toujours pas. S'il revient, vérifiez l'interrupteur Capteur ambiant externe et la consigne ambiante des circuits depuis leurs pages d'appareil ou sur le contrôleur, et réglez-les à la main. L'avis disparaît de lui-même dès qu'ils sont corrects."
+            "description": "En général après une coupure de courant, la passerelle ou le contrôleur a oublié certains réglages au redémarrage, et l'intégration n'a pas pu les réécrire : soit elle ne connaissait aucune valeur à rétablir, soit la pompe à chaleur ne l'a pas gardée après plusieurs essais. La pompe à chaleur risque de ne plus réguler comme configuré. Les journaux de Home Assistant nomment chaque réglage concerné.\n\nConfirmez ci-dessous pour réessayer : l'intégration réécrit les dernières valeurs connues au prochain relevé, et relève cet avis si elles ne tiennent toujours pas. S'il revient, vérifiez les réglages de la pompe à chaleur dans Home Assistant ou sur le contrôleur, et refaites-les à la main. L'avis disparaît de lui-même dès qu'ils sont corrects."
           }
         },
         "abort": {

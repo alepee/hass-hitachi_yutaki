@@ -85,6 +85,7 @@ class ModbusApiClient(HitachiApiClient):
         # Lost values that cannot be written back this cycle, re-evaluated on
         # every read so the report clears as soon as the obstacle goes.
         self._unrestorable: set[str] = set()
+        self._was_unrestorable: set[str] = set()
         # Kept values the last successful read found lost: key -> reference.
         self._lost: dict[str, Any] = {}
         # Key being written back, so that write is not mistaken for a command.
@@ -524,7 +525,7 @@ class ModbusApiClient(HitachiApiClient):
         the value it depends on is on, cannot be restored and is reported.
         """
         all_regs = self._register_map.all_registers
-        self._unrestorable = set()
+        self._was_unrestorable, self._unrestorable = self._unrestorable, set()
         for key in fresh:
             keep = all_regs[key].keep
             if keep is None or key not in self._data:
@@ -541,10 +542,15 @@ class ModbusApiClient(HitachiApiClient):
                 if self._kept[key] != value:
                     self._lost[key] = self._kept[key]
             elif keep.while_on is not None and self._data.get(keep.while_on):
-                _LOGGER.debug(
-                    "%s reads %s with no known value to write back", key, value
+                self._mark_unrestorable(
+                    key, "%s reads %s with no known value to write back", key, value
                 )
-                self._unrestorable.add(key)
+
+    def _mark_unrestorable(self, key: str, message: str, *args: Any) -> None:
+        """Report a lost value that cannot be written back, logged once per spell."""
+        if key not in self._was_unrestorable:
+            _LOGGER.warning(message, *args)
+        self._unrestorable.add(key)
 
     def _restore_rank(self, key: str) -> int:
         """Order write-backs: seeded values, then their sources, then gates.
@@ -605,13 +611,13 @@ class ModbusApiClient(HitachiApiClient):
                 ]
                 if unsettled:
                     if not any(self._restorable(dep, lost) for dep in unsettled):
-                        _LOGGER.debug(
+                        self._mark_unrestorable(
+                            key,
                             "%s reads %s but %s cannot be restored, leaving it",
                             key,
                             self._data.get(key),
                             ", ".join(unsettled),
                         )
-                        self._unrestorable.add(key)
                     continue
                 if self._kept.get(key) != value:
                     # Home Assistant wrote it while earlier values went back.
@@ -679,6 +685,7 @@ class ModbusApiClient(HitachiApiClient):
         self._restore_attempts.clear()
         self._restore_failed.clear()
         self._unrestorable.clear()
+        self._was_unrestorable.clear()
 
     @property
     def restore_failed(self) -> bool:

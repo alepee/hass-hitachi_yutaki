@@ -902,7 +902,7 @@
         "step": {
           "confirm": {
             "title": "Herstel van de instellingen opnieuw proberen",
-            "description": "Meestal na een stroomonderbreking is de gateway of de regelaar bij een herstart enkele instellingen vergeten, bijvoorbeeld de schakelaar Externe kamersensor of het kamerdoel van een circuit. De integratie kon ze niet terugschrijven: ze kende geen waarde om te herstellen, of de warmtepomp heeft die na meerdere pogingen niet behouden. De warmtepomp regelt mogelijk niet zoals ingesteld.\n\nBevestig hieronder om het opnieuw te proberen: de integratie schrijft de laatst bekende waarden bij de volgende uitlezing terug en toont deze melding opnieuw als ze nog steeds niet blijven staan. Komt ze terug, controleer dan de schakelaar Externe kamersensor en het kamerdoel van de circuits op hun apparaatpagina's of op de regelaar, en stel ze handmatig in. De melding verdwijnt vanzelf zodra ze kloppen."
+            "description": "Meestal na een stroomonderbreking is de gateway of de regelaar bij een herstart enkele instellingen vergeten, en de integratie kon ze niet terugschrijven: ze kende geen waarde om te herstellen, of de warmtepomp heeft die na meerdere pogingen niet behouden. De warmtepomp regelt mogelijk niet zoals ingesteld. De logboeken van Home Assistant noemen elke betrokken instelling.\n\nBevestig hieronder om het opnieuw te proberen: de integratie schrijft de laatst bekende waarden bij de volgende uitlezing terug en toont deze melding opnieuw als ze nog steeds niet blijven staan. Komt ze terug, controleer dan de instellingen van de warmtepomp in Home Assistant of op de regelaar en stel ze handmatig opnieuw in. De melding verdwijnt vanzelf zodra ze kloppen."
           }
         },
         "abort": {

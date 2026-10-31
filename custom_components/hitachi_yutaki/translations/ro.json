@@ -902,7 +902,7 @@
         "step": {
           "confirm": {
             "title": "Reîncercați restabilirea setărilor",
-            "description": "De obicei după o întrerupere a alimentării, gateway-ul sau controlerul a uitat unele setări la repornire, de exemplu comutatorul Senzor extern de cameră sau temperatura dorită a camerei pentru un circuit. Integrarea nu le-a putut rescrie: fie nu cunoștea nicio valoare de restabilit, fie pompa de căldură nu a păstrat-o după mai multe încercări. Este posibil ca pompa de căldură să nu regleze conform configurației.\n\nConfirmați mai jos pentru a reîncerca: integrarea rescrie ultimele valori cunoscute la următoarea citire și afișează din nou această notificare dacă tot nu se păstrează. Dacă revine, verificați comutatorul Senzor extern de cameră și temperatura dorită a camerei pentru circuite, din paginile dispozitivelor sau de pe controler, și setați-le manual. Notificarea dispare de la sine odată ce sunt corecte."
+            "description": "De obicei după o întrerupere a alimentării, gateway-ul sau controlerul a uitat unele setări la repornire, iar integrarea nu le-a putut rescrie: fie nu cunoștea nicio valoare de restabilit, fie pompa de căldură nu a păstrat-o după mai multe încercări. Este posibil ca pompa de căldură să nu regleze conform configurației. Jurnalele Home Assistant numesc fiecare setare afectată.\n\nConfirmați mai jos pentru a reîncerca: integrarea rescrie ultimele valori cunoscute la următoarea citire și afișează din nou această notificare dacă tot nu se păstrează. Dacă revine, verificați setările pompei de căldură în Home Assistant sau pe controler și setați-le din nou manual. Notificarea dispare de la sine odată ce sunt corecte."
           }
         },
         "abort": {
