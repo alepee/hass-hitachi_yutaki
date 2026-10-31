@@ -752,6 +752,7 @@ def test_room_notice_untouched_when_a_register_was_not_read(
     ir_mock.async_create_issue.assert_not_called()
     ir_mock.async_delete_issue.assert_not_called()
 
+
 # --- Alarm repair issue (#457) ---
 
 
