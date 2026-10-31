@@ -1,7 +1,7 @@
 """Register map for Hitachi heat pumps."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -50,44 +50,84 @@ class Keep:
 
 
 def validate_kept_registers(
-    registers: dict[str, "RegisterDefinition"], writable_keys: set[str]
+    registers: Mapping[str, "RegisterDefinition"], writable_keys: set[str]
 ) -> None:
     """Check the ``Keep`` declarations of a register map, raising ValueError.
 
-    A kept register must be writable, and have a ``serializer`` when it has a
-    ``deserializer``. ``while_on`` and ``seed_from`` must name another kept
-    register; a ``while_on`` target depends on nothing, and a ``seed_from``
-    source shares the same ``while_on``, is not seeded itself and is not a
-    ``while_on`` target. That keeps the restore order a fixed three steps,
-    with no cycle.
+    Each rule below checks one property of a kept register; together they
+    keep the restore order a fixed three steps, with no cycle.
     """
-    gates = {d.keep.while_on for d in registers.values() if d.keep is not None}
-    for key, definition in registers.items():
-        keep = definition.keep
-        if keep is None:
-            continue
-        if key not in writable_keys:
-            raise ValueError(f"{key}: a kept register must be writable")
-        if definition.deserializer is not None and definition.serializer is None:
-            raise ValueError(f"{key}: a kept register needs a serializer")
-        for name, ref in (("while_on", keep.while_on), ("seed_from", keep.seed_from)):
-            if ref is None:
-                continue
-            target = registers.get(ref)
-            if ref == key or target is None or target.keep is None:
-                raise ValueError(f"{key}: {name} must name another kept register")
-        if keep.while_on is not None:
-            gate = registers[keep.while_on].keep
-            if gate.while_on is not None or gate.seed_from is not None:
-                raise ValueError(f"{key}: while_on target must depend on nothing")
-        if keep.seed_from is not None:
-            source = registers[keep.seed_from].keep
-            if (
-                source.seed_from is not None
-                or source.while_on != keep.while_on
-                or keep.seed_from in gates
-            ):
-                raise ValueError(f"{key}: seed_from source must share while_on")
+    kept = {k: d for k, d in registers.items() if d.keep is not None}
+    for key in kept:
+        for rule in _KEPT_RULES:
+            if problem := rule(key, kept, writable_keys):
+                raise ValueError(f"{key}: {problem}")
+
+
+def _is_writable(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that a kept register is writable."""
+    return None if key in writable else "a kept register must be writable"
+
+
+def _is_serializable(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that a kept register with a deserializer has a serializer."""
+    definition = kept[key]
+    if definition.deserializer is not None and definition.serializer is None:
+        return "a kept register needs a serializer"
+    return None
+
+
+def _links_resolve(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that ``while_on`` and ``seed_from`` name another kept register."""
+    keep = kept[key].keep
+    for name, ref in (("while_on", keep.while_on), ("seed_from", keep.seed_from)):
+        if ref is not None and (ref == key or ref not in kept):
+            return f"{name} must name another kept register"
+    return None
+
+
+def _gate_is_a_root(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that a ``while_on`` target depends on nothing itself."""
+    gate = kept[key].keep.while_on
+    if gate is not None and (
+        kept[gate].keep.while_on is not None or kept[gate].keep.seed_from is not None
+    ):
+        return "while_on target must depend on nothing"
+    return None
+
+
+def _seed_is_a_sibling(
+    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
+) -> str | None:
+    """Check that a ``seed_from`` source shares ``while_on``, unseeded, no gate."""
+    keep = kept[key].keep
+    if keep.seed_from is None:
+        return None
+    source = kept[keep.seed_from].keep
+    is_gate = any(d.keep.while_on == keep.seed_from for d in kept.values())
+    if source.seed_from is not None or source.while_on != keep.while_on or is_gate:
+        return "seed_from source must share while_on"
+    return None
+
+
+# Order matters: the link rules index the targets the first ones resolved.
+_KEPT_RULES: tuple[
+    Callable[[str, Mapping[str, "RegisterDefinition"], set[str]], str | None], ...
+] = (
+    _is_writable,
+    _is_serializable,
+    _links_resolve,
+    _gate_is_a_root,
+    _seed_is_a_sibling,
+)
 
 
 @dataclass
