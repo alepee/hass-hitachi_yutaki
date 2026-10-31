@@ -1,8 +1,9 @@
 name: Validate
 
+# PRs and main reach these jobs through ci.yml, only when they touch the
+# integration; the nightly run catches upstream changes to HACS and hassfest.
 on:
-  pull_request:
-    branches: [main]
+  workflow_call:
   schedule:
     - cron: "0 0 * * *"
   workflow_dispatch:
