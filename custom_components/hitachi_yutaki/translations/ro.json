@@ -896,9 +896,9 @@
         }
       }
     },
-    "room_regulation_restore_failed": {
-      "title": "Reglarea camerei nu a putut fi restabilită",
-      "description": "De obicei după o întrerupere a alimentării gateway-ului sau a controlerului, pompa de căldură a uitat starea comutatorului Senzor extern de cameră sau temperatura dorită a camerei pentru circuitul/circuitele {circuits}. Integrarea a rescris de mai multe ori ultima valoare cunoscută, dar pompa de căldură nu a păstrat-o, așa că este posibil să nu mai regleze după temperatura camerei.\n\n**Pentru rezolvare:** reporniți comutatorul Senzor extern de cameră și setați din nou temperatura dorită a camerei din pagina dispozitivului circuitului sau de pe controler. Notificarea dispare de la sine odată ce ambele valori sunt corecte."
+    "kept_values_restore_failed": {
+      "title": "Setările pierdute la repornire nu au putut fi restabilite",
+      "description": "De obicei după o întrerupere a alimentării, gateway-ul sau controlerul a uitat unele setări la repornire, de exemplu comutatorul Senzor extern de cameră sau temperatura dorită a camerei pentru un circuit. Integrarea a rescris de mai multe ori ultimele valori cunoscute, dar pompa de căldură nu le-a păstrat, așa că este posibil să nu mai regleze conform configurației.\n\n**Pentru rezolvare:** verificați comutatorul Senzor extern de cameră și temperatura dorită a camerei pentru circuite, din paginile dispozitivelor sau de pe controler, și setați-le din nou. Notificarea dispare de la sine odată ce sunt corecte."
     },
     "external_room_sensor_notice": {
       "title": "Niciun termostat de cameră pe pompa de căldură",

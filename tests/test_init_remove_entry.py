@@ -214,14 +214,14 @@ async def test_kept_values_store_and_issue_deleted(
     entry = _make_entry()
     key = f"{DOMAIN}_kept_values_{entry.entry_id}"
     await Store(hass, 1, key).async_save({"circuit1_thermostat": 1})
-    issue_id = f"room_regulation_restore_failed_{entry.entry_id}"
+    issue_id = f"kept_values_restore_failed_{entry.entry_id}"
     ir.async_create_issue(
         hass,
         DOMAIN,
         issue_id,
         is_fixable=False,
         severity=IssueSeverity.WARNING,
-        translation_key="room_regulation_restore_failed",
+        translation_key="kept_values_restore_failed",
     )
 
     await async_remove_entry(hass, entry)

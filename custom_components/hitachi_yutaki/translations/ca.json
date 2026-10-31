@@ -876,9 +876,9 @@
         }
       }
     },
-    "room_regulation_restore_failed": {
-      "title": "No s'ha pogut restablir la regulació ambiental",
-      "description": "Normalment després d'un tall de corrent de la passarel·la o del controlador, la bomba de calor ha oblidat l'estat de l'interruptor Sensor ambient extern o la consigna ambiental del circuit o circuits {circuits}. La integració ha tornat a escriure l'últim valor conegut diverses vegades, però la bomba de calor no l'ha conservat, de manera que pot deixar de regular segons la temperatura de l'habitació.\n\n**Per resoldre-ho:** torneu a activar l'interruptor Sensor ambient extern i torneu a establir la consigna ambiental des de la pàgina del dispositiu del circuit o al controlador. L'avís desapareix sol quan tots dos valors són correctes."
+    "kept_values_restore_failed": {
+      "title": "No s'han pogut restablir els ajustos perduts en reiniciar",
+      "description": "Normalment després d'un tall de corrent, la passarel·la o el controlador ha oblidat alguns ajustos en reiniciar-se, per exemple l'interruptor Sensor ambient extern o la consigna ambiental d'un circuit. La integració ha tornat a escriure els últims valors coneguts diverses vegades, però la bomba de calor no els ha conservat, de manera que pot deixar de regular com està configurada.\n\n**Per resoldre-ho:** comproveu l'interruptor Sensor ambient extern i la consigna ambiental dels circuits, a les pàgines dels seus dispositius o al controlador, i torneu-los a establir. L'avís desapareix sol quan són correctes."
     },
     "external_room_sensor_notice": {
       "title": "Cap termòstat d'ambient a la bomba de calor",

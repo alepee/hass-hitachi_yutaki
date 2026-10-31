@@ -876,9 +876,9 @@
         }
       }
     },
-    "room_regulation_restore_failed": {
-      "title": "Room setting could not be restored",
-      "description": "The External room sensor switch or the room target of circuit(s) {circuits} was lost, usually after the gateway or the controller lost power. The integration wrote the last known value back several times, but the heat pump did not keep it, so it may not regulate on the room temperature.\n\n**To resolve this:** turn the External room sensor switch on and set the room target again on the circuit's device page or on the controller. The notice clears on its own once both read right."
+    "kept_values_restore_failed": {
+      "title": "Settings lost in a reboot could not be restored",
+      "description": "The gateway or the controller lost some settings in a reboot, usually a power cut, for example the External room sensor switch or the room target of a circuit. The integration wrote the last known values back several times, but the heat pump did not keep them, so it may not regulate as configured.\n\n**To resolve this:** check the circuits' External room sensor switch and room target, on their device pages or on the controller, and set them again. The notice clears on its own once they read right."
     },
     "external_room_sensor_notice": {
       "title": "No room thermostat on the heat pump",

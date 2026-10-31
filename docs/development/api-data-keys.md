@@ -153,30 +153,43 @@ class RegisterDefinition:
   gateway).
 - `fallback` — an alternative register tried when the primary returns `None`
   (e.g. sensor error `0xFFFF`).
-- `keep` — marks a value the hardware forgets on reboot (#511). The client
-  keeps a reference (the last value written, or the last reading that is not
-  lost) and writes it back when a successful read shows it lost: a reading of
-  0, or outside `Keep.valid_range`. `Keep.while_on` names a kept flag that
-  gates the value: it is only written back while that flag reads on, or is
-  written back in the same poll, and the flag is only raised once the values
-  it gates read right and are no longer pending (a flag whose gated value has
-  no reference stays down and is reported). A write-back is confirmed
-  through the pending-write shadow and abandoned after
-  `MAX_RESTORE_ATTEMPTS` (3), which `failed_restore_circuits()` reports until the value reads right or Home
-  Assistant writes it. `read_values` never writes: it only updates the
-  references and queues the lost values, and the coordinator calls
-  `restore_lost_values()` after a successful read. A read that fails, or
-  finds the gateway `initializing` or `desynchronized`, queues nothing. The
-  references go through the port (`kept_values()`,
-  `restore_kept_values()`, `take_kept_values_changed()`); the coordinator
-  persists them in a `Store` (`hitachi_yutaki_kept_values_{entry_id}`),
-  loaded before the first poll, and raises
-  `room_regulation_restore_failed_{entry_id}`. On the 2016 ATW-MBS-02 map the
-  kept values are the "Thermostat Available" flags (1010 / 1021) and the room
-  targets (1060 / 1072, 5.0-35.0 °C, gated by their circuit's flag). Before
-  a flag goes up, and after a target goes back with the flag on, a room value
-  that reads 0 is seeded with the target, as the switch does, so the unit
-  never regulates on 0 °C; a room value that survived the reboot is kept.
+- `keep` — marks a value the hardware forgets on reboot (#511). The restore
+  is mechanical: the client never interprets the value. It keeps a reference
+  (the last value written, or the last reading that is not lost) and, when a
+  successful read shows the value lost (a reading of 0, or outside
+  `Keep.valid_range`), writes the reference back raw, through the register's
+  `serializer`. Two declarative links order the restore, checked by
+  `validate_kept_registers` when the client starts:
+  - `Keep.while_on` names a kept value this one depends on (an enable flag).
+    The dependent is only written back while that value reads non-zero or is
+    lost too, and that value is only written back once all its dependents
+    read right and are confirmed. A CONTROL-only register reads back what was
+    written, so only its dependents, read from STATUS registers, prove the
+    unit applied anything: that is why it goes last.
+  - `Keep.seed_from` names a kept value to copy instead of a reference. It is
+    written right after its source, from the value just written back, and
+    has no reference of its own (nothing to persist).
+
+  A value lost with no reference while what it depends on is on, or a flag
+  whose dependents cannot be restored, is reported rather than written. A
+  write-back is confirmed through the pending-write shadow and abandoned
+  after `MAX_RESTORE_ATTEMPTS` (3); `restore_failed` stays true until the
+  value reads right or Home Assistant writes it. `read_values` never writes:
+  it updates the references and queues the lost values, and the coordinator
+  calls `restore_lost_values()` after each successful read (a no-op when
+  nothing was lost). A read that fails, or finds the gateway `initializing`
+  or `desynchronized`, queues nothing. The references go through the port
+  (`kept_values()`, `restore_kept_values()`, `take_kept_values_changed()`);
+  the coordinator persists them in a `Store`
+  (`hitachi_yutaki_kept_values_{entry_id}`), loaded before the first poll,
+  and raises the generic `kept_values_restore_failed_{entry_id}` issue.
+
+  On the 2016 ATW-MBS-02 map the kept values are, per circuit, the
+  "Thermostat Available" flag (1010 / 1021), the room target (1060 / 1072,
+  5.0-35.0 °C, `while_on` the flag) and the room value (1061 / 1073,
+  `while_on` the flag, `seed_from` the target): room equals target keeps the
+  unit idle until Home Assistant writes the real temperature, and a room
+  value that survived the reboot is not touched.
 
 ### CONTROL vs STATUS Registers
 

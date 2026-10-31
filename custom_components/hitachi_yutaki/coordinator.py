@@ -731,8 +731,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             await self._kept_values_store.async_save(self.api_client.kept_values())
 
     def _restore_failed_issue_id(self) -> str:
-        """Return the repair-issue id for a room setting that could not be restored."""
-        return f"room_regulation_restore_failed_{self.config_entry.entry_id}"
+        """Return the repair-issue id for settings a reboot took and that would not stick."""
+        return f"kept_values_restore_failed_{self.config_entry.entry_id}"
 
     def _update_kept_values(self) -> None:
         """Persist changed kept values and report the ones that would not stick."""
@@ -742,17 +742,14 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 api.kept_values, _KEPT_VALUES_SAVE_DELAY_S
             )
         issue_id = self._restore_failed_issue_id()
-        if failed := api.failed_restore_circuits():
+        if api.restore_failed:
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
                 issue_id,
                 is_fixable=False,
                 severity=ir.IssueSeverity.WARNING,
-                translation_key="room_regulation_restore_failed",
-                translation_placeholders={
-                    "circuits": ", ".join(str(cid) for cid in failed)
-                },
+                translation_key="kept_values_restore_failed",
             )
         else:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)

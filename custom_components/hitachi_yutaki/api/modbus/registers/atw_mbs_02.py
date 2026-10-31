@@ -213,6 +213,11 @@ def convert_from_tenths(value: int | None) -> float | None:
     return float(value) / 10.0
 
 
+def convert_to_tenths(value: float) -> int:
+    """Convert a decimal value to the tenths a register stores (22.5 → 225)."""
+    return round(value * 10)
+
+
 def convert_pressure(value: int | None) -> float | None:
     """Convert pressure value to bar.
 
@@ -313,9 +318,19 @@ REGISTER_SECONDARY_COMPRESSOR = {
     "secondary_compressor_retry_code": RegisterDefinition(1231),
 }
 
-# Documented range of the "Thermostat Setting Temperature" registers.
+# A gateway reboot clears the "Thermostat Available" flag, a controller board
+# reboot zeroes the room target and the room value (#511). The target goes
+# back to its documented range, the room value is seeded with the target (the
+# unit idles until the real one is written), then the flag is raised again.
+FLAG_KEEP = Keep(valid_range=(0, 1))
 ROOM_TARGET_KEEP = {
     cid: Keep(valid_range=(5.0, 35.0), while_on=f"circuit{cid}_thermostat")
+    for cid in (1, 2)
+}
+ROOM_VALUE_KEEP = {
+    cid: Keep(
+        while_on=f"circuit{cid}_thermostat", seed_from=f"circuit{cid}_target_temp"
+    )
     for cid in (1, 2)
 }
 
@@ -333,19 +348,22 @@ REGISTER_CIRCUIT_1 = {
     "circuit1_heat_eco_offset": RegisterDefinition(1058, write_address=1008),
     "circuit1_cool_eco_offset": RegisterDefinition(1059, write_address=1009),
     # 0xFFFF is a garbage read of the CONTROL register, not "enabled" (#404).
-    # A gateway reboot clears the flag, a controller board reboot zeroes the
-    # room target: both are written back (#511).
     "circuit1_thermostat": RegisterDefinition(
-        1010, sentinel_values=frozenset({0xFFFF}), keep=Keep()
+        1010, sentinel_values=frozenset({0xFFFF}), keep=FLAG_KEEP
     ),
     "circuit1_target_temp": RegisterDefinition(
         1060,
         deserializer=convert_from_tenths,
+        serializer=convert_to_tenths,
         write_address=1011,
         keep=ROOM_TARGET_KEEP[1],
     ),
     "circuit1_current_temp": RegisterDefinition(
-        1061, deserializer=convert_from_tenths, write_address=1012
+        1061,
+        deserializer=convert_from_tenths,
+        serializer=convert_to_tenths,
+        write_address=1012,
+        keep=ROOM_VALUE_KEEP[1],
     ),
 }
 
@@ -363,16 +381,21 @@ REGISTER_CIRCUIT_2 = {
     "circuit2_heat_eco_offset": RegisterDefinition(1070, write_address=1019),
     "circuit2_cool_eco_offset": RegisterDefinition(1071, write_address=1020),
     "circuit2_thermostat": RegisterDefinition(
-        1021, sentinel_values=frozenset({0xFFFF}), keep=Keep()
+        1021, sentinel_values=frozenset({0xFFFF}), keep=FLAG_KEEP
     ),
     "circuit2_target_temp": RegisterDefinition(
         1072,
         deserializer=convert_from_tenths,
+        serializer=convert_to_tenths,
         write_address=1022,
         keep=ROOM_TARGET_KEEP[2],
     ),
     "circuit2_current_temp": RegisterDefinition(
-        1073, deserializer=convert_from_tenths, write_address=1023
+        1073,
+        deserializer=convert_from_tenths,
+        serializer=convert_to_tenths,
+        write_address=1023,
+        keep=ROOM_VALUE_KEEP[2],
     ),
 }
 

@@ -52,7 +52,7 @@ def mock_api_client():
     client.base_keys = ["system_state"]
     client.is_defrosting = False
     client.take_kept_values_changed.return_value = False
-    client.failed_restore_circuits.return_value = []
+    client.restore_failed = False
     client.restore_lost_values = AsyncMock()
     return client
 
@@ -783,15 +783,15 @@ def test_unchanged_kept_values_are_not_saved(coordinator, mock_api_client):
 
 
 def test_failed_restore_raises_one_issue(coordinator, mock_api_client):
-    """Circuits whose setting would not stick are listed in a single issue."""
+    """Settings that would not stick raise a single, generic issue."""
     _set_entry_id(coordinator)
-    mock_api_client.failed_restore_circuits.return_value = [1, 2]
+    mock_api_client.restore_failed = True
     with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
         coordinator._update_kept_values()
 
     call = ir_mock.async_create_issue.call_args
-    assert call.args[2] == "room_regulation_restore_failed_entry"
-    assert call.kwargs["translation_placeholders"] == {"circuits": "1, 2"}
+    assert call.args[2] == "kept_values_restore_failed_entry"
+    assert call.kwargs["translation_key"] == "kept_values_restore_failed"
 
 
 def test_restore_issue_cleared_once_settings_read_right(coordinator, mock_api_client):
@@ -802,7 +802,7 @@ def test_restore_issue_cleared_once_settings_read_right(coordinator, mock_api_cl
 
     ir_mock.async_create_issue.assert_not_called()
     ir_mock.async_delete_issue.assert_called_once_with(
-        coordinator.hass, DOMAIN, "room_regulation_restore_failed_entry"
+        coordinator.hass, DOMAIN, "kept_values_restore_failed_entry"
     )
 
 

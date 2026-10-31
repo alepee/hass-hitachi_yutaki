@@ -896,9 +896,9 @@
         }
       }
     },
-    "room_regulation_restore_failed": {
-      "title": "Régulation ambiante non rétablie",
-      "description": "En général après une coupure de courant de la passerelle ou du contrôleur, la pompe à chaleur a oublié l'état de l'interrupteur Capteur ambiant externe ou la consigne ambiante du ou des circuits {circuits}. L'intégration a réécrit plusieurs fois la dernière valeur connue, mais la pompe à chaleur ne l'a pas gardée : elle risque de ne plus réguler sur la température de la pièce.\n\n**Pour résoudre :** réactivez l'interrupteur Capteur ambiant externe et réglez de nouveau la consigne ambiante depuis la page de l'appareil du circuit ou sur le contrôleur. L'avis disparaît de lui-même dès que les deux valeurs sont correctes."
+    "kept_values_restore_failed": {
+      "title": "Réglages perdus au redémarrage non rétablis",
+      "description": "En général après une coupure de courant, la passerelle ou le contrôleur a oublié certains réglages au redémarrage, par exemple l'interrupteur Capteur ambiant externe ou la consigne ambiante d'un circuit. L'intégration a réécrit plusieurs fois les dernières valeurs connues, mais la pompe à chaleur ne les a pas gardées : elle risque de ne plus réguler comme configuré.\n\n**Pour résoudre :** vérifiez l'interrupteur Capteur ambiant externe et la consigne ambiante des circuits, depuis leurs pages d'appareil ou sur le contrôleur, et réglez-les de nouveau. L'avis disparaît de lui-même dès qu'ils sont corrects."
     },
     "external_room_sensor_notice": {
       "title": "Aucun thermostat d'ambiance sur la PAC",

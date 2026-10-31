@@ -396,9 +396,10 @@ class HitachiApiClient(ABC):
         """Return True once after a reference changed and needs saving."""
         return False
 
-    def failed_restore_circuits(self) -> list[int]:
-        """Return the circuits with a value that could not be written back."""
-        return []
+    @property
+    def restore_failed(self) -> bool:
+        """Return True while a value lost in a reboot could not be written back."""
+        return False
 
     @abstractmethod
     def get_circuit_otc_method_heating(self, circuit_id: CIRCUIT_IDS) -> int | None:

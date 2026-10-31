@@ -22,15 +22,56 @@ OUTDOOR_LINK_ALARMS = frozenset({"alarm_code_3"})
 
 @dataclass(frozen=True)
 class Keep:
-    """A written value the hardware forgets on reboot, written back by the client.
+    """A written value the hardware forgets on reboot, put back by the client.
 
-    A reading of 0 or outside ``valid_range`` is a lost value. ``while_on``
-    names a kept flag: the value is only written back while that flag reads
-    on, or is written back in the same poll.
+    The restore is mechanical: the client never interprets the value. A
+    reading of 0, or outside ``valid_range``, is a lost value, written back
+    to its reference (the last value written, or the last reading that was
+    not lost) once a successful read has seen it lost.
+
+    ``while_on`` names a kept value this one depends on (e.g. an enable
+    flag): it is only written back while that value reads non-zero, or is
+    being written back too, and that value is only written back once all of
+    its dependents read right and are confirmed. A CONTROL-only register
+    reads back what was written, so only its dependents, read from STATUS
+    registers, prove the unit applied anything: that is why it goes last.
+
+    ``seed_from`` names another kept value to copy instead of a reference
+    (e.g. a room value seeded with the target, which keeps the unit idle
+    until the real one is written). It is written right after its source,
+    from the value just written back.
     """
 
     valid_range: tuple[float, float] | None = None
     while_on: str | None = None
+    seed_from: str | None = None
+
+
+def validate_kept_registers(registers: dict[str, "RegisterDefinition"]) -> None:
+    """Check the ``Keep`` declarations of a register map, raising ValueError.
+
+    ``while_on`` and ``seed_from`` must name another kept register; a ``while_on`` target depends on nothing, and a ``seed_from``
+    source shares the same ``while_on`` and is not seeded itself. That keeps
+    the restore order a fixed three steps, with no cycle.
+    """
+    for key, definition in registers.items():
+        keep = definition.keep
+        if keep is None:
+            continue
+        for name, ref in (("while_on", keep.while_on), ("seed_from", keep.seed_from)):
+            if ref is None:
+                continue
+            target = registers.get(ref)
+            if ref == key or target is None or target.keep is None:
+                raise ValueError(f"{key}: {name} must name another kept register")
+        if keep.while_on is not None:
+            gate = registers[keep.while_on].keep
+            if gate.while_on is not None or gate.seed_from is not None:
+                raise ValueError(f"{key}: while_on target must depend on nothing")
+        if keep.seed_from is not None:
+            source = registers[keep.seed_from].keep
+            if source.seed_from is not None or source.while_on != keep.while_on:
+                raise ValueError(f"{key}: seed_from source must share while_on")
 
 
 @dataclass
@@ -50,7 +91,8 @@ class RegisterDefinition:
             absent sensor, -67 for unavailable module). When a read returns one
             of these values, the gateway returns None instead.
         keep: Set when the hardware forgets the value on reboot: the client
-            writes the last known value back (see :class:`Keep`).
+            writes it back mechanically (see :class:`Keep`). Needs a
+            ``serializer`` when the deserialized value is not the raw one.
 
     """
 
