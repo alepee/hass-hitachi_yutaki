@@ -139,7 +139,7 @@
             },
             "data_description": {
               "refrigerant_detection": "Detectarea timpurie a unei pierderi lente de agent frigorific, pe baza supraîncălzirii de pe conducta de gaz și a derivei ventilului de expansiune. Necesită aproximativ două săptămâni de încălzire pentru a învăța comportamentul normal al instalației. Doar orientativ: nu înlocuiește inspecția obligatorie de etanșeitate F-Gas.",
-              "cycling_detection": "Detectează un compresor care pornește și se oprește prea des în regim de încălzire, ceea ce îl uzează și scade randamentul. De obicei indică o unitate supradimensionată, un volum tampon insuficient sau o curbă de încălzire setată prea sus. Necesită trei zile de încălzire pentru un verdict."
+              "cycling_detection": "Detectează un compresor care pornește și se oprește prea des în regim de încălzire, ceea ce îl uzează și scade randamentul. De obicei indică o curbă de încălzire setată prea sus, prea puține corpuri de încălzire deschise, un volum tampon insuficient sau o unitate supradimensionată. Necesită trei zile de încălzire pentru un verdict."
             }
           }
         }
@@ -253,7 +253,7 @@
             },
             "data_description": {
               "refrigerant_detection": "Detectarea timpurie a unei pierderi lente de agent frigorific, pe baza supraîncălzirii de pe conducta de gaz și a derivei ventilului de expansiune. Necesită aproximativ două săptămâni de încălzire pentru a învăța comportamentul normal al instalației. Doar orientativ: nu înlocuiește inspecția obligatorie de etanșeitate F-Gas.",
-              "cycling_detection": "Detectează un compresor care pornește și se oprește prea des în regim de încălzire, ceea ce îl uzează și scade randamentul. De obicei indică o unitate supradimensionată, un volum tampon insuficient sau o curbă de încălzire setată prea sus. Necesită trei zile de încălzire pentru un verdict."
+              "cycling_detection": "Detectează un compresor care pornește și se oprește prea des în regim de încălzire, ceea ce îl uzează și scade randamentul. De obicei indică o curbă de încălzire setată prea sus, prea puține corpuri de încălzire deschise, un volum tampon insuficient sau o unitate supradimensionată. Necesită trei zile de încălzire pentru un verdict."
             }
           }
         }
@@ -939,7 +939,7 @@
     },
     "compressor_short_cycling": {
       "title": "Compresorul funcționează în cicluri scurte",
-      "description": "🧪 Detector în beta. Compresorul dumneavoastră pornește și se oprește neobișnuit de des în regim de încălzire de câteva zile: prea multe porniri pe oră, combinate cu o perioadă de ciclu sub {period} minute.\n\nCiclurile scurte uzează compresorul și scad randamentul sezonier. Cauzele obișnuite, în ordinea descrescătoare a probabilității:\n\n- **O curbă de încălzire setată prea sus.** Cu cât curba este mai abruptă, cu atât instalația ciclează mai mult: este cea mai puternică corelație măsurată. Scăderea temperaturii pe tur este primul lucru de încercat și nu costă nimic.\n- **Volum tampon insuficient** pentru puterea minimă a unității.\n- **O unitate supradimensionată** față de necesarul real. Unitățile care ciclează funcționează de obicei deja la frecvența minimă a compresorului, deci nu mai există marjă de modulare.\n\nAcest mesaj este orientativ: integrarea nu poate distinge singură între aceste cauze. Alerta dispare de la sine imediat ce ciclurile scurte încetează."
+      "description": "🧪 Detector în beta. Compresorul dumneavoastră pornește și se oprește neobișnuit de des în regim de încălzire de câteva zile: prea multe porniri pe oră, combinate cu o perioadă de ciclu sub {period} minute.\n\nCiclurile scurte uzează compresorul și scad randamentul sezonier. Aproape întotdeauna înseamnă că circuitul de încălzire nu poate absorbi puterea minimă a unității: apa își atinge consemnul, compresorul se oprește, apoi repornește după câteva minute. Cauzele obișnuite:\n\n- **O curbă de încălzire setată prea sus.** O apă mai caldă decât are nevoie casa își atinge consemnul mai repede, iar camerele supraîncălzite își închid robinetele termostatice. Scăderea temperaturii pe tur este primul lucru de încercat și nu costă nimic.\n- **Prea puține corpuri de încălzire deschise.** Când robinetele termostatice sau vanele de zonă se închid, unitatea mai încălzește doar o mică parte din circuit. Păstrarea unor corpuri de încălzire mereu deschise, de obicei în spațiile de zi, îi oferă o sarcină pe care se poate baza.\n- **Volum tampon insuficient** pentru puterea minimă a unității.\n- **O unitate supradimensionată** față de necesarul real. Unitățile care ciclează funcționează de obicei deja la frecvența minimă a compresorului, deci nu mai există marjă de modulare.\n\nAcest mesaj este orientativ: integrarea nu poate distinge singură între aceste cauze. Alerta dispare de la sine imediat ce ciclurile scurte încetează."
     }
   }
 }

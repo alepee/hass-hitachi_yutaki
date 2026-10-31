@@ -139,7 +139,7 @@
             },
             "data_description": {
               "refrigerant_detection": "Détection précoce d'une perte lente de charge en fluide frigorigène, à partir de la surchauffe de la ligne gaz et de la dérive du détendeur. Nécessite environ deux semaines de chauffage pour apprendre le comportement normal de votre installation. Indicatif uniquement : cela ne remplace pas le contrôle d'étanchéité F-Gas obligatoire.",
-              "cycling_detection": "Détecte un compresseur qui démarre et s'arrête trop souvent en chauffage, ce qui l'use et coûte en rendement. Traduit généralement une machine surdimensionnée, un volume tampon insuffisant, ou une loi d'eau réglée trop haut. Nécessite trois jours de chauffage pour rendre un verdict."
+              "cycling_detection": "Détecte un compresseur qui démarre et s'arrête trop souvent en chauffage, ce qui l'use et coûte en rendement. Traduit généralement une loi d'eau réglée trop haut, trop peu d'émetteurs ouverts, un volume tampon insuffisant, ou une machine surdimensionnée. Nécessite trois jours de chauffage pour rendre un verdict."
             }
           }
         }
@@ -253,7 +253,7 @@
             },
             "data_description": {
               "refrigerant_detection": "Détection précoce d'une perte lente de charge en fluide frigorigène, à partir de la surchauffe de la ligne gaz et de la dérive du détendeur. Nécessite environ deux semaines de chauffage pour apprendre le comportement normal de votre installation. Indicatif uniquement : cela ne remplace pas le contrôle d'étanchéité F-Gas obligatoire.",
-              "cycling_detection": "Détecte un compresseur qui démarre et s'arrête trop souvent en chauffage, ce qui l'use et coûte en rendement. Traduit généralement une machine surdimensionnée, un volume tampon insuffisant, ou une loi d'eau réglée trop haut. Nécessite trois jours de chauffage pour rendre un verdict."
+              "cycling_detection": "Détecte un compresseur qui démarre et s'arrête trop souvent en chauffage, ce qui l'use et coûte en rendement. Traduit généralement une loi d'eau réglée trop haut, trop peu d'émetteurs ouverts, un volume tampon insuffisant, ou une machine surdimensionnée. Nécessite trois jours de chauffage pour rendre un verdict."
             }
           }
         }
@@ -939,7 +939,7 @@
     },
     "compressor_short_cycling": {
       "title": "Le compresseur fait des cycles courts",
-      "description": "🧪 Détecteur en bêta. Votre compresseur démarre et s'arrête anormalement souvent en chauffage depuis plusieurs jours : trop de démarrages par heure, combinés à une période de cycle inférieure à {period} minutes.\n\nLes cycles courts usent le compresseur et dégradent le rendement saisonnier. Les causes habituelles, par ordre de probabilité décroissante sur le parc :\n\n- **Une loi d'eau réglée trop haut.** Plus la loi est raide, plus l'installation cycle : c'est la corrélation la plus forte mesurée sur le parc. Abaisser votre température de départ est la première chose à essayer, et cela ne coûte rien.\n- **Un volume tampon insuffisant** pour la puissance minimale de la machine.\n- **Une machine surdimensionnée** par rapport au besoin réel. Les unités qui cyclent sont en général déjà calées sur leur fréquence compresseur minimale, il ne reste donc aucune marge de modulation à récupérer.\n\nCeci est indicatif : l'intégration ne peut pas distinguer ces causes seule. L'alerte disparaît d'elle-même dès que les cycles courts cessent."
+      "description": "🧪 Détecteur en bêta. Votre compresseur démarre et s'arrête anormalement souvent en chauffage depuis plusieurs jours : trop de démarrages par heure, combinés à une période de cycle inférieure à {period} minutes.\n\nLes cycles courts usent le compresseur et dégradent le rendement saisonnier. Ils signifient presque toujours que le circuit de chauffage ne peut pas absorber la puissance minimale de la machine : l'eau atteint sa consigne, le compresseur s'arrête, puis redémarre quelques minutes plus tard. Les causes habituelles :\n\n- **Une loi d'eau réglée trop haut.** Une eau plus chaude que ce dont la maison a besoin atteint sa consigne plus vite, et les pièces qui surchauffent ferment leurs robinets thermostatiques. Abaisser votre température de départ est la première chose à essayer, et cela ne coûte rien.\n- **Trop peu d'émetteurs ouverts.** Quand les robinets thermostatiques ou les vannes de zone se ferment, la machine ne chauffe plus qu'une petite partie du circuit. Garder certains émetteurs toujours ouverts, typiquement dans les pièces de vie, lui assure une charge sur laquelle compter.\n- **Un volume tampon insuffisant** pour la puissance minimale de la machine.\n- **Une machine surdimensionnée** par rapport au besoin réel. Les unités qui cyclent sont en général déjà calées sur leur fréquence compresseur minimale, il ne reste donc aucune marge de modulation à récupérer.\n\nCeci est indicatif : l'intégration ne peut pas distinguer ces causes seule. L'alerte disparaît d'elle-même dès que les cycles courts cessent."
     }
   }
 }
