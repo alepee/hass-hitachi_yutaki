@@ -73,19 +73,25 @@ class KeptValues:
     def load(self, values: Mapping[str, Any]) -> None:
         """Load persisted references, skipping anything not trustworthy."""
         for key, value in values.items():
-            keep = self._keeps.get(key)
-            if (
-                keep is None
-                or keep.seed_from is not None
-                or isinstance(value, bool)
-                or not isinstance(value, int | float)
-                or (self._registers[key].deserializer is None and value != int(value))
-            ):
-                continue
-            if keep.valid_range is None or (
-                keep.valid_range[0] <= value <= keep.valid_range[1]
-            ):
+            if self._is_loadable(key, value):
                 self._references[key] = value
+
+    def _is_loadable(self, key: str, value: Any) -> bool:
+        """Return True for a persisted reference that can be trusted.
+
+        A known, kept, unseeded key; a number (not a bool), whole for a raw
+        register; inside ``valid_range`` when there is one.
+        """
+        keep = self._keeps.get(key)
+        if keep is None or keep.seed_from is not None:
+            return False
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            return False
+        if self._registers[key].deserializer is None and value != int(value):
+            return False
+        return keep.valid_range is None or (
+            keep.valid_range[0] <= value <= keep.valid_range[1]
+        )
 
     def listen(self, listener: Callable[[], None]) -> None:
         """Call ``listener`` whenever a reference changes."""
@@ -163,23 +169,42 @@ class KeptValues:
         pending: Collection[str],
     ) -> Any:
         """Return the value to write ``key`` back with now, or None to wait."""
-        gate = self._keeps[key].while_on
-        if gate is not None and not (gate in lost or data.get(gate)):
-            self._settle(key)
+        if self._gate_is_off(key, lost, data):
+            self._settle(key)  # The unit ignores the value while its gate is off.
             return None
         value = self._value_for(key, lost, data)
         if key in self._failed or value is None:
             return None
-        blockers = [k for k in self._before[key] if not self._settled(k, data, pending)]
-        if any(k not in data for k in blockers):
+        if self._must_wait(key, lost, data, pending):
             return None
-        if blockers:
+        return value if self._take_attempt(key, data) else None
+
+    def _gate_is_off(
+        self, key: str, lost: Mapping[str, Any], data: Mapping[str, Any]
+    ) -> bool:
+        """Return True when the ``while_on`` of ``key`` is off and not coming back."""
+        gate = self._keeps[key].while_on
+        return gate is not None and not (gate in lost or data.get(gate))
+
+    def _must_wait(
+        self,
+        key: str,
+        lost: Mapping[str, Any],
+        data: Mapping[str, Any],
+        pending: Collection[str],
+    ) -> bool:
+        """Return True while a value that must go before ``key`` is not settled.
+
+        An unread prerequisite has an unknown state: wait without a word. One
+        that cannot be restored either makes ``key`` unrestorable.
+        """
+        blockers = [k for k in self._before[key] if not self._settled(k, data, pending)]
+        if blockers and all(k in data for k in blockers):
             if not any(self._restorable(k, lost, data, pending) for k in blockers):
                 self._mark_unrestorable(
                     key, "%s cannot be written back before %s", key, ", ".join(blockers)
                 )
-            return None
-        return value if self._take_attempt(key, data) else None
+        return bool(blockers)
 
     def _value_for(
         self, key: str, lost: Mapping[str, Any], data: Mapping[str, Any]
