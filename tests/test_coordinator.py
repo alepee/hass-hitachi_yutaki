@@ -758,18 +758,6 @@ def test_room_notice_untouched_when_a_register_was_not_read(
 # --- Room settings written back after a reboot (#511) ---
 
 
-def test_reference_change_schedules_a_save(coordinator, mock_api_client):
-    """The listener registered with the client saves the kept values shortly."""
-    _set_entry_id(coordinator)
-    coordinator._kept_values_store = MagicMock()
-
-    coordinator._schedule_kept_values_save()
-
-    save = coordinator._kept_values_store.async_delay_save
-    save.assert_called_once()
-    assert save.call_args.args[0] is mock_api_client.kept_values
-
-
 def test_failed_restore_raises_one_issue(coordinator, mock_api_client):
     """Settings that would not stick raise a single, generic issue."""
     _set_entry_id(coordinator)
@@ -811,8 +799,8 @@ def test_restore_issue_cleared_once_settings_read_right(coordinator, mock_api_cl
 
 
 @pytest.mark.asyncio
-async def test_kept_values_loaded_into_the_client(coordinator, mock_api_client):
-    """Persisted references reach the client before the first poll."""
+async def test_kept_values_loaded_and_saved_on_change(coordinator, mock_api_client):
+    """Persisted references reach the client, and changed ones are saved back."""
     _set_entry_id(coordinator)
     stored = {"circuit1_thermostat": 1, "circuit1_target_temp": 22.0}
     with patch("custom_components.hitachi_yutaki.coordinator.Store") as store_cls:
@@ -820,9 +808,14 @@ async def test_kept_values_loaded_into_the_client(coordinator, mock_api_client):
         await coordinator.async_restore_kept_values()
 
     mock_api_client.restore_kept_values.assert_called_once_with(stored)
-    mock_api_client.listen_kept_values.assert_called_once_with(
-        coordinator._schedule_kept_values_save
-    )
+
+    # A reference changed in the client (e.g. switch turned off from HA) is
+    # saved shortly, through the listener the coordinator handed over.
+    (listener,) = mock_api_client.listen_kept_values.call_args.args
+    listener()
+    save = store_cls.return_value.async_delay_save
+    save.assert_called_once()
+    assert save.call_args.args[0] is mock_api_client.kept_values
 
 
 @pytest.mark.asyncio
