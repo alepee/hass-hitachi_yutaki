@@ -137,7 +137,7 @@
             },
             "data_description": {
               "refrigerant_detection": "Detecció precoç d'una pèrdua lenta de càrrega de refrigerant, a partir del sobreescalfament de la línia de gas i de la deriva de la vàlvula d'expansió. Necessita unes dues setmanes de calefacció per aprendre el comportament normal de la vostra instal·lació. Només és orientatiu: no substitueix el control d'estanquitat F-Gas obligatori.",
-              "cycling_detection": "Detecta un compressor que s'engega i s'atura massa sovint en calefacció, cosa que el desgasta i en redueix l'eficiència. Normalment indica una unitat sobredimensionada, un volum d'inèrcia insuficient o una corba de calefacció massa alta. Necessita tres dies de calefacció per emetre un veredicte."
+              "cycling_detection": "Detecta un compressor que s'engega i s'atura massa sovint en calefacció, cosa que el desgasta i en redueix l'eficiència. Normalment indica una corba de calefacció massa alta, massa pocs emissors oberts, un volum d'inèrcia insuficient o una unitat sobredimensionada. Necessita tres dies de calefacció per emetre un veredicte."
             }
           }
         }
@@ -251,7 +251,7 @@
             },
             "data_description": {
               "refrigerant_detection": "Detecció precoç d'una pèrdua lenta de càrrega de refrigerant, a partir del sobreescalfament de la línia de gas i de la deriva de la vàlvula d'expansió. Necessita unes dues setmanes de calefacció per aprendre el comportament normal de la vostra instal·lació. Només és orientatiu: no substitueix el control d'estanquitat F-Gas obligatori.",
-              "cycling_detection": "Detecta un compressor que s'engega i s'atura massa sovint en calefacció, cosa que el desgasta i en redueix l'eficiència. Normalment indica una unitat sobredimensionada, un volum d'inèrcia insuficient o una corba de calefacció massa alta. Necessita tres dies de calefacció per emetre un veredicte."
+              "cycling_detection": "Detecta un compressor que s'engega i s'atura massa sovint en calefacció, cosa que el desgasta i en redueix l'eficiència. Normalment indica una corba de calefacció massa alta, massa pocs emissors oberts, un volum d'inèrcia insuficient o una unitat sobredimensionada. Necessita tres dies de calefacció per emetre un veredicte."
             }
           }
         }
@@ -947,7 +947,7 @@
     },
     "compressor_short_cycling": {
       "title": "El compressor fa cicles curts",
-      "description": "🧪 Detector en fase beta. Fa diversos dies que el vostre compressor s'engega i s'atura amb una freqüència anormal en calefacció: massa arrencades per hora, combinades amb un període de cicle inferior a {period} minuts.\n\nEls cicles curts desgasten el compressor i redueixen l'eficiència estacional. Les causes habituals, en ordre de probabilitat decreixent en aquest parc:\n\n- **Una corba de calefacció massa alta.** Com més pronunciada és la corba, més cicles fa la instal·lació: és la correlació més forta mesurada en tot el parc. Baixar la temperatura d'impulsió és el primer que cal provar, i no costa res.\n- **Un volum d'inèrcia massa petit** per a la potència mínima de la unitat.\n- **Una unitat sobredimensionada** per a la demanda real de calor. Les unitats que fan cicles curts normalment ja funcionen a la freqüència mínima del compressor, de manera que no els queda marge de modulació per recuperar.\n\nAixò és orientatiu: la integració no pot distingir aquestes causes per si sola. L'alerta desapareix sola quan s'aturen els cicles curts."
+      "description": "🧪 Detector en fase beta. Fa diversos dies que el vostre compressor s'engega i s'atura amb una freqüència anormal en calefacció: massa arrencades per hora, combinades amb un període de cicle inferior a {period} minuts.\n\nEls cicles curts desgasten el compressor i redueixen l'eficiència estacional. Gairebé sempre volen dir que el circuit de calefacció no pot absorbir la potència mínima de la unitat: l'aigua arriba a la consigna, el compressor s'atura i torna a arrencar uns minuts després. Les causes habituals:\n\n- **Una corba de calefacció massa alta.** Una aigua més calenta del que la casa necessita arriba abans a la consigna, i les estances que s'escalfen massa tanquen les seves vàlvules termostàtiques. Baixar la temperatura d'impulsió és el primer que cal provar, i no costa res.\n- **Massa pocs emissors oberts.** Quan les vàlvules termostàtiques o les vàlvules de zona es tanquen, la unitat només escalfa una petita part del circuit. Mantenir alguns emissors sempre oberts, normalment a les zones de dia, li dona una càrrega amb què pot comptar.\n- **Un volum d'inèrcia massa petit** per a la potència mínima de la unitat.\n- **Una unitat sobredimensionada** per a la demanda real de calor. Les unitats que fan cicles curts normalment ja funcionen a la freqüència mínima del compressor, de manera que no els queda marge de modulació per recuperar.\n\nAixò és orientatiu: la integració no pot distingir aquestes causes per si sola. L'alerta desapareix sola quan s'aturen els cicles curts."
     }
   }
 }

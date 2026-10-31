@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - **Three diagnostics from registers the gateways already document.** A `Central Control Mode` ENUM sensor on the Gateway device (local / air / water / full, the LCD's central mode: in `local` the unit ignores Modbus writes), read from ATW-MBS-02 `1088` (Before Line-up 2016 `1073`) and, new on that map, HC-A(16/64)MB offset `139`. A `Mixing Valve Position` sensor on the Circuit 2 device ("MVP" register, ATW-MBS-02 `1216` / Before Line-up 2016 `1215` / HC-A(16/64)MB offset `160`), disabled by default: the gateway reports `0` rather than a sentinel when no mixing kit is fitted, so its presence cannot be detected and owners of a kit enable the sensor themselves. Two Yutaki S80 sensors for values the integration already polled but never showed, both disabled by default: `Secondary Compressor Expansion Valve Opening` and `Secondary Compressor Retry Code`. New read-only data key `circuit2_mixing_valve_position`.
 
+### Changed
+- The **compressor short-cycling** repair issue explains what short cycling almost always means (the heating circuit cannot absorb the unit's minimum output) and lists **too few open emitters** (thermostatic radiator valves or zone valves that close) as a cause. The heating curve stays the first thing to try but is no longer presented as the strongest correlation measured on the fleet, which a corrected analysis did not confirm.
+
 ## [2.3.0] - 2026-10-28
 
 ### Added

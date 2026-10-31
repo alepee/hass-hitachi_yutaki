@@ -137,7 +137,7 @@
             },
             "data_description": {
               "refrigerant_detection": "Early detection of a slow refrigerant charge loss, from gas-line superheat and expansion-valve drift. Needs about two weeks of heating to learn your installation's normal behaviour. Advisory only: it does not replace the mandatory F-Gas leak-tightness inspection.",
-              "cycling_detection": "Detects a compressor that starts and stops too often in space heating, which wears it out and costs efficiency. Usually points at an oversized unit, a missing buffer volume, or a heating curve set too high. Needs three days of heating to reach a verdict."
+              "cycling_detection": "Detects a compressor that starts and stops too often in space heating, which wears it out and costs efficiency. Usually points at a heating curve set too high, too few open emitters, a missing buffer volume, or an oversized unit. Needs three days of heating to reach a verdict."
             }
           }
         }
@@ -251,7 +251,7 @@
             },
             "data_description": {
               "refrigerant_detection": "Early detection of a slow refrigerant charge loss, from gas-line superheat and expansion-valve drift. Needs about two weeks of heating to learn your installation's normal behaviour. Advisory only: it does not replace the mandatory F-Gas leak-tightness inspection.",
-              "cycling_detection": "Detects a compressor that starts and stops too often in space heating, which wears it out and costs efficiency. Usually points at an oversized unit, a missing buffer volume, or a heating curve set too high. Needs three days of heating to reach a verdict."
+              "cycling_detection": "Detects a compressor that starts and stops too often in space heating, which wears it out and costs efficiency. Usually points at a heating curve set too high, too few open emitters, a missing buffer volume, or an oversized unit. Needs three days of heating to reach a verdict."
             }
           }
         }
@@ -947,7 +947,7 @@
     },
     "compressor_short_cycling": {
       "title": "Compressor is short cycling",
-      "description": "🧪 Beta detector. Your compressor has been starting and stopping unusually often in space heating for several days: too many starts per hour combined with a cycle period under {period} minutes.\n\nShort cycling wears the compressor and costs seasonal efficiency. The usual causes, in decreasing order of likelihood on this fleet:\n\n- **A heating curve set too high.** The steeper the curve, the more the installation cycles: this is the strongest correlation measured across the fleet. Lowering your flow temperature is the first thing to try, and it costs nothing.\n- **Too little buffer volume** for the unit's minimum output.\n- **An oversized unit** for the actual heat demand. Units that cycle are typically already pinned at their minimum compressor frequency, so there is no modulation margin left to recover.\n\nThis is advisory: the integration cannot tell these apart on its own. The alert clears by itself once the cycling stops."
+      "description": "🧪 Beta detector. Your compressor has been starting and stopping unusually often in space heating for several days: too many starts per hour combined with a cycle period under {period} minutes.\n\nShort cycling wears the compressor and costs seasonal efficiency. It almost always means the heating circuit cannot absorb the unit's minimum output: the water reaches its target, the compressor stops, and it starts again a few minutes later. The usual causes:\n\n- **A heating curve set too high.** Water hotter than the house needs reaches its target sooner, and rooms that overheat close their thermostatic valves. Lowering your flow temperature is the first thing to try, and it costs nothing.\n- **Too few open emitters.** When thermostatic radiator valves or zone valves close, the unit only heats a small part of the circuit. Keeping some emitters always open, typically in the living areas, gives the unit a load it can rely on.\n- **Too little buffer volume** for the unit's minimum output.\n- **An oversized unit** for the actual heat demand. Units that cycle are typically already pinned at their minimum compressor frequency, so there is no modulation margin left to recover.\n\nThis is advisory: the integration cannot tell these apart on its own. The alert clears by itself once the cycling stops."
     }
   }
 }
