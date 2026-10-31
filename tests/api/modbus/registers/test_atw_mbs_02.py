@@ -51,3 +51,27 @@ class TestDeserializers:
         assert serialize_otc_method_cooling(OTCCalculationMethod.DISABLED) == 0
         assert serialize_otc_method_cooling(OTCCalculationMethod.POINTS) == 1
         assert serialize_otc_method_cooling(OTCCalculationMethod.FIX) == 2
+
+
+class TestDocumentedDiagnosticRegisters:
+    """Central mode and mixing valve position (PMML0419 rev.3, 2016 map)."""
+
+    def test_central_control_mode(self):
+        """Central Mode is at 1088, read-only, a gateway key in every poll."""
+        reg_map = AtwMbs02RegisterMap()
+        reg = reg_map.all_registers["central_control_mode"]
+        assert reg.address == 1088
+        assert reg.write_address is None
+        assert "central_control_mode" in reg_map.gateway_keys
+        assert "central_control_mode" in reg_map.base_keys
+
+    def test_mixing_valve_position(self):
+        """MVP is at 1216, read-only, 0xFFFF filtered, a circuit 2 key."""
+        reg_map = AtwMbs02RegisterMap()
+        reg = reg_map.all_registers["circuit2_mixing_valve_position"]
+        assert reg.address == 1216
+        assert reg.write_address is None
+        assert 0xFFFF in reg.sentinel_values
+        assert "circuit2_mixing_valve_position" not in reg_map.writable_keys
+        assert "circuit2_mixing_valve_position" in reg_map.circuit_2_keys
+        assert "circuit2_mixing_valve_position" in reg_map.base_keys

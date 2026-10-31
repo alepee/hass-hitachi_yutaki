@@ -308,6 +308,9 @@
       "water_outlet_3_temp": {
         "name": "Water Outlet 3 Temperature"
       },
+      "mixing_valve_position": {
+        "name": "Mixing Valve Position"
+      },
       "water_target_temp": {
         "name": "Corrected Target Temperature"
       },
@@ -446,6 +449,12 @@
       "secondary_compressor_current": {
         "name": "Secondary Compressor Current"
       },
+      "secondary_compressor_valve_opening": {
+        "name": "Secondary Compressor Expansion Valve Opening"
+      },
+      "secondary_compressor_retry_code": {
+        "name": "Secondary Compressor Retry Code"
+      },
       "cop_heating": {
         "name": "Space Heating COP",
         "state_attributes": {
@@ -565,6 +574,15 @@
           "synchronized": "Synchronized",
           "desynchronized": "Desynchronized",
           "initializing": "Initializing"
+        }
+      },
+      "central_control_mode": {
+        "name": "Central Control Mode",
+        "state": {
+          "local": "Local",
+          "air": "Air",
+          "water": "Water",
+          "full": "Full"
         }
       },
       "telemetry_status": {

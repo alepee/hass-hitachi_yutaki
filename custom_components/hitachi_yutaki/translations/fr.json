@@ -308,6 +308,9 @@
       "water_outlet_3_temp": {
         "name": "Température de Sortie d'Eau 3"
       },
+      "mixing_valve_position": {
+        "name": "Position de la vanne mélangeuse"
+      },
       "water_target_temp": {
         "name": "Température Cible Corrigée"
       },
@@ -446,6 +449,12 @@
       "secondary_compressor_current": {
         "name": "Courant du Compresseur Secondaire"
       },
+      "secondary_compressor_valve_opening": {
+        "name": "Ouverture Vanne d'Expansion du Compresseur Secondaire"
+      },
+      "secondary_compressor_retry_code": {
+        "name": "Code de Réessai du Compresseur Secondaire"
+      },
       "cop_heating": {
         "name": "COP Chauffage",
         "state_attributes": {
@@ -565,6 +574,15 @@
           "synchronized": "Synchronisé",
           "desynchronized": "Désynchronisé",
           "initializing": "Initialisation"
+        }
+      },
+      "central_control_mode": {
+        "name": "Mode de contrôle central",
+        "state": {
+          "local": "Local",
+          "air": "Air",
+          "water": "Eau",
+          "full": "Complet"
         }
       },
       "telemetry_status": {

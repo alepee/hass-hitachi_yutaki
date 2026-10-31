@@ -13,6 +13,7 @@ For patterns and conventions used to build these entities, see
 |--------|------|-------------|----------|
 | connectivity | binary_sensor | Indicates if the gateway is connected and responding | diagnostic |
 | system_state | sensor | Gateway synchronization state with the heat pump | diagnostic |
+| central_control_mode | sensor (ENUM) | Central control mode set on the unit's LCD (local/air/water/full); in `local` the unit ignores Modbus writes | diagnostic |
 | telemetry_status | sensor | Current telemetry consent level (off/on) with send tracking attributes | diagnostic |
 
 On the Before Line-up 2016 register map the device also carries the gateway's
@@ -160,6 +161,8 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 | secondary_compressor_suction_temp | sensor | Suction temperature | °C | diagnostic |
 | secondary_compressor_discharge_pressure | sensor | Discharge pressure | bar | diagnostic |
 | secondary_compressor_suction_pressure | sensor | Suction pressure | bar | diagnostic |
+| secondary_compressor_valve_opening | sensor | R134a expansion valve opening (disabled by default) | % | diagnostic |
+| secondary_compressor_retry_code | sensor | R134a cycle retry code (disabled by default) | - | diagnostic |
 | secondary_compressor_cycle_time | sensor | Median time between compressor starts (standby excluded) | min | diagnostic |
 | secondary_compressor_runtime | sensor | Compressor runtime | min | diagnostic |
 | secondary_compressor_resttime | sensor | Compressor rest time | min | diagnostic |
@@ -205,6 +208,12 @@ When a heating circuit reports no thermostat and its switch is off, a one-time r
 | max_flow_temp_cooling_otc | number | Maximum cooling water temperature for OTC | °C (0–80) | config |
 | heat_eco_offset | number | Temperature offset in ECO mode for heating | °C (1–10) | config |
 | cool_eco_offset | number | Temperature offset in ECO mode for cooling | °C (1–10) | config |
+
+### Sensors (circuit 2 only)
+
+| Entity | Type | Description | Unit | Category |
+|--------|------|-------------|------|----------|
+| mixing_valve_position | sensor | Opening of the circuit 2 mixing valve ("MVP" register); disabled by default, since the gateway reports 0 rather than a sentinel without a mixing kit and presence cannot be detected | % | diagnostic |
 
 ### Service
 

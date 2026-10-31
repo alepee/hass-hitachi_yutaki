@@ -232,3 +232,17 @@ class TestGatewayVersionRegisters:
         regs = AtwMbs02RegisterMap().all_registers
         assert "gateway_hw_version" not in regs
         assert "gateway_sw_version" not in regs
+
+
+class TestMixingValveRegister:
+    """MVP: Mixing valve position (PMML0419 rev.3, before-2016 servicing map)."""
+
+    def test_address_and_group(self):
+        """MVP is at 1215, read-only, 0xFFFF filtered, a circuit 2 key."""
+        reg_map = AtwMbs02Pre2016RegisterMap()
+        reg = reg_map.all_registers["circuit2_mixing_valve_position"]
+        assert reg.address == 1215
+        assert reg.write_address is None
+        assert 0xFFFF in reg.sentinel_values
+        assert "circuit2_mixing_valve_position" in reg_map.circuit_2_keys
+        assert "circuit2_mixing_valve_position" in reg_map.base_keys

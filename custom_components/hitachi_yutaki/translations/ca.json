@@ -308,6 +308,9 @@
       "water_outlet_3_temp": {
         "name": "Temperatura de sortida d'aigua 3"
       },
+      "mixing_valve_position": {
+        "name": "Posició de la vàlvula mescladora"
+      },
       "water_target_temp": {
         "name": "Temperatura de consigna corregida"
       },
@@ -446,6 +449,12 @@
       "secondary_compressor_current": {
         "name": "Corrent del compressor secundari"
       },
+      "secondary_compressor_valve_opening": {
+        "name": "Obertura de la vàlvula d'expansió del compressor secundari"
+      },
+      "secondary_compressor_retry_code": {
+        "name": "Codi de reintent del compressor secundari"
+      },
       "cop_heating": {
         "name": "COP de calefacció",
         "state_attributes": {
@@ -565,6 +574,15 @@
           "synchronized": "Sincronitzada",
           "desynchronized": "Desincronitzada",
           "initializing": "S'està inicialitzant"
+        }
+      },
+      "central_control_mode": {
+        "name": "Mode de control central",
+        "state": {
+          "local": "Local",
+          "air": "Aire",
+          "water": "Aigua",
+          "full": "Complet"
         }
       },
       "telemetry_status": {
