@@ -94,8 +94,12 @@ class TestSensorDispatch:
         (None, None, None),
         ({}, None, None),
         ({"alarm_code": None, "operation_state_code": None}, None, None),
-        ({"alarm_code": 0, "operation_state_code": 0}, None, {"code": 0}),
-        ({"alarm_code": 42, "operation_state_code": 6}, {"code": 42}, {"code": 6}),
+        ({"alarm_code": "alarm_code_0", "operation_state_code": 0}, None, {"code": 0}),
+        (
+            {"alarm_code": "alarm_code_42", "operation_state_code": 6},
+            {"code": 42},
+            {"code": 6},
+        ),
     ],
 )
 def test_control_unit_attributes_preserve_codes(data, alarm, operation):

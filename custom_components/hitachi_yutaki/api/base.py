@@ -267,6 +267,11 @@ class HitachiApiClient(ABC):
     def get_operation_state(self) -> str | None:
         """Get the deserialized unit operation state (e.g. heat_thermo_on)."""
 
+    @property
+    def outdoor_link_lost(self) -> bool:
+        """Return whether the unit reports it cannot reach its outdoor unit."""
+        return False
+
     @abstractmethod
     def get_eco_mode(self) -> bool | None:
         """Get the global ECO mode state (True=ECO, False=Comfort, None=unavailable)."""
