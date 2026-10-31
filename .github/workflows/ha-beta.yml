@@ -130,13 +130,13 @@ jobs:
       - name: Baseline on HA ${{ needs.detect.outputs.ha_stable }}
         run: |
           uv pip install pytest-homeassistant-custom-component==${{ needs.detect.outputs.phac_stable }}
-          uv run --no-sync pytest -q --junitxml=stable.xml || true
+          uv run --no-sync pytest -q -n auto --junitxml=stable.xml || true
 
       - name: Run on HA ${{ needs.detect.outputs.ha }}
         run: |
           uv pip install --prerelease=allow pytest-homeassistant-custom-component==${{ needs.detect.outputs.phac }}
           uv run --no-sync python -c "from homeassistant.const import __version__; print('HA version:', __version__)"
-          uv run --no-sync pytest -q --junitxml=beta.xml || true
+          uv run --no-sync pytest -q -n auto --junitxml=beta.xml || true
 
       - name: Compare
         env:

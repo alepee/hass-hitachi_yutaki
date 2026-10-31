@@ -2,7 +2,7 @@
 [![Translation status](https://hosted.weblate.org/widget/hass-hitachi_yutaki/source/svg-badge.svg)](https://hosted.weblate.org/engage/hass-hitachi_yutaki/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/alepee/hass-hitachi_yutaki)
 [![Validate](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/validate.yml/badge.svg?branch=main)](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/validate.yml)
-[![Tests](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/tests.yml/badge.svg)](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/tests.yml)
+[![CI](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/alepee/hass-hitachi_yutaki/actions/workflows/ci.yml)
 
 # Hitachi air-to-water heat pumps Integration for Home Assistant
 
