@@ -34,10 +34,8 @@ from .const import (
     CIRCUIT_SECONDARY_ID,
     CONF_CYCLING_DETECTION,
     CONF_EXTERNAL_ROOM_SENSOR_NOTICE,
-    CONF_KEEP_EXTERNAL_ROOM_SENSOR,
     CONF_REFRIGERANT_DETECTION,
     DEFAULT_CYCLING_DETECTION,
-    DEFAULT_KEEP_EXTERNAL_ROOM_SENSOR,
     DEFAULT_REFRIGERANT_DETECTION,
     DOMAIN,
     RESET_SOURCE_BUTTON,
@@ -51,7 +49,6 @@ from .domain.services.maintenance import (
     cycling_alert_policy,
     refrigerant_alert_policy,
 )
-from .domain.services.room_target import RoomTargetKeeper
 from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
     FleetPingUnit,
@@ -82,8 +79,8 @@ _MAX_BACKOFF = timedelta(seconds=300)
 # gateway reboot would have moved the units.
 _UNIT_CHECK_INTERVAL = 60.0
 
-ROOM_TARGET_STORE_VERSION = 1
-_ROOM_TARGET_SAVE_DELAY_S = 10
+KEPT_VALUES_STORE_VERSION = 1
+_KEPT_VALUES_SAVE_DELAY_S = 10
 
 
 class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
@@ -117,12 +114,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self._alarm_code: str | None = None
         self._alarm_since: datetime | None = None
 
-        # Last valid room target per circuit (#511), loaded before the first poll.
-        self._room_target_keeper = RoomTargetKeeper()
-        self._room_target_store: Store | None = None
-        # True until the first good poll after startup or after a failed one:
-        # when a gateway reset shows up in the registers.
-        self._poll_gap = True
+        # References of the values the gateway writes back after a reboot
+        # (#511), loaded before the first poll.
+        self._kept_values_store: Store | None = None
 
         # Telemetry (injected by async_setup_entry — always set, noop when OFF)
         self.telemetry_collector: TelemetryCollector = None  # type: ignore[assignment]
@@ -263,12 +257,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         except UpdateFailed:
             # Re-raise so the generic Exception handler below doesn't
             # turn our intentional UpdateFailed into an HA issue.
-            self._poll_gap = True
             raise
 
         except Exception as exc:
             self._unit_checked_at = None
-            self._poll_gap = True
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -311,6 +303,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 self._update_cycling_issue()
 
             self._update_external_room_sensor_notice()
+            self._update_kept_values()
 
             # Telemetry: collect metrics from this poll cycle
             # (collector handles level=OFF internally)
@@ -324,8 +317,6 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             # Fire-and-forget to avoid blocking the Modbus poll path
             if not self._installation_info_sent or not self._snapshot_sent:
                 self.hass.async_create_task(self._send_onetime_telemetry(data))
-
-            await self._async_keep_room_targets()
         except Exception:
             _LOGGER.exception(
                 "Post-fetch enrichment failed; returning raw poll data "
@@ -715,124 +706,52 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         else:
             ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
-    async def async_restore_room_targets(self) -> None:
-        """Load the remembered room targets; call before the first poll."""
-        self._room_target_store = Store(
+    async def async_restore_kept_values(self) -> None:
+        """Load the gateway's kept values; call before the first poll."""
+        self._kept_values_store = Store(
             self.hass,
-            ROOM_TARGET_STORE_VERSION,
-            f"{DOMAIN}_room_target_{self.config_entry.entry_id}",
+            KEPT_VALUES_STORE_VERSION,
+            f"{DOMAIN}_kept_values_{self.config_entry.entry_id}",
         )
         try:
-            stored = await self._room_target_store.async_load()
+            stored = await self._kept_values_store.async_load()
         except Exception:  # noqa: BLE001
-            _LOGGER.debug("Failed to load the remembered room targets", exc_info=True)
+            _LOGGER.debug("Failed to load the kept values", exc_info=True)
             return
-        self._room_target_keeper = RoomTargetKeeper(stored)
+        if isinstance(stored, dict):
+            self.api_client.restore_kept_values(stored)
 
-    async def async_flush_room_targets(self) -> None:
-        """Persist the remembered room targets immediately (e.g. on unload)."""
-        if self._room_target_store is not None:
-            await self._room_target_store.async_save(
-                self._room_target_keeper.serialize()
-            )
+    async def async_flush_kept_values(self) -> None:
+        """Persist the gateway's kept values immediately (e.g. on unload)."""
+        if self._kept_values_store is not None:
+            await self._kept_values_store.async_save(self.api_client.kept_values())
 
-    def _room_target_issue_id(self) -> str:
-        """Return the repair-issue id for a room target that could not be restored."""
-        return f"room_target_restore_failed_{self.config_entry.entry_id}"
+    def _restore_failed_issue_id(self) -> str:
+        """Return the repair-issue id for a room setting that could not be restored."""
+        return f"room_regulation_restore_failed_{self.config_entry.entry_id}"
 
-    def _room_flag_issue_id(self) -> str:
-        """Return the repair-issue id for a sensor flag that could not be raised."""
-        return f"external_room_sensor_restore_failed_{self.config_entry.entry_id}"
-
-    @property
-    def keep_external_room_sensor(self) -> bool:
-        """True when the user asked to raise the flag again after a gateway reset."""
-        return bool(
-            self.config_entry.data.get(
-                CONF_KEEP_EXTERNAL_ROOM_SENSOR, DEFAULT_KEEP_EXTERNAL_ROOM_SENSOR
-            )
-        )
-
-    async def _async_keep_room_targets(self) -> None:
-        """Write back what a power cycle took from the room regulation (#511).
-
-        Only called after a successful poll, so a communication error never
-        triggers a write. The target goes first, so the flag is raised on it.
-        """
+    def _update_kept_values(self) -> None:
+        """Persist changed kept values and report the ones that would not stick."""
         api = self.api_client
-        keeper = self._room_target_keeper
-        now = time.monotonic()
-        after_gap, self._poll_gap = self._poll_gap, False
-        for cid in (CIRCUIT_PRIMARY_ID, CIRCUIT_SECONDARY_ID):
-            if not (
-                self.has_circuit(cid, CIRCUIT_MODE_HEATING)
-                or self.has_circuit(cid, CIRCUIT_MODE_COOLING)
-            ) or not api.can_write(f"circuit{cid}_target_temp"):
-                continue
-            current = api.get_circuit_target_temperature(cid)
-            restore = keeper.observe(
-                cid,
-                api.external_room_sensor_state(cid),
-                current,
-                now,
-                keep_enabled=self.keep_external_room_sensor
-                and api.can_write(f"circuit{cid}_thermostat"),
-                after_gap=after_gap,
+        if api.take_kept_values_changed() and self._kept_values_store is not None:
+            self._kept_values_store.async_delay_save(
+                api.kept_values, _KEPT_VALUES_SAVE_DELAY_S
             )
-            if restore.target is not None:
-                _LOGGER.warning(
-                    "Circuit %s room target reads %s °C with the external room "
-                    "sensor on; restoring the last valid target %.1f °C",
-                    cid,
-                    current,
-                    restore.target,
-                )
-                if not await api.set_circuit_target_temperature(cid, restore.target):
-                    _LOGGER.warning(
-                        "Restoring the room target of circuit %s failed", cid
-                    )
-            if restore.enable:
-                _LOGGER.warning(
-                    "Circuit %s external room sensor reads off after a gateway "
-                    "reset; raising it again",
-                    cid,
-                )
-                if not await api.set_external_room_sensor(cid, True):
-                    _LOGGER.warning(
-                        "Raising the external room sensor of circuit %s failed", cid
-                    )
-
-        if keeper.take_dirty() and self._room_target_store is not None:
-            self._room_target_store.async_delay_save(
-                keeper.serialize, _ROOM_TARGET_SAVE_DELAY_S
+        issue_id = self._restore_failed_issue_id()
+        if failed := api.failed_restore_circuits():
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                issue_id,
+                is_fixable=False,
+                severity=ir.IssueSeverity.WARNING,
+                translation_key="room_regulation_restore_failed",
+                translation_placeholders={
+                    "circuits": ", ".join(str(cid) for cid in failed)
+                },
             )
-
-        for issue_id, failed, key in (
-            (
-                self._room_target_issue_id(),
-                keeper.failed_circuits(),
-                "room_target_restore_failed",
-            ),
-            (
-                self._room_flag_issue_id(),
-                keeper.failed_flag_circuits(),
-                "external_room_sensor_restore_failed",
-            ),
-        ):
-            if failed:
-                ir.async_create_issue(
-                    self.hass,
-                    DOMAIN,
-                    issue_id,
-                    is_fixable=False,
-                    severity=ir.IssueSeverity.WARNING,
-                    translation_key=key,
-                    translation_placeholders={
-                        "circuits": ", ".join(str(cid) for cid in failed)
-                    },
-                )
-            else:
-                ir.async_delete_issue(self.hass, DOMAIN, issue_id)
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, issue_id)
 
     def _alarm_issue_id(self) -> str:
         """Return the repair-issue id for an alarm reported by the unit."""

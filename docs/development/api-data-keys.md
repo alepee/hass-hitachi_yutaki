@@ -144,6 +144,7 @@ class RegisterDefinition:
     write_address: int | None = None                  # Write address if different from read
     fallback: RegisterDefinition | None = None        # Fallback register if primary returns None
     sentinel_values: frozenset[int] | None = None      # Deserialized values that mark the sensor as unavailable
+    keep: Keep | None = None                           # Value the hardware forgets on reboot, written back
 ```
 
 - `deserializer` — applied after reading the raw 16-bit register value.
@@ -152,6 +153,26 @@ class RegisterDefinition:
   gateway).
 - `fallback` — an alternative register tried when the primary returns `None`
   (e.g. sensor error `0xFFFF`).
+- `keep` — marks a value the hardware forgets on reboot (#511). The client
+  keeps a reference (the last value written, or the last reading that is not
+  lost) and writes it back when a successful read shows it lost: a reading of
+  0, or outside `Keep.valid_range`. `Keep.while_on` names a kept flag that
+  gates the value: it is only written back while that flag reads on, or is
+  written back in the same poll, and the flag is only raised once the values
+  it gates read right. A write-back is confirmed through the pending-write
+  shadow and abandoned after `MAX_RESTORE_ATTEMPTS` (3), which
+  `failed_restore_circuits()` reports until the value reads right or Home
+  Assistant writes it. Nothing runs while the gateway reports `initializing`
+  or `desynchronized`, since `read_values` returns before reading. The
+  references go through the port (`kept_values()`,
+  `restore_kept_values()`, `take_kept_values_changed()`); the coordinator
+  persists them in a `Store` (`hitachi_yutaki_kept_values_{entry_id}`),
+  loaded before the first poll, and raises
+  `room_regulation_restore_failed_{entry_id}`. On the 2016 ATW-MBS-02 map the
+  kept values are the "Thermostat Available" flags (1010 / 1021) and the room
+  targets (1060 / 1072, 5.0-35.0 °C, gated by their circuit's flag); the
+  write-back goes through `set_external_room_sensor`, which seeds the room
+  value before raising a flag.
 
 ### CONTROL vs STATUS Registers
 

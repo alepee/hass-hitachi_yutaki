@@ -102,7 +102,6 @@ The domain layer contains pure business logic. It is completely independent of H
 | Defrost guard | `services/defrost_guard.py` | Filters defrost cycles and post-cycle thermal inertia from measurements |
 | Electrical energy | `services/electrical_energy.py` | Electrical kWh and tariff accumulation with bounded outage gaps |
 | Circuit activity | `services/circuit.py` | Actual space-conditioning activity, separate from selected global mode |
-| Room target keeper | `services/room_target.py` | Last valid room target and External room sensor flag per circuit, restored after a power cycle |
 | Maintenance alerts | `services/maintenance.py` | Persistent warning policy and age of refrigerant evidence |
 
 ### Strict Rules

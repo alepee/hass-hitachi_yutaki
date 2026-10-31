@@ -118,12 +118,10 @@
           "energy_entity": "Contor energie (opțional)",
           "water_inlet_temp_entity": "Senzor temperatură intrare apă (opțional)",
           "water_outlet_temp_entity": "Senzor temperatură ieșire apă (opțional)",
-          "electricity_price_entity": "Senzor preț electricitate (opțional)",
-          "keep_external_room_sensor": "Păstrați Senzorul extern de cameră pornit"
+          "electricity_price_entity": "Senzor preț electricitate (opțional)"
         },
         "data_description": {
-          "electricity_price_entity": "Un senzor care furnizează prețul curent al electricității în moneda dvs. per kWh (de ex. 0,18 pentru 0,18 {currency}/kWh). Activează senzorul de cost al electricității.",
-          "keep_external_room_sensor": "După o resetare a gateway-ului (pană de curent, repornire), comutatorul Senzor extern de cameră este citit oprit în timp ce ținta camerei este păstrată, așa că pompa de căldură revine la curba sa de apă. Dacă este activată, integrarea repornește comutatorul la următoarea citire reușită, inițializând valoarea camerei cu ținta, ca la o pornire manuală. Lăsați dezactivat dacă comutatorul este acționat din altă parte."
+          "electricity_price_entity": "Un senzor care furnizează prețul curent al electricității în moneda dvs. per kWh (de ex. 0,18 pentru 0,18 {currency}/kWh). Activează senzorul de cost al electricității."
         }
       },
       "advanced_features": {
@@ -898,13 +896,9 @@
         }
       }
     },
-    "room_target_restore_failed": {
-      "title": "Temperatura țintă a camerei nu a putut fi restabilită",
-      "description": "Temperatura țintă a camerei pentru circuitul/circuitele {circuits} este 0 °C în timp ce comutatorul Senzor extern de cameră este pornit, de obicei după ce gateway-ul sau unitatea au rămas fără curent. Integrarea a rescris de mai multe ori ultima țintă validă, dar pompa de căldură nu a păstrat-o, așa că este posibil să nu încălzească.\n\n**Pentru a rezolva:** setați din nou ținta din entitatea de climatizare a circuitului sau de pe controler. Notificarea dispare de la sine imediat ce este citită o țintă validă."
-    },
-    "external_room_sensor_restore_failed": {
-      "title": "Senzorul extern de cameră nu a putut fi repornit",
-      "description": "Comutatorul Senzor extern de cameră al circuitului/circuitelor {circuits} este citit oprit după o resetare a gateway-ului, iar integrarea nu l-a putut reporni: pompa de căldură nu l-a păstrat după mai multe încercări, așa că funcționează pe curba sa de apă.\n\n**Pentru a rezolva:** porniți comutatorul manual din pagina dispozitivului circuitului. Notificarea dispare de la sine imediat ce comutatorul este citit pornit."
+    "room_regulation_restore_failed": {
+      "title": "Reglarea camerei nu a putut fi restabilită",
+      "description": "De obicei după o întrerupere a alimentării gateway-ului sau a controlerului, pompa de căldură a uitat starea comutatorului Senzor extern de cameră sau temperatura dorită a camerei pentru circuitul/circuitele {circuits}. Integrarea a rescris de mai multe ori ultima valoare cunoscută, dar pompa de căldură nu a păstrat-o, așa că este posibil să nu mai regleze după temperatura camerei.\n\n**Pentru rezolvare:** reporniți comutatorul Senzor extern de cameră și setați din nou temperatura dorită a camerei din pagina dispozitivului circuitului sau de pe controler. Notificarea dispare de la sine odată ce ambele valori sunt corecte."
     },
     "external_room_sensor_notice": {
       "title": "Niciun termostat de cameră pe pompa de căldură",

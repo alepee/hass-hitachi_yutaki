@@ -7,7 +7,7 @@ from ....const import (
     CIRCUIT_SECONDARY_ID,
     OTCCalculationMethod,
 )
-from . import HitachiRegisterMap, RegisterDefinition
+from . import HitachiRegisterMap, Keep, RegisterDefinition
 
 # System configuration bit masks (from register 1089)
 # Bit order per Modbus documentation:
@@ -313,6 +313,12 @@ REGISTER_SECONDARY_COMPRESSOR = {
     "secondary_compressor_retry_code": RegisterDefinition(1231),
 }
 
+# Documented range of the "Thermostat Setting Temperature" registers.
+ROOM_TARGET_KEEP = {
+    cid: Keep(valid_range=(5.0, 35.0), while_on=f"circuit{cid}_thermostat")
+    for cid in (1, 2)
+}
+
 REGISTER_CIRCUIT_1 = {
     "circuit1_power": RegisterDefinition(1052, write_address=1002),
     "circuit1_otc_calculation_method_heating": RegisterDefinition(
@@ -327,11 +333,16 @@ REGISTER_CIRCUIT_1 = {
     "circuit1_heat_eco_offset": RegisterDefinition(1058, write_address=1008),
     "circuit1_cool_eco_offset": RegisterDefinition(1059, write_address=1009),
     # 0xFFFF is a garbage read of the CONTROL register, not "enabled" (#404).
+    # A gateway reboot clears the flag, a controller board reboot zeroes the
+    # room target: both are written back (#511).
     "circuit1_thermostat": RegisterDefinition(
-        1010, sentinel_values=frozenset({0xFFFF})
+        1010, sentinel_values=frozenset({0xFFFF}), keep=Keep()
     ),
     "circuit1_target_temp": RegisterDefinition(
-        1060, deserializer=convert_from_tenths, write_address=1011
+        1060,
+        deserializer=convert_from_tenths,
+        write_address=1011,
+        keep=ROOM_TARGET_KEEP[1],
     ),
     "circuit1_current_temp": RegisterDefinition(
         1061, deserializer=convert_from_tenths, write_address=1012
@@ -352,10 +363,13 @@ REGISTER_CIRCUIT_2 = {
     "circuit2_heat_eco_offset": RegisterDefinition(1070, write_address=1019),
     "circuit2_cool_eco_offset": RegisterDefinition(1071, write_address=1020),
     "circuit2_thermostat": RegisterDefinition(
-        1021, sentinel_values=frozenset({0xFFFF})
+        1021, sentinel_values=frozenset({0xFFFF}), keep=Keep()
     ),
     "circuit2_target_temp": RegisterDefinition(
-        1072, deserializer=convert_from_tenths, write_address=1022
+        1072,
+        deserializer=convert_from_tenths,
+        write_address=1022,
+        keep=ROOM_TARGET_KEEP[2],
     ),
     "circuit2_current_temp": RegisterDefinition(
         1073, deserializer=convert_from_tenths, write_address=1023

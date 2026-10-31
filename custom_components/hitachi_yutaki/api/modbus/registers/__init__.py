@@ -20,6 +20,19 @@ OUTDOOR_UNIT_KEYS = (
 OUTDOOR_LINK_ALARMS = frozenset({"alarm_code_3"})
 
 
+@dataclass(frozen=True)
+class Keep:
+    """A written value the hardware forgets on reboot, written back by the client.
+
+    A reading of 0 or outside ``valid_range`` is a lost value. ``while_on``
+    names a kept flag: the value is only written back while that flag reads
+    on, or is written back in the same poll.
+    """
+
+    valid_range: tuple[float, float] | None = None
+    while_on: str | None = None
+
+
 @dataclass
 class RegisterDefinition:
     """Class to define a register.
@@ -36,6 +49,8 @@ class RegisterDefinition:
             unavailable. These are gateway-specific conventions (e.g. -127 for
             absent sensor, -67 for unavailable module). When a read returns one
             of these values, the gateway returns None instead.
+        keep: Set when the hardware forgets the value on reboot: the client
+            writes the last known value back (see :class:`Keep`).
 
     """
 
@@ -45,6 +60,7 @@ class RegisterDefinition:
     write_address: int | None = None
     fallback: "RegisterDefinition | None" = None
     sentinel_values: frozenset[int] | None = None
+    keep: Keep | None = None
 
 
 class HitachiRegisterMap(ABC):

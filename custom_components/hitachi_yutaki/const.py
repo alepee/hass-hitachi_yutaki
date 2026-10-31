@@ -120,9 +120,6 @@ CONF_FLEET_PING = "fleet_ping"
 DEFAULT_FLEET_PING = True
 # One-time notice about room regulation, recorded once the user has read it.
 CONF_EXTERNAL_ROOM_SENSOR_NOTICE = "external_room_sensor_notice"
-# Raise the External room sensor flag again after a gateway reset (#511), opt-in.
-CONF_KEEP_EXTERNAL_ROOM_SENSOR = "keep_external_room_sensor"
-DEFAULT_KEEP_EXTERNAL_ROOM_SENSOR = False
 FLEET_PING_ENDPOINT = "https://hitachi-telemetry.lepee.dev/v1/ping"
 FLEET_PING_STATS_URL = "https://alepee.github.io/hass-hitachi_yutaki/fleet-stats.html"
 

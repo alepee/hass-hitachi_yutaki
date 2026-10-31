@@ -375,6 +375,26 @@ class HitachiApiClient(ABC):
                     return False
         return await self.set_circuit_thermostat(circuit_id, enabled)
 
+    def kept_values(self) -> dict[str, Any]:
+        """Return the values the gateway writes back after a hardware reboot.
+
+        Some gateways forget written values on reboot (#511); their provider
+        keeps a reference per value and writes it back. The caller persists
+        these references so they survive a Home Assistant restart.
+        """
+        return {}
+
+    def restore_kept_values(self, values: Mapping[str, Any]) -> None:
+        """Load references persisted by ``kept_values``, before the first poll."""
+
+    def take_kept_values_changed(self) -> bool:
+        """Return True once after a reference changed and needs saving."""
+        return False
+
+    def failed_restore_circuits(self) -> list[int]:
+        """Return the circuits with a value that could not be written back."""
+        return []
+
     @abstractmethod
     def get_circuit_otc_method_heating(self, circuit_id: CIRCUIT_IDS) -> int | None:
         """Get OTC calculation method for heating."""

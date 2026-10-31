@@ -1,6 +1,7 @@
 """Modbus client for Hitachi heat pumps."""
 
 import asyncio
+from collections.abc import Mapping
 import contextlib
 import logging
 import time
@@ -24,7 +25,7 @@ from ...const import (
 )
 from ..base import HitachiApiClient, ReadResult
 from .compat import get_pymodbus_device_param
-from .registers import HitachiRegisterMap, RegisterDefinition
+from .registers import HitachiRegisterMap, Keep, RegisterDefinition
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 
 _LOGGER = logging.getLogger(__name__)
@@ -33,6 +34,9 @@ _LOGGER = logging.getLogger(__name__)
 # 15-20 s (H-LINK round trip) to reflect a CONTROL write, so polls in between
 # report the old value. Past this the gateway value wins again.
 PENDING_WRITE_TTL = 30.0
+
+# Write-backs of a value the hardware forgot (#511) before giving up on it.
+MAX_RESTORE_ATTEMPTS = 3
 
 
 class ModbusApiClient(HitachiApiClient):
@@ -64,6 +68,13 @@ class ModbusApiClient(HitachiApiClient):
         self._gateway_not_ready_last_log: float = 0.0
         # key -> (expected deserialized value, monotonic deadline)
         self._pending_writes: dict[str, tuple[Any, float]] = {}
+        # Values the hardware forgets on reboot (#511), see ``Keep``: key ->
+        # last value written or validly read, persisted by the coordinator.
+        self._kept: dict[str, Any] = {}
+        self._kept_changed = False
+        self._restore_attempts: dict[str, int] = {}
+        self._restore_failed: set[str] = set()
+        self._writing_back = False
 
     async def _ensure_connection(self) -> bool:
         """Ensure we have a working Modbus connection with retry logic."""
@@ -407,6 +418,12 @@ class ModbusApiClient(HitachiApiClient):
             return
         self._data[key] = expected
         self._pending_writes[key] = (expected, time.monotonic() + PENDING_WRITE_TTL)
+        if definition.keep is not None:
+            self._remember(key, expected)
+            if not self._writing_back:
+                # A command from Home Assistant settles any restore in progress.
+                self._restore_attempts.pop(key, None)
+                self._restore_failed.discard(key)
 
     def _is_shadowed_by_pending_write(self, key: str, value: Any) -> bool:
         """Return True when a fresh STATUS read of ``key`` must be ignored.
@@ -432,6 +449,140 @@ class ModbusApiClient(HitachiApiClient):
             )
             return False
         return True
+
+    @staticmethod
+    def _is_lost(keep: Keep, value: Any) -> bool:
+        """Return True for a reading that a reboot leaves behind."""
+        if value == 0:
+            return True
+        if keep.valid_range is None:
+            return False
+        low, high = keep.valid_range
+        return not low <= value <= high
+
+    def _remember(self, key: str, value: Any) -> None:
+        """Record the reference a kept value is written back to."""
+        if self._kept.get(key) != value:
+            self._kept[key] = value
+            self._kept_changed = True
+
+    def _gated_values_lost(self, flag: str) -> bool:
+        """Return True while a value gated by ``flag`` still reads lost.
+
+        Raising the flag then would make the unit regulate on it, e.g. on a
+        room target of 0 °C.
+        """
+        for key, definition in self._register_map.all_registers.items():
+            keep = definition.keep
+            if keep is not None and keep.while_on == flag and key in self._data:
+                if self._is_lost(keep, self._data[key]):
+                    return True
+        return False
+
+    async def _write_back_lost_values(self, fresh: list[str]) -> None:
+        """Write back the kept values a reboot took from the hardware (#511).
+
+        Runs after a successful read only, so neither a communication error
+        nor a gateway still initializing triggers a write. A fresh reading
+        that is not lost becomes the reference. A lost one is written back to
+        its reference, gated values before the flags gating them, and a flag
+        only once its gated values read right. A write-back is confirmed by
+        the pending-write shadow: the reading that lifts it, or the one past
+        its deadline, decides. After ``MAX_RESTORE_ATTEMPTS`` the key is left
+        alone and reported until it reads right again.
+        """
+        all_regs = self._register_map.all_registers
+        lost: dict[str, Any] = {}
+        for key in fresh:
+            keep = all_regs[key].keep
+            if keep is None or key not in self._data:
+                continue
+            value = self._data[key]
+            if not self._is_lost(keep, value):
+                self._restore_attempts.pop(key, None)
+                self._restore_failed.discard(key)
+                self._remember(key, value)
+            elif key in self._kept and self._kept[key] != value:
+                lost[key] = self._kept[key]
+
+        for key in sorted(lost, key=lambda k: all_regs[k].keep.while_on is None):
+            keep = all_regs[key].keep
+            if keep.while_on is not None and not (
+                keep.while_on in lost or self._data.get(keep.while_on)
+            ):
+                # The unit ignores the value while its flag is off.
+                self._restore_attempts.pop(key, None)
+                self._restore_failed.discard(key)
+                continue
+            if key in self._restore_failed or (
+                keep.while_on is None and self._gated_values_lost(key)
+            ):
+                continue
+            attempts = self._restore_attempts.get(key, 0)
+            if attempts >= MAX_RESTORE_ATTEMPTS:
+                _LOGGER.warning(
+                    "%s still reads %s after %d write-backs, giving up",
+                    key,
+                    self._data.get(key),
+                    attempts,
+                )
+                self._restore_failed.add(key)
+                continue
+            self._restore_attempts[key] = attempts + 1
+            _LOGGER.warning(
+                "%s reads %s, likely after a reboot: writing %s back",
+                key,
+                self._data.get(key),
+                lost[key],
+            )
+            if not await self._write_back(key, lost[key]):
+                _LOGGER.warning("Writing %s back failed", key)
+
+    async def _write_back(self, key: str, value: Any) -> bool:
+        """Write a kept value back through the setter that owns it."""
+        circuit_id = int(key[7])
+        self._writing_back = True
+        try:
+            if key.endswith("_thermostat"):
+                # Seeds the room value first, as when the switch is turned on.
+                return await self.set_external_room_sensor(circuit_id, bool(value))
+            if key.endswith("_target_temp"):
+                return await self.set_circuit_target_temperature(circuit_id, value)
+        finally:
+            self._writing_back = False
+        _LOGGER.error("No write-back for kept value %s", key)
+        return False
+
+    def kept_values(self) -> dict[str, Any]:
+        """Return the references of the values the hardware forgets on reboot."""
+        return dict(self._kept)
+
+    def restore_kept_values(self, values: Mapping[str, Any]) -> None:
+        """Load persisted references, e.g. before the first poll after a restart."""
+        all_regs = self._register_map.all_registers
+        for key, value in values.items():
+            definition = all_regs.get(key)
+            if (
+                definition is None
+                or definition.keep is None
+                or isinstance(value, bool)
+                or not isinstance(value, int | float)
+            ):
+                continue
+            if definition.keep.valid_range is not None and self._is_lost(
+                definition.keep, value
+            ):
+                continue
+            self._kept[key] = value
+
+    def take_kept_values_changed(self) -> bool:
+        """Return True once after a reference changed, to persist it."""
+        changed, self._kept_changed = self._kept_changed, False
+        return changed
+
+    def failed_restore_circuits(self) -> list[int]:
+        """Return the circuits with a kept value that could not be written back."""
+        return sorted({int(key[7]) for key in self._restore_failed})
 
     async def _read_register(
         self, definition: RegisterDefinition, device_param: str
@@ -563,6 +714,7 @@ class ModbusApiClient(HitachiApiClient):
                     self._gateway_not_ready_since = None
                     self._gateway_not_ready_last_log = 0.0
 
+                fresh: list[str] = []
                 for name, definition in registers_to_read.items():
                     value = await self._read_register(definition, device_param)
                     # Fallback on any None (read error or a sensor-error raw
@@ -579,6 +731,7 @@ class ModbusApiClient(HitachiApiClient):
                         self._data.pop(name, None)
                     elif value is not None:
                         self._data[name] = value
+                        fresh.append(name)
                     else:
                         # No fresh value: a sensor-error raw value (e.g. 0xFFFF)
                         # deserialized to None, or a read error, with no working
@@ -594,6 +747,8 @@ class ModbusApiClient(HitachiApiClient):
                 # Remove data for modules not declared in system_config
                 self._gate_unconfigured_modules()
                 self._gate_outdoor_link_loss()
+
+                await self._write_back_lost_values(fresh)
 
                 # If we got here, read was successful
                 return ReadResult.SUCCESS

@@ -118,12 +118,10 @@
           "energy_entity": "Energy Sensor (Optional)",
           "water_inlet_temp_entity": "Water Inlet Temperature Sensor (Optional)",
           "water_outlet_temp_entity": "Water Outlet Temperature Sensor (Optional)",
-          "electricity_price_entity": "Electricity Price Sensor (Optional)",
-          "keep_external_room_sensor": "Keep the External room sensor on"
+          "electricity_price_entity": "Electricity Price Sensor (Optional)"
         },
         "data_description": {
-          "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh). Enables the electricity cost sensor.",
-          "keep_external_room_sensor": "After a gateway reset (power cut, reboot) the External room sensor switch reads off while the room target is kept, so the heat pump falls back to its water law. When enabled, the integration raises the switch again on the next good poll, seeding the room value from the target as when you turn it on by hand. Leave it off if the switch is operated from elsewhere."
+          "electricity_price_entity": "A sensor providing the current electricity price in your currency per kWh (e.g. 0.18 for 0.18 {currency}/kWh). Enables the electricity cost sensor."
         }
       },
       "advanced_features": {
@@ -878,13 +876,9 @@
         }
       }
     },
-    "room_target_restore_failed": {
-      "title": "Room target could not be restored",
-      "description": "The room target of circuit(s) {circuits} reads 0 °C while the External room sensor switch is on, usually after the gateway or the unit lost power. The integration wrote the last valid target back several times, but the heat pump did not keep it, so it may not heat.\n\n**To resolve this:** set the target again on the circuit's climate entity or on the controller. The notice clears on its own once a valid target is read."
-    },
-    "external_room_sensor_restore_failed": {
-      "title": "External room sensor could not be re-enabled",
-      "description": "The External room sensor switch of circuit(s) {circuits} reads off after a gateway reset, and the integration could not raise it again: the heat pump did not keep it after several attempts, so it runs on its water law.\n\n**To resolve this:** turn the switch on by hand on the circuit's device page. The notice clears on its own once the switch reads on."
+    "room_regulation_restore_failed": {
+      "title": "Room setting could not be restored",
+      "description": "The External room sensor switch or the room target of circuit(s) {circuits} was lost, usually after the gateway or the controller lost power. The integration wrote the last known value back several times, but the heat pump did not keep it, so it may not regulate on the room temperature.\n\n**To resolve this:** turn the External room sensor switch on and set the room target again on the circuit's device page or on the controller. The notice clears on its own once both read right."
     },
     "external_room_sensor_notice": {
       "title": "No room thermostat on the heat pump",
