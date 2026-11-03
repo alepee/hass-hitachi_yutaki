@@ -279,3 +279,24 @@ class TestProfileDetectionWithHcAMb:
         """Direct yutampo model name should not match S Combi profile."""
         data = {"unit_model": "yutampo_r32", "has_circuit1_heating": True}
         assert YutakiSCombiProfile.detect(data) is False
+
+
+def test_central_control_mode_register():
+    """LCD Central Mode sits at indoor offset 139, read-only, a gateway key."""
+    reg_map = HcAMbRegisterMap(unit_id=1)
+    reg = reg_map.all_registers["central_control_mode"]
+    assert reg.address == 5000 + 200 + 139
+    assert reg.write_address is None
+    assert "central_control_mode" in reg_map.gateway_keys
+    assert "central_control_mode" in reg_map.base_keys
+
+
+def test_mixing_valve_register():
+    """Mixing Valve Opening sits at indoor offset 160, read-only, a circuit 2 key."""
+    reg_map = HcAMbRegisterMap(unit_id=1)
+    reg = reg_map.all_registers["circuit2_mixing_valve_position"]
+    assert reg.address == 5000 + 200 + 160
+    assert reg.write_address is None
+    assert 0xFFFF in reg.sentinel_values
+    assert "circuit2_mixing_valve_position" in reg_map.circuit_2_keys
+    assert "circuit2_mixing_valve_position" in reg_map.base_keys

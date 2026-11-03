@@ -100,7 +100,8 @@ make scan SCAN_ARGS="--host 192.168.0.4 --gateway hc-a-mb" > scan.txt  # HC-A(16
 | 1211 | `compressor_evo_outdoor_expansion_valve_opening` | Yes | |
 | 1212 | `compressor_frequency` | Yes | |
 | 1214 | `compressor_current` | Yes | |
-| 1215 | **Unknown** | No | Non-zero when compressor runs (40 observed) |
+| 1215 | CD: Capacity data | No | Documented row, encoding unknown; non-zero when compressor runs (40 observed) |
+| 1216 | `circuit2_mixing_valve_position` | Yes | "MVP: Mixing valve position", %, circuit 2 only; 0xFFFF filtered |
 | 1218 | `unit_model` | Yes | **Key register** — 0=S, 1=S Combi, 2=S80, 3=M |
 | 1219 | `water_target_temp` | Yes | |
 | 1220 | `water_flow` | Yes | Tenths (÷10) |
@@ -143,6 +144,7 @@ The slot index is **not a stable identity** (#476). The gateway lists the units 
 |--------|----------|----------------------|
 | 100 | `unit_power` | 1000 |
 | 101 | `unit_mode` (bitmask) | 1001 |
+| 139 | `central_control_mode` | 1088 |
 | 140 | `system_config` | 1089 |
 | 141 | `operation_state` | 1090 |
 | 142 | `outdoor_temp` | 1091 |
@@ -151,6 +153,7 @@ The slot index is **not a stable identity** (#476). The gateway lists the units 
 | 145 | `system_state` | 1094 |
 | 146 | `software_pcb` | 1095 |
 | 147 | `software_lcd` | 1096 |
+| 160 | `circuit2_mixing_valve_position` | 1216 |
 | 162 | `unit_model` | 1218 |
 | 163 | `water_target_temp` | 1219 |
 | 164 | `water_flow` | 1220 |

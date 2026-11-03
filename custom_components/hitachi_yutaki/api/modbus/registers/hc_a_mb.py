@@ -338,6 +338,8 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             "system_state": RegisterDefinition(
                 self._addr(145), deserializer=deserialize_system_state
             ),
+            # "LCD Central Mode" (139): 0 local, 1 air, 2 water, 3 full.
+            "central_control_mode": RegisterDefinition(self._addr(139)),
         }
 
         # --- Control Unit (mix CONTROL + STATUS) ---
@@ -483,6 +485,10 @@ class HcAMbRegisterMap(HitachiRegisterMap):
                 self._addr(123),
                 deserializer=convert_from_tenths,
                 write_address=self._addr(73),
+            ),
+            # "Mixing Valve Opening" (160, %), circuit 2 only, read-only.
+            "circuit2_mixing_valve_position": RegisterDefinition(
+                self._addr(160), sentinel_values=frozenset({0xFFFF})
             ),
         }
 
