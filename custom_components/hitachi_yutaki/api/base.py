@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum, StrEnum
 from typing import Any
@@ -19,7 +19,9 @@ class ReadResult(Enum):
 
     - SUCCESS: requested keys were read and _data is populated. read_value()
       will return the actual register values (or None if a specific register
-      failed/was filtered as a sentinel).
+      failed/was filtered as a sentinel). read_values() never writes: values
+      a reboot took from the hardware are only queued, and written back by
+      restore_lost_values().
     - GATEWAY_NOT_READY: the gateway reported an unhealthy system_state
       (initializing or desynchronized from the heat pump). read_values()
       short-circuited BEFORE reading any of the requested keys, so _data is
@@ -374,6 +376,32 @@ class HitachiApiClient(ABC):
                 if not await self.set_circuit_room_temperature(seeded, setpoint):
                     return False
         return await self.set_circuit_thermostat(circuit_id, enabled)
+
+    def kept_values(self) -> dict[str, Any]:
+        """Return the values the gateway writes back after a hardware reboot.
+
+        Some gateways forget written values on reboot (#511); their provider
+        keeps a reference per value and writes it back. The caller persists
+        these references so they survive a Home Assistant restart.
+        """
+        return {}
+
+    def restore_kept_values(self, values: Mapping[str, Any]) -> None:
+        """Load references persisted by ``kept_values``, before the first poll."""
+
+    async def restore_lost_values(self) -> None:
+        """Write back what the last successful read found lost after a reboot."""
+
+    def listen_kept_values(self, listener: Callable[[], None]) -> None:
+        """Call ``listener`` whenever a reference changes, to persist it."""
+
+    def retry_restores(self) -> None:
+        """Give the values that could not be written back a fresh set of attempts."""
+
+    @property
+    def restore_failed(self) -> bool:
+        """Return True while a value lost in a reboot could not be written back."""
+        return False
 
     @abstractmethod
     def get_circuit_otc_method_heating(self, circuit_id: CIRCUIT_IDS) -> int | None:

@@ -48,6 +48,7 @@ def _make_coordinator(initial_entry_data: dict, system_config_value: int):
     api_client = MagicMock()
     api_client.connected = True
     api_client.read_values = AsyncMock(return_value=ReadResult.SUCCESS)
+    api_client.restore_lost_values = AsyncMock()
     api_client.async_verify_unit = AsyncMock(return_value=True)
     api_client.is_defrosting = False
     api_client.is_compressor_running = False

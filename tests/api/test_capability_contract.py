@@ -6,6 +6,7 @@ import pytest
 
 from custom_components.hitachi_yutaki.api.base import HitachiApiClient
 from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
+from custom_components.hitachi_yutaki.api.modbus.registers import RegisterDefinition
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
 )
@@ -47,7 +48,7 @@ def test_public_capabilities_match_writable_keys(map_class, modes) -> None:
 def test_nonwritable_mode_has_no_supported_options() -> None:
     """A read-only global mode must not advertise writeable selections."""
     rmap = MagicMock(
-        all_registers={"unit_mode": object()},
+        all_registers={"unit_mode": RegisterDefinition(1051)},
         writable_keys=set(),
         hvac_unit_mode_cool=0,
         hvac_unit_mode_heat=1,

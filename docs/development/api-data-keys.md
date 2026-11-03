@@ -144,6 +144,7 @@ class RegisterDefinition:
     write_address: int | None = None                  # Write address if different from read
     fallback: RegisterDefinition | None = None        # Fallback register if primary returns None
     sentinel_values: frozenset[int] | None = None      # Deserialized values that mark the sensor as unavailable
+    keep: Keep | None = None                           # Value the hardware forgets on reboot, written back
 ```
 
 - `deserializer` — applied after reading the raw 16-bit register value.
@@ -152,6 +153,59 @@ class RegisterDefinition:
   gateway).
 - `fallback` — an alternative register tried when the primary returns `None`
   (e.g. sensor error `0xFFFF`).
+- `keep` — marks a value the hardware forgets on reboot (#511). The restore
+  is mechanical: `KeptValues` (`api/modbus/kept_values.py`, pure, no I/O)
+  never interprets a value. It keeps a reference (the last value written, or
+  the last reading that is not lost) and, when a successful read shows the
+  value lost (a reading of 0, or outside `Keep.valid_range`), plans a
+  write-back that the client executes raw, through the register's
+  `serializer`. Two declarative links order the restore, checked by
+  `validate_kept_registers` when the client starts (along with every kept
+  register being writable and having a `serializer` when it has a
+  `deserializer`):
+  - `Keep.while_on` names a kept value this one depends on (an enable flag).
+    The dependent is only written back while that value reads non-zero or is
+    lost too.
+  - `Keep.seed_from` names a kept value to copy instead of a reference (the
+    source's reference, or its reading when that is right). A seeded value
+    has no reference of its own, so nothing is persisted on every update.
+
+  One rule orders everything: a value waits until all the values that must
+  go before it read right and are confirmed, namely the values that depend
+  on it (`while_on`) and the values seeded from it (`seed_from`). A plan
+  never depends on the outcome of writes made in the same pass. On a full
+  power cut this gives three steps, each confirmed by the unit before the
+  next: the seeded room value, then the target, then the flag. A failure
+  along the way leaves the state the reboot left (target 0, unit idle),
+  never a target over a room value of 0, and a CONTROL-only flag, which
+  reads back what was written, only goes up once STATUS registers prove
+  the unit applied its dependents.
+
+  A value lost with no reference while what it depends on is on, or a value
+  whose prerequisites cannot be restored, is reported rather than written,
+  re-evaluated on every read and logged once. A value also waits while one
+  of its prerequisites went unread. A write-back is confirmed through the
+  pending-write shadow and abandoned after `MAX_RESTORE_ATTEMPTS` (3);
+  `restore_failed` stays true until the values read right or Home Assistant
+  writes them. `read_values` never writes: it updates the references and
+  queues the lost values, and the coordinator calls `restore_lost_values()`
+  after each successful read, once the unit is verified (a no-op when
+  nothing was lost). A read that fails, or finds the gateway `initializing`
+  or `desynchronized`, queues nothing. The references go through the port
+  (`kept_values()`, `restore_kept_values()`, `listen_kept_values()`); the
+  coordinator persists them in a `Store`
+  (`hitachi_yutaki_kept_values_{entry_id}`), loaded before the first poll and
+  saved shortly after every reference change, and raises the generic
+  `kept_values_restore_failed_{entry_id}` issue. The issue is fixable: its
+  fix flow calls `retry_restores()` (a fresh set of attempts) and polls at
+  once, and the next poll raises it again if the values still do not stick.
+
+  On the 2016 ATW-MBS-02 map the kept values are, per circuit, the
+  "Thermostat Available" flag (1010 / 1021), the room target (1060 / 1072,
+  5.0-35.0 °C, `while_on` the flag) and the room value (1061 / 1073,
+  `while_on` the flag, `seed_from` the target): room equals target keeps the
+  unit idle until Home Assistant writes the real temperature, and a room
+  value that survived the reboot is not touched.
 
 ### CONTROL vs STATUS Registers
 
