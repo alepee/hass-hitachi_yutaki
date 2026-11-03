@@ -452,9 +452,6 @@
       "secondary_compressor_valve_opening": {
         "name": "Expansieventielopening secundaire compressor"
       },
-      "secondary_compressor_retry_code": {
-        "name": "Herstartcode secundaire compressor"
-      },
       "cop_heating": {
         "name": "COP verwarming",
         "state_attributes": {

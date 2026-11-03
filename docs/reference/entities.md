@@ -162,7 +162,6 @@ Each COP sensor exposes additional attributes: `quality`, `measurements`, and
 | secondary_compressor_discharge_pressure | sensor | Discharge pressure | bar | diagnostic |
 | secondary_compressor_suction_pressure | sensor | Suction pressure | bar | diagnostic |
 | secondary_compressor_valve_opening | sensor | R134a expansion valve opening (disabled by default) | % | diagnostic |
-| secondary_compressor_retry_code | sensor | R134a cycle retry code (disabled by default) | - | diagnostic |
 | secondary_compressor_cycle_time | sensor | Median time between compressor starts (standby excluded) | min | diagnostic |
 | secondary_compressor_runtime | sensor | Compressor runtime | min | diagnostic |
 | secondary_compressor_resttime | sensor | Compressor rest time | min | diagnostic |

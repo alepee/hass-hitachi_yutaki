@@ -284,16 +284,6 @@ def _build_compressor_sensor_descriptions(
                 entity_registry_enabled_default=False,
             ),
             HitachiYutakiSensorEntityDescription(
-                key="secondary_compressor_retry_code",
-                translation_key="secondary_compressor_retry_code",
-                description="Retry code reported by the secondary (R134a) cycle",
-                icon="mdi:counter",
-                value_fn=lambda c: c.data.get("secondary_compressor_retry_code"),
-                condition=lambda c: c.profile.supports_secondary_compressor,
-                entity_category=EntityCategory.DIAGNOSTIC,
-                entity_registry_enabled_default=False,
-            ),
-            HitachiYutakiSensorEntityDescription(
                 key="secondary_compressor_cycle_time",
                 translation_key="secondary_compressor_cycle_time",
                 description="Average time between secondary compressor starts",

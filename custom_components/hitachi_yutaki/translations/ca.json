@@ -452,9 +452,6 @@
       "secondary_compressor_valve_opening": {
         "name": "Obertura de la vàlvula d'expansió del compressor secundari"
       },
-      "secondary_compressor_retry_code": {
-        "name": "Codi de reintent del compressor secundari"
-      },
       "cop_heating": {
         "name": "COP de calefacció",
         "state_attributes": {

@@ -452,9 +452,6 @@
       "secondary_compressor_valve_opening": {
         "name": "Ouverture Vanne d'Expansion du Compresseur Secondaire"
       },
-      "secondary_compressor_retry_code": {
-        "name": "Code de Réessai du Compresseur Secondaire"
-      },
       "cop_heating": {
         "name": "COP Chauffage",
         "state_attributes": {
