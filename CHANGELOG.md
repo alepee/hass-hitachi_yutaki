@@ -7,7 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.4.0-beta.1] - 2026-11-03
+## [2.4.0] - 2026-11-06
+
+This release restores the external room sensor and room target that a gateway or controller reboot clears, hides the false 0 readings and raises a repair issue while the heat pump reports an alarm, and adds three diagnostics from registers the gateways already document (central control mode, mixing valve position, S80 secondary expansion valve).
 
 ### Added
 - **Three diagnostics from registers the gateways already document.** A `Central Control Mode` ENUM sensor on the Gateway device (local / air / water / full, the LCD's central mode: in `local` the unit ignores Modbus writes), read from ATW-MBS-02 `1088` (Before Line-up 2016 `1073`) and, new on that map, HC-A(16/64)MB offset `139`. A `Mixing Valve Position` sensor on the Circuit 2 device ("MVP" register, ATW-MBS-02 `1216` / Before Line-up 2016 `1215` / HC-A(16/64)MB offset `160`), disabled by default: the gateway reports `0` rather than a sentinel when no mixing kit is fitted, so its presence cannot be detected and owners of a kit enable the sensor themselves. A Yutaki S80 sensor for a value the integration already polled but never showed, disabled by default: `Secondary Compressor Expansion Valve Opening`. New read-only data key `circuit2_mixing_valve_position`.
