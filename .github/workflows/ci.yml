@@ -23,7 +23,7 @@ jobs:
       python: ${{ github.event_name == 'push' || steps.filter.outputs.python == 'true' }}
       integration: ${{ github.event_name == 'push' || steps.filter.outputs.integration == 'true' }}
     steps:
-      - uses: dorny/paths-filter@v3
+      - uses: dorny/paths-filter@v4
         id: filter
         if: github.event_name == 'pull_request'
         with:
