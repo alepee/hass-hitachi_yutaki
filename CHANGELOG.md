@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- The Modbus TCP connection now lives in its own transport class, separate from the gateway logic, and is the only part of the integration that depends on pymodbus (#519). No change to what the integration reads or writes; this prepares the move to Home Assistant's shared Modbus connection (#419). A request the gateway refuses (write, identity or unit-table read) now logs a `Gateway refused …` warning with the Modbus exception code.
+
+### Fixed
+- **Reconnection after a broken connection.** If the old socket still reported itself open but failed to close, every reconnection attempt stopped before opening a new connection, and since the old one was never replaced the integration could stay disconnected until it was reloaded. The broken socket is now discarded and replaced.
+
 ## [2.4.0] - 2026-11-06
 
 This release restores the external room sensor and room target that a gateway or controller reboot clears, hides the false 0 readings and raises a repair issue while the heat pump reports an alarm, and adds three diagnostics from registers the gateways already document (central control mode, mixing valve position, S80 secondary expansion valve).

@@ -11,6 +11,15 @@ from typing import Any
 from custom_components.hitachi_yutaki.const import CIRCUIT_IDS, CIRCUIT_MODES
 
 
+class GatewayCommunicationError(Exception):
+    """The gateway could not be reached, or refused a request.
+
+    The only error an API client lets out of a read, a write or a close. Each
+    transport translates its own protocol and socket exceptions into it, so
+    callers never depend on a protocol library.
+    """
+
+
 class ReadResult(Enum):
     """Result of a read_values operation.
 
@@ -96,7 +105,11 @@ class HitachiApiClient(ABC):
 
     @abstractmethod
     async def close(self) -> bool:
-        """Close the connection to the API."""
+        """Close the connection to the API, best effort.
+
+        Must not raise. Returns False when the connection could not be closed
+        cleanly.
+        """
 
     @property
     @abstractmethod

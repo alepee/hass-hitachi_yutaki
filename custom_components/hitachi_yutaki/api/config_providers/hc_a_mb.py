@@ -10,7 +10,6 @@ from collections.abc import Iterable, Mapping
 import logging
 from typing import Any
 
-from pymodbus.exceptions import ConnectionException, ModbusException
 import voluptuous as vol
 
 from homeassistant.const import CONF_NAME, CONF_SCAN_INTERVAL
@@ -33,7 +32,7 @@ from ...const import (
 )
 from ...profiles import PROFILES
 from .. import GATEWAY_INFO, create_register_map
-from ..base import ReadResult
+from ..base import GatewayCommunicationError, ReadResult
 from . import StepOutcome, StepSchema
 from .modbus import ModbusConfigProvider
 
@@ -173,7 +172,7 @@ class HcAMbConfigProvider(ModbusConfigProvider):
                 detected_profiles=detected_profiles,
             )
 
-        except (ModbusException, ConnectionException, OSError):
+        except GatewayCommunicationError:
             return StepOutcome(errors={"base": "cannot_connect"})
         finally:
             if api_client.connected:

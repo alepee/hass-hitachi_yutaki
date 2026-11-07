@@ -61,6 +61,7 @@ custom_components/hitachi_yutaki/
 |
 |-- api/                         # Modbus communication layer
 |   |-- modbus/                  # Shared Modbus client (ModbusApiClient)
+|   |   |-- transport.py         # Modbus TCP transport (ModbusTransport)
 |   |   |-- registers/           # Register definitions (ATW-MBS-02, ATW-MBS-02 pre-2016, HC-A(16/64)MB)
 |   |   +-- hc_a_mb/             # HC-A(16/64)MB client: unit table, unit binding
 |   +-- config_providers/        # Per-gateway config, profile detection, config entry rules
@@ -242,9 +243,26 @@ register map to discover a feature. Read support and write support are separate,
 and operating-mode controls only offer writable modes. A failed write is surfaced
 to the entity caller.
 
+`ModbusApiClient` holds the gateway logic (register maps, sentinel filtering,
+module gating, pending-write shadowing) and reaches the gateway only through a
+`ModbusTransport` (`api/modbus/transport.py`). The transport knows Modbus TCP
+alone: the connection, reconnection with backoff, and the holding/input register
+reads and the single-register write. It returns a Modbus exception response as a
+value (`None` for a read, `False` for a write) and raises
+`GatewayCommunicationError` (`api/base.py`) on a communication failure, so the
+client keeps the decision to reconnect and retry. The transport is the only
+module of the integration that imports pymodbus (with its version shim
+`compat.py`): it translates every pymodbus and socket exception raised by a
+register operation or `close` into `GatewayCommunicationError`, chained to the
+original, and that is the only error clients and providers catch. `connect`
+reports failure as `False` after its retries, and a client's `close()` never
+raises, so a failing close cannot replace the result of a `finally` block. Replacing
+the transport (HA's shared Modbus connection, #419, or another bus) leaves the
+gateway logic and the providers untouched.
+
 Providers validate connection readiness and own transport-derived fallback
-identities and optional configuration URLs. Protocol exceptions and raw gateway
-state interpretation are confined to the API. Callers must inspect `ReadResult`
+identities and optional configuration URLs. Protocol exceptions are confined to
+the transport and raw gateway state interpretation to the API. Callers must inspect `ReadResult`
 before consuming fetched values.
 
 Setup (`__init__.py`), the coordinator, the config flow and diagnostics call these, and never test `gateway_type`.

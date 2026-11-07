@@ -1,14 +1,9 @@
 """Modbus client for Hitachi heat pumps."""
 
-import asyncio
 from collections.abc import Callable, Mapping
-import contextlib
 import logging
 import time
 from typing import Any
-
-from pymodbus.client import ModbusTcpClient
-from pymodbus.exceptions import ModbusException
 
 from homeassistant.components.climate import HVACMode
 from homeassistant.core import HomeAssistant
@@ -23,11 +18,11 @@ from ...const import (
     CIRCUIT_SECONDARY_ID,
     DOMAIN,
 )
-from ..base import HitachiApiClient, ReadResult
-from .compat import get_pymodbus_device_param
+from ..base import GatewayCommunicationError, HitachiApiClient, ReadResult
 from .kept_values import KeptValues
 from .registers import HitachiRegisterMap, RegisterDefinition
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
+from .transport import ModbusTransport
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -38,7 +33,11 @@ PENDING_WRITE_TTL = 30.0
 
 
 class ModbusApiClient(HitachiApiClient):
-    """Modbus client for Hitachi heat pumps."""
+    """Modbus client for Hitachi heat pumps.
+
+    Holds the gateway logic (register maps, sentinels, module gating, pending
+    writes). Every register access goes through a :class:`ModbusTransport`.
+    """
 
     def __init__(
         self,
@@ -48,20 +47,18 @@ class ModbusApiClient(HitachiApiClient):
         port: int,
         slave: int,
         register_map: HitachiRegisterMap | None = None,
+        transport: ModbusTransport | None = None,
     ) -> None:
-        """Initialize the Modbus client."""
+        """Initialize the Modbus client.
+
+        ``transport`` defaults to a Modbus TCP connection to ``host:port``
+        addressing device ``slave``.
+        """
         self._hass = hass
         self._name = name
-        self._host = host
-        self._port = port
-        self._slave = slave
-        self._client = ModbusTcpClient(host=host, port=port)
-        self._lock = None
+        self._transport = transport or ModbusTransport(hass, host, port, slave)
         self._data = {}
-        self._unsub_updater = None
         self._register_map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
-        self._max_retries = 3
-        self._connection_retries = 0
         self._gateway_not_ready_since: float | None = None
         self._gateway_not_ready_last_log: float = 0.0
         # key -> (expected deserialized value, monotonic deadline)
@@ -72,54 +69,6 @@ class ModbusApiClient(HitachiApiClient):
         )
         # Key being written back, so that write is not mistaken for a command.
         self._writing_back: str | None = None
-
-    async def _ensure_connection(self) -> bool:
-        """Ensure we have a working Modbus connection with retry logic."""
-        for retry in range(self._max_retries):
-            try:
-                # Always close existing connection first to ensure clean state
-                if self._client.is_socket_open():
-                    await self._hass.async_add_executor_job(self._client.close)
-
-                # Create new client instance to avoid stale connections
-                self._client = ModbusTcpClient(host=self._host, port=self._port)
-
-                # Attempt to connect
-                success = await self._hass.async_add_executor_job(self._client.connect)
-
-                if success and self._client.is_socket_open():
-                    _LOGGER.debug(
-                        "Successfully connected to Modbus gateway at %s:%s",
-                        self._host,
-                        self._port,
-                    )
-                    self._connection_retries = 0
-                    return True
-
-                _LOGGER.warning(
-                    "Failed to connect to Modbus gateway (attempt %d/%d)",
-                    retry + 1,
-                    self._max_retries,
-                )
-
-            except Exception as exc:
-                _LOGGER.warning(
-                    "Connection attempt %d/%d failed: %s",
-                    retry + 1,
-                    self._max_retries,
-                    exc,
-                )
-
-            # Wait before retrying with exponential backoff
-            if retry < self._max_retries - 1:
-                delay = 2**retry  # 1s, 2s, 4s
-                await asyncio.sleep(delay)
-
-        _LOGGER.error(
-            "Failed to establish Modbus connection after %d attempts", self._max_retries
-        )
-        self._connection_retries += 1
-        return False
 
     @property
     def register_map(self) -> HitachiRegisterMap:
@@ -162,17 +111,26 @@ class ModbusApiClient(HitachiApiClient):
 
     async def connect(self) -> bool:
         """Connect to the API."""
-        return await self._ensure_connection()
+        return await self._transport.connect()
 
     async def close(self) -> bool:
-        """Close the connection to the API."""
-        _LOGGER.debug("Closing connection to Modbus gateway")
-        return await self._hass.async_add_executor_job(self._client.close)
+        """Close the connection to the API, best effort.
+
+        Never raises: callers close in ``finally`` blocks and on unload, where
+        a failing close must not replace their result. Returns False when the
+        connection could not be closed cleanly.
+        """
+        try:
+            await self._transport.close()
+        except GatewayCommunicationError as exc:
+            _LOGGER.debug("Error closing connection to Modbus gateway: %s", exc)
+            return False
+        return True
 
     @property
     def connected(self) -> bool:
         """Return True if the client is connected to the API."""
-        return self._client.is_socket_open()
+        return self._transport.connected
 
     @property
     def capabilities(self) -> dict:
@@ -194,28 +152,15 @@ class ModbusApiClient(HitachiApiClient):
             or None if the registers cannot be read.
 
         """
-        device_param = get_pymodbus_device_param()
-
         try:
-            result = await self._hass.async_add_executor_job(
-                lambda: self._client.read_input_registers(
-                    address=0,
-                    count=3,
-                    **{device_param: self._slave},
-                )
-            )
+            registers = await self._transport.read_input_registers(0, 3)
 
-            if result.isError():
-                _LOGGER.warning(
-                    "Failed to read input registers for unique_id: %s",
-                    result,
-                )
+            if registers is None:
+                _LOGGER.warning("Failed to read input registers for unique_id")
                 return None
 
-            if len(result.registers) >= 3:
-                unique_id = (
-                    f"{result.registers[0]}-{result.registers[1]}-{result.registers[2]}"
-                )
+            if len(registers) >= 3:
+                unique_id = f"{registers[0]}-{registers[1]}-{registers[2]}"
                 _LOGGER.debug(
                     "Read hardware identifier from input registers: %s",
                     unique_id,
@@ -224,11 +169,11 @@ class ModbusApiClient(HitachiApiClient):
 
             _LOGGER.warning(
                 "Unexpected number of registers returned: %d (expected 3)",
-                len(result.registers),
+                len(registers),
             )
             return None
 
-        except (ModbusException, ConnectionError, OSError) as exc:
+        except GatewayCommunicationError as exc:
             _LOGGER.warning(
                 "Communication error reading input registers for unique_id: %s",
                 exc,
@@ -249,29 +194,19 @@ class ModbusApiClient(HitachiApiClient):
         register_address = (
             reg.write_address if reg.write_address is not None else reg.address
         )
-        device_param = get_pymodbus_device_param()
-
         retry_count = 0
         max_write_retries = 1  # Only retry once after reconnection
 
         while retry_count <= max_write_retries:
             try:
-                result = await self._hass.async_add_executor_job(
-                    lambda: self._client.write_register(
-                        address=register_address,
-                        value=value,
-                        **{device_param: self._slave},
-                    )
-                )
-
-                if result.isError():
-                    _LOGGER.error("Error writing to register %s: %s", key, result)
-                    raise ModbusException(f"Error writing to register {key}: {result}")
+                if not await self._transport.write_register(register_address, value):
+                    _LOGGER.error("Error writing to register %s", key)
+                    raise GatewayCommunicationError(f"Gateway refused write to {key}")
 
                 self._shadow_written_value(key, reg, value)
                 return True
 
-            except (ModbusException, ConnectionError, OSError) as exc:
+            except GatewayCommunicationError as exc:
                 if retry_count < max_write_retries:
                     _LOGGER.warning(
                         "Communication error during write_value for %s: %s. Attempting reconnection...",
@@ -279,12 +214,8 @@ class ModbusApiClient(HitachiApiClient):
                         exc,
                     )
 
-                    # Force connection reset
-                    with contextlib.suppress(Exception):
-                        await self._hass.async_add_executor_job(self._client.close)
-
-                    # Attempt immediate reconnection
-                    if await self._ensure_connection():
+                    # Reset the connection and reconnect immediately
+                    if await self._transport.reconnect():
                         _LOGGER.warning(
                             "Reconnection successful after write error, retrying write operation"
                         )
@@ -485,9 +416,7 @@ class ModbusApiClient(HitachiApiClient):
         """Return True while a lost value could not be written back."""
         return self._kept.failed
 
-    async def _read_register(
-        self, definition: RegisterDefinition, device_param: str
-    ) -> Any:
+    async def _read_register(self, definition: RegisterDefinition) -> Any:
         """Read and deserialize a single register.
 
         Returns the deserialized value, _SENTINEL_FILTERED when the value is a
@@ -498,16 +427,10 @@ class ModbusApiClient(HitachiApiClient):
         (after any fallback) as "no value" and clear the stored reading rather
         than retaining a stale one (see :meth:`read_values`, issue #320).
         """
-        result = await self._hass.async_add_executor_job(
-            lambda addr=definition.address, param=device_param: (
-                self._client.read_holding_registers(
-                    address=addr, count=1, **{param: self._slave}
-                )
-            )
-        )
-        if result.isError():
+        registers = await self._transport.read_holding_registers(definition.address)
+        if not registers:
             return None
-        value = result.registers[0]
+        value = registers[0]
         if definition.deserializer:
             value = definition.deserializer(value)
         if (
@@ -534,7 +457,6 @@ class ModbusApiClient(HitachiApiClient):
 
         while retry_count <= max_read_retries:
             try:
-                device_param = get_pymodbus_device_param()
                 all_regs = self._register_map.all_registers
 
                 # Build a map of registers to read for this update
@@ -544,19 +466,13 @@ class ModbusApiClient(HitachiApiClient):
 
                 # Always perform a preflight check
                 system_state_addr = all_regs["system_state"].address
-                preflight_result = await self._hass.async_add_executor_job(
-                    lambda param=device_param, addr=system_state_addr: (
-                        self._client.read_holding_registers(
-                            address=addr,
-                            count=1,
-                            **{param: self._slave},
-                        )
-                    )
+                preflight = await self._transport.read_holding_registers(
+                    system_state_addr
                 )
-                if preflight_result.isError():
-                    raise ModbusException("Preflight check failed")
+                if not preflight:
+                    raise GatewayCommunicationError("Preflight check failed")
 
-                raw_state = preflight_result.registers[0]
+                raw_state = preflight[0]
 
                 # Always store deserialized value for entity consumption
                 system_state_def = all_regs["system_state"]
@@ -618,14 +534,12 @@ class ModbusApiClient(HitachiApiClient):
 
                 fresh: list[str] = []
                 for name, definition in registers_to_read.items():
-                    value = await self._read_register(definition, device_param)
+                    value = await self._read_register(definition)
                     # Fallback on any None (read error or a sensor-error raw
                     # value such as 0xFFFF deserialized to None), but not on
                     # sentinel (sentinel = module known-absent, no point trying)
                     if value is None and definition.fallback:
-                        value = await self._read_register(
-                            definition.fallback, device_param
-                        )
+                        value = await self._read_register(definition.fallback)
                     if self._is_shadowed_by_pending_write(name, value):
                         continue
                     if value is self._SENTINEL_FILTERED:
@@ -655,19 +569,15 @@ class ModbusApiClient(HitachiApiClient):
                 # If we got here, read was successful
                 return ReadResult.SUCCESS
 
-            except (ModbusException, ConnectionError, OSError) as exc:
+            except GatewayCommunicationError as exc:
                 if retry_count < max_read_retries:
                     _LOGGER.warning(
                         "Communication error during read_values: %s. Attempting reconnection...",
                         exc,
                     )
 
-                    # Force connection reset
-                    with contextlib.suppress(Exception):
-                        await self._hass.async_add_executor_job(self._client.close)
-
-                    # Attempt immediate reconnection
-                    if await self._ensure_connection():
+                    # Reset the connection and reconnect immediately
+                    if await self._transport.reconnect():
                         _LOGGER.warning(
                             "Reconnection successful after read error, retrying read operation"
                         )

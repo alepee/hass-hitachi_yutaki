@@ -12,17 +12,14 @@ from collections.abc import Mapping
 import logging
 from typing import Any
 
-from pymodbus.exceptions import ModbusException
-
 from ....const import (
     CONF_INDOOR_ADDRESS,
     CONF_OUTDOOR_CYCLE,
     CONF_UNIT_ID,
     DEFAULT_UNIT_ID,
 )
-from ...base import UnitBinding, UnitBindingStatus
+from ...base import GatewayCommunicationError, UnitBinding, UnitBindingStatus
 from .. import ModbusApiClient
-from ..compat import get_pymodbus_device_param
 from ..registers.hc_a_mb import HcAMbRegisterMap
 from .unit_table import (
     REASON_NOT_SETTLED,
@@ -62,19 +59,12 @@ class HcAMbApiClient(ModbusApiClient):
             The decoded slots, or None if the table cannot be read.
 
         """
-        device_param = get_pymodbus_device_param()
         address = slot_address(first_slot)
         count = slots * UNIT_TABLE_STRIDE
 
         try:
-            result = await self._hass.async_add_executor_job(
-                lambda: self._client.read_input_registers(
-                    address=address,
-                    count=count,
-                    **{device_param: self._slave},
-                )
-            )
-        except (ModbusException, ConnectionError, OSError) as exc:
+            registers = await self._transport.read_input_registers(address, count)
+        except GatewayCommunicationError as exc:
             _LOGGER.warning(
                 "Communication error reading unit table (registers %d-%d): %s",
                 address,
@@ -83,16 +73,16 @@ class HcAMbApiClient(ModbusApiClient):
             )
             return None
 
-        if result.isError() or len(result.registers or []) < count:
+        if registers is None or len(registers) < count:
             _LOGGER.warning(
                 "Failed to read unit table (registers %d-%d): %s",
                 address,
                 address + count - 1,
-                result,
+                "error response" if registers is None else "short response",
             )
             return None
 
-        return parse_unit_table(list(result.registers[:count]), first_slot)
+        return parse_unit_table(registers[:count], first_slot)
 
     async def async_bind_unit(self, entry_data: Mapping[str, Any]) -> UnitBinding:
         """Locate the entry's unit in the unit table and rebind to its slot.

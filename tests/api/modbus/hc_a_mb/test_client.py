@@ -13,6 +13,7 @@ from custom_components.hitachi_yutaki.api.modbus.hc_a_mb import HcAMbApiClient
 from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
     HcAMbRegisterMap,
 )
+from custom_components.hitachi_yutaki.api.modbus.transport import ModbusTransport
 
 EMPTY = [0, 255, 255, 255]
 # Dump A from #476: 2x Yutaki S, 2x Yutampo R32.
@@ -44,8 +45,8 @@ def api_client(mock_client):
     with patch.object(ModbusApiClient, "__init__", lambda *args, **kwargs: None):
         api = HcAMbApiClient()
     api._hass = hass
-    api._client = mock_client
-    api._slave = 1
+    api._transport = ModbusTransport(hass, "127.0.0.1", 502, 1)
+    api._transport._client = mock_client
     api._register_map = HcAMbRegisterMap(unit_id=2)
     return api
 

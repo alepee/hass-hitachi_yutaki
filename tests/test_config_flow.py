@@ -4,11 +4,14 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from pymodbus.exceptions import ModbusException
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.hitachi_yutaki.api.base import HitachiApiClient, ReadResult
+from custom_components.hitachi_yutaki.api.base import (
+    GatewayCommunicationError,
+    HitachiApiClient,
+    ReadResult,
+)
 from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
@@ -1228,11 +1231,12 @@ async def test_validation_uses_real_read_result_and_deserialized_state(
         "hc_a_mb": HcAMbRegisterMap,
     }
     client = ModbusApiClient(hass, "test", "127.0.0.1", 502, 1, maps[variant]())
-    client._client = MagicMock()
-    client._client.is_socket_open.return_value = True
+    pymodbus_client = MagicMock()
+    pymodbus_client.is_socket_open.return_value = True
+    client._transport._client = pymodbus_client
     response = MagicMock(registers=[raw_state])
     response.isError.return_value = False
-    client._client.read_holding_registers.return_value = response
+    pymodbus_client.read_holding_registers.return_value = response
     client.connect = AsyncMock(return_value=True)
     client.close = AsyncMock()
     client.get_model_key = AsyncMock(return_value="yutaki_s")
@@ -1257,7 +1261,7 @@ async def test_validation_uses_real_read_result_and_deserialized_state(
         assert result["errors"] == {"base": error}
         client.get_model_key.assert_not_awaited()
         client.async_get_unique_id.assert_not_awaited()
-        client._client.read_holding_registers.assert_called_once()
+        pymodbus_client.read_holding_registers.assert_called_once()
     else:
         assert result["step_id"] == "advanced_features"
         client.get_model_key.assert_awaited_once()
@@ -1266,7 +1270,7 @@ async def test_validation_uses_real_read_result_and_deserialized_state(
 async def test_transport_error_is_normalized_by_provider(hass: HomeAssistant) -> None:
     """Transport failures reach the flow as cannot_connect and release the client."""
     client = _mock_api_client()
-    client.read_values.side_effect = ModbusException("connection lost")
+    client.read_values.side_effect = GatewayCommunicationError("connection lost")
     config = {
         **GATEWAY_USER_INPUT,
         **GATEWAY_CONFIG_INPUT,
