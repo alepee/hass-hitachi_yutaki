@@ -10,7 +10,6 @@ from collections.abc import Iterable, Mapping
 import logging
 from typing import Any
 
-from pymodbus.exceptions import ConnectionException, ModbusException
 import voluptuous as vol
 
 from homeassistant.const import CONF_NAME, CONF_SCAN_INTERVAL
@@ -32,7 +31,7 @@ from ...const import (
 )
 from ...profiles import PROFILES
 from .. import GATEWAY_INFO, create_register_map
-from ..base import ReadResult
+from ..base import GatewayCommunicationError, ReadResult
 from ..modbus.registers import GATEWAY_VARIANTS
 from . import StepOutcome, StepSchema
 from .modbus import ModbusConfigProvider
@@ -243,7 +242,7 @@ class AtwMbs02ConfigProvider(ModbusConfigProvider):
             if result == ReadResult.GATEWAY_NOT_READY:
                 return False, "gateway_not_ready"
             return True, None
-        except (ModbusException, ConnectionException, OSError):
+        except GatewayCommunicationError:
             return False, "cannot_connect"
         finally:
             if api_client.connected:
@@ -295,7 +294,7 @@ class AtwMbs02ConfigProvider(ModbusConfigProvider):
                         unit_model,
                     )
                     return variant_key
-            except (ModbusException, ConnectionException, OSError):
+            except GatewayCommunicationError:
                 _LOGGER.debug("Variant probe failed for %s", variant_key)
             finally:
                 if api_client.connected:
@@ -353,7 +352,7 @@ class AtwMbs02ConfigProvider(ModbusConfigProvider):
             if not detected_profiles:
                 _LOGGER.warning("No profile detected, showing all available profiles")
             return detected_profiles, system_config, None
-        except (ModbusException, ConnectionException, OSError):
+        except GatewayCommunicationError:
             return [], 0, "cannot_connect"
         finally:
             if api_client.connected:

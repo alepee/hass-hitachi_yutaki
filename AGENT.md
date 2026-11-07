@@ -79,6 +79,13 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Providers own transport-specific validation, fallback identity and optional
   configuration URLs. Setup and config flows do not interpret Modbus states or
   exceptions.
+- Only `api/modbus/transport.py` (`ModbusTransport`, with its version shim
+  `compat.py`) talks to pymodbus. It
+  translates every pymodbus and socket exception raised by a register operation
+  or `close` into `GatewayCommunicationError` (`api/base.py`); `connect` reports
+  failure as `False` instead. Clients and providers catch that error alone, and
+  a client's `close()` never raises. Never import pymodbus elsewhere in the
+  integration (the diagnostic scripts under `scripts/` are outside this rule).
 
 ### COP Calculation
 - Coefficient of Performance monitoring using energy accumulation over time.

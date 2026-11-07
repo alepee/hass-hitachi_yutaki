@@ -26,6 +26,14 @@ from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 im
 from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
     HcAMbRegisterMap,
 )
+from custom_components.hitachi_yutaki.api.modbus.transport import ModbusTransport
+
+
+def _transport(hass, pymodbus_client) -> ModbusTransport:
+    """Build a transport whose pymodbus client is a mock."""
+    transport = ModbusTransport(hass, "127.0.0.1", 502, 1)
+    transport._client = pymodbus_client
+    return transport
 
 
 @pytest.fixture
@@ -50,8 +58,7 @@ def api_client(mock_hass, mock_client):
     with patch.object(ModbusApiClient, "__init__", lambda x, *args, **kwargs: None):
         api = ModbusApiClient.__new__(ModbusApiClient)
         api._hass = mock_hass
-        api._client = mock_client
-        api._slave = 1
+        api._transport = _transport(mock_hass, mock_client)
         api._pending_writes = {}
         api._writing_back = None
         api._kept = (
@@ -211,7 +218,7 @@ async def test_read_register_returns_deserialized_value(api_client, mock_client)
     mock_client.read_holding_registers.return_value = _make_modbus_result(350)
     definition = RegisterDefinition(1200, deserializer=lambda v: v / 10.0)
 
-    value = await api_client._read_register(definition, "slave")
+    value = await api_client._read_register(definition)
 
     assert value == 35.0
 
@@ -224,7 +231,7 @@ async def test_read_register_returns_raw_value_without_deserializer(
     mock_client.read_holding_registers.return_value = _make_modbus_result(42)
     definition = RegisterDefinition(1000)
 
-    value = await api_client._read_register(definition, "slave")
+    value = await api_client._read_register(definition)
 
     assert value == 42
 
@@ -235,7 +242,7 @@ async def test_read_register_returns_none_on_error(api_client, mock_client):
     mock_client.read_holding_registers.return_value = _make_modbus_error()
     definition = RegisterDefinition(1200)
 
-    value = await api_client._read_register(definition, "slave")
+    value = await api_client._read_register(definition)
 
     assert value is None
 
@@ -257,9 +264,9 @@ async def test_fallback_used_when_primary_returns_none(api_client, mock_client):
     )
 
     # Simulate the read_values fallback logic
-    value = await api_client._read_register(definition, "slave")
+    value = await api_client._read_register(definition)
     if value is None and definition.fallback:
-        value = await api_client._read_register(definition.fallback, "slave")
+        value = await api_client._read_register(definition.fallback)
 
     assert value == 350
     assert mock_client.read_holding_registers.call_count == 2
@@ -276,9 +283,9 @@ async def test_fallback_not_used_when_primary_succeeds(api_client, mock_client):
         fallback=RegisterDefinition(1093, deserializer=lambda v: v),
     )
 
-    value = await api_client._read_register(definition, "slave")
+    value = await api_client._read_register(definition)
     if value is None and definition.fallback:
-        value = await api_client._read_register(definition.fallback, "slave")
+        value = await api_client._read_register(definition.fallback)
 
     assert value == 350
     # Only one read — fallback was never called
@@ -298,9 +305,9 @@ async def test_fallback_used_when_primary_read_errors(api_client, mock_client):
         fallback=RegisterDefinition(1093),
     )
 
-    value = await api_client._read_register(definition, "slave")
+    value = await api_client._read_register(definition)
     if value is None and definition.fallback:
-        value = await api_client._read_register(definition.fallback, "slave")
+        value = await api_client._read_register(definition.fallback)
 
     assert value == 280
     assert mock_client.read_holding_registers.call_count == 2
@@ -316,9 +323,9 @@ async def test_fallback_also_fails_returns_none(api_client, mock_client):
         fallback=RegisterDefinition(1093),
     )
 
-    value = await api_client._read_register(definition, "slave")
+    value = await api_client._read_register(definition)
     if value is None and definition.fallback:
-        value = await api_client._read_register(definition.fallback, "slave")
+        value = await api_client._read_register(definition.fallback)
 
     assert value is None
     assert mock_client.read_holding_registers.call_count == 2
@@ -332,8 +339,7 @@ def _make_preflight_api_client(mock_hass, mock_client):
     with patch.object(ModbusApiClient, "__init__", lambda x, *args, **kwargs: None):
         api = ModbusApiClient.__new__(ModbusApiClient)
         api._hass = mock_hass
-        api._client = mock_client
-        api._slave = 1
+        api._transport = _transport(mock_hass, mock_client)
         api._data = {}
         api._register_map = AtwMbs02RegisterMap()
         api._gateway_not_ready_since = None
@@ -623,8 +629,7 @@ def pre2016_api_client(mock_hass, mock_client):
     with patch.object(ModbusApiClient, "__init__", lambda x, *args, **kwargs: None):
         api = ModbusApiClient.__new__(ModbusApiClient)
         api._hass = mock_hass
-        api._client = mock_client
-        api._slave = 1
+        api._transport = _transport(mock_hass, mock_client)
         api._register_map = AtwMbs02Pre2016RegisterMap()
         api._data = {}
         api._pending_writes = {}
@@ -788,7 +793,7 @@ async def test_failed_write_shadows_nothing(mock_hass, mock_client):
     api = _make_preflight_api_client(mock_hass, mock_client)
     api._data["unit_power"] = 0
     mock_client.write_register.return_value = _make_modbus_error()
-    api._ensure_connection = AsyncMock(return_value=False)
+    api._transport.connect = AsyncMock(return_value=False)
 
     assert await api.write_value("unit_power", 1) is False
 
@@ -1391,7 +1396,7 @@ async def test_failed_seed_holds_its_source_back(_mock_ir, mock_hass, mock_clien
         return _make_modbus_result(0)
 
     mock_client.write_register.side_effect = refuse_room
-    api._ensure_connection = AsyncMock(return_value=False)
+    api._transport.connect = AsyncMock(return_value=False)
     for _ in range(5):
         await _poll(api, mock_client, flag=1, target=0, room=0)
         _expire_pending(api)
@@ -1488,3 +1493,18 @@ async def test_listener_called_when_a_reference_changes(
     assert await api.set_external_room_sensor(1, False)
     assert listener.call_count == 3
     assert api.kept_values() == {"circuit1_thermostat": 0, "circuit1_target_temp": 22.0}
+
+
+@pytest.mark.asyncio
+async def test_close_never_raises(api_client, mock_client):
+    """A failing close reports False instead of replacing the caller's result."""
+    mock_client.close.side_effect = ConnectionResetError("reset by peer")
+
+    assert await api_client.close() is False
+
+
+@pytest.mark.asyncio
+async def test_close_reports_success(api_client, mock_client):
+    """A clean close reports True."""
+    assert await api_client.close() is True
+    mock_client.close.assert_called_once()

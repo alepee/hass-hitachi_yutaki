@@ -17,7 +17,7 @@ from ..const import (
     CONF_UNIT_ID,
     DEFAULT_UNIT_ID,
 )
-from .base import HitachiApiClient
+from .base import GatewayCommunicationError, HitachiApiClient
 from .modbus import ModbusApiClient
 from .modbus.hc_a_mb import HcAMbApiClient
 from .modbus.registers import GATEWAY_VARIANTS, HitachiRegisterMap
@@ -101,6 +101,7 @@ def create_api_client(
 __all__ = [
     "DEFAULT_GATEWAY_TYPE",
     "GATEWAY_INFO",
+    "GatewayCommunicationError",
     "HitachiApiClient",
     "create_api_client",
     "create_register_map",

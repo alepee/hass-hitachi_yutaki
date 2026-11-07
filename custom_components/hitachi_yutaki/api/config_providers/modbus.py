@@ -1,16 +1,11 @@
 """Shared Modbus configuration rules, hidden from integration callers."""
 
 from collections.abc import Mapping
-import logging
 from typing import Any
 
-from pymodbus.exceptions import ModbusException
-
 from ...const import CONF_MODBUS_DEVICE_ID, CONF_MODBUS_HOST, CONF_MODBUS_PORT
-from ..base import HitachiApiClient, ReadResult
+from ..base import GatewayCommunicationError, HitachiApiClient, ReadResult
 from . import ConnectionValidation
-
-_LOGGER = logging.getLogger(__name__)
 
 
 class ModbusConfigProvider:
@@ -34,14 +29,11 @@ class ModbusConfigProvider:
             if not await client.get_model_key():
                 return ConnectionValidation(error="invalid_slave")
             return ConnectionValidation(hardware_id=await client.async_get_unique_id())
-        except (ModbusException, OSError):
+        except GatewayCommunicationError:
             return ConnectionValidation(error="cannot_connect")
         finally:
             if client.connected:
-                try:
-                    await client.close()
-                except (ModbusException, OSError):
-                    _LOGGER.debug("Error closing validation connection", exc_info=True)
+                await client.close()
 
     def unique_id_suffix(self, config: Mapping[str, Any]) -> str:
         """Return the per-unit identity supplied by each concrete provider."""
