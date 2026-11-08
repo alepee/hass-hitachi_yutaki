@@ -198,6 +198,7 @@ How the heat pump uses the room value depends on its own configuration, which th
 - **Hitachi thermostat declared, central control Air or Full**: the unit already regulates on the Modbus room registers, the wall thermostat only displays. The switch has no observable effect (field test on an S80 with a wireless thermostat, #137): keep it on and feed the room temperature from Home Assistant.
 - **Hitachi thermostat declared, central control Local**: the wall thermostat rules and Modbus writes are not honoured; this mode is not supported by the integration (see the README).
 - **Third-party thermostat on the unit's demand input**: invisible to the gateway, it cuts the demand on its own and Home Assistant cannot override it. The same field test found that the Demand ON/OFF input must be unassigned on the unit for the external room sensor to drive the demand alone.
+- **First-generation Yutaki M (ATW-YMM-01 board)**: Modbus room regulation needs board firmware H-0162 or later; on older boards the LCD shows the room values but the unit ignores them (see [Troubleshooting](../troubleshooting.md#yutaki-m-ignores-the-room-temperature-sent-by-home-assistant)).
 
 When a heating circuit reports no thermostat and its switch is off, a one-time repair notice (`external_room_sensor_notice_{entry_id}`) explains the above and how to let Home Assistant provide the room temperature. It writes nothing to the unit, clears on its own once the switch is on, and never comes back once confirmed (`external_room_sensor_notice` option).
 

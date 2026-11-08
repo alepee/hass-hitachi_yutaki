@@ -37,3 +37,19 @@ After a power cycle of the gateway or the heat pump, the H-LINK bus needs a few 
 Alarm 03 means the indoor unit has lost contact with the outdoor unit (power supply or communication cable between the two units). The gateway is fine: it keeps talking to the indoor unit, which reports `0` for everything it would normally relay from the outdoor unit. While the alarm lasts, the integration shows those readings (outdoor temperature, compressor discharge and evaporator temperatures, outdoor expansion valve, frequency, current) as unavailable rather than a false 0, and raises a repair issue. A non-zero outdoor temperature from an auxiliary sensor wired to the indoor unit is still shown.
 
 **Fix:** check the outdoor unit's power supply and the cable between the two units, then contact your installer if the alarm persists. The repair issue and the sensors come back on their own once the unit no longer reports the alarm.
+
+## Yutaki M ignores the room temperature sent by Home Assistant
+
+The External room sensor switch is on, the LCD controller shows the room temperature and the room setpoint written by Home Assistant, but the unit never starts heating on them (and never stops either): it behaves as if the room value did not exist.
+
+### Indoor unit firmware too old (ATW-YMM-01)
+
+On first-generation Yutaki M units, whose indoor control board is the **ATW-YMM-01**, regulation on a room temperature received over Modbus needs board firmware **H-0162 or later** (confirmed by Hitachi UK, [discussion #521](https://github.com/alepee/hass-hitachi_yutaki/discussions/521)). Boards shipped around 2017 can still run **H-0144**: the gateway accepts the room registers and the LCD displays them, but the unit never generates a heating demand from them. Basic Modbus control and monitoring work normally, which makes the cause easy to miss.
+
+Known ATW-YMM-01 releases: H-0144 (original), H-0162 (minimum for Modbus room regulation), H-0216, H-0322 (June 2024). The newer **ATW-YMM-02** board has its own numbering, so these thresholds do not apply to it (H-0286 is known to work with Modbus room regulation).
+
+**Check:** open the **Control Unit** device in Home Assistant: its firmware field reads `PCB H-xxxx / LCD H-xxxx`, the `PCB` part being the indoor board firmware. The LCD controller shows the same number under Menu → About → System Information ("Indoor PCB firmware").
+
+**Fix:** the ATW-YMM-01 firmware can be updated in the field. Contact Hitachi support or your installer to have the board flashed to a recent release. Hitachi also recommends the PC-ARFH1E controller with this board rather than the PC-ARFH2E.
+
+If the firmware is recent enough, check the unit's own configuration instead (room thermostat declared, central control mode, Demand ON/OFF input): see [Room regulation](reference/entities.md#room-regulation).
