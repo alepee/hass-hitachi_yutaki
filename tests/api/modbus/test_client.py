@@ -405,6 +405,31 @@ async def test_read_values_retries_cycle_after_reconnection(
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
 @pytest.mark.asyncio
+async def test_read_values_retry_into_not_ready_keeps_partial_read(
+    _mock_ir, mock_hass, mock_client
+):
+    """A link drop mid-cycle, then a not-ready gateway: earlier readings stay, nothing is tracked."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+    api._kept.track = MagicMock(wraps=api._kept.track)
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),  # preflight: synchronized
+        _make_modbus_result(200),  # outdoor_temp
+        ConnectionError("reset"),  # water_inlet_temp: link drops
+        _make_modbus_result(2),  # preflight after reconnection: initializing
+    ]
+
+    result = await api.read_values(["outdoor_temp", "water_inlet_temp"])
+
+    assert result == ReadResult.GATEWAY_NOT_READY
+    assert api._data["outdoor_temp"] == 200
+    assert "water_inlet_temp" not in api._data
+    assert api._data["system_state"] == "initializing"
+    api._kept.track.assert_not_called()
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
 async def test_read_values_raises_when_retry_fails(_mock_ir, mock_hass, mock_client):
     """read_values propagates a failure that a reconnection did not fix."""
     api = _make_preflight_api_client(mock_hass, mock_client)
