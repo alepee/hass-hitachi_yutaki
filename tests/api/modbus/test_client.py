@@ -326,7 +326,7 @@ async def test_fallback_also_fails_returns_none(api_client, mock_client):
     assert mock_client.read_holding_registers.call_count == 2
 
 
-# --- Reconnect and retry (#528) ---
+# --- Reconnect and retry ---
 
 
 @pytest.mark.asyncio
