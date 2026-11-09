@@ -64,55 +64,10 @@
   },
   "options": {
     "step": {
-      "init": {
-        "title": "Passerelle Hitachi Yutaki",
-        "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
-        "data": {
-          "gateway_type": "Type de passerelle"
-        }
-      },
-      "atw_mbs_02_variant": {
-        "title": "Génération matérielle",
-        "description": "Sélectionnez la génération matérielle en vous basant sur le suffixe de la référence modèle (sur la plaque signalétique).\n\n**Gen 1** — Unités R410A fabriquées avant ~2016.\n**Gen 2+** — Unités R410A/R32 fabriquées à partir de ~2016.\n\n[M'aider à identifier mon modèle]({model_decoder_url})",
-        "data": {
-          "gateway_variant": "Génération"
-        }
-      },
-      "atw_mbs_02_connection": {
-        "title": "Paramètres de connexion",
-        "description": "Entrez les détails de connexion pour votre passerelle de pompe à chaleur Hitachi Yutaki.",
-        "data": {
-          "name": "Nom",
-          "modbus_host": "Hôte/Adresse IP",
-          "modbus_port": "Port",
-          "modbus_device_id": "ID Périphérique Modbus",
-          "scan_interval": "Intervalle d'interrogation (secondes)"
-        }
-      },
-      "hc_a_mb_connection": {
-        "title": "Paramètres de connexion",
-        "description": "Entrez les détails de connexion pour votre passerelle de pompe à chaleur Hitachi Yutaki.",
-        "data": {
-          "name": "Nom",
-          "modbus_host": "Hôte/Adresse IP",
-          "modbus_port": "Port",
-          "modbus_device_id": "ID Périphérique Modbus",
-          "unit_id": "Identifiant d'unité",
-          "scan_interval": "Intervalle d'interrogation (secondes)"
-        }
-      },
-      "profile": {
-        "title": "Modèle de pompe à chaleur",
-        "description": "Sélectionnez votre modèle de pompe à chaleur.",
-        "data": {
-          "profile": "Modèle de pompe à chaleur"
-        }
-      },
       "sensors": {
-        "title": "Configuration alimentation et capteurs",
-        "description": "Configurez l'alimentation et les capteurs externes.",
+        "title": "Capteurs externes",
+        "description": "Liez si besoin des capteurs externes pour des calculs de puissance, de COP et d'énergie thermique plus précis.",
         "data": {
-          "power_supply": "Alimentation électrique",
           "voltage_entity": "Capteur de tension (Optionnel)",
           "power_entity": "Capteur de puissance (Optionnel)",
           "energy_entity": "Compteur d'énergie (Optionnel)",
@@ -164,16 +119,6 @@
           "fleet_ping": "Envoyer le signal anonyme du parc"
         }
       }
-    },
-    "error": {
-      "cannot_connect": "Échec de la connexion à la passerelle. Veuillez vérifier l'hôte et le port.",
-      "invalid_slave": "ID d'esclave Modbus invalide. Veuillez vérifier l'ID et réessayer.",
-      "modbus_error": "Une erreur Modbus s'est produite. Consultez les journaux pour plus de détails.",
-      "invalid_central_control_mode": "La passerelle doit être en mode de contrôle 'Central'. Veuillez modifier ce paramètre dans les réglages de la passerelle.",
-      "unknown": "Une erreur inconnue s'est produite. Veuillez consulter les journaux.",
-      "system_initializing": "La passerelle Hitachi Yutaki est en cours d'initialisation. Veuillez patienter quelques instants et réessayer.",
-      "desync_error": "La passerelle est désynchronisée de la pompe à chaleur. Assurez-vous que la pompe à chaleur est sous tension et que la connexion entre les deux appareils est correcte.",
-      "gateway_not_ready": "La passerelle est joignable mais n'est pas prête (en cours d'initialisation, ou désynchronisée de la pompe à chaleur). C'est normal pendant quelques minutes après la mise sous tension de la passerelle. Si le problème persiste, vérifiez le câblage H-LINK (bornes 1-2 sur le PCB de l'unité intérieure, paire torsadée blindée 0.75 mm²) et consultez le guide de dépannage du projet."
     }
   },
   "config": {
@@ -181,6 +126,13 @@
       "user": {
         "title": "Passerelle Hitachi Yutaki",
         "description": "Sélectionnez le type de passerelle de votre pompe à chaleur Hitachi Yutaki.",
+        "data": {
+          "gateway_type": "Type de passerelle"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer la passerelle",
+        "description": "Modifiez la passerelle, sa connexion, le modèle de pompe à chaleur ou son alimentation. Les capteurs externes, les fonctions bêta et la télémétrie se trouvent dans les options de l'intégration (roue dentée).",
         "data": {
           "gateway_type": "Type de passerelle"
         }
@@ -217,16 +169,16 @@
       },
       "profile": {
         "title": "Modèle de pompe à chaleur",
-        "description": "Sélectionnez votre modèle de pompe à chaleur. L'intégration essaiera de le détecter automatiquement, mais vous pouvez le modifier manuellement si nécessaire.",
+        "description": "Sélectionnez votre modèle de pompe à chaleur et son alimentation électrique. L'intégration essaiera de détecter le modèle automatiquement, mais vous pouvez le modifier manuellement si nécessaire.",
         "data": {
-          "profile": "Modèle de pompe à chaleur"
+          "profile": "Modèle de pompe à chaleur",
+          "power_supply": "Alimentation électrique"
         }
       },
       "power": {
-        "title": "Configuration de l'alimentation",
-        "description": "Configurez l'alimentation et les capteurs de température externes.",
+        "title": "Capteurs externes",
+        "description": "Liez si besoin des capteurs externes pour des calculs de puissance, de COP et d'énergie thermique plus précis.",
         "data": {
-          "power_supply": "Alimentation électrique",
           "voltage_entity": "Capteur de tension (Optionnel)",
           "power_entity": "Capteur de puissance (Optionnel)",
           "energy_entity": "Compteur d'énergie (Optionnel)",
@@ -270,7 +222,8 @@
     },
     "abort": {
       "already_configured": "Cette passerelle Hitachi Yutaki est déjà configurée.",
-      "unknown_gateway": "Type de passerelle inconnu. Veuillez reconfigurer l'intégration."
+      "unknown_gateway": "Type de passerelle inconnu. Veuillez reconfigurer l'intégration.",
+      "reconfigure_successful": "La passerelle et le modèle de pompe à chaleur ont été mis à jour."
     }
   },
   "entity": {

@@ -64,55 +64,10 @@
   },
   "options": {
     "step": {
-      "init": {
-        "title": "Passarel·la Hitachi Yutaki",
-        "description": "Seleccioneu el tipus de passarel·la de la vostra bomba de calor Hitachi Yutaki.",
-        "data": {
-          "gateway_type": "Tipus de passarel·la"
-        }
-      },
-      "atw_mbs_02_variant": {
-        "title": "Generació del maquinari",
-        "description": "Seleccioneu la generació del maquinari segons el sufix de la referència del model de la unitat (a la placa de característiques).\n\n**Gen 1**: unitats R410A fabricades abans de ~2016.\n**Gen 2+**: unitats R410A/R32 fabricades a partir de ~2016.\n\n[Ajudeu-me a identificar el meu model]({model_decoder_url})",
-        "data": {
-          "gateway_variant": "Generació"
-        }
-      },
-      "atw_mbs_02_connection": {
-        "title": "Paràmetres de connexió",
-        "description": "Introduïu les dades de connexió de la passarel·la de la vostra bomba de calor Hitachi Yutaki.",
-        "data": {
-          "name": "Nom",
-          "modbus_host": "Amfitrió/adreça IP",
-          "modbus_port": "Port",
-          "modbus_device_id": "ID del dispositiu Modbus",
-          "scan_interval": "Interval de consulta (segons)"
-        }
-      },
-      "hc_a_mb_connection": {
-        "title": "Paràmetres de connexió",
-        "description": "Introduïu les dades de connexió de la passarel·la de la vostra bomba de calor Hitachi Yutaki.",
-        "data": {
-          "name": "Nom",
-          "modbus_host": "Amfitrió/adreça IP",
-          "modbus_port": "Port",
-          "modbus_device_id": "ID del dispositiu Modbus",
-          "unit_id": "ID de la unitat",
-          "scan_interval": "Interval de consulta (segons)"
-        }
-      },
-      "profile": {
-        "title": "Model de bomba de calor",
-        "description": "Seleccioneu el model de la vostra bomba de calor.",
-        "data": {
-          "profile": "Model de bomba de calor"
-        }
-      },
       "sensors": {
         "title": "Configuració de l'alimentació i els sensors",
         "description": "Configureu l'alimentació elèctrica i els sensors externs.",
         "data": {
-          "power_supply": "Alimentació elèctrica",
           "voltage_entity": "Sensor de tensió (opcional)",
           "power_entity": "Sensor de potència (opcional)",
           "energy_entity": "Sensor d'energia (opcional)",
@@ -164,21 +119,18 @@
           "fleet_ping": "Enviar el senyal anònim del parc"
         }
       }
-    },
-    "error": {
-      "cannot_connect": "No s'ha pogut connectar a la passarel·la. Comproveu l'amfitrió i el port.",
-      "invalid_slave": "ID d'esclau Modbus no vàlid. Comproveu l'ID i torneu-ho a provar.",
-      "modbus_error": "S'ha produït un error de Modbus. Consulteu els registres per a més detalls.",
-      "invalid_central_control_mode": "La passarel·la ha d'estar en mode de control «Central». Canvieu-lo a la configuració de la passarel·la.",
-      "unknown": "S'ha produït un error desconegut. Consulteu els registres.",
-      "system_initializing": "La passarel·la Hitachi Yutaki s'està inicialitzant. Espereu un moment i torneu-ho a provar.",
-      "desync_error": "La passarel·la no està sincronitzada amb la bomba de calor. Assegureu-vos que la bomba de calor està engegada i que la connexió entre els dos dispositius és correcta.",
-      "gateway_not_ready": "La passarel·la és accessible però no està preparada (encara s'està inicialitzant, o no està sincronitzada amb la bomba de calor). És normal durant uns minuts just després d'engegar la passarel·la. Si persisteix, comproveu el cablejat H-LINK (borns 1-2 de la PCB de la unitat interior, parell trenat apantallat de 0,75 mm²) i consulteu la guia de resolució de problemes del projecte."
     }
   },
   "config": {
     "step": {
       "user": {
+        "title": "Passarel·la Hitachi Yutaki",
+        "description": "Seleccioneu el tipus de passarel·la de la vostra bomba de calor Hitachi Yutaki.",
+        "data": {
+          "gateway_type": "Tipus de passarel·la"
+        }
+      },
+      "reconfigure": {
         "title": "Passarel·la Hitachi Yutaki",
         "description": "Seleccioneu el tipus de passarel·la de la vostra bomba de calor Hitachi Yutaki.",
         "data": {
@@ -219,14 +171,14 @@
         "title": "Model de bomba de calor",
         "description": "Seleccioneu el model de la vostra bomba de calor. La integració intentarà detectar-lo automàticament, però podeu canviar-lo manualment si cal.",
         "data": {
-          "profile": "Model de bomba de calor"
+          "profile": "Model de bomba de calor",
+          "power_supply": "Alimentació elèctrica"
         }
       },
       "power": {
         "title": "Configuració de l'alimentació",
         "description": "Configureu l'alimentació i els sensors de temperatura externs.",
         "data": {
-          "power_supply": "Alimentació elèctrica",
           "voltage_entity": "Sensor de tensió (opcional)",
           "power_entity": "Sensor de potència (opcional)",
           "energy_entity": "Sensor d'energia (opcional)",

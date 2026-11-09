@@ -139,10 +139,13 @@ The configuration flow guides you through several steps:
 1. **Gateway selection**: Choose your gateway type (ATW-MBS-02 or HC-A(16/64)MB)
 2. **Hardware generation** (ATW-MBS-02 only): Select your hardware generation (Gen 1 or Gen 2+). The integration auto-detects this after connecting.
 3. **Gateway configuration**: Connection details (name, IP, port, slave ID, scan interval). HC-A(16/64)MB also asks for the unit ID.
-4. **Profile selection**: The integration auto-detects your heat pump model. You can override the detection if needed.
-5. **Power & sensors**: Power supply type (single/three phase) and optional external entities for voltage, power, energy, and water temperatures (inlet/outlet) for more accurate COP and thermal calculations.
+4. **Model and power supply**: The integration auto-detects your heat pump model. You can override the detection if needed. The power supply type (single/three phase) is set on the same step.
+5. **External sensors**: Optional external entities for voltage, power, energy, and water temperatures (inlet/outlet) for more accurate COP and thermal calculations.
 
-You can reconfigure the integration at any time via **Settings** > **Devices & Services** > **Hitachi Heat Pump** > **Configure**.
+After setup, from **Settings** > **Devices & Services** > **Hitachi Heat Pump**:
+
+- **Configure** (cog icon) changes the settings meant to evolve: external sensors, beta features (preventive maintenance) and telemetry.
+- **Reconfigure** (entry menu ⋮) changes what defines the installation: gateway type, connection details, hardware generation, heat pump model and power supply (steps 1 to 4 above).
 
 ## Telemetry
 

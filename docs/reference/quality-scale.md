@@ -87,7 +87,7 @@
 | `entity-device-class` | `SensorDeviceClass.POWER`, `ENERGY`, `TEMPERATURE`, etc. |
 | `entity-disabled-by-default` | Entités avancées désactivées par défaut |
 | `entity-translations` | Traductions EN, FR, NL, RO (translations/) |
-| `reconfiguration-flow` | Options flow en 4 étapes avec reload automatique |
+| `reconfiguration-flow` | `async_step_reconfigure` : passerelle, connexion, variante, modèle et alimentation, reload seulement si les données changent ; refuse une unité déjà configurée (cible de connexion, pas l'identifiant matériel, non prouvé unique, #162) ; l'options flow ne garde que les capteurs externes, les fonctions bêta et la télémétrie |
 | `repair-issues` | Repair flows (`missing_config`, `enable_telemetry`, `enable_energy_cost`) + issue `connection_error` |
 | `stale-devices` | `async_remove_config_entry_device` : un device circuit, ECS ou piscine que la PAC ne déclare plus peut être supprimé |
 

@@ -64,55 +64,10 @@
   },
   "options": {
     "step": {
-      "init": {
-        "title": "Gateway Hitachi Yutaki",
-        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
-        "data": {
-          "gateway_type": "Tip gateway"
-        }
-      },
-      "atw_mbs_02_variant": {
-        "title": "Generația hardware",
-        "description": "Selectați generația hardware pe baza sufixului de referință al modelului (de pe plăcuța de identificare).\n\n**Gen 1** — Unități R410A fabricate înainte de ~2016.\n**Gen 2+** — Unități R410A/R32 fabricate din ~2016.\n\n[Ajută-mă să identific modelul meu]({model_decoder_url})",
-        "data": {
-          "gateway_variant": "Generație"
-        }
-      },
-      "atw_mbs_02_connection": {
-        "title": "Setări de conexiune",
-        "description": "Introduceți detaliile de conexiune pentru gateway-ul pompei de căldură Hitachi Yutaki.",
-        "data": {
-          "name": "Nume",
-          "modbus_host": "Gazdă/Adresă IP",
-          "modbus_port": "Port",
-          "modbus_device_id": "ID Dispozitiv Modbus",
-          "scan_interval": "Interval de interogare (secunde)"
-        }
-      },
-      "hc_a_mb_connection": {
-        "title": "Setări de conexiune",
-        "description": "Introduceți detaliile de conexiune pentru gateway-ul pompei de căldură Hitachi Yutaki.",
-        "data": {
-          "name": "Nume",
-          "modbus_host": "Gazdă/Adresă IP",
-          "modbus_port": "Port",
-          "modbus_device_id": "ID Dispozitiv Modbus",
-          "unit_id": "ID unitate",
-          "scan_interval": "Interval de interogare (secunde)"
-        }
-      },
-      "profile": {
-        "title": "Model pompă de căldură",
-        "description": "Selectați modelul pompei de căldură.",
-        "data": {
-          "profile": "Model pompă de căldură"
-        }
-      },
       "sensors": {
         "title": "Configurare alimentare și senzori",
         "description": "Configurați alimentarea și senzorii externi.",
         "data": {
-          "power_supply": "Alimentare electrică",
           "voltage_entity": "Senzor tensiune (opțional)",
           "power_entity": "Senzor putere (opțional)",
           "energy_entity": "Contor energie (opțional)",
@@ -164,21 +119,18 @@
           "fleet_ping": "Trimite semnalul anonim al parcului"
         }
       }
-    },
-    "error": {
-      "cannot_connect": "Nu s-a putut conecta la gateway. Verificați gazda și portul.",
-      "invalid_slave": "ID slave Modbus invalid. Verificați ID-ul și încercați din nou.",
-      "modbus_error": "A apărut o eroare Modbus. Consultați jurnalele pentru mai multe detalii.",
-      "invalid_central_control_mode": "Gateway-ul trebuie să fie în modul de control 'Central'. Modificați această setare în configurarea gateway-ului.",
-      "unknown": "A apărut o eroare necunoscută. Consultați jurnalele.",
-      "system_initializing": "Gateway-ul Hitachi Yutaki se inițializează. Așteptați un moment și încercați din nou.",
-      "desync_error": "Gateway-ul este desincronizat de pompa de căldură. Asigurați-vă că pompa de căldură este pornită și că legătura dintre cele două dispozitive este corectă.",
-      "gateway_not_ready": "Gateway-ul este accesibil, dar nu este pregătit (încă se inițializează sau este desincronizat de pompa de căldură). Acest lucru este normal timp de câteva minute după pornirea gateway-ului. Dacă problema persistă, verificați cablajul H-LINK (bornele 1-2 pe PCB-ul unității interioare, pereche torsadată ecranată 0.75 mm²) și consultați ghidul de depanare al proiectului."
     }
   },
   "config": {
     "step": {
       "user": {
+        "title": "Gateway Hitachi Yutaki",
+        "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
+        "data": {
+          "gateway_type": "Tip gateway"
+        }
+      },
+      "reconfigure": {
         "title": "Gateway Hitachi Yutaki",
         "description": "Selectați tipul de gateway pentru pompa de căldură Hitachi Yutaki.",
         "data": {
@@ -219,14 +171,14 @@
         "title": "Model pompă de căldură",
         "description": "Selectați modelul pompei de căldură. Integrarea va încerca să îl detecteze automat, dar îl puteți modifica manual dacă este necesar.",
         "data": {
-          "profile": "Model pompă de căldură"
+          "profile": "Model pompă de căldură",
+          "power_supply": "Alimentare electrică"
         }
       },
       "power": {
         "title": "Configurare alimentare",
         "description": "Configurați alimentarea și senzorii de temperatură externi.",
         "data": {
-          "power_supply": "Alimentare electrică",
           "voltage_entity": "Senzor tensiune (opțional)",
           "power_entity": "Senzor putere (opțional)",
           "energy_entity": "Contor energie (opțional)",

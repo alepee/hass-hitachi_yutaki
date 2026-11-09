@@ -94,6 +94,8 @@ def _flatten_preventive_maintenance(user_input: dict[str, Any]) -> dict[str, Any
 # an EntitySelector left empty is omitted from user_input, so the key must be
 # explicitly removed from the merged entry data rather than re-supplied from the
 # existing config entry. Kept in sync with the schema built in async_step_sensors.
+# They are also the only data keys a reconfigure carries over: the rest of
+# entry.data is rebuilt by the gateway steps.
 _OPTIONAL_SENSOR_KEYS = (
     CONF_VOLTAGE_ENTITY,
     CONF_POWER_ENTITY,
@@ -116,17 +118,20 @@ GATEWAY_SELECTION_SCHEMA = vol.Schema(
     }
 )
 
-# Schema for power supply configuration
+
+def _power_supply_selector() -> selector.SelectSelector:
+    """Single- or three-phase supply, a property of the unit's installation."""
+    return selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=["single", "three"],
+            translation_key="power_supply",
+        ),
+    )
+
+
+# Schema for the optional external sensors
 POWER_SCHEMA = vol.Schema(
     {
-        vol.Required(
-            CONF_POWER_SUPPLY, default=DEFAULT_POWER_SUPPLY
-        ): selector.SelectSelector(
-            selector.SelectSelectorConfig(
-                options=["single", "three"],
-                translation_key="power_supply",
-            ),
-        ),
         vol.Optional(CONF_VOLTAGE_ENTITY): selector.EntitySelector(
             selector.EntitySelectorConfig(
                 domain=["sensor", "number", "input_number"],
@@ -178,6 +183,10 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         self._provider_steps: list[str] = []
         self._current_step_index: int = 0
         self._step_context: dict[str, Any] = {}
+        # Data the provider steps validated during this flow, as opposed to
+        # the context, which also holds the entry's previous values as form
+        # defaults when reconfiguring.
+        self._validated: dict[str, Any] = {}
         self.detected_profiles: list[str] = []
         self._pending_config: dict[str, Any] = {}
 
@@ -199,32 +208,62 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     ) -> FlowResult:
         """Handle the initial step (gateway selection)."""
         if user_input is not None:
-            self.gateway_type = user_input["gateway_type"]
-            if self.gateway_type not in GATEWAY_CONFIG_PROVIDERS:
-                return self.async_abort(reason="unknown_gateway")
-            self._provider = GATEWAY_CONFIG_PROVIDERS[self.gateway_type]()
-            self._provider_steps = self._provider.config_steps()
-            self._current_step_index = 0
-
-            # Register dynamic step methods for HA routing.
-            # HA dispatches form submissions by calling async_step_<step_id>()
-            # via introspection. Since provider step IDs are dynamic (declared
-            # at runtime by each gateway), we register them here so HA can
-            # find them. Each handler captures its step index via
-            # _make_step_handler to ensure correct routing even if steps
-            # are called out of order.
-            for idx, step_id in enumerate(self._provider_steps):
-                setattr(
-                    self,
-                    f"async_step_{step_id}",
-                    self._make_step_handler(idx),
-                )
-
-            return await self._handle_provider_step()
+            return await self._async_start_provider_steps(user_input["gateway_type"])
 
         return self.async_show_form(
             step_id="user", data_schema=GATEWAY_SELECTION_SCHEMA
         )
+
+    async def async_step_reconfigure(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Reconfigure what makes this entry this installation.
+
+        Gateway type, connection, register map variant and heat pump model are
+        changed here, with the unit's power supply, from the entry's
+        "Reconfigure" menu. Settings meant to evolve (external sensors, beta
+        features, telemetry) stay in the options flow.
+        """
+        entry = self._get_reconfigure_entry()
+        if user_input is not None:
+            # Pre-populate the context so every provider step defaults to the
+            # entry's current values.
+            self._step_context = dict(entry.data)
+            return await self._async_start_provider_steps(user_input["gateway_type"])
+
+        return self.async_show_form(
+            step_id="reconfigure",
+            data_schema=self.add_suggested_values_to_schema(
+                GATEWAY_SELECTION_SCHEMA,
+                {"gateway_type": entry.data.get("gateway_type", DEFAULT_GATEWAY_TYPE)},
+            ),
+        )
+
+    async def _async_start_provider_steps(self, gateway_type: str) -> FlowResult:
+        """Bind the gateway's provider and show its first step."""
+        self.gateway_type = gateway_type
+        if gateway_type not in GATEWAY_CONFIG_PROVIDERS:
+            return self.async_abort(reason="unknown_gateway")
+        self._provider = GATEWAY_CONFIG_PROVIDERS[gateway_type]()
+        self._provider_steps = self._provider.config_steps()
+        self._current_step_index = 0
+        self._validated = {}
+
+        # Register dynamic step methods for HA routing.
+        # HA dispatches form submissions by calling async_step_<step_id>()
+        # via introspection. Since provider step IDs are dynamic (declared
+        # at runtime by each gateway), we register them here so HA can
+        # find them. Each handler captures its step index via
+        # _make_step_handler to ensure correct routing even if steps
+        # are called out of order.
+        for idx, step_id in enumerate(self._provider_steps):
+            setattr(
+                self,
+                f"async_step_{step_id}",
+                self._make_step_handler(idx),
+            )
+
+        return await self._handle_provider_step()
 
     def _make_step_handler(self, step_idx: int):
         """Create a step handler bound to a specific provider step index.
@@ -281,6 +320,7 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
             if outcome.config_data:
                 self._step_context.update(outcome.config_data)
+                self._validated.update(outcome.config_data)
 
             if outcome.detected_profiles is not None:
                 self.detected_profiles = outcome.detected_profiles
@@ -301,19 +341,36 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     async def async_step_profile(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Handle profile selection."""
+        """Handle the heat pump model and its power supply.
+
+        The power supply sits with the model: like the model, it describes the
+        installed unit and is not expected to change over time.
+        """
+        reconfiguring = self.source == config_entries.SOURCE_RECONFIGURE
+        errors: dict[str, str] = {}
         if user_input is not None:
             self._step_context["profile"] = user_input["profile"]
-            # Go to power supply step
-            return await self.async_step_power()
+            self._step_context[CONF_POWER_SUPPLY] = user_input[CONF_POWER_SUPPLY]
+            if not reconfiguring:
+                return await self.async_step_power()
+            result = self._async_finish_reconfigure()
+            if isinstance(result, str):
+                errors["base"] = result
+            else:
+                return result
 
-        # Schema for profile selection
         # Show all available profiles so user can manually select their machine
         profile_options = list(PROFILES.keys())
-        # Use first detected profile if available, otherwise use UNDEFINED to force user selection
-        default_profile = (
-            self.detected_profiles[0] if self.detected_profiles else vol.UNDEFINED
-        )
+        if reconfiguring:
+            # Keep the configured model by default: re-detection must not
+            # silently swap a model the user picked by hand.
+            default_profile = self._step_context.get("profile", vol.UNDEFINED)
+        else:
+            # Use first detected profile if available, otherwise use UNDEFINED
+            # to force user selection
+            default_profile = (
+                self.detected_profiles[0] if self.detected_profiles else vol.UNDEFINED
+            )
         PROFILE_SCHEMA = vol.Schema(
             {
                 vol.Required(
@@ -324,11 +381,55 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                         mode=selector.SelectSelectorMode.DROPDOWN,
                         translation_key="profile",
                     )
-                )
+                ),
+                vol.Required(
+                    CONF_POWER_SUPPLY,
+                    default=self._step_context.get(
+                        CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY
+                    ),
+                ): _power_supply_selector(),
             }
         )
 
-        return self.async_show_form(step_id="profile", data_schema=PROFILE_SCHEMA)
+        return self.async_show_form(
+            step_id="profile", data_schema=PROFILE_SCHEMA, errors=errors
+        )
+
+    def _async_finish_reconfigure(self) -> FlowResult | str:
+        """Write the reconfigured data and reload, or return a conflict error key.
+
+        The gateway data is rebuilt from what the provider steps validated in
+        this flow: a value the new reading did not return (an unreadable unit
+        slot, an empty system configuration, a key of the previous gateway
+        type) must not survive from the previous data. Only the settings the
+        options flow owns are carried over.
+        """
+        entry = self._get_reconfigure_entry()
+        config = {k: v for k, v in entry.data.items() if k in _OPTIONAL_SENSOR_KEYS}
+        config.update(
+            {k: v for k, v in self._validated.items() if not k.startswith("_")}
+        )
+        config["gateway_type"] = self.gateway_type
+        config["profile"] = self._step_context["profile"]
+        config[CONF_POWER_SUPPLY] = self._step_context[CONF_POWER_SUPPLY]
+
+        others = [
+            other.data
+            for other in self._async_current_entries(include_ignore=False)
+            if other.entry_id != entry.entry_id
+        ]
+        if any(
+            data.get("gateway_type") == self.gateway_type
+            and self._provider.same_unit(data, config)
+            for data in others
+        ):
+            return self.async_abort(reason="already_configured")
+        conflict = self._provider.config_conflict(config, others)
+        if conflict:
+            return conflict
+        return self.async_update_reload_and_abort(
+            entry, data=config, reload_even_if_entry_is_unchanged=False
+        )
 
     async def async_step_power(
         self, user_input: dict[str, Any] | None = None
@@ -444,15 +545,16 @@ class HitachiYutakiConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 
 class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
-    """Handle options as a multi-step flow mirroring initial setup."""
+    """Handle the settings meant to evolve after setup.
+
+    External sensors, beta features and telemetry consents. The gateway, its
+    connection, the heat pump model and its power supply define the entry and
+    are changed through the reconfigure flow instead.
+    """
 
     def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
         """Initialize options flow."""
         self._collected: dict[str, Any] = {}
-        self._provider: GatewayConfigProvider | None = None
-        self._provider_steps: list[str] = []
-        self._current_step_index: int = 0
-        self._step_context: dict[str, Any] = {}
         # Whether the "sensors" step was submitted, so cleared optional sensor
         # keys are only reconciled for flows that actually reached it (#323).
         self._sensors_submitted: bool = False
@@ -468,146 +570,13 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Step 1: Gateway type selection."""
-        if user_input is not None:
-            self._collected.update(user_input)
-            gateway_type = self._collected.get(
-                "gateway_type", self.config_entry.data.get("gateway_type")
-            )
-
-            if gateway_type not in GATEWAY_CONFIG_PROVIDERS:
-                return self.async_abort(reason="unknown_gateway")
-            self._provider = GATEWAY_CONFIG_PROVIDERS[gateway_type]()
-            self._provider_steps = self._provider.config_steps()
-            self._current_step_index = 0
-            # Pre-populate context with existing config data for defaults
-            self._step_context = dict(self.config_entry.data)
-
-            for idx, step_id in enumerate(self._provider_steps):
-                setattr(
-                    self,
-                    f"async_step_{step_id}",
-                    self._make_step_handler(idx),
-                )
-
-            return await self._handle_provider_step()
-
-        current_gateway = self.config_entry.data.get(
-            "gateway_type", DEFAULT_GATEWAY_TYPE
-        )
-
-        return self.async_show_form(
-            step_id="init",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        "gateway_type", default=current_gateway
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=list(GATEWAY_INFO.keys()),
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                            translation_key="gateway_type",
-                        ),
-                    ),
-                }
-            ),
-        )
-
-    def _make_step_handler(self, step_idx: int):
-        """Create a step handler bound to a specific provider step index.
-
-        HA dispatches form submissions by calling async_step_<step_id>()
-        via introspection. Each handler captures its step index to ensure
-        the correct provider step is processed, even if steps are called
-        out of order.
-        """
-
-        async def handler(user_input=None):
-            self._current_step_index = step_idx
-            return await self._handle_provider_step(user_input)
-
-        return handler
-
-    async def _handle_provider_step(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle a gateway provider configuration step.
-
-        Same logic as the config flow handler: show form, process input,
-        advance through provider steps, then go to profile selection.
-        """
-        step_id = self._provider_steps[self._current_step_index]
-
-        if user_input is not None:
-            outcome = await self._provider.process_step(
-                self.hass, step_id, user_input, self._step_context
-            )
-
-            if outcome.errors:
-                step_schema = self._provider.step_schema(step_id, self._step_context)
-                # Preserve user-typed values (host/port/slave/...) so the
-                # user doesn't have to re-enter them on every validation
-                # error. See issue #304.
-                data_schema = self.add_suggested_values_to_schema(
-                    step_schema.schema, user_input
-                )
-                return self.async_show_form(
-                    step_id=step_id,
-                    data_schema=data_schema,
-                    description_placeholders=step_schema.description_placeholders,
-                    errors=outcome.errors,
-                )
-
-            if outcome.config_data:
-                self._step_context.update(outcome.config_data)
-            # Note: outcome.detected_profiles is intentionally not used in the
-            # options flow. Profile re-selection uses the existing config entry
-            # value as default, not auto-detection results.
-
-            self._current_step_index += 1
-            if self._current_step_index >= len(self._provider_steps):
-                return await self.async_step_profile()
-
-            step_id = self._provider_steps[self._current_step_index]
-
-        step_schema = self._provider.step_schema(step_id, self._step_context)
-        return self.async_show_form(
-            step_id=step_id,
-            data_schema=step_schema.schema,
-            description_placeholders=step_schema.description_placeholders,
-        )
-
-    async def async_step_profile(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Step 3: Profile selection."""
-        if user_input is not None:
-            self._collected.update(user_input)
-            return await self.async_step_sensors()
-
-        current_profile = self.config_entry.data.get("profile", vol.UNDEFINED)
-
-        return self.async_show_form(
-            step_id="profile",
-            data_schema=vol.Schema(
-                {
-                    vol.Required(
-                        "profile", default=current_profile
-                    ): selector.SelectSelector(
-                        selector.SelectSelectorConfig(
-                            options=list(PROFILES.keys()),
-                            mode=selector.SelectSelectorMode.DROPDOWN,
-                            translation_key="profile",
-                        ),
-                    ),
-                }
-            ),
-        )
+        """Entry point: open on the external sensors step."""
+        return await self.async_step_sensors(user_input)
 
     async def async_step_sensors(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Step 4: Power supply and external sensors."""
+        """Step 1: optional external sensors."""
         if user_input is not None:
             self._sensors_submitted = True
             self._collected.update(user_input)
@@ -621,15 +590,6 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         # only pre-fills the field for display, leaving a cleared selector absent
         # from user_input so it can be reconciled/removed downstream (#323).
         schema_dict: dict[Any, Any] = {
-            vol.Required(
-                CONF_POWER_SUPPLY,
-                default=data.get(CONF_POWER_SUPPLY, DEFAULT_POWER_SUPPLY),
-            ): selector.SelectSelector(
-                selector.SelectSelectorConfig(
-                    options=["single", "three"],
-                    translation_key="power_supply",
-                ),
-            ),
             vol.Optional(CONF_VOLTAGE_ENTITY): selector.EntitySelector(
                 selector.EntitySelectorConfig(
                     domain=["sensor", "number", "input_number"],
@@ -692,10 +652,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         refrigerant toggle is hidden when the profile has no extended
         compressor sensors (e.g. Yutampo R32), the cycling one always applies.
         """
-        profile_key = self._collected.get(
-            "profile", self.config_entry.data.get("profile")
-        )
-        profile_cls = PROFILES.get(profile_key)
+        profile_cls = PROFILES.get(self.config_entry.data.get("profile"))
         refrigerant_supported = (
             profile_cls is not None
             and profile_cls().supports_extended_compressor_sensors
@@ -731,7 +688,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     async def async_step_telemetry(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Step 5: Anonymous telemetry consent."""
+        """Step 3: Anonymous telemetry consent."""
         if user_input is not None:
             self._telemetry_level = user_input.get(
                 CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL
@@ -767,7 +724,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
     async def async_step_fleet_ping(
         self, user_input: dict[str, Any] | None = None
     ) -> FlowResult:
-        """Step 6: anonymous fleet ping, its own consent (opt-out).
+        """Step 4: anonymous fleet ping, its own consent (opt-out).
 
         Only reached with telemetry off: telemetry ON implies the ping.
         """
@@ -808,12 +765,7 @@ class HitachiYutakiOptionsFlow(config_entries.OptionsFlow):
         if self._cycling_detection is not None:
             new_options[CONF_CYCLING_DETECTION] = self._cycling_detection
 
-        # Merge: entry defaults < provider context < user-collected
-        # Clean up internal keys (prefixed with _) from provider context
-        provider_data = {
-            k: v for k, v in self._step_context.items() if not k.startswith("_")
-        }
-        new_data = {**self.config_entry.data, **provider_data, **self._collected}
+        new_data = {**self.config_entry.data, **self._collected}
 
         # Reconcile cleared optional sensors: an EntitySelector left empty is
         # omitted from user_input, so the key never lands in self._collected

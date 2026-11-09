@@ -60,3 +60,15 @@ class ModbusConfigProvider:
         return first.get(CONF_MODBUS_HOST) == second.get(
             CONF_MODBUS_HOST
         ) and first.get(CONF_MODBUS_PORT) == second.get(CONF_MODBUS_PORT)
+
+    def same_unit(self, first: Mapping[str, Any], second: Mapping[str, Any]) -> bool:
+        """Compare the endpoint, Modbus address and unit of two entries.
+
+        Several gateways may share one endpoint behind a serial bridge, each on
+        its own Modbus address, so the address takes part in the comparison.
+        """
+        return (
+            self.same_gateway(first, second)
+            and first.get(CONF_MODBUS_DEVICE_ID) == second.get(CONF_MODBUS_DEVICE_ID)
+            and self.unique_id_suffix(first) == self.unique_id_suffix(second)
+        )

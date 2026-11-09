@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Changed
+- **Gateway settings moved to "Reconfigure".** The gateway type, connection details, hardware generation, heat pump model and power supply are now changed from the entry's **Reconfigure** menu item (⋮), which validates the connection, refuses a unit or an outdoor cycle already used by another entry, keeps the entry's history, and does not reload the integration when nothing changed. Gateway values the new connection did not return are no longer carried over from the previous configuration. The **Configure** cog keeps only what is meant to change over time: external sensors, beta features and telemetry, so it no longer walks through the gateway steps first. During setup, the power supply (single or three phase) is now asked on the model step.
 - The Modbus TCP connection now lives in its own transport class, separate from the gateway logic, and is the only part of the integration that depends on pymodbus (#519). No change to what the integration reads or writes; this prepares the move to Home Assistant's shared Modbus connection (#419). A request the gateway refuses (write, identity or unit-table read) now logs a `Gateway refused …` warning with the Modbus exception code.
 
 ### Fixed

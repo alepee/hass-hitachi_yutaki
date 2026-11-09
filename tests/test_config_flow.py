@@ -12,6 +12,9 @@ from custom_components.hitachi_yutaki.api.base import (
     HitachiApiClient,
     ReadResult,
 )
+from custom_components.hitachi_yutaki.api.config_providers import (
+    GATEWAY_CONFIG_PROVIDERS,
+)
 from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
@@ -59,9 +62,10 @@ GATEWAY_CONFIG_INPUT = {
     "scan_interval": DEFAULT_SCAN_INTERVAL,
 }
 
-PROFILE_INPUT = {"profile": "yutaki_s"}
+PROFILE_INPUT = {"profile": "yutaki_s", "power_supply": DEFAULT_POWER_SUPPLY}
 
-POWER_INPUT = {"power_supply": DEFAULT_POWER_SUPPLY}
+# The power step only holds optional external sensors.
+POWER_INPUT: dict = {}
 
 
 @pytest.fixture
@@ -197,6 +201,17 @@ async def _advance_to_power(
     return result
 
 
+async def _start_reconfigure(hass: HomeAssistant, entry: MockConfigEntry) -> dict:
+    """Open the entry's reconfigure flow."""
+    return await hass.config_entries.flow.async_init(
+        DOMAIN,
+        context={
+            "source": config_entries.SOURCE_RECONFIGURE,
+            "entry_id": entry.entry_id,
+        },
+    )
+
+
 # ── User step tests ──
 
 
@@ -290,10 +305,10 @@ async def test_connection_failure_preserves_user_input(hass: HomeAssistant) -> N
     assert suggested.get(CONF_MODBUS_DEVICE_ID) == 7
 
 
-async def test_options_flow_connection_failure_preserves_user_input(
+async def test_reconfigure_flow_connection_failure_preserves_user_input(
     hass: HomeAssistant,
 ) -> None:
-    """Options flow: connection failure preserves user-typed values (#304)."""
+    """Reconfigure flow: connection failure preserves user-typed values (#304)."""
     entry = MockConfigEntry(
         version=2,
         minor_version=4,
@@ -313,8 +328,8 @@ async def test_options_flow_connection_failure_preserves_user_input(
     )
     entry.add_to_hass(hass)
 
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(
+    result = await _start_reconfigure(hass, entry)
+    result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {"gateway_type": "modbus_atw_mbs_02"},
     )
@@ -336,7 +351,7 @@ async def test_options_flow_connection_failure_preserves_user_input(
         patch(_PATCH_ATW_GW_INFO, mock_gw_info),
         patch(_PATCH_ATW_CREATE_RM),
     ):
-        result = await hass.config_entries.options.async_configure(
+        result = await hass.config_entries.flow.async_configure(
             result["flow_id"], typed
         )
 
@@ -613,33 +628,9 @@ async def test_validate_connection_duplicate_entry_abort(
 # ── Options flow tests ──
 
 
-async def test_options_flow_init_shows_form(hass: HomeAssistant) -> None:
-    """Test options flow shows gateway selection."""
-    entry = MockConfigEntry(
-        version=2,
-        minor_version=4,
-        domain=DOMAIN,
-        title=DEFAULT_NAME,
-        data={
-            "gateway_type": "modbus_atw_mbs_02",
-            "gateway_variant": "gen2",
-            CONF_MODBUS_HOST: DEFAULT_HOST,
-            CONF_MODBUS_PORT: DEFAULT_PORT,
-            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
-            "profile": "yutaki_s",
-            "power_supply": DEFAULT_POWER_SUPPLY,
-        },
-    )
-    entry.add_to_hass(hass)
-
-    result = await hass.config_entries.options.async_init(entry.entry_id)
-    assert result["type"] is FlowResultType.FORM
-    assert result["step_id"] == "init"
-
-
-async def test_options_flow_full_update(hass: HomeAssistant) -> None:
-    """Test full options flow updates entry data and triggers reload."""
-    entry = MockConfigEntry(
+def _atw_entry(**data) -> MockConfigEntry:
+    """Build a configured ATW-MBS-02 entry, ``data`` overriding the defaults."""
+    return MockConfigEntry(
         version=2,
         minor_version=4,
         domain=DOMAIN,
@@ -654,27 +645,100 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
             "scan_interval": DEFAULT_SCAN_INTERVAL,
             "profile": "yutaki_s",
             "power_supply": DEFAULT_POWER_SUPPLY,
+            **data,
         },
     )
+
+
+async def test_options_flow_opens_on_sensors(hass: HomeAssistant) -> None:
+    """The options flow starts on power and sensors, not on the gateway."""
+    entry = _atw_entry()
     entry.add_to_hass(hass)
 
-    # Step 1: init (gateway selection)
     result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "sensors"
+
+
+async def test_options_flow_full_update(hass: HomeAssistant) -> None:
+    """The options flow updates the sensors and keeps the unit's data."""
+    entry = _atw_entry()
+    entry.add_to_hass(hass)
+
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["step_id"] == "sensors"
+    # The power supply belongs to the reconfigure flow, not to the options.
+    assert "power_supply" not in {str(key) for key in result["data_schema"].schema}
     result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {CONF_POWER_ENTITY: "sensor.power"},
+    )
+    assert result["step_id"] == "advanced_features"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: True}},
+    )
+    assert result["step_id"] == "telemetry"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"],
+        {"telemetry_level": "off"},
+    )
+    assert result["step_id"] == "fleet_ping"
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            {"fleet_ping": True},
+        )
+
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.data[CONF_POWER_ENTITY] == "sensor.power"
+    assert entry.data["power_supply"] == DEFAULT_POWER_SUPPLY
+    assert entry.data[CONF_MODBUS_HOST] == DEFAULT_HOST
+    assert entry.data["gateway_variant"] == "gen2"
+    assert entry.data["profile"] == "yutaki_s"
+    assert entry.options[CONF_REFRIGERANT_DETECTION] is True
+
+
+# ── Reconfigure flow tests ──
+
+
+async def test_reconfigure_flow_shows_current_gateway(hass: HomeAssistant) -> None:
+    """The reconfigure flow opens on the gateway type, pre-filled."""
+    entry = _atw_entry()
+    entry.add_to_hass(hass)
+
+    result = await _start_reconfigure(hass, entry)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "reconfigure"
+    assert _suggested_values(result["data_schema"]) == {
+        "gateway_type": "modbus_atw_mbs_02"
+    }
+
+
+async def test_reconfigure_flow_updates_gateway_and_profile(
+    hass: HomeAssistant,
+) -> None:
+    """Reconfigure rewrites the gateway data and profile, then reloads."""
+    entry = _atw_entry(**{CONF_POWER_ENTITY: "sensor.power"})
+    entry.add_to_hass(hass)
+    hass.config_entries.async_update_entry(
+        entry, options={CONF_REFRIGERANT_DETECTION: True}
+    )
+
+    result = await _start_reconfigure(hass, entry)
+    result = await hass.config_entries.flow.async_configure(
         result["flow_id"],
         {"gateway_type": "modbus_atw_mbs_02"},
     )
     assert result["step_id"] == "atw_mbs_02_connection"
 
-    # Step 2: connection (provider step)
     mock_client = _mock_api_client()
     mock_gw_info = _mock_gateway_info(mock_client)
-
     with (
         patch(_PATCH_ATW_GW_INFO, mock_gw_info),
         patch(_PATCH_ATW_CREATE_RM),
     ):
-        result = await hass.config_entries.options.async_configure(
+        result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {
                 "name": DEFAULT_NAME,
@@ -686,109 +750,48 @@ async def test_options_flow_full_update(hass: HomeAssistant) -> None:
         )
     assert result["step_id"] == "atw_mbs_02_variant"
 
-    # Step 2b: variant (provider step)
-    mock_profs = _mock_profiles()
-
     with (
         patch(_PATCH_ATW_GW_INFO, mock_gw_info),
         patch(_PATCH_ATW_CREATE_RM),
-        patch(_PATCH_ATW_PROFILES, mock_profs),
+        patch(_PATCH_ATW_PROFILES, _mock_profiles()),
     ):
-        result = await hass.config_entries.options.async_configure(
+        result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
             {"gateway_variant": "gen1"},
         )
     assert result["step_id"] == "profile"
+    # The configured model is the default, not the re-detected one.
+    profile_key = next(k for k in result["data_schema"].schema if k == "profile")
+    assert profile_key.default() == "yutaki_s"
+    supply_key = next(k for k in result["data_schema"].schema if k == "power_supply")
+    assert supply_key.default() == DEFAULT_POWER_SUPPLY
 
-    # Step 3: profile
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {"profile": "yutaki_s_combi"},
-    )
-    assert result["step_id"] == "sensors"
-
-    # Step 4: sensors
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {"power_supply": "three"},
-    )
-    # yutaki_s_combi exposes extended sensors: refrigerant consent step first.
-    assert result["step_id"] == "advanced_features"
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: True}},
-    )
-    assert result["step_id"] == "telemetry"
-
-    # Step 5: telemetry
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {"telemetry_level": "off"},
-    )
-    # Telemetry off: the fleet ping gets its own consent step.
-    assert result["step_id"] == "fleet_ping"
-    with patch.object(hass.config_entries, "async_reload"):
-        result = await hass.config_entries.options.async_configure(
+    with patch.object(hass.config_entries, "async_reload") as reload:
+        result = await hass.config_entries.flow.async_configure(
             result["flow_id"],
-            {"fleet_ping": True},
+            {"profile": "yutaki_s_combi", "power_supply": "three"},
         )
 
-    assert result["type"] is FlowResultType.CREATE_ENTRY
-
-    # Verify data was updated
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    reload.assert_called_once_with(entry.entry_id)
     assert entry.data[CONF_MODBUS_HOST] == "192.168.1.100"
+    assert entry.data["gateway_variant"] == "gen1"
     assert entry.data["profile"] == "yutaki_s_combi"
     assert entry.data["power_supply"] == "three"
-    assert entry.data["gateway_variant"] == "gen1"
+    # Settings owned by the options flow survive a reconfigure.
+    assert entry.data[CONF_POWER_ENTITY] == "sensor.power"
+    assert entry.options[CONF_REFRIGERANT_DETECTION] is True
+    assert not any(key.startswith("_") for key in entry.data)
 
 
-async def _walk_options_flow_to_sensors(
-    hass: HomeAssistant, entry: MockConfigEntry, profile: str = "yutaki_s"
-):
-    """Drive the options flow from init up to (and including) the sensors form.
+async def _walk_options_flow_to_sensors(hass: HomeAssistant, entry: MockConfigEntry):
+    """Open the options flow on its sensors form.
 
     Returns the flow result whose step_id is "sensors", ready for the caller to
     submit the sensors user_input.
     """
     result = await hass.config_entries.options.async_init(entry.entry_id)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {"gateway_type": "modbus_atw_mbs_02"},
-    )
-
-    mock_client = _mock_api_client()
-    mock_gw_info = _mock_gateway_info(mock_client)
-
-    with (
-        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
-        patch(_PATCH_ATW_CREATE_RM),
-    ):
-        result = await hass.config_entries.options.async_configure(
-            result["flow_id"],
-            {
-                "name": DEFAULT_NAME,
-                CONF_MODBUS_HOST: DEFAULT_HOST,
-                CONF_MODBUS_PORT: DEFAULT_PORT,
-                CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
-                "scan_interval": DEFAULT_SCAN_INTERVAL,
-            },
-        )
-
-    mock_profs = _mock_profiles()
-    with (
-        patch(_PATCH_ATW_GW_INFO, mock_gw_info),
-        patch(_PATCH_ATW_CREATE_RM),
-        patch(_PATCH_ATW_PROFILES, mock_profs),
-    ):
-        result = await hass.config_entries.options.async_configure(
-            result["flow_id"],
-            {"gateway_variant": "gen1"},
-        )
-
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"],
-        {"profile": profile},
-    )
     assert result["step_id"] == "sensors"
     return result
 
@@ -820,7 +823,7 @@ async def test_options_flow_clears_optional_sensor(hass: HomeAssistant) -> None:
     # Submit the sensors form with the power sensor cleared (omitted, as HA does).
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {"power_supply": "single"},
+        {},
     )
     assert result["step_id"] == "advanced_features"
     result = await hass.config_entries.options.async_configure(
@@ -873,10 +876,7 @@ async def test_options_flow_keeps_unset_optional_sensor_value(
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {
-            "power_supply": "single",
-            CONF_ENERGY_ENTITY: "sensor.new_energy",
-        },
+        {CONF_ENERGY_ENTITY: "sensor.new_energy"},
     )
     assert result["step_id"] == "advanced_features"
     result = await hass.config_entries.options.async_configure(
@@ -929,7 +929,7 @@ async def test_options_flow_preserves_unrelated_data_when_clearing_sensor(
 
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {"power_supply": "single"},
+        {},
     )
     assert result["step_id"] == "advanced_features"
     result = await hass.config_entries.options.async_configure(
@@ -953,7 +953,7 @@ async def test_options_flow_preserves_unrelated_data_when_clearing_sensor(
     assert result["type"] is FlowResultType.CREATE_ENTRY
     # Cleared sensor is gone, but unrelated persisted data survives.
     assert entry.data.get(CONF_POWER_ENTITY) is None
-    assert entry.data["gateway_variant"] == "gen1"
+    assert entry.data["gateway_variant"] == "gen2"
     assert entry.data["scan_interval"] == DEFAULT_SCAN_INTERVAL
     assert entry.data["profile"] == "yutaki_s"
 
@@ -981,10 +981,10 @@ async def test_options_flow_hides_refrigerant_toggle_for_yutampo(
     )
     entry.add_to_hass(hass)
 
-    result = await _walk_options_flow_to_sensors(hass, entry, profile="yutampo_r32")
+    result = await _walk_options_flow_to_sensors(hass, entry)
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {"power_supply": "single"},
+        {},
     )
     # Unsupported profile: the panel is shown, but only with the cycling toggle.
     assert result["step_id"] == "advanced_features"
@@ -1026,7 +1026,7 @@ async def test_options_flow_persists_refrigerant_consent(
     result = await _walk_options_flow_to_sensors(hass, entry)
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {"power_supply": "single"},
+        {},
     )
     assert result["step_id"] == "advanced_features"
     result = await hass.config_entries.options.async_configure(
@@ -1077,9 +1077,7 @@ def _fleet_ping_entry(options: dict | None = None) -> MockConfigEntry:
 async def _walk_options_flow_to_telemetry(hass: HomeAssistant, entry: MockConfigEntry):
     """Drive the options flow up to the telemetry form."""
     result = await _walk_options_flow_to_sensors(hass, entry)
-    result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"power_supply": "single"}
-    )
+    result = await hass.config_entries.options.async_configure(result["flow_id"], {})
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         {SECTION_PREVENTIVE_MAINTENANCE: {CONF_REFRIGERANT_DETECTION: False}},
@@ -1207,6 +1205,137 @@ async def test_new_unit_on_a_moved_entrys_old_slot_is_not_refused(
 
     assert result.get("errors") in (None, {})
     assert flow.unique_id == f"{DOMAIN}_ABCD1234_c7_i8"
+
+
+def _reconfigure_flow(
+    hass: HomeAssistant,
+    entry: MockConfigEntry,
+    gateway_type: str,
+    validated: dict,
+) -> HitachiYutakiConfigFlow:
+    """Build a reconfigure flow whose gateway steps validated ``validated``."""
+    flow = _flow(hass)
+    flow.context = {
+        "source": config_entries.SOURCE_RECONFIGURE,
+        "entry_id": entry.entry_id,
+    }
+    flow.gateway_type = gateway_type
+    flow._provider = GATEWAY_CONFIG_PROVIDERS[gateway_type]()
+    flow._step_context = {**entry.data, **validated}
+    flow._validated = dict(validated)
+    return flow
+
+
+_ATW_GATEWAY_DATA = {
+    "gateway_variant": "gen2",
+    "name": DEFAULT_NAME,
+    CONF_MODBUS_HOST: DEFAULT_HOST,
+    CONF_MODBUS_PORT: DEFAULT_PORT,
+    CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+    "scan_interval": DEFAULT_SCAN_INTERVAL,
+}
+
+
+async def test_reconfigure_rebuilds_gateway_data_from_validated_steps(
+    hass: HomeAssistant,
+) -> None:
+    """Gateway keys the new steps did not return do not survive a reconfigure."""
+    entry = MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title="Unit 1",
+        data={
+            "gateway_type": "modbus_hc_a_mb",
+            CONF_MODBUS_HOST: "192.168.1.50",
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "unit_id": 1,
+            "outdoor_cycle": 1,
+            "indoor_address": 2,
+            "system_config": 1234,
+            "profile": "yutaki_s",
+            "power_supply": DEFAULT_POWER_SUPPLY,
+            CONF_POWER_ENTITY: "sensor.power",
+        },
+    )
+    entry.add_to_hass(hass)
+
+    flow = _reconfigure_flow(hass, entry, "modbus_atw_mbs_02", _ATW_GATEWAY_DATA)
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await flow.async_step_profile(PROFILE_INPUT)
+
+    assert result["reason"] == "reconfigure_successful"
+    assert entry.data == {
+        **_ATW_GATEWAY_DATA,
+        "gateway_type": "modbus_atw_mbs_02",
+        **PROFILE_INPUT,
+        CONF_POWER_ENTITY: "sensor.power",
+    }
+
+
+async def test_reconfigure_refuses_unit_of_another_entry(
+    hass: HomeAssistant,
+) -> None:
+    """Pointing an entry at a unit another entry already drives is refused."""
+    _atw_entry().add_to_hass(hass)
+    entry = _atw_entry(**{CONF_MODBUS_HOST: "192.168.1.60"})
+    entry.add_to_hass(hass)
+
+    flow = _reconfigure_flow(hass, entry, "modbus_atw_mbs_02", _ATW_GATEWAY_DATA)
+    result = await flow.async_step_profile(PROFILE_INPUT)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+    assert entry.data[CONF_MODBUS_HOST] == "192.168.1.60"
+
+    # Another Modbus address on the same endpoint is another gateway.
+    flow = _reconfigure_flow(
+        hass,
+        entry,
+        "modbus_atw_mbs_02",
+        {**_ATW_GATEWAY_DATA, CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID + 1},
+    )
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await flow.async_step_profile(PROFILE_INPUT)
+    assert result["reason"] == "reconfigure_successful"
+
+
+async def test_reconfigure_without_change_does_not_reload(
+    hass: HomeAssistant,
+) -> None:
+    """Walking through reconfigure without changing anything keeps it running."""
+    entry = _atw_entry()
+    entry.add_to_hass(hass)
+
+    flow = _reconfigure_flow(hass, entry, "modbus_atw_mbs_02", _ATW_GATEWAY_DATA)
+    with patch.object(hass.config_entries, "async_reload") as reload:
+        result = await flow.async_step_profile(PROFILE_INPUT)
+
+    assert result["reason"] == "reconfigure_successful"
+    reload.assert_not_called()
+
+
+async def test_reconfigure_refuses_outdoor_cycle_of_another_entry(
+    hass: HomeAssistant,
+) -> None:
+    """Reconfiguring a unit onto a cycle used by another entry is refused (#404)."""
+    _hc_a_entry(unit_id=0, outdoor_cycle=0).add_to_hass(hass)
+    entry = _hc_a_entry(unit_id=1, outdoor_cycle=1)
+    entry.add_to_hass(hass)
+    gateway_data = {k: v for k, v in entry.data.items() if k != "gateway_type"}
+
+    # Its own cycle does not conflict with itself.
+    flow = _reconfigure_flow(hass, entry, "modbus_hc_a_mb", gateway_data)
+    with patch.object(hass.config_entries, "async_reload"):
+        result = await flow.async_step_profile(PROFILE_INPUT)
+    assert result["type"] is FlowResultType.ABORT
+
+    flow = _reconfigure_flow(
+        hass, entry, "modbus_hc_a_mb", {**gateway_data, "outdoor_cycle": 0}
+    )
+    result = await flow.async_step_profile(PROFILE_INPUT)
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "outdoor_cycle_in_use"}
 
 
 @pytest.mark.parametrize(
