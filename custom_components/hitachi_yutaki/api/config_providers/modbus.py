@@ -3,7 +3,13 @@
 from collections.abc import Mapping
 from typing import Any
 
-from ...const import CONF_MODBUS_DEVICE_ID, CONF_MODBUS_HOST, CONF_MODBUS_PORT
+from ...const import (
+    CONF_MODBUS_DEVICE_ID,
+    CONF_MODBUS_HOST,
+    CONF_MODBUS_PORT,
+    CONF_UNIT_ID,
+    DEFAULT_UNIT_ID,
+)
 from ..base import GatewayCommunicationError, HitachiApiClient, ReadResult
 from . import ConnectionValidation
 
@@ -66,9 +72,18 @@ class ModbusConfigProvider:
 
         Several gateways may share one endpoint behind a serial bridge, each on
         its own Modbus address, so the address takes part in the comparison.
+        The unit is compared on its identity when both entries know it, on its
+        slot otherwise: an entry whose unit table could not be read has no
+        identity, and must still clash with an entry identified on that slot.
         """
-        return (
-            self.same_gateway(first, second)
-            and first.get(CONF_MODBUS_DEVICE_ID) == second.get(CONF_MODBUS_DEVICE_ID)
-            and self.unique_id_suffix(first) == self.unique_id_suffix(second)
+        if not self.same_gateway(first, second) or first.get(
+            CONF_MODBUS_DEVICE_ID
+        ) != second.get(CONF_MODBUS_DEVICE_ID):
+            return False
+        first_identity = self.unit_identity(first)
+        second_identity = self.unit_identity(second)
+        if first_identity is not None and second_identity is not None:
+            return first_identity == second_identity
+        return first.get(CONF_UNIT_ID, DEFAULT_UNIT_ID) == second.get(
+            CONF_UNIT_ID, DEFAULT_UNIT_ID
         )

@@ -1274,6 +1274,42 @@ async def test_reconfigure_rebuilds_gateway_data_from_validated_steps(
     }
 
 
+async def test_reconfigure_refuses_identified_unit_when_table_unreadable(
+    hass: HomeAssistant,
+) -> None:
+    """An unidentified unit clashes with an entry identified on the same slot."""
+    MockConfigEntry(
+        version=2,
+        minor_version=4,
+        domain=DOMAIN,
+        title="Unit 0",
+        data={
+            **_hc_a_entry(unit_id=0, outdoor_cycle=2).data,
+            "indoor_address": 3,
+        },
+    ).add_to_hass(hass)
+    entry = _hc_a_entry(unit_id=1, outdoor_cycle=1, host="192.168.1.60")
+    entry.add_to_hass(hass)
+
+    # The unit table could not be read: no outdoor cycle nor indoor address.
+    flow = _reconfigure_flow(
+        hass,
+        entry,
+        "modbus_hc_a_mb",
+        {
+            "name": DEFAULT_NAME,
+            CONF_MODBUS_HOST: DEFAULT_HOST,
+            CONF_MODBUS_PORT: DEFAULT_PORT,
+            CONF_MODBUS_DEVICE_ID: DEFAULT_DEVICE_ID,
+            "scan_interval": DEFAULT_SCAN_INTERVAL,
+            "unit_id": 0,
+        },
+    )
+    result = await flow.async_step_profile(PROFILE_INPUT)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "already_configured"
+
+
 async def test_reconfigure_refuses_unit_of_another_entry(
     hass: HomeAssistant,
 ) -> None:
