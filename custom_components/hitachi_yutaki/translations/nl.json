@@ -222,7 +222,8 @@
     },
     "abort": {
       "already_configured": "Deze Hitachi Yutaki gateway is al geconfigureerd.",
-      "unknown_gateway": "Onbekend gatewaytype. Configureer de integratie opnieuw."
+      "unknown_gateway": "Onbekend gatewaytype. Configureer de integratie opnieuw.",
+      "reconfigure_successful": "De gateway en het warmtepompmodel zijn bijgewerkt."
     }
   },
   "entity": {

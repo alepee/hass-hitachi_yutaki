@@ -222,7 +222,8 @@
     },
     "abort": {
       "already_configured": "Acest gateway Hitachi Yutaki este deja configurat.",
-      "unknown_gateway": "Tip de gateway necunoscut. Vă rugăm să reconfigurați integrarea."
+      "unknown_gateway": "Tip de gateway necunoscut. Vă rugăm să reconfigurați integrarea.",
+      "reconfigure_successful": "Gateway-ul și modelul pompei de căldură au fost actualizate."
     }
   },
   "entity": {

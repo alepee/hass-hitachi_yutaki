@@ -222,7 +222,8 @@
     },
     "abort": {
       "already_configured": "Aquesta passarel·la Hitachi Yutaki ja està configurada.",
-      "unknown_gateway": "Tipus de passarel·la desconegut. Torneu a configurar la integració."
+      "unknown_gateway": "Tipus de passarel·la desconegut. Torneu a configurar la integració.",
+      "reconfigure_successful": "S'han actualitzat la passarel·la i el model de bomba de calor."
     }
   },
   "entity": {
