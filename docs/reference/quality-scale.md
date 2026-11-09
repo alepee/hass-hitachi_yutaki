@@ -87,7 +87,7 @@
 | `entity-device-class` | `SensorDeviceClass.POWER`, `ENERGY`, `TEMPERATURE`, etc. |
 | `entity-disabled-by-default` | Advanced entities disabled by default |
 | `entity-translations` | EN, FR, NL, RO translations (translations/) |
-| `reconfiguration-flow` | Options flow in 4 steps with automatic reload |
+| `reconfiguration-flow` | `async_step_reconfigure`: gateway, connection, variant, model and power supply; reloads only when the data changed; refuses a unit already configured (compared on the connection target, not on the gateway hardware identifier, which is not proven unique, #162); the options flow keeps only the external sensors, beta features and telemetry |
 | `repair-issues` | Repair flows (`missing_config`, `enable_telemetry`, `enable_energy_cost`) + `connection_error` issue |
 | `stale-devices` | `async_remove_config_entry_device`: a circuit, DHW or pool device the heat pump no longer declares can be removed |
 

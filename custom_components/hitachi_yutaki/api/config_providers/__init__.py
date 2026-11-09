@@ -8,7 +8,7 @@ Architecture
 ------------
 - The config flow (config_flow.py) is a thin orchestrator.
 - Each gateway owns its steps: step IDs, schemas, and processing logic.
-- Both the initial config flow and the options flow consume the same provider.
+- Both the initial config flow and the reconfigure flow consume the same provider.
 
 Step ID convention
 ------------------
@@ -34,16 +34,15 @@ step IDs:
     config.step.<step_id>.title
     config.step.<step_id>.description
     config.step.<step_id>.data.<field>
-    options.step.<step_id>.title  (etc.)
 
-Both config and options flows use the SAME step IDs from the provider,
-so translations are shared.
+The setup and reconfigure flows are the same ConfigFlow, so both use these
+translations. The options flow does not run provider steps.
 
 Adding a new gateway
 --------------------
 1. Create api/config_providers/my_gateway.py implementing GatewayConfigProvider
 2. Choose gateway-prefixed step IDs (e.g., "my_gateway_connection")
-3. Add translations under config.step.<step_id> and options.step.<step_id>
+3. Add translations under config.step.<step_id>
 4. Register in GATEWAY_CONFIG_PROVIDERS below
 5. Add GatewayInfo entry in api/__init__.py
 
@@ -172,6 +171,14 @@ class GatewayConfigProvider(Protocol):
 
     def same_gateway(self, first: Mapping[str, Any], second: Mapping[str, Any]) -> bool:
         """Return whether two entries address the same gateway."""
+        ...
+
+    def same_unit(self, first: Mapping[str, Any], second: Mapping[str, Any]) -> bool:
+        """Return whether two entries address the same heat pump unit.
+
+        Compares the connection target rather than the gateway hardware
+        identifier, which is not proven unique across gateways (#162).
+        """
         ...
 
     def unique_id_suffix(self, config: Mapping[str, Any]) -> str:
