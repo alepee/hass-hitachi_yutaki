@@ -9,12 +9,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from pymodbus.exceptions import ModbusException
 import pytest
 
-from custom_components.hitachi_yutaki.api.base import ReadResult
+from custom_components.hitachi_yutaki.api.base import (
+    GatewayCommunicationError,
+    ReadResult,
+)
 from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
 from custom_components.hitachi_yutaki.api.modbus.kept_values import (
     MAX_RESTORE_ATTEMPTS,
     KeptValues,
 )
+from custom_components.hitachi_yutaki.api.modbus.outage import GatewayOutage
 from custom_components.hitachi_yutaki.api.modbus.registers import RegisterDefinition
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
@@ -263,10 +267,7 @@ async def test_fallback_used_when_primary_returns_none(api_client, mock_client):
         fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
     )
 
-    # Simulate the read_values fallback logic
-    value = await api_client._read_register(definition)
-    if value is None and definition.fallback:
-        value = await api_client._read_register(definition.fallback)
+    value = await api_client._read_with_fallback(definition)
 
     assert value == 350
     assert mock_client.read_holding_registers.call_count == 2
@@ -283,9 +284,7 @@ async def test_fallback_not_used_when_primary_succeeds(api_client, mock_client):
         fallback=RegisterDefinition(1093, deserializer=lambda v: v),
     )
 
-    value = await api_client._read_register(definition)
-    if value is None and definition.fallback:
-        value = await api_client._read_register(definition.fallback)
+    value = await api_client._read_with_fallback(definition)
 
     assert value == 350
     # Only one read — fallback was never called
@@ -305,9 +304,7 @@ async def test_fallback_used_when_primary_read_errors(api_client, mock_client):
         fallback=RegisterDefinition(1093),
     )
 
-    value = await api_client._read_register(definition)
-    if value is None and definition.fallback:
-        value = await api_client._read_register(definition.fallback)
+    value = await api_client._read_with_fallback(definition)
 
     assert value == 280
     assert mock_client.read_holding_registers.call_count == 2
@@ -323,12 +320,206 @@ async def test_fallback_also_fails_returns_none(api_client, mock_client):
         fallback=RegisterDefinition(1093),
     )
 
-    value = await api_client._read_register(definition)
-    if value is None and definition.fallback:
-        value = await api_client._read_register(definition.fallback)
+    value = await api_client._read_with_fallback(definition)
 
     assert value is None
     assert mock_client.read_holding_registers.call_count == 2
+
+
+# --- Reconnect and retry ---
+
+
+@pytest.mark.asyncio
+async def test_with_reconnect_returns_direct_success(api_client):
+    """A working attempt runs once, without reconnection."""
+    api_client._transport.reconnect = AsyncMock(return_value=True)
+    attempt = AsyncMock(return_value="ok")
+
+    assert await api_client._with_reconnect("op", attempt) == "ok"
+
+    assert attempt.await_count == 1
+    api_client._transport.reconnect.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_with_reconnect_succeeds_after_reconnection(api_client):
+    """A link failure reconnects and runs the attempt once more."""
+    api_client._transport.reconnect = AsyncMock(return_value=True)
+    attempt = AsyncMock(side_effect=[GatewayCommunicationError("drop"), "ok"])
+
+    assert await api_client._with_reconnect("op", attempt) == "ok"
+
+    assert attempt.await_count == 2
+    api_client._transport.reconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_with_reconnect_raises_when_reconnection_fails(api_client):
+    """A failed reconnection propagates the error without a second attempt."""
+    api_client._transport.reconnect = AsyncMock(return_value=False)
+    attempt = AsyncMock(side_effect=GatewayCommunicationError("drop"))
+
+    with pytest.raises(GatewayCommunicationError, match="drop"):
+        await api_client._with_reconnect("op", attempt)
+
+    assert attempt.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_with_reconnect_raises_on_second_failure(api_client):
+    """A failure after a successful reconnection propagates, no third attempt."""
+    api_client._transport.reconnect = AsyncMock(return_value=True)
+    attempt = AsyncMock(
+        side_effect=[
+            GatewayCommunicationError("drop"),
+            GatewayCommunicationError("again"),
+        ]
+    )
+
+    with pytest.raises(GatewayCommunicationError, match="again"):
+        await api_client._with_reconnect("op", attempt)
+
+    assert attempt.await_count == 2
+    api_client._transport.reconnect.assert_awaited_once()
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_retries_cycle_after_reconnection(
+    _mock_ir, mock_hass, mock_client
+):
+    """A dropped link during a read reconnects and reads the whole cycle again."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+    mock_client.read_holding_registers.side_effect = [
+        ConnectionError("reset"),
+        _make_modbus_result(0),
+        _make_modbus_result(200),
+    ]
+
+    assert await api.read_values(["outdoor_temp"]) == ReadResult.SUCCESS
+
+    assert api._data["outdoor_temp"] == 200
+    api._transport.reconnect.assert_awaited_once()
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_retry_into_not_ready_keeps_partial_read(
+    _mock_ir, mock_hass, mock_client
+):
+    """A link drop mid-cycle, then a not-ready gateway: earlier readings stay, nothing is tracked."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+    api._kept.track = MagicMock(wraps=api._kept.track)
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),  # preflight: synchronized
+        _make_modbus_result(200),  # outdoor_temp
+        ConnectionError("reset"),  # water_inlet_temp: link drops
+        _make_modbus_result(2),  # preflight after reconnection: initializing
+    ]
+
+    result = await api.read_values(["outdoor_temp", "water_inlet_temp"])
+
+    assert result == ReadResult.GATEWAY_NOT_READY
+    assert api._data["outdoor_temp"] == 200
+    assert "water_inlet_temp" not in api._data
+    assert api._data["system_state"] == "initializing"
+    api._kept.track.assert_not_called()
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_raises_when_retry_fails(_mock_ir, mock_hass, mock_client):
+    """read_values propagates a failure that a reconnection did not fix."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+    mock_client.read_holding_registers.side_effect = ConnectionError("reset")
+
+    with pytest.raises(GatewayCommunicationError):
+        await api.read_values(["outdoor_temp"])
+
+    assert mock_client.read_holding_registers.call_count == 2
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_read_values_raises_on_failed_preflight_after_retry(
+    _mock_ir, mock_hass, mock_client
+):
+    """A preflight refused twice is a communication failure, not a not-ready."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+    mock_client.read_holding_registers.return_value = _make_modbus_error()
+
+    with pytest.raises(GatewayCommunicationError, match="Preflight"):
+        await api.read_values(["outdoor_temp"])
+
+
+@pytest.mark.asyncio
+async def test_write_value_returns_false_when_link_cannot_be_restored(
+    mock_hass, mock_client
+):
+    """A write whose link drops and does not come back returns False."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=False)
+    mock_client.write_register.side_effect = ConnectionError("reset")
+
+    assert await api.write_value("unit_power", 1) is False
+
+    assert api._pending_writes == {}
+    api._transport.reconnect.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_write_value_retries_once_after_reconnection(mock_hass, mock_client):
+    """A write whose link drops is written again once reconnected."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+    mock_client.write_register.side_effect = [
+        ConnectionError("reset"),
+        _make_modbus_result(0),
+    ]
+
+    assert await api.write_value("unit_power", 1) is True
+
+    assert api._data["unit_power"] == 1
+    assert mock_client.write_register.call_count == 2
+
+
+@pytest.mark.asyncio
+async def test_refused_write_neither_reconnects_nor_writes_again(
+    mock_hass, mock_client, caplog
+):
+    """The gateway answered a refusal: the link is fine, nothing to retry (#528)."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+    mock_client.write_register.return_value = _make_modbus_error()
+
+    with caplog.at_level(logging.WARNING):
+        assert await api.write_value("unit_power", 1) is False
+
+    assert mock_client.write_register.call_count == 1
+    api._transport.reconnect.assert_not_awaited()
+    assert any(
+        "Gateway refused write to register unit_power" in r.message
+        for r in caplog.records
+    )
+    assert not any("reconnect" in r.message.lower() for r in caplog.records)
+
+
+@pytest.mark.asyncio
+async def test_read_with_fallback_skips_fallback_on_sentinel(api_client, mock_client):
+    """A sentinel means the module is absent: the fallback is not read."""
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0xFFFF)
+    definition = RegisterDefinition(
+        1200, sentinel_values=frozenset({0xFFFF}), fallback=RegisterDefinition(1093)
+    )
+
+    value = await api_client._read_with_fallback(definition)
+
+    assert value is api_client._SENTINEL_FILTERED
+    assert mock_client.read_holding_registers.call_count == 1
 
 
 # --- Preflight / system_state deserialization tests ---
@@ -342,8 +533,7 @@ def _make_preflight_api_client(mock_hass, mock_client):
         api._transport = _transport(mock_hass, mock_client)
         api._data = {}
         api._register_map = AtwMbs02RegisterMap()
-        api._gateway_not_ready_since = None
-        api._gateway_not_ready_last_log = 0.0
+        api._outage = GatewayOutage()
         api._pending_writes = {}
         api._writing_back = None
         api._kept = (
@@ -448,15 +638,15 @@ async def test_read_values_resets_throttle_state_on_recovery(
     # Not ready
     mock_client.read_holding_registers.return_value = _make_modbus_result(2)
     await api.read_values(["system_state"])
-    assert api._gateway_not_ready_since is not None
+    assert api._outage.since is not None
 
     # Recovered
     mock_client.read_holding_registers.return_value = _make_modbus_result(0)
     with caplog.at_level(logging.WARNING):
         caplog.clear()
         await api.read_values(["system_state"])
-    assert api._gateway_not_ready_since is None
-    assert api._gateway_not_ready_last_log == 0.0
+    assert api._outage.since is None
+    assert api._outage.last_warning == 0.0
     recovery_logs = [r for r in caplog.records if "recovered" in r.message.lower()]
     assert len(recovery_logs) == 1
 
@@ -793,7 +983,6 @@ async def test_failed_write_shadows_nothing(mock_hass, mock_client):
     api = _make_preflight_api_client(mock_hass, mock_client)
     api._data["unit_power"] = 0
     mock_client.write_register.return_value = _make_modbus_error()
-    api._transport.connect = AsyncMock(return_value=False)
 
     assert await api.write_value("unit_power", 1) is False
 
