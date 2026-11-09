@@ -11,131 +11,131 @@
 
 ---
 
-## Overall result
+## Résultat global
 
-| Tier | Score | Status |
+| Tier | Score | Statut |
 |------|-------|--------|
-| Bronze | 18/18 | Reached |
-| Silver | 6/10 | Not reached |
-| Gold | 9/21 | Not reached |
-| Platinum | 1/3 | Not reached |
+| Bronze | 18/18 | Atteint |
+| Silver | 6/10 | Non atteint |
+| Gold | 9/21 | Non atteint |
+| Platinum | 1/3 | Non atteint |
 
-**Current level: Bronze** (all rules met)
-
----
-
-## Bronze (18 rules)
-
-### Rules met (18/18)
-
-| Rule | Detail |
-|------|--------|
-| `config-flow` | Complete multi-step UI flow (4 steps) |
-| `test-before-configure` | Modbus connection validated in the config flow |
-| `test-before-setup` | `ConfigEntryNotReady` when the connection fails at startup |
-| `unique-config-entry` | Hardware `unique_id` from Modbus input registers |
-| `entity-unique-id` | Format `{entry_id}_{key}`, with an optional `{register_prefix}` segment (`{entry_id}_{register_prefix}_{key}`) |
-| `has-entity-name` | `has_entity_name = True` on every base class except the switch (`HitachiYutakiSwitch`) |
-| `entity-event-setup` | HA lifecycle followed through CoordinatorEntity |
-| `dependency-transparency` | `requirements` declared in manifest.json |
-| `common-modules` | Shared modules: `entities/base/`, `domain/services/`, `adapters/` |
-| `action-setup` | Exempt: entity service `set_room_temperature` through `platform.async_register_entity_service` (no integration-level action) |
-| `appropriate-polling` | DataUpdateCoordinator with a configurable interval |
-| `docs-high-level-description` | Present in README.md |
-| `docs-installation-instructions` | Present in README.md |
-| `docs-actions` | Service documented in services.yaml |
-| `brands` | Logo and icon in `brand/` |
-| `config-flow-test-coverage` | 18 tests covering the config flow and the options flow (`tests/test_config_flow.py`) |
-| `runtime-data` | `ConfigEntry.runtime_data` with the `HitachiYutakiConfigEntry` type alias |
-| `docs-removal-instructions` | "Uninstall" section in README.md |
+**Niveau actuel : Bronze** (toutes les règles validées)
 
 ---
 
-## Silver (10 rules)
+## Bronze (18 règles)
 
-### Rules met (6)
+### Règles validées (18/18)
 
-| Rule | Detail |
-|------|--------|
-| `config-entry-unloading` | Complete `async_unload_entry` (API closed, hass.data cleaned up) |
-| `integration-owner` | `@alepee` in manifest.json |
-| `entity-unavailable` | `last_update_success` on every entity |
-| `action-exceptions` | Exceptions raised in services |
-| `docs-configuration-parameters` | Parameters described in README |
-| `docs-installation-parameters` | Installation parameters described in README |
-
-### Rules not met (4)
-
-| Rule | Detail | Effort |
-|------|--------|--------|
-| `log-when-unavailable` | Logs on every error instead of once; no log when the connection comes back | Low |
-| `parallel-updates` | `PARALLEL_UPDATES` not defined in the platform files | Low |
-| `reauthentication-flow` | No reauth flow (debatable: Modbus has no authentication) | Medium / N/A |
-| `test-coverage` | Coverage < 95% -- tests limited to the domain layer | High |
+| Règle | Détail |
+|-------|--------|
+| `config-flow` | Multi-step UI flow complet (4 étapes) |
+| `test-before-configure` | Validation connexion Modbus dans le config flow |
+| `test-before-setup` | `ConfigEntryNotReady` si connexion échoue au démarrage |
+| `unique-config-entry` | `unique_id` hardware via registres Modbus input |
+| `entity-unique-id` | Format `{entry_id}_{key}`, avec segment `{register_prefix}` optionnel (`{entry_id}_{register_prefix}_{key}`) |
+| `has-entity-name` | `has_entity_name = True` sur toutes les classes de base sauf le switch (`HitachiYutakiSwitch`) |
+| `entity-event-setup` | Lifecycle HA respecté via CoordinatorEntity |
+| `dependency-transparency` | `requirements` déclaré dans manifest.json |
+| `common-modules` | Modules communs : `entities/base/`, `domain/services/`, `adapters/` |
+| `action-setup` | Exempté : service entité `set_room_temperature` via `platform.async_register_entity_service` (pas d'action au niveau intégration) |
+| `appropriate-polling` | DataUpdateCoordinator avec intervalle configurable |
+| `docs-high-level-description` | Présent dans README.md |
+| `docs-installation-instructions` | Présent dans README.md |
+| `docs-actions` | Service documenté dans services.yaml |
+| `brands` | Logo et icon dans `brand/` |
+| `config-flow-test-coverage` | 18 tests couvrant config flow + options flow (`tests/test_config_flow.py`) |
+| `runtime-data` | `ConfigEntry.runtime_data` avec type alias `HitachiYutakiConfigEntry` |
+| `docs-removal-instructions` | Section "Uninstall" dans README.md |
 
 ---
 
-## Gold (21 rules)
+## Silver (10 règles)
 
-### Rules met (9)
+### Règles validées (6)
 
-| Rule | Detail |
-|------|--------|
-| `diagnostics` | `diagnostics.py`: entry data (host redacted), HC-A unit identity `(Ou, Iu)` and current slot, coordinator's last poll |
-| `devices` | 8 devices created dynamically from the profile |
-| `entity-category` | `EntityCategory.DIAGNOSTIC` used on advanced entities |
+| Règle | Détail |
+|-------|--------|
+| `config-entry-unloading` | `async_unload_entry` complet (fermeture API, nettoyage hass.data) |
+| `integration-owner` | `@alepee` dans manifest.json |
+| `entity-unavailable` | `last_update_success` sur toutes les entités |
+| `action-exceptions` | Exceptions levées dans les services |
+| `docs-configuration-parameters` | Paramètres décrits dans README |
+| `docs-installation-parameters` | Paramètres d'installation décrits dans README |
+
+### Règles non validées (4)
+
+| Règle | Détail | Effort |
+|-------|--------|--------|
+| `log-when-unavailable` | Log à chaque erreur au lieu d'une seule fois ; pas de log au retour de connexion | Faible |
+| `parallel-updates` | `PARALLEL_UPDATES` non défini dans les fichiers plateforme | Faible |
+| `reauthentication-flow` | Pas de flow reauth (discutable : Modbus n'a pas d'authentification) | Moyen / N/A |
+| `test-coverage` | Couverture < 95% -- tests limités au domain layer | Important |
+
+---
+
+## Gold (21 règles)
+
+### Règles validées (9)
+
+| Règle | Détail |
+|-------|--------|
+| `diagnostics` | `diagnostics.py` : données de l'entrée (hôte masqué), identité de l'unité HC-A `(Ou, Iu)` et slot courant, dernier poll du coordinator |
+| `devices` | 8 devices créés dynamiquement selon le profil |
+| `entity-category` | `EntityCategory.DIAGNOSTIC` utilisé sur les entités avancées |
 | `entity-device-class` | `SensorDeviceClass.POWER`, `ENERGY`, `TEMPERATURE`, etc. |
-| `entity-disabled-by-default` | Advanced entities disabled by default |
-| `entity-translations` | EN, FR, NL, RO translations (translations/) |
+| `entity-disabled-by-default` | Entités avancées désactivées par défaut |
+| `entity-translations` | Traductions EN, FR, NL, RO (translations/) |
 | `reconfiguration-flow` | `async_step_reconfigure`: gateway, connection, variant, model and power supply; reloads only when the data changed; refuses a unit already configured (compared on the connection target, not on the gateway hardware identifier, which is not proven unique, #162); the options flow keeps only the external sensors, beta features and telemetry |
-| `repair-issues` | Repair flows (`missing_config`, `enable_telemetry`, `enable_energy_cost`) + `connection_error` issue |
-| `stale-devices` | `async_remove_config_entry_device`: a circuit, DHW or pool device the heat pump no longer declares can be removed |
+| `repair-issues` | Repair flows (`missing_config`, `enable_telemetry`, `enable_energy_cost`) + issue `connection_error` |
+| `stale-devices` | `async_remove_config_entry_device` : un device circuit, ECS ou piscine que la PAC ne déclare plus peut être supprimé |
 
-### Rules not met (12)
+### Règles non validées (12)
 
-| Rule | Detail | Effort |
-|------|--------|--------|
-| `discovery` | No auto-discovery (limited by Modbus TCP) | N/A |
-| `discovery-update-info` | N/A without discovery | N/A |
-| `dynamic-devices` | Devices fixed at configuration time | N/A |
-| `icon-translations` | No `icons.json` | Medium |
-| `exception-translations` | Exceptions not translatable (`HomeAssistantError` without `translation_key`) | Medium |
-| `docs-data-update` | No dedicated section in the documentation | Low |
-| `docs-examples` | No automation examples | Low |
-| `docs-known-limitations` | No known limitations section | Low |
-| `docs-troubleshooting` | No troubleshooting section | Low |
-| `docs-use-cases` | No use cases section | Low |
-| `docs-supported-functions` | Partial -- entities listed but not exhaustively | Low |
-
----
-
-## Platinum (3 rules)
-
-| Rule | Status | Detail |
-|------|--------|--------|
-| `async-dependency` | Done | pymodbus supports asyncio |
-| `inject-websession` | N/A | Modbus TCP, not HTTP |
-| `strict-typing` | Not done | Type hints present but no `py.typed` / strict mode |
+| Règle | Détail | Effort |
+|-------|--------|--------|
+| `discovery` | Pas de découverte auto (limité par Modbus TCP) | N/A |
+| `discovery-update-info` | N/A sans discovery | N/A |
+| `dynamic-devices` | Devices statiques à la configuration | N/A |
+| `icon-translations` | Pas de `icons.json` | Moyen |
+| `exception-translations` | Exceptions non traduisibles (`HomeAssistantError` sans `translation_key`) | Moyen |
+| `docs-data-update` | Pas de section dédiée dans la documentation | Faible |
+| `docs-examples` | Pas d'exemples d'automatisation | Faible |
+| `docs-known-limitations` | Pas de section limitations connues | Faible |
+| `docs-troubleshooting` | Pas de section dépannage | Faible |
+| `docs-use-cases` | Pas de section cas d'usage | Faible |
+| `docs-supported-functions` | Partiel -- entités listées mais pas exhaustif | Faible |
 
 ---
 
-## Suggested action plan
+## Platinum (3 règles)
 
-### To reach Silver (4 actions)
+| Règle | Statut | Détail |
+|-------|--------|--------|
+| `async-dependency` | Done | pymodbus supporte asyncio |
+| `inject-websession` | N/A | Modbus TCP, pas HTTP |
+| `strict-typing` | Not done | Type hints présents mais pas de `py.typed` / strict mode |
 
-**Quick wins:**
-1. `parallel-updates` -- Add `PARALLEL_UPDATES = 0` to each platform file
-2. `log-when-unavailable` -- Log once when unavailable and once when back
+---
 
-**Larger work:**
-3. `reauthentication-flow` -- Assess whether it is relevant for Modbus (likely exempt)
-4. `test-coverage` -- Extend tests to >95% (config flow, platforms, entities)
+## Plan d'action suggéré
 
-### Towards Gold
+### Pour atteindre Silver (4 actions)
 
-**Documentation quick wins:**
+**Quick wins :**
+1. `parallel-updates` -- Ajouter `PARALLEL_UPDATES = 0` dans chaque fichier plateforme
+2. `log-when-unavailable` -- Logger une seule fois quand indisponible et une fois au retour
+
+**Travail plus conséquent :**
+3. `reauthentication-flow` -- Évaluer si pertinent pour Modbus (potentiellement exemptable)
+4. `test-coverage` -- Étendre les tests à >95% (config flow, platforms, entities)
+
+### Pour progresser vers Gold
+
+**Quick wins documentation :**
 - `docs-data-update`, `docs-examples`, `docs-known-limitations`, `docs-troubleshooting`, `docs-use-cases`, `docs-supported-functions`
 
-**Development:**
-- `icon-translations` -- Create `icons.json`
-- `exception-translations` -- Use `HomeAssistantError` with `translation_key`
+**Développement :**
+- `icon-translations` -- Créer `icons.json`
+- `exception-translations` -- Utiliser `HomeAssistantError` avec `translation_key`
