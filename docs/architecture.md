@@ -250,7 +250,10 @@ alone: the connection, reconnection with backoff, and the holding/input register
 reads and the single-register write. It returns a Modbus exception response as a
 value (`None` for a read, `False` for a write) and raises
 `GatewayCommunicationError` (`api/base.py`) on a communication failure, so the
-client keeps the decision to reconnect and retry. The transport is the only
+client keeps the decision to reconnect and retry: `_with_reconnect` reconnects
+once on a `GatewayCommunicationError` and runs the read cycle or the write once
+more, while a refused write is reported as a failure without a reconnection
+(the gateway answered, the link is fine). The transport is the only
 module of the integration that imports pymodbus (with its version shim
 `compat.py`): it translates every pymodbus and socket exception raised by a
 register operation or `close` into `GatewayCommunicationError`, chained to the

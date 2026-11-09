@@ -1,6 +1,6 @@
 """Modbus client for Hitachi heat pumps."""
 
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 import logging
 import time
 from typing import Any
@@ -20,6 +20,7 @@ from ...const import (
 )
 from ..base import GatewayCommunicationError, HitachiApiClient, ReadResult
 from .kept_values import KeptValues
+from .outage import GatewayOutage, NotReadyWarning
 from .registers import HitachiRegisterMap, RegisterDefinition
 from .registers.atw_mbs_02 import AtwMbs02RegisterMap
 from .transport import ModbusTransport
@@ -59,8 +60,7 @@ class ModbusApiClient(HitachiApiClient):
         self._transport = transport or ModbusTransport(hass, host, port, slave)
         self._data = {}
         self._register_map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
-        self._gateway_not_ready_since: float | None = None
-        self._gateway_not_ready_last_log: float = 0.0
+        self._outage = GatewayOutage()
         # key -> (expected deserialized value, monotonic deadline)
         self._pending_writes: dict[str, tuple[Any, float]] = {}
         # Values the hardware forgets on reboot (#511), see ``Keep``.
@@ -194,42 +194,45 @@ class ModbusApiClient(HitachiApiClient):
         register_address = (
             reg.write_address if reg.write_address is not None else reg.address
         )
-        retry_count = 0
-        max_write_retries = 1  # Only retry once after reconnection
+        try:
+            accepted = await self._with_reconnect(
+                f"write to register {key}",
+                lambda: self._transport.write_register(register_address, value),
+            )
+        except GatewayCommunicationError as exc:
+            _LOGGER.error("Error writing to register %s: %s", key, exc)
+            return False
 
-        while retry_count <= max_write_retries:
-            try:
-                if not await self._transport.write_register(register_address, value):
-                    _LOGGER.error("Error writing to register %s", key)
-                    raise GatewayCommunicationError(f"Gateway refused write to {key}")
+        if not accepted:
+            # The gateway answered, so the link is fine: a reconnection and a
+            # second write cannot fix what made it refuse the command.
+            _LOGGER.error("Gateway refused write to register %s", key)
+            return False
 
-                self._shadow_written_value(key, reg, value)
-                return True
+        self._shadow_written_value(key, reg, value)
+        return True
 
-            except GatewayCommunicationError as exc:
-                if retry_count < max_write_retries:
-                    _LOGGER.warning(
-                        "Communication error during write_value for %s: %s. Attempting reconnection...",
-                        key,
-                        exc,
-                    )
+    async def _with_reconnect[T](
+        self, operation: str, attempt: Callable[[], Awaitable[T]]
+    ) -> T:
+        """Run ``attempt``, reconnecting and running it once more on a link failure.
 
-                    # Reset the connection and reconnect immediately
-                    if await self._transport.reconnect():
-                        _LOGGER.warning(
-                            "Reconnection successful after write error, retrying write operation"
-                        )
-                        retry_count += 1
-                        continue
-                    else:
-                        _LOGGER.error(
-                            "Reconnection failed, write to register %s aborted", key
-                        )
-                        return False
-
-                # Max retries reached or reconnection failed
-                _LOGGER.error("Error writing to register %s: %s", key, exc)
-                return False
+        A failed reconnection, or a second failure, propagates the
+        :class:`GatewayCommunicationError`.
+        """
+        try:
+            return await attempt()
+        except GatewayCommunicationError as exc:
+            _LOGGER.warning(
+                "Communication error during %s: %s. Attempting reconnection...",
+                operation,
+                exc,
+            )
+            if not await self._transport.reconnect():
+                _LOGGER.error("Reconnection failed, %s aborted", operation)
+                raise
+        _LOGGER.warning("Reconnection successful, retrying %s", operation)
+        return await attempt()
 
     @property
     def has_dhw(self) -> bool:
@@ -450,146 +453,145 @@ class ModbusApiClient(HitachiApiClient):
         keys — only ``system_state`` is populated in ``_data``. Callers must
         check the return value before consuming ``read_value()`` output. See
         :class:`ReadResult` for the full contract.
+
+        A communication failure triggers one reconnection and one more read
+        cycle; if that fails too, the error propagates.
         """
-        retry_count = 0
-        max_read_retries = 1  # Only retry once after reconnection
         self._kept.discard_lost()
+        try:
+            return await self._with_reconnect(
+                "read_values", lambda: self._read_cycle(keys)
+            )
+        except GatewayCommunicationError as exc:
+            _LOGGER.warning("Modbus error during read_values: %s", exc)
+            raise
 
-        while retry_count <= max_read_retries:
-            try:
-                all_regs = self._register_map.all_registers
+    async def _read_cycle(self, keys: list[str]) -> ReadResult:
+        """Run one read cycle: preflight, readiness, key reads, gating, tracking."""
+        raw_state = await self._read_system_state()
+        if not self._check_readiness(raw_state):
+            return ReadResult.GATEWAY_NOT_READY
 
-                # Build a map of registers to read for this update
-                registers_to_read = {
-                    key: all_regs[key] for key in keys if key in all_regs
-                }
+        all_regs = self._register_map.all_registers
+        # A dict, so a key listed twice is read once.
+        registers_to_read = {key: all_regs[key] for key in keys if key in all_regs}
+        fresh: list[str] = []
+        for name, definition in registers_to_read.items():
+            value = await self._read_with_fallback(definition)
+            if self._store_reading(name, definition, value):
+                fresh.append(name)
 
-                # Always perform a preflight check
-                system_state_addr = all_regs["system_state"].address
-                preflight = await self._transport.read_holding_registers(
-                    system_state_addr
-                )
-                if not preflight:
-                    raise GatewayCommunicationError("Preflight check failed")
+        # Remove data for modules not declared in system_config
+        self._gate_unconfigured_modules()
+        self._gate_outdoor_link_loss()
 
-                raw_state = preflight[0]
+        self._kept.track(fresh, self._data)
+        return ReadResult.SUCCESS
 
-                # Always store deserialized value for entity consumption
-                system_state_def = all_regs["system_state"]
-                if system_state_def.deserializer:
-                    self._data["system_state"] = system_state_def.deserializer(
-                        raw_state
-                    )
-                else:
-                    self._data["system_state"] = raw_state
+    async def _read_system_state(self) -> int:
+        """Read ``system_state`` (preflight), store it deserialized, return it raw.
 
-                # Report system state issues and skip further reads
-                for (
-                    issue_state,
+        Raises :class:`GatewayCommunicationError` when the gateway answers the
+        preflight with an exception response.
+        """
+        definition = self._register_map.all_registers["system_state"]
+        preflight = await self._transport.read_holding_registers(definition.address)
+        if not preflight:
+            raise GatewayCommunicationError("Preflight check failed")
+
+        raw_state = preflight[0]
+        # Always store the deserialized value for entity consumption
+        self._data["system_state"] = (
+            definition.deserializer(raw_state) if definition.deserializer else raw_state
+        )
+        return raw_state
+
+    def _check_readiness(self, raw_state: int) -> bool:
+        """Raise or clear the not-ready repair issues; return True when ready.
+
+        Issues are checked in declaration order: the ones before the matching
+        state are cleared, the matching one is raised and the check stops.
+        """
+        for issue_state, issue_key in self._register_map.system_state_issues.items():
+            if raw_state == issue_state:
+                ir.async_create_issue(
+                    self._hass,
+                    DOMAIN,
                     issue_key,
-                ) in self._register_map.system_state_issues.items():
-                    if raw_state == issue_state:
-                        ir.async_create_issue(
-                            self._hass,
-                            DOMAIN,
-                            issue_key,
-                            is_fixable=False,
-                            severity=ir.IssueSeverity.WARNING,
-                            translation_key=issue_key,
-                        )
+                    is_fixable=False,
+                    severity=ir.IssueSeverity.WARNING,
+                    translation_key=issue_key,
+                )
+                self._log_not_ready(raw_state)
+                return False
+            ir.async_delete_issue(self._hass, DOMAIN, issue_key)
 
-                        now = time.monotonic()
-                        if self._gateway_not_ready_since is None:
-                            # First detection
-                            self._gateway_not_ready_since = now
-                            self._gateway_not_ready_last_log = now
-                            _LOGGER.warning(
-                                "Gateway is not ready (state: %s), skipping further reads for this cycle.",
-                                raw_state,
-                            )
-                        elif now - self._gateway_not_ready_last_log >= 300:
-                            # Periodic reminder every 5 minutes
-                            elapsed = int(now - self._gateway_not_ready_since)
-                            self._gateway_not_ready_last_log = now
-                            _LOGGER.warning(
-                                "Gateway still not ready (state: %s), ongoing for %d minutes.",
-                                raw_state,
-                                elapsed // 60,
-                            )
-                        return ReadResult.GATEWAY_NOT_READY
-                    else:
-                        ir.async_delete_issue(self._hass, DOMAIN, issue_key)
+        elapsed = self._outage.ready(time.monotonic())
+        if elapsed is not None:
+            seconds = int(elapsed)
+            _LOGGER.warning(
+                "Gateway recovered (state: %s) after being not-ready for %d min %d s.",
+                raw_state,
+                seconds // 60,
+                seconds % 60,
+            )
+        return True
 
-                # Gateway is ready - reset throttle state if recovering
-                if self._gateway_not_ready_since is not None:
-                    elapsed = int(time.monotonic() - self._gateway_not_ready_since)
-                    _LOGGER.warning(
-                        "Gateway recovered (state: %s) after being not-ready for %d min %d s.",
-                        raw_state,
-                        elapsed // 60,
-                        elapsed % 60,
-                    )
-                    self._gateway_not_ready_since = None
-                    self._gateway_not_ready_last_log = 0.0
+    def _log_not_ready(self, raw_state: int) -> None:
+        """Warn about a not-ready gateway, throttled by :class:`GatewayOutage`."""
+        now = time.monotonic()
+        warning = self._outage.not_ready(now)
+        if warning is NotReadyWarning.FIRST:
+            _LOGGER.warning(
+                "Gateway is not ready (state: %s), skipping further reads for this cycle.",
+                raw_state,
+            )
+        elif warning is NotReadyWarning.REMINDER:
+            _LOGGER.warning(
+                "Gateway still not ready (state: %s), ongoing for %d minutes.",
+                raw_state,
+                int(self._outage.duration(now)) // 60,
+            )
 
-                fresh: list[str] = []
-                for name, definition in registers_to_read.items():
-                    value = await self._read_register(definition)
-                    # Fallback on any None (read error or a sensor-error raw
-                    # value such as 0xFFFF deserialized to None), but not on
-                    # sentinel (sentinel = module known-absent, no point trying)
-                    if value is None and definition.fallback:
-                        value = await self._read_register(definition.fallback)
-                    if self._is_shadowed_by_pending_write(name, value):
-                        continue
-                    if value is self._SENTINEL_FILTERED:
-                        # Sensor/module unavailable — clear any stale value
-                        self._data.pop(name, None)
-                    elif value is not None:
-                        self._data[name] = value
-                        fresh.append(name)
-                    else:
-                        # No fresh value: a sensor-error raw value (e.g. 0xFFFF)
-                        # deserialized to None, or a read error, with no working
-                        # fallback. Clear the stored reading so the entity goes
-                        # unavailable instead of reporting a frozen value (#320).
-                        self._data.pop(name, None)
-                        _LOGGER.debug(
-                            "Clearing %s (no fresh value: sensor error or read error at %s)",
-                            name,
-                            definition.address,
-                        )
+    async def _read_with_fallback(self, definition: RegisterDefinition) -> Any:
+        """Read a register, then its fallback when no value came back.
 
-                # Remove data for modules not declared in system_config
-                self._gate_unconfigured_modules()
-                self._gate_outdoor_link_loss()
+        Falls back on any None (read error or a sensor-error raw value such as
+        0xFFFF deserialized to None), but not on a sentinel: a sentinel means
+        the module is known-absent, so there is no point trying.
+        """
+        value = await self._read_register(definition)
+        if value is None and definition.fallback:
+            value = await self._read_register(definition.fallback)
+        return value
 
-                self._kept.track(fresh, self._data)
+    def _store_reading(
+        self, name: str, definition: RegisterDefinition, value: Any
+    ) -> bool:
+        """Store one reading in ``_data``; return True when it is a fresh value.
 
-                # If we got here, read was successful
-                return ReadResult.SUCCESS
-
-            except GatewayCommunicationError as exc:
-                if retry_count < max_read_retries:
-                    _LOGGER.warning(
-                        "Communication error during read_values: %s. Attempting reconnection...",
-                        exc,
-                    )
-
-                    # Reset the connection and reconnect immediately
-                    if await self._transport.reconnect():
-                        _LOGGER.warning(
-                            "Reconnection successful after read error, retrying read operation"
-                        )
-                        retry_count += 1
-                        continue
-                    else:
-                        _LOGGER.error("Reconnection failed, data read aborted")
-                        raise
-
-                # Max retries reached or reconnection failed
-                _LOGGER.warning("Modbus error during read_values: %s", exc)
-                raise
+        A reading shadowed by a pending write is ignored. A sentinel or a
+        missing value clears the stored one, so the entity goes unavailable
+        instead of reporting a frozen value (#320).
+        """
+        if self._is_shadowed_by_pending_write(name, value):
+            return False
+        if value is self._SENTINEL_FILTERED:
+            # Sensor/module unavailable — clear any stale value
+            self._data.pop(name, None)
+            return False
+        if value is None:
+            # No fresh value: a sensor-error raw value (e.g. 0xFFFF)
+            # deserialized to None, or a read error, with no working fallback.
+            self._data.pop(name, None)
+            _LOGGER.debug(
+                "Clearing %s (no fresh value: sensor error or read error at %s)",
+                name,
+                definition.address,
+            )
+            return False
+        self._data[name] = value
+        return True
 
     @property
     def is_defrosting(self) -> bool:
