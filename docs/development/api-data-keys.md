@@ -152,7 +152,8 @@ class RegisterDefinition:
 - `write_address` — used when the read and write addresses differ (HC-A(16/64)MB
   gateway).
 - `fallback` — an alternative register tried when the primary returns `None`
-  (e.g. sensor error `0xFFFF`).
+  (a read error, or `0xFFFF` on a primary decoded with
+  `convert_signed_16bit_unset`).
 - `keep` — marks a value the hardware forgets on reboot (#511). The restore
   is mechanical: `KeptValues` (`api/modbus/kept_values.py`, pure, no I/O)
   never interprets a value. It keeps a reference (the last value written, or
@@ -255,7 +256,8 @@ writable key sets.
 
 | Function | Purpose | Example |
 | --- | --- | --- |
-| `convert_signed_16bit` | Two's complement for signed values | `0xFF9C` → `-100` |
+| `convert_signed_16bit` | Two's complement for signed values | `0xFF9C` → `-100`, `0xFFFF` → `-1` |
+| `convert_signed_16bit_unset` | Same, but `0xFFFF` → `None` (fallback primaries only) | `0xFFFF` → `None` |
 | `convert_from_tenths` | Divide by 10 | `253` → `25.3` |
 | `convert_pressure` | Hundredths of MPa to bar | `510` → `51.0` |
 | `deserialize_unit_model` | Model ID to string key | `2` → `"yutaki_s80"` |
@@ -267,15 +269,25 @@ Certain raw register values have special meaning:
 
 | Raw value | Decimal | Meaning |
 | --- | --- | --- |
-| `0xFFFF` | 65535 | Sensor not connected or communication error |
 | `0xFF81` | -127 (signed) | Temperature sensor disconnected |
 | `0xFFBD` | -67 (signed) | DHW temperature sensor disconnected |
+| `0xFFFF` | 65535 | Garbage read on unsigned registers (configuration, versions, `system_state`) |
 
-`0xFFFF` is neutralised inside the deserializer functions themselves (they
-return `None`). The `-127`/`-67` sentinels, by contrast, are matched against
-`RegisterDefinition.sentinel_values` in the read loop *after* deserialization
-and filtered out there. Either way the value propagates as an unavailable
-entity state in Home Assistant.
+These sentinels are matched against `RegisterDefinition.sentinel_values` in
+the read loop *after* deserialization and filtered out there, so the value
+propagates as an unavailable entity state in Home Assistant.
+
+On a **signed** register `0xFFFF` is not a sentinel: it is `-1` in two's
+complement, and the gateway documentation defines no sensor-error value for
+these registers, so `convert_signed_16bit` decodes it as `-1` (#533: a reading
+of exactly -1 °C used to become `unknown`). The one exception is
+`convert_signed_16bit_unset`, used only on the HP-level water outlet primary
+(`1200`, before line-up 2016 `1199`), where -1 °C is not plausible: it reads
+`0xFFFF` as "not exposed" so the circuit outlet fallback is tried. The
+unsigned decoders (`convert_from_tenths`, `convert_pressure`) still return
+`None` for `0xFFFF`. A gateway that returns `0xFFFF` everywhere because it
+receives no heat pump data is caught earlier, by the `system_state` preflight
+(`no_data_warning`).
 
 ### Concrete Examples
 
@@ -308,7 +320,7 @@ Register with fallback:
 ```python
 "water_outlet_temp": RegisterDefinition(
     1200,
-    deserializer=convert_signed_16bit,
+    deserializer=convert_signed_16bit_unset,  # 0xFFFF = not exposed, try fallback
     fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
 ),
 ```

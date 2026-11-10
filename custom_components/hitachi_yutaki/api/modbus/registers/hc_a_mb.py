@@ -108,10 +108,12 @@ SYSTEM_STATE_ISSUES = {
 
 
 def convert_signed_16bit(value: int | None) -> int | None:
-    """Convert signed 16-bit value using 2's complement for negative values."""
+    """Convert signed 16-bit value using 2's complement for negative values.
+
+    0xFFFF is -1, a valid reading (#533): the documentation defines no
+    sensor-error value; absent sensors report -127 (``sentinel_values``).
+    """
     if value is None:
-        return None
-    if value == 0xFFFF:
         return None
     if value > 32767:
         value -= 65536

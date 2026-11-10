@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A write the gateway refuses (Modbus exception response) no longer triggers a reconnection and a second write of the same value (#528): the gateway answered, so the link is fine, and reconnecting cannot fix what made it refuse the command (unconfigured register, out-of-range value, function disabled on the controller). The write still fails and the failure still reaches the UI; the log shows the transport's `Gateway refused write to register <address>` warning, with the Modbus exception code, and an error naming the register, instead of the reconnection sequence. A dropped connection is still reconnected and the read or write retried once, now through one shared policy.
 
 ### Fixed
+- **A temperature of exactly -1 °C is no longer reported as unknown** (#533). The raw value of -1 (`0xFFFF`) was mistaken for a sensor error, so the outdoor, water and refrigerant-circuit temperatures went `unknown` each time they read -1 °C, on all gateways. They now read -1 °C; absent sensors are still detected through their own values (-127, -67).
 - **Reconnection after a broken connection.** If the old socket still reported itself open but failed to close, every reconnection attempt stopped before opening a new connection, and since the old one was never replaced the integration could stay disconnected until it was reloaded. The broken socket is now discarded and replaced.
 
 ## [2.4.0] - 2026-11-06

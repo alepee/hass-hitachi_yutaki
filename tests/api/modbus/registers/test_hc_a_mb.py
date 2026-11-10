@@ -201,9 +201,9 @@ class TestDeserializers:
         """None returns None."""
         assert convert_signed_16bit(None) is None
 
-    def test_convert_signed_16bit_sensor_error(self):
-        """0xFFFF should return None (sensor error)."""
-        assert convert_signed_16bit(0xFFFF) is None
+    def test_convert_signed_16bit_minus_one(self):
+        """0xFFFF is -1, not a sensor error (#533)."""
+        assert convert_signed_16bit(0xFFFF) == -1
 
     def test_convert_from_tenths(self):
         """Test tenths conversion."""

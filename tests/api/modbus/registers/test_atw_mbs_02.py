@@ -2,8 +2,13 @@
 
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
+    convert_signed_16bit,
+    convert_signed_16bit_unset,
     deserialize_otc_method_cooling,
     serialize_otc_method_cooling,
+)
+from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
+    AtwMbs02Pre2016RegisterMap,
 )
 from custom_components.hitachi_yutaki.const import OTCCalculationMethod
 
@@ -51,6 +56,43 @@ class TestDeserializers:
         assert serialize_otc_method_cooling(OTCCalculationMethod.DISABLED) == 0
         assert serialize_otc_method_cooling(OTCCalculationMethod.POINTS) == 1
         assert serialize_otc_method_cooling(OTCCalculationMethod.FIX) == 2
+
+
+class TestSignedTemperatures:
+    """Signed 16-bit decoding keeps -1 °C (#533)."""
+
+    def test_two_complement(self):
+        """0xFFFF is -1 and the neighbours decode around it."""
+        assert convert_signed_16bit(0) == 0
+        assert convert_signed_16bit(0xFFFF) == -1
+        assert convert_signed_16bit(0xFFFE) == -2
+        assert convert_signed_16bit(0xFF81) == -127
+        assert convert_signed_16bit(None) is None
+
+    def test_outdoor_temp_reads_minus_one(self):
+        """The outdoor temperature decoder does not drop -1 °C."""
+        for reg_map in (AtwMbs02RegisterMap(), AtwMbs02Pre2016RegisterMap()):
+            reg = reg_map.all_registers["outdoor_temp"]
+            assert reg.deserializer(0xFFFF) == -1
+
+    def test_unset_variant(self):
+        """The fallback-only variant reads 0xFFFF as not exposed."""
+        assert convert_signed_16bit_unset(0xFFFF) is None
+        assert convert_signed_16bit_unset(0xFFFE) == -2
+        assert convert_signed_16bit_unset(None) is None
+
+    def test_unset_variant_only_on_primaries_with_fallback(self):
+        """No register that can read -1 uses the 0xFFFF-as-unset decoder."""
+        for reg_map in (AtwMbs02RegisterMap(), AtwMbs02Pre2016RegisterMap()):
+            users = {
+                key
+                for key, reg in reg_map.all_registers.items()
+                if reg.deserializer is convert_signed_16bit_unset
+            }
+            assert users == {"water_outlet_temp"}
+            fallback = reg_map.all_registers["water_outlet_temp"].fallback
+            assert fallback is not None
+            assert fallback.deserializer is convert_signed_16bit
 
 
 class TestDocumentedDiagnosticRegisters:

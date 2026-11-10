@@ -182,14 +182,29 @@ def convert_signed_16bit(value: int | None) -> int | None:
         - Temperatures: outdoor, water inlet/outlet, DHW current, pool current
         - Other signed measurements
 
+    0xFFFF is -1, a valid reading (#533): the documentation defines no
+    sensor-error value for these registers. Absent sensors report their own
+    signed sentinels (-127, -67), declared per register in ``sentinel_values``.
+
     """
     if value is None:
-        return None
-    if value == 0xFFFF:  # Special value for sensor error
         return None
     if value > 32767:  # Handle negative values (2's complement)
         value -= 65536
     return int(value)
+
+
+def convert_signed_16bit_unset(value: int | None) -> int | None:
+    """Convert a signed 16-bit value, reading 0xFFFF as "not exposed".
+
+    Only for a primary register with a ``fallback``, where -1 is not a
+    plausible reading: the HP-level water outlet (1200/1199) is read as
+    unset so the circuit outlet fallback is tried (#205). Never use it on a
+    register that can legitimately read -1 (#533).
+    """
+    if value == 0xFFFF:
+        return None
+    return convert_signed_16bit(value)
 
 
 def convert_from_tenths(value: int | None) -> float | None:
@@ -260,7 +275,7 @@ REGISTER_CONTROL_UNIT = {
     "water_inlet_temp": RegisterDefinition(1092, deserializer=convert_signed_16bit),
     "water_outlet_temp": RegisterDefinition(
         1200,  # HP-level outlet (reg 1201) — correct for all modes including DHW/pool
-        deserializer=convert_signed_16bit,
+        deserializer=convert_signed_16bit_unset,
         fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
     ),
     "water_outlet_2_temp": RegisterDefinition(

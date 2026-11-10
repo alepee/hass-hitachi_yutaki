@@ -23,6 +23,7 @@ from custom_components.hitachi_yutaki.api.modbus.registers import RegisterDefini
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
     convert_signed_16bit,
+    convert_signed_16bit_unset,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
     AtwMbs02Pre2016RegisterMap,
@@ -254,7 +255,7 @@ async def test_read_register_returns_none_on_error(api_client, mock_client):
 @pytest.mark.asyncio
 async def test_fallback_used_when_primary_returns_none(api_client, mock_client):
     """Test that fallback register is read when primary deserializes to None."""
-    # Primary returns 0xFFFF (sensor error) → convert_signed_16bit returns None
+    # Primary returns 0xFFFF (not exposed) → convert_signed_16bit_unset is None
     # Fallback returns valid value
     primary_result = _make_modbus_result(0xFFFF)
     fallback_result = _make_modbus_result(350)  # 35.0°C as signed 16-bit
@@ -263,7 +264,7 @@ async def test_fallback_used_when_primary_returns_none(api_client, mock_client):
 
     definition = RegisterDefinition(
         1200,
-        deserializer=convert_signed_16bit,
+        deserializer=convert_signed_16bit_unset,
         fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
     )
 
@@ -656,14 +657,14 @@ async def test_read_values_resets_throttle_state_on_recovery(
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
 @pytest.mark.asyncio
-async def test_read_values_clears_stale_value_on_sensor_error_without_fallback(
+async def test_read_values_decodes_0xffff_as_minus_one(
     _mock_ir, mock_hass, mock_client
 ):
-    """A 0xFFFF sensor-error with no fallback must clear the stale value (#320)."""
+    """0xFFFF on a signed temperature is -1 °C, not a sensor error (#533)."""
     api = _make_preflight_api_client(mock_hass, mock_client)
-    api._data["outdoor_temp"] = 5  # stale good value
+    api._data["outdoor_temp"] = 0  # previous reading
 
-    # [preflight system_state, outdoor_temp = 0xFFFF sensor error]
+    # [preflight system_state, outdoor_temp = 0xFFFF]
     mock_client.read_holding_registers.side_effect = [
         _make_modbus_result(0),
         _make_modbus_result(0xFFFF),
@@ -672,7 +673,7 @@ async def test_read_values_clears_stale_value_on_sensor_error_without_fallback(
     result = await api.read_values(["outdoor_temp"])
 
     assert result == ReadResult.SUCCESS
-    assert "outdoor_temp" not in api._data
+    assert api._data["outdoor_temp"] == -1
 
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
@@ -720,7 +721,7 @@ async def test_read_values_keeps_value_on_successful_read(
 async def test_read_values_fallback_still_recovers_on_sensor_error(
     _mock_ir, mock_hass, mock_client
 ):
-    """Fallback register must still recover when primary is a 0xFFFF sensor-error."""
+    """Fallback register must still recover when the primary reads 0xFFFF."""
     api = _make_preflight_api_client(mock_hass, mock_client)
 
     # [preflight, primary 1200 = 0xFFFF, fallback 1093 = 350]
@@ -745,11 +746,11 @@ async def test_read_values_clears_when_both_primary_and_fallback_error(
     api = _make_preflight_api_client(mock_hass, mock_client)
     api._data["water_outlet_temp"] = 42  # stale good value
 
-    # [preflight, primary 1200 = 0xFFFF, fallback 1093 = 0xFFFF]
+    # [preflight, primary 1200 = 0xFFFF (not exposed), fallback 1093 = read error]
     mock_client.read_holding_registers.side_effect = [
         _make_modbus_result(0),
         _make_modbus_result(0xFFFF),
-        _make_modbus_result(0xFFFF),
+        _make_modbus_error(),
     ]
 
     result = await api.read_values(["water_outlet_temp"])
