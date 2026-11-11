@@ -152,8 +152,8 @@ class RegisterDefinition:
 - `write_address` — used when the read and write addresses differ (HC-A(16/64)MB
   gateway).
 - `fallback` — an alternative register tried when the primary returns `None`
-  (a read error, or `0xFFFF` on a primary decoded with
-  `convert_signed_16bit_unset`).
+  (a read error, or `0xFFFF` on an unsigned primary decoded with
+  `convert_unsigned_16bit`).
 - `keep` — marks a value the hardware forgets on reboot (#511). The restore
   is mechanical: `KeptValues` (`api/modbus/kept_values.py`, pure, no I/O)
   never interprets a value. It keeps a reference (the last value written, or
@@ -257,7 +257,7 @@ writable key sets.
 | Function | Purpose | Example |
 | --- | --- | --- |
 | `convert_signed_16bit` | Two's complement for signed values | `0xFF9C` → `-100`, `0xFFFF` → `-1` |
-| `convert_signed_16bit_unset` | Same, but `0xFFFF` → `None` (fallback primaries only) | `0xFFFF` → `None` |
+| `convert_unsigned_16bit` | Unsigned value, `0xFFFF` → `None` (not exposed) | `350` → `350`, `0xFFFF` → `None` |
 | `convert_from_tenths` | Divide by 10 | `253` → `25.3` |
 | `convert_pressure` | Hundredths of MPa to bar | `510` → `51.0` |
 | `deserialize_unit_model` | Model ID to string key | `2` → `"yutaki_s80"` |
@@ -280,12 +280,13 @@ propagates as an unavailable entity state in Home Assistant.
 On a **signed** register `0xFFFF` is not a sentinel: it is `-1` in two's
 complement, and the gateway documentation defines no sensor-error value for
 these registers, so `convert_signed_16bit` decodes it as `-1` (#533: a reading
-of exactly -1 °C used to become `unknown`). The one exception is
-`convert_signed_16bit_unset`, used only on the HP-level water outlet primary
-(`1200`, before line-up 2016 `1199`), where -1 °C is not plausible: it reads
-`0xFFFF` as "not exposed" so the circuit outlet fallback is tried. The
-unsigned decoders (`convert_from_tenths`, `convert_pressure`) still return
-`None` for `0xFFFF`. A gateway that returns `0xFFFF` everywhere because it
+of exactly -1 °C used to become `unknown`). On unsigned registers `0xFFFF` is
+outside the documented range and the decoders (`convert_unsigned_16bit`,
+`convert_from_tenths`, `convert_pressure`) return `None`. The HP-level water
+outlet (`1200`, before line-up 2016 `1199`) is one of them: unsigned,
+0~100 °C, Yutaki S & S Combi only, so `convert_unsigned_16bit` reads `0xFFFF`
+as "not exposed" and the circuit outlet fallback (`1093`/`1080`, signed) is
+tried on other models. A gateway that returns `0xFFFF` everywhere because it
 receives no heat pump data is caught earlier, by the `system_state` preflight
 (`no_data_warning`).
 
@@ -320,7 +321,7 @@ Register with fallback:
 ```python
 "water_outlet_temp": RegisterDefinition(
     1200,
-    deserializer=convert_signed_16bit_unset,  # 0xFFFF = not exposed, try fallback
+    deserializer=convert_unsigned_16bit,  # unsigned 0~100 °C, 0xFFFF = not exposed
     fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
 ),
 ```

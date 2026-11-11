@@ -3,7 +3,7 @@
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
     convert_signed_16bit,
-    convert_signed_16bit_unset,
+    convert_unsigned_16bit,
     deserialize_otc_method_cooling,
     serialize_otc_method_cooling,
 )
@@ -75,24 +75,19 @@ class TestSignedTemperatures:
             reg = reg_map.all_registers["outdoor_temp"]
             assert reg.deserializer(0xFFFF) == -1
 
-    def test_unset_variant(self):
-        """The fallback-only variant reads 0xFFFF as not exposed."""
-        assert convert_signed_16bit_unset(0xFFFF) is None
-        assert convert_signed_16bit_unset(0xFFFE) == -2
-        assert convert_signed_16bit_unset(None) is None
+    def test_unsigned(self):
+        """Unsigned decoding reads 0xFFFF as not exposed."""
+        assert convert_unsigned_16bit(0xFFFF) is None
+        assert convert_unsigned_16bit(350) == 350
+        assert convert_unsigned_16bit(None) is None
 
-    def test_unset_variant_only_on_primaries_with_fallback(self):
-        """No register that can read -1 uses the 0xFFFF-as-unset decoder."""
+    def test_water_outlet_hp_is_unsigned_with_signed_fallback(self):
+        """HP-level outlet is unsigned 0~100 °C; the circuit outlet is signed."""
         for reg_map in (AtwMbs02RegisterMap(), AtwMbs02Pre2016RegisterMap()):
-            users = {
-                key
-                for key, reg in reg_map.all_registers.items()
-                if reg.deserializer is convert_signed_16bit_unset
-            }
-            assert users == {"water_outlet_temp"}
-            fallback = reg_map.all_registers["water_outlet_temp"].fallback
-            assert fallback is not None
-            assert fallback.deserializer is convert_signed_16bit
+            reg = reg_map.all_registers["water_outlet_temp"]
+            assert reg.deserializer is convert_unsigned_16bit
+            assert reg.fallback is not None
+            assert reg.fallback.deserializer is convert_signed_16bit
 
 
 class TestDocumentedDiagnosticRegisters:

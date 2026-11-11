@@ -23,7 +23,7 @@ from custom_components.hitachi_yutaki.api.modbus.registers import RegisterDefini
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
     convert_signed_16bit,
-    convert_signed_16bit_unset,
+    convert_unsigned_16bit,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
     AtwMbs02Pre2016RegisterMap,
@@ -255,7 +255,7 @@ async def test_read_register_returns_none_on_error(api_client, mock_client):
 @pytest.mark.asyncio
 async def test_fallback_used_when_primary_returns_none(api_client, mock_client):
     """Test that fallback register is read when primary deserializes to None."""
-    # Primary returns 0xFFFF (not exposed) → convert_signed_16bit_unset is None
+    # Primary returns 0xFFFF (not exposed) → convert_unsigned_16bit is None
     # Fallback returns valid value
     primary_result = _make_modbus_result(0xFFFF)
     fallback_result = _make_modbus_result(350)  # 35.0°C as signed 16-bit
@@ -264,7 +264,7 @@ async def test_fallback_used_when_primary_returns_none(api_client, mock_client):
 
     definition = RegisterDefinition(
         1200,
-        deserializer=convert_signed_16bit_unset,
+        deserializer=convert_unsigned_16bit,
         fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
     )
 

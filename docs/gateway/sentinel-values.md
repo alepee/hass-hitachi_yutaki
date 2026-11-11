@@ -32,7 +32,7 @@ if value is not None and definition.sentinel_values and value in definition.sent
     return self._SENTINEL_FILTERED
 ```
 
-The `_SENTINEL_FILTERED` marker is distinct from a plain `None`, and the distinction is load-bearing: a sentinel means the module is known-absent, so `read_values()` skips the fallback read and removes the key via `self._data.pop(name, None)`. A real `None` (Modbus read error, or `0xFFFF` on the water outlet primary, decoded by `convert_signed_16bit_unset`) still triggers the fallback read before the key is cleared.
+The `_SENTINEL_FILTERED` marker is distinct from a plain `None`, and the distinction is load-bearing: a sentinel means the module is known-absent, so `read_values()` skips the fallback read and removes the key via `self._data.pop(name, None)`. A real `None` (Modbus read error, or `0xFFFF` on the unsigned water outlet primary, decoded by `convert_unsigned_16bit`) still triggers the fallback read before the key is cleared.
 
 On signed registers `0xFFFF` is **not** a sensor error: it is -1 in two's complement and is decoded as -1 (#533). The documentation defines no sensor-error value for these registers; absent sensors report the signed sentinels above.
 

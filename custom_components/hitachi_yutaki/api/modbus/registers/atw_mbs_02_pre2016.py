@@ -21,7 +21,7 @@ from .atw_mbs_02 import (
     convert_from_tenths,
     convert_pressure,
     convert_signed_16bit,
-    convert_signed_16bit_unset,
+    convert_unsigned_16bit,
     deserialize_alarm_code,
     deserialize_operation_state,
     deserialize_otc_method_cooling,
@@ -119,7 +119,7 @@ REGISTER_CONTROL_UNIT = {
     "water_inlet_temp": RegisterDefinition(1079, deserializer=convert_signed_16bit),
     "water_outlet_temp": RegisterDefinition(
         1199,
-        deserializer=convert_signed_16bit_unset,
+        deserializer=convert_unsigned_16bit,
         fallback=RegisterDefinition(1080, deserializer=convert_signed_16bit),
     ),
     "water_outlet_2_temp": RegisterDefinition(
