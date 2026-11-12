@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.5.0-beta.1] - 2026-11-12
+
+This release reads temperatures of exactly -1 °C again, moves the gateway settings to a Reconfigure flow, and decodes every register by its documented type, so garbage readings no longer show up as values.
+
 ### Changed
 - Every Modbus register now declares a **codec** that decodes what is read and encodes what is written (#534), picked from the register's documented type: signed, unsigned, tenths, or a closed list of values. Nothing is read or written raw any more, and the conversion functions duplicated across the gateway maps are gone. Developer-facing; the user-visible effects are listed under Fixed.
 - **Gateway settings moved to "Reconfigure".** The gateway type, connection details, hardware generation, heat pump model and power supply are now changed from the entry's **Reconfigure** menu item (⋮), which validates the connection, refuses a unit or an outdoor cycle already used by another entry, keeps the entry's history, and does not reload the integration when nothing changed. Gateway values the new connection did not return are no longer carried over from the previous configuration. The **Configure** cog keeps only what is meant to change over time: external sensors, beta features and telemetry, so it no longer walks through the gateway steps first. During setup, the power supply (single or three phase) is now asked on the model step.
