@@ -15,6 +15,7 @@ from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
     AtwMbs02Pre2016RegisterMap,
 )
+from custom_components.hitachi_yutaki.api.modbus.registers.codecs import UNSIGNED
 from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
     HcAMbRegisterMap,
 )
@@ -68,19 +69,15 @@ def test_every_shipped_map_declares_valid_kept_values(register_map):
 def test_invalid_kept_declarations_are_rejected(declarations, problem):
     """Dangling, self, chained or cyclic references fail at load, not in production."""
     registers = {
-        key: RegisterDefinition(1000 + i, keep=keep)
+        key: RegisterDefinition(1000 + i, UNSIGNED, keep=keep)
         for i, (key, keep) in enumerate(declarations.items())
     }
     with pytest.raises(ValueError, match=problem):
         validate_kept_registers(registers, set(registers))
 
 
-def test_kept_register_must_be_writable_and_serializable():
-    """A value the client cannot write back, or only as the wrong raw value, is refused."""
-    unwritable = {"a": RegisterDefinition(1000, keep=Keep())}
+def test_kept_register_must_be_writable():
+    """A value the client cannot write back is refused."""
+    unwritable = {"a": RegisterDefinition(1000, UNSIGNED, keep=Keep())}
     with pytest.raises(ValueError, match="must be writable"):
         validate_kept_registers(unwritable, set())
-
-    unserializable = {"a": RegisterDefinition(1000, deserializer=float, keep=Keep())}
-    with pytest.raises(ValueError, match="needs a serializer"):
-        validate_kept_registers(unserializable, {"a"})

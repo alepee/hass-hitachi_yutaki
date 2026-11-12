@@ -157,8 +157,8 @@ EMPTY_REGISTER = 0xFFFF
 ATW_MBS_02_UNIT_MODEL_ADDR = 1218
 HC_A_MB_UNIT_MODEL_OFFSET = 162  # base + 162
 
-# Central control mode (ATW-MBS-02 1088, pre-2016 1073), decoded by the scanner
-# only: the integration reads it raw (see CENTRAL_CONTROL_MODE_MAP in const.py).
+# Central control mode (ATW-MBS-02 1088, pre-2016 1073), named by the scanner
+# only: the integration keeps the code (see CENTRAL_CONTROL_MODE_MAP in const.py).
 CENTRAL_CONTROL_MODES = {0: "Local", 1: "Air", 2: "Water", 3: "Total"}
 
 
@@ -167,8 +167,8 @@ def decode_central_control_mode(raw: int) -> str:
     return CENTRAL_CONTROL_MODES.get(raw, f"unknown ({raw})")
 
 
-# Deserializers the scanner applies on top of the register map, by register key
-SCANNER_DESERIALIZERS = {"central_control_mode": decode_central_control_mode}
+# Decoders the scanner applies instead of the register codec, by register key
+SCANNER_DECODERS = {"central_control_mode": decode_central_control_mode}
 
 # ATW-MBS-02 (2016) registers absent from the integration register map, named
 # here so the scan output is readable (gateway doc, status registers). Values x10.
@@ -335,16 +335,16 @@ def format_duration(seconds: float) -> str:
 def build_lookup(
     register_map, unmapped: dict[int, str] | None = None
 ) -> dict[int, list[tuple[str, object]]]:
-    """Build {address -> [(register_name, deserializer), ...]} from a register map.
+    """Build {address -> [(register_name, decoder), ...]} from a register map.
 
     A single address may appear multiple times (e.g. operation_state and
-    operation_state_code share the same address with different deserializers).
+    operation_state_code share the same address with different codecs).
     We keep all of them so annotations are exhaustive. ``unmapped`` names
     addresses the register map does not cover, without overriding it.
     """
     lookup: dict[int, list[tuple[str, object]]] = {}
     for name, reg_def in register_map.all_registers.items():
-        entry = (name, SCANNER_DESERIALIZERS.get(name, reg_def.deserializer))
+        entry = (name, SCANNER_DECODERS.get(name, reg_def.codec.decode))
         lookup.setdefault(reg_def.address, []).append(entry)
         # Also index write_address so CONTROL-only registers are found
         if (
@@ -352,7 +352,7 @@ def build_lookup(
             and reg_def.write_address != reg_def.address
         ):
             lookup.setdefault(reg_def.write_address, []).append(
-                (f"{name} [write]", reg_def.serializer)
+                (f"{name} [write]", reg_def.codec.decode)
             )
     for address, name in (unmapped or {}).items():
         lookup.setdefault(address, [(name, None)])
@@ -529,9 +529,10 @@ def format_annotation(
     """Return (register_name, deserialized_value) for an address.
 
     If multiple names map to the same address, join them with " / ".
-    Sentinel values (0xFFFF, 0xFF81, 0xFFBD) are annotated as such.
+    Sentinel values (0xFFFF, 0xFF81, 0xFFBD) are annotated as such, except
+    0xFFFF on a register whose codec reads it as a value (-1 on a signed
+    register, #533).
     """
-    # Check for sentinel values first
     sentinel = SENTINEL_ANNOTATIONS.get(raw)
 
     entries = lookup.get(address)
@@ -539,21 +540,25 @@ def format_annotation(
         return ("", sentinel or "")
 
     names = []
-    deserialized_parts = []
-    for name, deser in entries:
+    decoded_parts = []
+    decodes_a_value = False
+    for name, decode in entries:
         names.append(name)
-        if deser is not None:
+        if decode is not None:
             try:
-                deserialized_parts.append(str(deser(raw)))
-            except Exception:
-                deserialized_parts.append("?")
+                value = decode(raw)
+            except Exception:  # noqa: BLE001 - annotate, never abort a scan
+                decoded_parts.append("?")
+                continue
+            decoded_parts.append(str(value))
+            decodes_a_value = decodes_a_value or value is not None
 
     reg_name = " / ".join(names)
-    if sentinel:
-        deser_str = sentinel
+    if sentinel and not (raw == 0xFFFF and decodes_a_value):
+        decoded_str = sentinel
     else:
-        deser_str = " / ".join(deserialized_parts) if deserialized_parts else ""
-    return (reg_name, deser_str)
+        decoded_str = " / ".join(decoded_parts) if decoded_parts else ""
+    return (reg_name, decoded_str)
 
 
 def print_results(

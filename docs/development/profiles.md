@@ -204,10 +204,11 @@ PROFILES: dict[str, type[HitachiHeatPumpProfile]] = {
 }
 ```
 
-### 3. Add model mapping in the register deserializer
+### 3. Add model mapping in the register codec
 
 If the new model uses a `unit_model` register value that is not yet mapped, add
-the numeric-to-string mapping in the Modbus register decoder so that
+the id to `UNIT_MODELS` in `api/modbus/registers/codecs.py` and to the
+`unit_model(...)` codec of each gateway map that documents it, so that
 `data["unit_model"]` resolves to your new key.
 
 ### 4. Add extra registers (if needed)

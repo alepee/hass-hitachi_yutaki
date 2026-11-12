@@ -3,7 +3,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+
+from .codecs import RegisterCodec
 
 # Readings the indoor unit relays from the outdoor unit. Tg, Ti and EVI are
 # measured on the indoor side of a split unit, so they are not listed.
@@ -71,16 +72,6 @@ def _is_writable(
     return None if key in writable else "a kept register must be writable"
 
 
-def _is_serializable(
-    key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
-) -> str | None:
-    """Check that a kept register with a deserializer has a serializer."""
-    definition = kept[key]
-    if definition.deserializer is not None and definition.serializer is None:
-        return "a kept register needs a serializer"
-    return None
-
-
 def _links_resolve(
     key: str, kept: Mapping[str, "RegisterDefinition"], writable: set[str]
 ) -> str | None:
@@ -123,7 +114,6 @@ _KEPT_RULES: tuple[
     Callable[[str, Mapping[str, "RegisterDefinition"], set[str]], str | None], ...
 ] = (
     _is_writable,
-    _is_serializable,
     _links_resolve,
     _gate_is_a_root,
     _seed_is_a_sibling,
@@ -136,25 +126,23 @@ class RegisterDefinition:
 
     Attributes:
         address: Read address (STATUS register for gateways with separate R/W ranges).
-        deserializer: Optional function to convert raw register value on read.
-        serializer: Optional function to convert value before writing.
+        codec: How the raw word maps to the value, both ways (see
+            :mod:`.codecs`). Required: a register is never read or written raw.
         write_address: Write address if different from read address (e.g. HC-A(16/64)MB).
             When None, writes use the same address as reads.
-        fallback: Optional fallback register to read when the primary returns None
-            (e.g. 0xFFFF sensor error) or a read error.
-        sentinel_values: Set of deserialized values that indicate the sensor is
-            unavailable. These are gateway-specific conventions (e.g. -127 for
-            absent sensor, -67 for unavailable module). When a read returns one
-            of these values, the gateway returns None instead.
+        fallback: Optional fallback register to read when the primary decodes
+            to None (e.g. 0xFFFF on an unsigned register) or a read error.
+        sentinel_values: Set of decoded values that mean the sensor or module
+            is absent. These are gateway-specific conventions (e.g. -127 for
+            absent sensor, -67 for unavailable module). Such a reading removes
+            the key and skips the fallback.
         keep: Set when the hardware forgets the value on reboot: the client
-            writes it back mechanically (see :class:`Keep`). Needs a
-            ``serializer`` when the deserialized value is not the raw one.
+            writes it back mechanically, through the codec (see :class:`Keep`).
 
     """
 
     address: int
-    deserializer: Callable[[Any], Any] | None = None
-    serializer: Callable[[Any], Any] | None = None
+    codec: RegisterCodec
     write_address: int | None = None
     fallback: "RegisterDefinition | None" = None
     sentinel_values: frozenset[int] | None = None
@@ -336,14 +324,6 @@ class HitachiRegisterMap(ABC):
     @abstractmethod
     def hvac_unit_mode_auto(self) -> int | None:
         """Return the raw value for auto mode, or None if not supported."""
-
-    @abstractmethod
-    def serialize_otc_method_heating(self, value: str) -> int:
-        """Convert a heating OTC method constant to a raw register value."""
-
-    @abstractmethod
-    def serialize_otc_method_cooling(self, value: str) -> int:
-        """Convert a cooling OTC method constant to a raw register value."""
 
 
 # Import concrete register map classes for variant lookup

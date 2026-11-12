@@ -73,6 +73,12 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
   and `supported_unit_modes`; concrete register maps stay inside `api/`.
 - A readable key is not necessarily writable. UI commands must use writable
   capabilities and propagate failed writes.
+- Every `RegisterDefinition` declares a **codec** (`api/modbus/registers/codecs.py`)
+  that decodes reads and encodes writes: no register is read or written raw.
+  Pick it from the documented type (`SIGNED` for (*1), `TENTHS` for tenths,
+  an `EnumCodec` for a closed list of values, `UNSIGNED` otherwise). `0xFFFF`
+  is -1 on a signed register (#533) and no value elsewhere. Writers pass the
+  stored value (22.5, `"points"`), never a raw word.
 - Values the hardware forgets on reboot are declared with
   `RegisterDefinition.keep` and written back by the provider (#511); the
   coordinator only persists the references and raises the repair issue.

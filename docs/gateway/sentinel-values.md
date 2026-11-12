@@ -13,28 +13,26 @@ Gateway devices return sentinel values when a sensor is physically unavailable. 
 | **-127** | Sensor not installed | `water_outlet_2_temp`, `water_outlet_3_temp`, `pool_current_temp` | Hardware absent |
 | **-67** | Module not available | `dhw_current_temp` | Optional module not installed |
 
-Values are checked **after** deserialization (i.e. after `convert_signed_16bit` converts unsigned 16-bit to signed).
+Values are checked **after** decoding (i.e. after the `SIGNED` codec converts the unsigned 16-bit word to a signed value).
 
 ### Implementation
 
 Each `RegisterDefinition` declares its sentinel values:
 
 ```python
-RegisterDefinition(
-    1204, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
-)
+RegisterDefinition(1204, SIGNED, sentinel_values=frozenset({-127}))
 ```
 
-In `_read_register()`, after deserialization:
+In `_read_register()`, after decoding:
 
 ```python
 if value is not None and definition.sentinel_values and value in definition.sentinel_values:
     return self._SENTINEL_FILTERED
 ```
 
-The `_SENTINEL_FILTERED` marker is distinct from a plain `None`, and the distinction is load-bearing: a sentinel means the module is known-absent, so `read_values()` skips the fallback read and removes the key via `self._data.pop(name, None)`. A real `None` (Modbus read error, or `0xFFFF` on the unsigned water outlet primary, decoded by `convert_unsigned_16bit`) still triggers the fallback read before the key is cleared.
+The `_SENTINEL_FILTERED` marker is distinct from a plain `None`, and the distinction is load-bearing: a sentinel means the module is known-absent, so `read_values()` skips the fallback read and removes the key via `self._data.pop(name, None)`. A real `None` (Modbus read error, or a word the register codec decodes to `None`, such as `0xFFFF` on the unsigned water outlet primary) still triggers the fallback read before the key is cleared.
 
-On signed registers `0xFFFF` is **not** a sensor error: it is -1 in two's complement and is decoded as -1 (#533). The documentation defines no sensor-error value for these registers; absent sensors report the signed sentinels above.
+`0xFFFF` is **not** a sentinel. On signed registers it is -1 in two's complement and is decoded as -1 (#533): the documentation defines no sensor-error value for these registers, and absent sensors report the signed sentinels above. On every other register the codec decodes it to `None` (an unsigned quantity, a closed list of values). See [register codecs](../development/api-data-keys.md#register-codecs).
 
 ### By Profile
 
@@ -116,8 +114,9 @@ Modbus registers
     ▼
 _read_register()
     ├── read error            → None (may try fallback, then key removed)
+    ├── codec.decode → None   → (0xFFFF unsigned, undocumented code) same as read error
     ├── sentinel (-127, -67)  → _SENTINEL_FILTERED → key removed from self._data
-    └── valid value           → deserialized
+    └── valid value           → decoded
     │
     ▼
 _gate_unconfigured_modules()

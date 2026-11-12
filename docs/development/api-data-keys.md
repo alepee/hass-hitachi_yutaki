@@ -99,7 +99,7 @@ graph TD
     CO["coordinator._async_update_data"]
     EN["entity.value_fn coordinator"]
 
-    HW -->|raw data| RV -->|deserialize| CV -->|cache| CA -->|poll| CO -->|read| EN
+    HW -->|raw data| RV -->|decode| CV -->|cache| CA -->|poll| CO -->|read| EN
 ```
 
 Entity descriptions reference a key with a `value_fn` lambda:
@@ -139,31 +139,30 @@ Every data key is backed by a `RegisterDefinition` (defined in
 @dataclass
 class RegisterDefinition:
     address: int                                    # Read address
-    deserializer: Callable[[Any], Any] | None = None  # Raw value -> Python value
-    serializer: Callable[[Any], Any] | None = None    # Python value -> raw value (for writes)
-    write_address: int | None = None                  # Write address if different from read
-    fallback: RegisterDefinition | None = None        # Fallback register if primary returns None
-    sentinel_values: frozenset[int] | None = None      # Deserialized values that mark the sensor as unavailable
-    keep: Keep | None = None                           # Value the hardware forgets on reboot, written back
+    codec: RegisterCodec                            # Raw word <-> value, both ways (required)
+    write_address: int | None = None                # Write address if different from read
+    fallback: RegisterDefinition | None = None      # Fallback register if primary decodes to None
+    sentinel_values: frozenset[int] | None = None   # Decoded values that mark the sensor as absent
+    keep: Keep | None = None                        # Value the hardware forgets on reboot, written back
 ```
 
-- `deserializer` — applied after reading the raw 16-bit register value.
-- `serializer` — applied before writing a value back.
+- `codec` — required: a register is never read or written raw (#533). See
+  [Register codecs](#register-codecs).
 - `write_address` — used when the read and write addresses differ (HC-A(16/64)MB
   gateway).
 - `fallback` — an alternative register tried when the primary returns `None`
-  (a read error, or `0xFFFF` on an unsigned primary decoded with
-  `convert_unsigned_16bit`).
+  (a read error, or a word the codec decodes to `None`, e.g. `0xFFFF` on the
+  unsigned HP-level water outlet).
 - `keep` — marks a value the hardware forgets on reboot (#511). The restore
   is mechanical: `KeptValues` (`api/modbus/kept_values.py`, pure, no I/O)
   never interprets a value. It keeps a reference (the last value written, or
   the last reading that is not lost) and, when a successful read shows the
   value lost (a reading of 0, or outside `Keep.valid_range`), plans a
-  write-back that the client executes raw, through the register's
-  `serializer`. Two declarative links order the restore, checked by
-  `validate_kept_registers` when the client starts (along with every kept
-  register being writable and having a `serializer` when it has a
-  `deserializer`):
+  write-back that the client executes through the register codec, like any
+  write. A persisted reference is only trusted when the codec writes it back
+  unchanged (`decode(encode(value)) == value`). Two declarative links order
+  the restore, checked by `validate_kept_registers` when the client starts
+  (along with every kept register being writable):
   - `Keep.while_on` names a kept value this one depends on (an enable flag).
     The dependent is only written back while that value reads non-zero or is
     lost too.
@@ -224,7 +223,7 @@ The gateway acknowledges a CONTROL write at once, but the matching STATUS
 register only follows once the command has gone over H-LINK to the unit and
 back (15–20 s on an ATW-MBS-02). So that a command does not show up, revert and
 show up again, a successful `write_value` publishes the expected value (the
-written raw value passed through the key's deserializer) immediately and ignores
+written raw word decoded by the key's codec) immediately and ignores
 STATUS reads of that key that still report another value, for up to
 `PENDING_WRITE_TTL` (30 s). A read equal to the expected value confirms the
 write and lifts the shadow earlier; past the deadline the gateway value wins
@@ -252,67 +251,75 @@ Both implement `HitachiRegisterMap` (ABC in `api/modbus/registers/__init__.py`)
 which defines register dictionaries, bitmasks for feature detection, and
 writable key sets.
 
-### Common Deserializers
+### Register codecs
 
-| Function | Purpose | Example |
-| --- | --- | --- |
-| `convert_signed_16bit` | Two's complement for signed values | `0xFF9C` → `-100`, `0xFFFF` → `-1` |
-| `convert_unsigned_16bit` | Unsigned value, `0xFFFF` → `None` (not exposed) | `350` → `350`, `0xFFFF` → `None` |
-| `convert_from_tenths` | Divide by 10 | `253` → `25.3` |
-| `convert_pressure` | Hundredths of MPa to bar | `510` → `51.0` |
-| `deserialize_unit_model` | Model ID to string key | `2` → `"yutaki_s80"` |
-| `deserialize_alarm_code` | Alarm code to translation key | `42` → `"alarm_code_42"` |
+`api/modbus/registers/codecs.py` defines the `RegisterCodec` protocol and the
+codecs every map shares. A codec converts both ways: `decode(raw)` on read,
+`encode(value)` on write, and guarantees `decode(encode(value)) == value` for
+every value `encode` accepts (pinned by `test_every_register_round_trips`).
+`encode` raises for a value the register cannot hold, so `write_value` refuses
+it before anything reaches the gateway. Writers therefore pass the value the
+integration stores (22.5 °C, `"points"`, 1), never a raw word.
+
+| Codec | Register type | `decode` | `encode` |
+| --- | --- | --- | --- |
+| `UNSIGNED` | Quantity (frequency, opening, setpoint in °C) | word, `0xFFFF` → `None` | whole value in 0~65534 |
+| `SIGNED` | Signed quantity, marked (*1) | two's complement, `0xFFFF` → `-1` | two's complement |
+| `TENTHS` (`Scaled(10)`) | Tenths (*3), pressures in hundredths of MPa = tenths of bar | `253` → `25.3`, `0xFFFF` → `None` | `round(value × 10)` |
+| `EnumCodec` | Closed list: `SWITCH` (0/1), unit mode, central mode, states, OTC methods, unit model | documented word → value, else `unknown` (default `None`) | value → word, else `ValueError` |
+| `Prefixed` | Alarm code as translation key | `42` → `"alarm_code_42"`, `0xFFFF` → `None` | key → code |
+
+Pick the codec from the register's documented type. A register whose values
+are a list (run/stop, a mode) is an `EnumCodec`, not `UNSIGNED`: a garbage
+word such as `0xFFC0` (seen in the fleet) then reads as no value instead of
+as a mode. Codecs specific to one map live in its module: `UNIT_MODE` and
+`UNIT_MODEL` per map, and `HcaUnitMode` on HC-A(16/64)MB, which reads the
+STATUS bit field (offset 101: B0 cool/heat, B1 auto) and writes the CONTROL
+value (offset 51: 0 cool, 1 heat, no auto).
 
 ### Sentinel Values
 
-Certain raw register values have special meaning:
+Sentinels are decoded values that mean the sensor or module is **absent**:
 
-| Raw value | Decimal | Meaning |
+| Raw value | Decoded | Meaning |
 | --- | --- | --- |
 | `0xFF81` | -127 (signed) | Temperature sensor disconnected |
 | `0xFFBD` | -67 (signed) | DHW temperature sensor disconnected |
-| `0xFFFF` | 65535 | Garbage read on unsigned registers (configuration, versions, `system_state`) |
 
-These sentinels are matched against `RegisterDefinition.sentinel_values` in
-the read loop *after* deserialization and filtered out there, so the value
-propagates as an unavailable entity state in Home Assistant.
+They are matched against `RegisterDefinition.sentinel_values` in the read loop
+*after* decoding; the key is removed and the fallback is not read.
 
-On a **signed** register `0xFFFF` is not a sentinel: it is `-1` in two's
+`0xFFFF` is not a sentinel. On a **signed** register it is `-1` in two's
 complement, and the gateway documentation defines no sensor-error value for
-these registers, so `convert_signed_16bit` decodes it as `-1` (#533: a reading
-of exactly -1 °C used to become `unknown`). On unsigned registers `0xFFFF` is
-outside the documented range and the decoders (`convert_unsigned_16bit`,
-`convert_from_tenths`, `convert_pressure`) return `None`. The HP-level water
-outlet (`1200`, before line-up 2016 `1199`) is one of them: unsigned,
-0~100 °C, Yutaki S & S Combi only, so `convert_unsigned_16bit` reads `0xFFFF`
-as "not exposed" and the circuit outlet fallback (`1093`/`1080`, signed) is
-tried on other models. A gateway that returns `0xFFFF` everywhere because it
-receives no heat pump data is caught earlier, by the `system_state` preflight
-(`no_data_warning`).
+these registers, so `SIGNED` decodes it as `-1` (#533: a reading of exactly
+-1 °C used to become `unknown`). On every other register it is outside the
+documented range or list, so the codec decodes it to `None`, which also
+triggers the fallback. The HP-level water outlet (`1200`, before line-up 2016
+`1199`) is one of them: unsigned, 0~100 °C, Yutaki S & S Combi only, so the
+circuit outlet fallback (`1093`/`1080`, signed) is read on other models. A
+gateway that returns `0xFFFF` everywhere because it receives no heat pump
+data is caught earlier, by the `system_state` preflight (`no_data_warning`).
 
 ### Concrete Examples
 
 Read-only register (ATW-MBS-02):
 
 ```python
-"outdoor_temp": RegisterDefinition(1091, deserializer=convert_signed_16bit),
+"outdoor_temp": RegisterDefinition(1091, SIGNED),
 ```
 
-Writable register with separate read/write addresses (ATW-MBS-02):
+Writable register with separate read/write addresses (ATW-MBS-02), stored as
+integer degrees:
 
 ```python
-"pool_target_temp": RegisterDefinition(1082, write_address=1029),
+"pool_target_temp": RegisterDefinition(1082, UNSIGNED, write_address=1029),
 ```
-
-The value is stored as integer degrees, so no serializer is needed — no
-register in the codebase currently sets one; writes go through the
-`write_address` mechanism.
 
 Writable register with separate read/write addresses (HC-A(16/64)MB):
 
 ```python
 "unit_power": RegisterDefinition(
-    self._addr(100), write_address=self._addr(50)
+    self._addr(100), SWITCH, write_address=self._addr(50)
 ),
 ```
 
@@ -320,9 +327,9 @@ Register with fallback:
 
 ```python
 "water_outlet_temp": RegisterDefinition(
-    1200,
-    deserializer=convert_unsigned_16bit,  # unsigned 0~100 °C, 0xFFFF = not exposed
-    fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
+    1200,  # unsigned 0~100 °C, 0xFFFF = not exposed
+    UNSIGNED,
+    fallback=RegisterDefinition(1093, SIGNED),
 ),
 ```
 
@@ -335,11 +342,13 @@ Register with fallback:
    the gateway's register file (`api/modbus/registers/`). Choose the correct
    group based on which device the data belongs to.
 
-3. **Add a deserializer** if the raw value needs conversion. Reuse existing
-   functions when possible.
+3. **Pick its codec** from the documented type (see
+   [Register codecs](#register-codecs)). Reuse a shared codec; add one to
+   `codecs.py` only for a new type of value.
 
-4. **If the data point is writable**: add a serializer if needed, and add the
-   key to the `WRITABLE_KEYS` set.
+4. **If the data point is writable**: add the key to the `WRITABLE_KEYS` set.
+   Its codec encodes the writes; check that it accepts every value the entity
+   can send.
 
 5. **Create an entity description** in the appropriate `entities/<domain>/`
    builder, referencing the key via `coordinator.data.get("key")`. See

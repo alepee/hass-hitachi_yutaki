@@ -4,9 +4,10 @@ from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
+    UNIT_MODEL,
     AtwMbs02Pre2016RegisterMap,
-    deserialize_unit_model_pre2016,
 )
+from custom_components.hitachi_yutaki.api.modbus.registers.codecs import UNSIGNED
 
 
 class TestPre2016RegisterMap:
@@ -188,22 +189,23 @@ class TestPre2016RegisterMap:
             assert key in reg_map.control_unit_keys
 
 
-class TestPre2016UnitModelDeserializer:
-    """Test the before-2016 unit model deserializer."""
+class TestPre2016UnitModelCodec:
+    """Test the before-2016 unit model codec."""
 
     def test_known_models(self):
         """Known model IDs map to expected keys."""
-        assert deserialize_unit_model_pre2016(0) == "yutaki_s"
-        assert deserialize_unit_model_pre2016(1) == "yutaki_s_combi"
+        assert UNIT_MODEL.decode(0) == "yutaki_s"
+        assert UNIT_MODEL.decode(1) == "yutaki_s_combi"
 
     def test_unknown_model(self):
-        """Unknown model IDs return 'unknown'."""
-        assert deserialize_unit_model_pre2016(2) == "unknown"
-        assert deserialize_unit_model_pre2016(99) == "unknown"
+        """Model IDs Gen 1 does not document return 'unknown'."""
+        assert UNIT_MODEL.decode(2) == "unknown"
+        assert UNIT_MODEL.decode(99) == "unknown"
 
-    def test_none(self):
-        """None input returns 'unknown'."""
-        assert deserialize_unit_model_pre2016(None) == "unknown"
+    def test_map_uses_it(self):
+        """The unit_model register decodes through the Gen 1 codec."""
+        regs = AtwMbs02Pre2016RegisterMap().all_registers
+        assert regs["unit_model"].codec is UNIT_MODEL
 
 
 class TestGatewayVersionRegisters:
@@ -221,8 +223,8 @@ class TestGatewayVersionRegisters:
         for key in ("gateway_hw_version", "gateway_sw_version"):
             reg = reg_map.all_registers[key]
             assert reg.write_address is None
-            assert reg.deserializer is None
-            assert 0xFFFF in reg.sentinel_values
+            assert reg.codec is UNSIGNED
+            assert reg.codec.decode(0xFFFF) is None
             assert key not in reg_map.writable_keys
             assert key in reg_map.gateway_keys
             assert key in reg_map.base_keys
@@ -243,6 +245,6 @@ class TestMixingValveRegister:
         reg = reg_map.all_registers["circuit2_mixing_valve_position"]
         assert reg.address == 1215
         assert reg.write_address is None
-        assert 0xFFFF in reg.sentinel_values
+        assert reg.codec.decode(0xFFFF) is None
         assert "circuit2_mixing_valve_position" in reg_map.circuit_2_keys
         assert "circuit2_mixing_valve_position" in reg_map.base_keys
