@@ -5,18 +5,18 @@ from __future__ import annotations
 import pytest
 
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
+    ALARM_CODE,
+    OPERATION_STATE,
+    OTC_METHOD_HEATING,
+    SWITCH,
+    SYSTEM_STATE,
     AtwMbs02RegisterMap,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
     AtwMbs02Pre2016RegisterMap,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.codecs import (
-    ALARM_CODE,
-    OPERATION_STATE,
-    OTC_METHOD_HEATING,
     SIGNED,
-    SWITCH,
-    SYSTEM_STATE,
     TENTHS,
     UNSIGNED,
     EnumCodec,
@@ -108,9 +108,26 @@ class TestEnumCodec:
             OTC_METHOD_HEATING.encode("bogus")
 
     def test_one_word_per_value(self):
-        """Two words for one value would make encode ambiguous."""
-        with pytest.raises(ValueError):
+        """Two words for one value make encode ambiguous unless writes says."""
+        with pytest.raises(ValueError, match="give writes"):
             EnumCodec({0: "a", 1: "a"})
+        codec = EnumCodec({0: "a", 1: "a"}, writes={"a": 1})
+        assert codec.decode(0) == "a"
+        assert codec.encode("a") == 1
+
+    def test_writes_must_read_back(self):
+        """A write that would read back as another value is refused at build."""
+        with pytest.raises(ValueError, match="reads back otherwise"):
+            EnumCodec({0: "a", 1: "b"}, writes={"a": 1})
+        with pytest.raises(ValueError, match="reads back otherwise"):
+            EnumCodec({0: "a"}, writes={"b": 7})
+
+    def test_writes_can_be_a_subset(self):
+        """A value that can be read but not commanded is refused on write."""
+        codec = EnumCodec({0: "cool", 1: "heat", 2: "auto"}, writes={"cool": 0})
+        assert codec.decode(2) == "auto"
+        with pytest.raises(ValueError):
+            codec.encode("auto")
 
 
 class TestPrefixed:
@@ -125,7 +142,7 @@ class TestPrefixed:
 
 @pytest.mark.parametrize("register_map", MAPS, ids=lambda m: type(m).__name__)
 def test_every_register_round_trips(register_map):
-    """For every word a register decodes to a value, encode gives the word back.
+    """Every value a register reads, when writable, reads back as written.
 
     This is the codec contract the write path, the read-back shadow and the
     reboot restore rely on. Sampled words: the low range, the signed boundary
@@ -140,9 +157,11 @@ def test_every_register_round_trips(register_map):
                 value = definition.codec.decode(raw)
                 if value is None or value in ("unknown", "operation_state_unknown"):
                     continue
-                if key == "unit_mode" and raw in (0b10, 0b11):
-                    continue  # HC-A: auto is read from STATUS, never commanded
-                assert definition.codec.encode(value) == raw, (key, raw)
+                try:
+                    encoded = definition.codec.encode(value)
+                except ValueError:
+                    continue  # readable but not writable (e.g. HC-A auto mode)
+                assert definition.codec.decode(encoded) == value, (key, raw)
 
 
 @pytest.mark.parametrize("register_map", MAPS, ids=lambda m: type(m).__name__)

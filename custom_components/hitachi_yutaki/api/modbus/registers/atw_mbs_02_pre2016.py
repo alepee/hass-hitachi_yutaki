@@ -17,20 +17,16 @@ from ....const import (
     CIRCUIT_SECONDARY_ID,
 )
 from . import HitachiRegisterMap, RegisterDefinition
-from .codecs import (
+from .atw_mbs_02 import (
     ALARM_CODE,
     CENTRAL_CONTROL_MODE,
     OPERATION_STATE,
     OTC_METHOD_COOLING,
     OTC_METHOD_HEATING,
-    SIGNED,
     SWITCH,
     SYSTEM_STATE,
-    TENTHS,
-    UNSIGNED,
-    choice,
-    unit_model,
 )
+from .codecs import SIGNED, TENTHS, UNSIGNED, EnumCodec, choice
 
 # System configuration bit masks (from register 1074)
 # Only 8 bits — no wireless bits (8-11) in before-2016
@@ -69,9 +65,11 @@ MASK_TARIFF_INPUT = 0x0200
 HVAC_UNIT_MODE_COOL = 0
 HVAC_UNIT_MODE_HEAT = 1
 
-# Codecs specific to this map
+# Documented register values specific to this line-up; the others are the
+# same on both line-ups of the gateway and come from atw_mbs_02.
 UNIT_MODE = choice(HVAC_UNIT_MODE_COOL, HVAC_UNIT_MODE_HEAT)
-UNIT_MODEL = unit_model(0, 1)  # register 1217: Gen 1 is S or S Combi only
+# Register 1217: Gen 1 is S or S Combi only.
+UNIT_MODEL = EnumCodec({0: "yutaki_s", 1: "yutaki_s_combi"}, unknown="unknown")
 
 # Registers grouped by logical device
 

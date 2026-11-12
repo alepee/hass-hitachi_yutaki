@@ -5,22 +5,10 @@ from ....const import (
     CIRCUIT_MODE_HEATING,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
+    OTCCalculationMethod,
 )
 from . import HitachiRegisterMap, Keep, RegisterDefinition
-from .codecs import (
-    ALARM_CODE,
-    CENTRAL_CONTROL_MODE,
-    OPERATION_STATE,
-    OTC_METHOD_COOLING,
-    OTC_METHOD_HEATING,
-    SIGNED,
-    SWITCH,
-    SYSTEM_STATE,
-    TENTHS,
-    UNSIGNED,
-    choice,
-    unit_model,
-)
+from .codecs import SIGNED, TENTHS, UNSIGNED, EnumCodec, Prefixed, choice
 
 # System configuration bit masks (from register 1089)
 # Bit order per Modbus documentation:
@@ -63,9 +51,59 @@ HVAC_UNIT_MODE_COOL = 0
 HVAC_UNIT_MODE_HEAT = 1
 HVAC_UNIT_MODE_AUTO = 2
 
-# Codecs specific to this map
+# Documented register values, applied by the generic codecs
+# 0 / 1 registers: run/stop, enable flags, eco/comfort.
+SWITCH = choice(0, 1)
 UNIT_MODE = choice(HVAC_UNIT_MODE_COOL, HVAC_UNIT_MODE_HEAT, HVAC_UNIT_MODE_AUTO)
-UNIT_MODEL = unit_model(0, 1, 2, 3)  # register 1218: S, S Combi, S80, M
+# "LCD Central Mode": 0 local, 1 air, 2 water, 3 full.
+CENTRAL_CONTROL_MODE = choice(0, 1, 2, 3)
+SYSTEM_STATE = EnumCodec(
+    {0: "synchronized", 1: "desynchronized", 2: "initializing"}, unknown="unknown"
+)
+OPERATION_STATE = EnumCodec(
+    {
+        raw: f"operation_state_{name}"
+        for raw, name in enumerate(
+            (
+                "off",
+                "cool_demand_off",
+                "cool_thermo_off",
+                "cool_thermo_on",
+                "heat_demand_off",
+                "heat_thermo_off",
+                "heat_thermo_on",
+                "dhw_off",
+                "dhw_on",
+                "pool_off",
+                "pool_on",
+                "alarm",
+            )
+        )
+    },
+    unknown="operation_state_unknown",
+)
+ALARM_CODE = Prefixed("alarm_code_")
+OTC_METHOD_HEATING = EnumCodec(
+    {
+        0: OTCCalculationMethod.DISABLED,
+        1: OTCCalculationMethod.POINTS,
+        2: OTCCalculationMethod.GRADIENT,
+        3: OTCCalculationMethod.FIX,
+    }
+)
+# Cooling has no Gradient option: 0 disabled, 1 points, 2 fix.
+OTC_METHOD_COOLING = EnumCodec(
+    {
+        0: OTCCalculationMethod.DISABLED,
+        1: OTCCalculationMethod.POINTS,
+        2: OTCCalculationMethod.FIX,
+    }
+)
+# Register 1218.
+UNIT_MODEL = EnumCodec(
+    {0: "yutaki_s", 1: "yutaki_s_combi", 2: "yutaki_s80", 3: "yutaki_m"},
+    unknown="unknown",
+)
 
 # Registers grouped by logical device
 

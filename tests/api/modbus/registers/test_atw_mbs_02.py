@@ -1,6 +1,7 @@
 """Tests for the ATW-MBS-02 register map."""
 
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
+    OTC_METHOD_COOLING,
     UNIT_MODE,
     AtwMbs02RegisterMap,
 )
@@ -8,7 +9,6 @@ from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 im
     AtwMbs02Pre2016RegisterMap,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.codecs import (
-    OTC_METHOD_COOLING,
     SIGNED,
     UNSIGNED,
 )

@@ -138,12 +138,16 @@ Every data key is backed by a `RegisterDefinition` (defined in
 ```python
 @dataclass
 class RegisterDefinition:
-    address: int                                    # Read address
-    codec: RegisterCodec                            # Raw word <-> value, both ways (required)
-    write_address: int | None = None                # Write address if different from read
-    fallback: RegisterDefinition | None = None      # Fallback register if primary decodes to None
-    sentinel_values: frozenset[int] | None = None   # Decoded values that mark the sensor as absent
-    keep: Keep | None = None                        # Value the hardware forgets on reboot, written back
+    address: int  # Read address
+    codec: RegisterCodec  # Raw word <-> value, both ways (required)
+    write_address: int | None = None  # Write address if different from read
+    fallback: RegisterDefinition | None = (
+        None  # Fallback register if primary decodes to None
+    )
+    sentinel_values: frozenset[int] | None = (
+        None  # Decoded values that mark the sensor as absent
+    )
+    keep: Keep | None = None  # Value the hardware forgets on reboot, written back
 ```
 
 - `codec` — required: a register is never read or written raw (#533). See
@@ -255,9 +259,11 @@ writable key sets.
 
 The `api/modbus/registers/codecs/` package holds one file per codec: the
 `RegisterCodec` protocol (`protocol.py`), `unsigned.py`, `signed.py`,
-`scaled.py`, `enum_codec.py`, `prefixed.py` and `hca_unit_mode.py`, plus
-`catalog.py` for the value lists every map shares (`SWITCH`, states, OTC
-methods, unit models). Import them from the package. A codec converts both ways: `decode(raw)` on read,
+`scaled.py`, `enum_codec.py` and `prefixed.py`. Import them from the package.
+Codecs are generic types: the documented values of a register (states, modes,
+OTC methods, unit models) belong to the gateway and are declared by its
+register map, which instantiates `EnumCodec` with them (the before-2016 map
+reuses the lists of the 2016 map, same gateway). A codec converts both ways: `decode(raw)` on read,
 `encode(value)` on write, and guarantees `decode(encode(value)) == value` for
 every value `encode` accepts (pinned by `test_every_register_round_trips`).
 `encode` raises for a value the register cannot hold, so `write_value` refuses
@@ -269,16 +275,25 @@ integration stores (22.5 °C, `"points"`, 1), never a raw word.
 | `UNSIGNED` | Quantity (frequency, opening, setpoint in °C) | word, `0xFFFF` → `None` | whole value in 0~65534 |
 | `SIGNED` | Signed quantity, marked (*1) | two's complement, `0xFFFF` → `-1` | two's complement |
 | `TENTHS` (`Scaled(10)`) | Tenths (*3), pressures in hundredths of MPa = tenths of bar | `253` → `25.3`, `0xFFFF` → `None` | `round(value × 10)` |
-| `EnumCodec` | Closed list: `SWITCH` (0/1), unit mode, central mode, states, OTC methods, unit model | documented word → value, else `unknown` (default `None`) | value → word, else `ValueError` |
+| `EnumCodec` | Closed list declared by the map: `SWITCH` (0/1), unit mode, central mode, states, OTC methods, unit model | documented word → value, else `unknown` (default `None`) | `writes` (default: inverse of the reads), else `ValueError` |
 | `Prefixed` | Alarm code as translation key | `42` → `"alarm_code_42"`, `0xFFFF` → `None` | key → code |
 
 Pick the codec from the register's documented type. A register whose values
 are a list (run/stop, a mode) is an `EnumCodec`, not `UNSIGNED`: a garbage
 word such as `0xFFC0` (seen in the fleet) then reads as no value instead of
-as a mode. Each map instantiates its own `UNIT_MODE` and `UNIT_MODEL` from
-the shared classes (the documented values differ). `HcaUnitMode` is only used
-by HC-A(16/64)MB: it reads the STATUS bit field (offset 101: B0 cool/heat,
-B1 auto) and writes the CONTROL value (offset 51: 0 cool, 1 heat, no auto).
+as a mode. `EnumCodec` takes an optional `writes` table when a register
+writes a subset of what it reads, or reads several words as one value; each
+write must read back as the value written, checked when the map is built. The
+HC-A(16/64)MB unit mode uses it: read as STATUS bits (offset 101: B0
+cool/heat, B1 auto), written as a CONTROL value (offset 51: 0 cool, 1 heat,
+no auto):
+
+```python
+UNIT_MODE = EnumCodec(
+    {0b00: 0, 0b01: 1, 0b10: 2, 0b11: 2},
+    writes={HVAC_UNIT_MODE_COOL: 0, HVAC_UNIT_MODE_HEAT: 1},
+)
+```
 
 ### Sentinel Values
 
@@ -347,8 +362,8 @@ Register with fallback:
 
 3. **Pick its codec** from the documented type (see
    [Register codecs](#register-codecs)). Reuse a shared codec; add one to
-   `codecs/` (one file) only for a new type of value, or to `catalog.py` for a
-   new shared list of values.
+   `codecs/` (one file) only for a new type of value. A list of documented
+   values is declared in the map, as an `EnumCodec`.
 
 4. **If the data point is writable**: add the key to the `WRITABLE_KEYS` set.
    Its codec encodes the writes; check that it accepts every value the entity

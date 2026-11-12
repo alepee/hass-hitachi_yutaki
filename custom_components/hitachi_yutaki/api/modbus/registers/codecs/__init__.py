@@ -18,21 +18,12 @@ The codec is picked from the register's documented type:
 - a quantity in tenths, marked (*3) where it applies: :data:`TENTHS`;
 - a closed list of values (switch, mode, state, model): an :class:`EnumCodec`,
   so an undocumented word reads as unknown instead of as a value.
+
+Codecs are generic types. The documented values of a register (states, modes,
+models) belong to the gateway and are declared by its register map.
 """
 
-from .catalog import (
-    ALARM_CODE,
-    CENTRAL_CONTROL_MODE,
-    OPERATION_STATE,
-    OTC_METHOD_COOLING,
-    OTC_METHOD_HEATING,
-    SWITCH,
-    SYSTEM_STATE,
-    UNIT_MODELS,
-    unit_model,
-)
 from .enum_codec import EnumCodec, choice
-from .hca_unit_mode import HCA_UNIT_MODE, HcaUnitMode
 from .prefixed import Prefixed
 from .protocol import NOT_EXPOSED, RegisterCodec
 from .scaled import TENTHS, Scaled
@@ -40,26 +31,15 @@ from .signed import SIGNED, Signed
 from .unsigned import UNSIGNED, Unsigned
 
 __all__ = [
-    "ALARM_CODE",
-    "CENTRAL_CONTROL_MODE",
     "EnumCodec",
-    "HCA_UNIT_MODE",
-    "HcaUnitMode",
     "NOT_EXPOSED",
-    "OPERATION_STATE",
-    "OTC_METHOD_COOLING",
-    "OTC_METHOD_HEATING",
     "Prefixed",
     "RegisterCodec",
     "SIGNED",
-    "SWITCH",
-    "SYSTEM_STATE",
     "Scaled",
     "Signed",
     "TENTHS",
-    "UNIT_MODELS",
     "UNSIGNED",
     "Unsigned",
     "choice",
-    "unit_model",
 ]

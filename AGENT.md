@@ -76,7 +76,9 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Every `RegisterDefinition` declares a **codec** (`api/modbus/registers/codecs/`)
   that decodes reads and encodes writes: no register is read or written raw.
   Pick it from the documented type (`SIGNED` for (*1), `TENTHS` for tenths,
-  an `EnumCodec` for a closed list of values, `UNSIGNED` otherwise). `0xFFFF`
+  an `EnumCodec` for a closed list of values, `UNSIGNED` otherwise). Codecs
+  are generic; the documented values (states, modes, models) are declared by
+  each gateway's register map. `0xFFFF`
   is -1 on a signed register (#533) and no value elsewhere. Writers pass the
   stored value (22.5, `"points"`), never a raw word.
 - Values the hardware forgets on reboot are declared with

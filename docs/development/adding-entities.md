@@ -41,6 +41,7 @@ new `discharge_temp` sensor appended:
 ```python
 # In entities/control_unit/sensors.py
 
+
 def _build_control_unit_sensor_descriptions() -> tuple[
     HitachiYutakiSensorEntityDescription, ...
 ]:
@@ -97,15 +98,17 @@ Some entities should only appear when the hardware supports them. Use the
 `condition` field -- a lambda that receives the coordinator and returns a bool:
 
 ```python
-HitachiYutakiBinarySensorEntityDescription(
-    key="boiler",
-    translation_key="boiler",
-    description="Boiler running state",
-    device_class=BinarySensorDeviceClass.RUNNING,
-    entity_category=EntityCategory.DIAGNOSTIC,
-    value_fn=lambda coordinator: coordinator.api_client.is_boiler_active,
-    condition=lambda c: c.profile.supports_boiler,
-),
+(
+    HitachiYutakiBinarySensorEntityDescription(
+        key="boiler",
+        translation_key="boiler",
+        description="Boiler running state",
+        device_class=BinarySensorDeviceClass.RUNNING,
+        entity_category=EntityCategory.DIAGNOSTIC,
+        value_fn=lambda coordinator: coordinator.api_client.is_boiler_active,
+        condition=lambda c: c.profile.supports_boiler,
+    ),
+)
 ```
 
 The `_create_*` factory functions evaluate the condition at setup time and skip
@@ -200,6 +203,7 @@ In `sensor.py`, import the builder and call it inside `async_setup_entry`:
 
 ```python
 from .entities.new_domain import build_new_domain_sensors
+
 
 async def async_setup_entry(hass, entry: HitachiYutakiConfigEntry, async_add_entities):
     coordinator = entry.runtime_data

@@ -17,22 +17,10 @@ from ....const import (
     CIRCUIT_MODE_HEATING,
     CIRCUIT_PRIMARY_ID,
     CIRCUIT_SECONDARY_ID,
+    OTCCalculationMethod,
 )
 from . import HitachiRegisterMap, RegisterDefinition
-from .codecs import (
-    ALARM_CODE,
-    CENTRAL_CONTROL_MODE,
-    HCA_UNIT_MODE,
-    OPERATION_STATE,
-    OTC_METHOD_COOLING,
-    OTC_METHOD_HEATING,
-    SIGNED,
-    SWITCH,
-    SYSTEM_STATE,
-    TENTHS,
-    UNSIGNED,
-    unit_model,
-)
+from .codecs import SIGNED, TENTHS, UNSIGNED, EnumCodec, Prefixed, choice
 
 # ──────────────────────────────────────────────────────────────────────────────
 # System configuration bit masks (from offset 140 — identical to ATW-MBS-02)
@@ -92,12 +80,76 @@ SYSTEM_STATE_ISSUES = {
 }
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Codecs specific to this map
+# Documented register values, applied by the generic codecs
 # ──────────────────────────────────────────────────────────────────────────────
-
-
+# 0 / 1 registers: run/stop, enable flags, eco/comfort.
+SWITCH = choice(0, 1)
+# Unit mode is read as STATUS bits (offset 101: B0 0 cool / 1 heat, B1 1 auto)
+# and written as a CONTROL value (offset 51: 0 cool, 1 heat, no auto). Decoded
+# to the ATW-MBS-02 values (0 cool, 1 heat, 2 auto). Any other word, e.g. the
+# 0xFFFF of a gateway without heat pump data, is no mode (it read as auto
+# before #534).
+UNIT_MODE = EnumCodec(
+    {0b00: 0, 0b01: 1, 0b10: 2, 0b11: 2},
+    writes={HVAC_UNIT_MODE_COOL: 0, HVAC_UNIT_MODE_HEAT: 1},
+)
+# "LCD Central Mode" (offset 139): 0 local, 1 air, 2 water, 3 full.
+CENTRAL_CONTROL_MODE = choice(0, 1, 2, 3)
+SYSTEM_STATE = EnumCodec(
+    {0: "synchronized", 1: "desynchronized", 2: "initializing"}, unknown="unknown"
+)
+OPERATION_STATE = EnumCodec(
+    {
+        raw: f"operation_state_{name}"
+        for raw, name in enumerate(
+            (
+                "off",
+                "cool_demand_off",
+                "cool_thermo_off",
+                "cool_thermo_on",
+                "heat_demand_off",
+                "heat_thermo_off",
+                "heat_thermo_on",
+                "dhw_off",
+                "dhw_on",
+                "pool_off",
+                "pool_on",
+                "alarm",
+            )
+        )
+    },
+    unknown="operation_state_unknown",
+)
+ALARM_CODE = Prefixed("alarm_code_")
+OTC_METHOD_HEATING = EnumCodec(
+    {
+        0: OTCCalculationMethod.DISABLED,
+        1: OTCCalculationMethod.POINTS,
+        2: OTCCalculationMethod.GRADIENT,
+        3: OTCCalculationMethod.FIX,
+    }
+)
+# Cooling has no Gradient option: 0 disabled, 1 points, 2 fix.
+OTC_METHOD_COOLING = EnumCodec(
+    {
+        0: OTCCalculationMethod.DISABLED,
+        1: OTCCalculationMethod.POINTS,
+        2: OTCCalculationMethod.FIX,
+    }
+)
 # Offset 162: S, S Combi, S80, M, SC Lite, Yutampo, YCC.
-UNIT_MODEL = unit_model(0, 1, 2, 3, 4, 5, 6)
+UNIT_MODEL = EnumCodec(
+    {
+        0: "yutaki_s",
+        1: "yutaki_s_combi",
+        2: "yutaki_s80",
+        3: "yutaki_m",
+        4: "yutaki_sc_lite",
+        5: "yutampo_r32",
+        6: "ycc",
+    },
+    unknown="unknown",
+)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -203,7 +255,7 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             ),
             "unit_mode": RegisterDefinition(
                 self._addr(101),
-                HCA_UNIT_MODE,
+                UNIT_MODE,
                 write_address=self._addr(51),
             ),
             "operation_state": RegisterDefinition(

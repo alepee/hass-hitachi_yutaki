@@ -26,7 +26,11 @@ RegisterDefinition(1204, SIGNED, sentinel_values=frozenset({-127}))
 In `_read_register()`, after decoding:
 
 ```python
-if value is not None and definition.sentinel_values and value in definition.sentinel_values:
+if (
+    value is not None
+    and definition.sentinel_values
+    and value in definition.sentinel_values
+):
     return self._SENTINEL_FILTERED
 ```
 

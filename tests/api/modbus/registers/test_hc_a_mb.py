@@ -4,7 +4,7 @@ import pytest
 
 from custom_components.hitachi_yutaki.api.modbus.registers.codecs import UNSIGNED
 from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
-    HCA_UNIT_MODE,
+    UNIT_MODE,
     UNIT_MODEL,
     HcAMbRegisterMap,
     _compute_base,
@@ -132,31 +132,31 @@ class TestAddressComputation:
             assert key in rmap.control_unit_keys
 
 
-class TestHcaUnitModeCodec:
+class TestUnitModeCodec:
     """Unit mode: STATUS bits on read (offset 101), CONTROL value on write (51)."""
 
     def test_decode_status_bits(self):
         """B1 set is auto, else B0 is cool (0) / heat (1)."""
-        assert HCA_UNIT_MODE.decode(0b00) == 0
-        assert HCA_UNIT_MODE.decode(0b01) == 1
-        assert HCA_UNIT_MODE.decode(0b10) == 2
-        assert HCA_UNIT_MODE.decode(0b11) == 2
+        assert UNIT_MODE.decode(0b00) == 0
+        assert UNIT_MODE.decode(0b01) == 1
+        assert UNIT_MODE.decode(0b10) == 2
+        assert UNIT_MODE.decode(0b11) == 2
 
     def test_undocumented_word_is_no_mode(self):
         """0xFFFF used to read as auto (#534); garbage is no mode."""
-        assert HCA_UNIT_MODE.decode(0xFFFF) is None
-        assert HCA_UNIT_MODE.decode(0xFFC0) is None
+        assert UNIT_MODE.decode(0xFFFF) is None
+        assert UNIT_MODE.decode(0xFFC0) is None
 
     def test_encode_control_value(self):
         """Cool and heat are written as is; auto cannot be commanded."""
-        assert HCA_UNIT_MODE.encode(0) == 0
-        assert HCA_UNIT_MODE.encode(1) == 1
+        assert UNIT_MODE.encode(0) == 0
+        assert UNIT_MODE.encode(1) == 1
         with pytest.raises(ValueError):
-            HCA_UNIT_MODE.encode(2)
+            UNIT_MODE.encode(2)
 
     def test_map_uses_it(self):
-        """The unit_mode register decodes through the HC-A codec."""
-        assert HcAMbRegisterMap().all_registers["unit_mode"].codec is HCA_UNIT_MODE
+        """The unit_mode register decodes through the HC-A values."""
+        assert HcAMbRegisterMap().all_registers["unit_mode"].codec is UNIT_MODE
 
 
 class TestUnitModelCodec:
