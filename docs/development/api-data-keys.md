@@ -253,8 +253,11 @@ writable key sets.
 
 ### Register codecs
 
-`api/modbus/registers/codecs.py` defines the `RegisterCodec` protocol and the
-codecs every map shares. A codec converts both ways: `decode(raw)` on read,
+The `api/modbus/registers/codecs/` package holds one file per codec: the
+`RegisterCodec` protocol (`protocol.py`), `unsigned.py`, `signed.py`,
+`scaled.py`, `enum_codec.py`, `prefixed.py` and `hca_unit_mode.py`, plus
+`catalog.py` for the value lists every map shares (`SWITCH`, states, OTC
+methods, unit models). Import them from the package. A codec converts both ways: `decode(raw)` on read,
 `encode(value)` on write, and guarantees `decode(encode(value)) == value` for
 every value `encode` accepts (pinned by `test_every_register_round_trips`).
 `encode` raises for a value the register cannot hold, so `write_value` refuses
@@ -272,10 +275,10 @@ integration stores (22.5 °C, `"points"`, 1), never a raw word.
 Pick the codec from the register's documented type. A register whose values
 are a list (run/stop, a mode) is an `EnumCodec`, not `UNSIGNED`: a garbage
 word such as `0xFFC0` (seen in the fleet) then reads as no value instead of
-as a mode. Codecs specific to one map live in its module: `UNIT_MODE` and
-`UNIT_MODEL` per map, and `HcaUnitMode` on HC-A(16/64)MB, which reads the
-STATUS bit field (offset 101: B0 cool/heat, B1 auto) and writes the CONTROL
-value (offset 51: 0 cool, 1 heat, no auto).
+as a mode. Each map instantiates its own `UNIT_MODE` and `UNIT_MODEL` from
+the shared classes (the documented values differ). `HcaUnitMode` is only used
+by HC-A(16/64)MB: it reads the STATUS bit field (offset 101: B0 cool/heat,
+B1 auto) and writes the CONTROL value (offset 51: 0 cool, 1 heat, no auto).
 
 ### Sentinel Values
 
@@ -344,7 +347,8 @@ Register with fallback:
 
 3. **Pick its codec** from the documented type (see
    [Register codecs](#register-codecs)). Reuse a shared codec; add one to
-   `codecs.py` only for a new type of value.
+   `codecs/` (one file) only for a new type of value, or to `catalog.py` for a
+   new shared list of values.
 
 4. **If the data point is writable**: add the key to the `WRITABLE_KEYS` set.
    Its codec encodes the writes; check that it accepts every value the entity

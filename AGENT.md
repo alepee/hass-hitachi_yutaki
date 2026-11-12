@@ -73,7 +73,7 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
   and `supported_unit_modes`; concrete register maps stay inside `api/`.
 - A readable key is not necessarily writable. UI commands must use writable
   capabilities and propagate failed writes.
-- Every `RegisterDefinition` declares a **codec** (`api/modbus/registers/codecs.py`)
+- Every `RegisterDefinition` declares a **codec** (`api/modbus/registers/codecs/`)
   that decodes reads and encodes writes: no register is read or written raw.
   Pick it from the documented type (`SIGNED` for (*1), `TENTHS` for tenths,
   an `EnumCodec` for a closed list of values, `UNSIGNED` otherwise). `0xFFFF`
