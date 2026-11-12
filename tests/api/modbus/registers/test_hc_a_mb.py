@@ -1,16 +1,14 @@
 """Tests for the HC-A(16/64)MB register map."""
 
+import pytest
+
+from custom_components.hitachi_yutaki.api.modbus.registers.codecs import UNSIGNED
 from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
+    UNIT_MODE,
+    UNIT_MODEL,
     HcAMbRegisterMap,
     _compute_base,
-    convert_from_tenths,
-    convert_signed_16bit,
-    deserialize_otc_method_cooling,
-    deserialize_unit_mode_status,
-    deserialize_unit_model,
-    serialize_otc_method_cooling,
 )
-from custom_components.hitachi_yutaki.const import OTCCalculationMethod
 from custom_components.hitachi_yutaki.profiles import PROFILES
 from custom_components.hitachi_yutaki.profiles.yutaki_s_combi import (
     YutakiSCombiProfile,
@@ -134,82 +132,48 @@ class TestAddressComputation:
             assert key in rmap.control_unit_keys
 
 
-class TestDeserializers:
-    """Test HC-A(16/64)MB-specific deserializers."""
+class TestUnitModeCodec:
+    """Unit mode: STATUS bits on read (offset 101), CONTROL value on write (51)."""
 
-    def test_unit_model_standard(self):
-        """Test standard model IDs."""
-        assert deserialize_unit_model(0) == "yutaki_s"
-        assert deserialize_unit_model(1) == "yutaki_s_combi"
-        assert deserialize_unit_model(2) == "yutaki_s80"
-        assert deserialize_unit_model(3) == "yutaki_m"
+    def test_decode_status_bits(self):
+        """B1 set is auto, else B0 is cool (0) / heat (1)."""
+        assert UNIT_MODE.decode(0b00) == 0
+        assert UNIT_MODE.decode(0b01) == 1
+        assert UNIT_MODE.decode(0b10) == 2
+        assert UNIT_MODE.decode(0b11) == 2
 
-    def test_unit_model_hc_a_mb_only(self):
-        """Test HC-A(16/64)MB-specific model IDs."""
-        assert deserialize_unit_model(4) == "yutaki_sc_lite"
-        assert deserialize_unit_model(5) == "yutampo_r32"
-        assert deserialize_unit_model(6) == "ycc"
+    def test_undocumented_word_is_no_mode(self):
+        """0xFFFF used to read as auto (#534); garbage is no mode."""
+        assert UNIT_MODE.decode(0xFFFF) is None
+        assert UNIT_MODE.decode(0xFFC0) is None
 
-    def test_unit_model_unknown(self):
-        """Test unknown model ID."""
-        assert deserialize_unit_model(99) == "unknown"
-        assert deserialize_unit_model(None) == "unknown"
+    def test_encode_control_value(self):
+        """Cool and heat are written as is; auto cannot be commanded."""
+        assert UNIT_MODE.encode(0) == 0
+        assert UNIT_MODE.encode(1) == 1
+        with pytest.raises(ValueError):
+            UNIT_MODE.encode(2)
 
-    def test_unit_mode_status_cool(self):
-        """B0=0, B1=0 → Cool (0)."""
-        assert deserialize_unit_mode_status(0b00) == 0
+    def test_map_uses_it(self):
+        """The unit_mode register decodes through the HC-A values."""
+        assert HcAMbRegisterMap().all_registers["unit_mode"].codec is UNIT_MODE
 
-    def test_unit_mode_status_heat(self):
-        """B0=1, B1=0 → Heat (1)."""
-        assert deserialize_unit_mode_status(0b01) == 1
 
-    def test_unit_mode_status_auto_cool(self):
-        """B0=0, B1=1 → Auto (2)."""
-        assert deserialize_unit_mode_status(0b10) == 2
+class TestUnitModelCodec:
+    """HC-A documents seven unit models."""
 
-    def test_unit_mode_status_auto_heat(self):
-        """B0=1, B1=1 → Auto (2)."""
-        assert deserialize_unit_mode_status(0b11) == 2
-
-    def test_unit_mode_status_none(self):
-        """None input should return None."""
-        assert deserialize_unit_mode_status(None) is None
-
-    def test_otc_method_cooling(self):
-        """Test HC-A(16/64)MB cooling OTC method (3 options, no gradient)."""
-        assert deserialize_otc_method_cooling(0) == OTCCalculationMethod.DISABLED
-        assert deserialize_otc_method_cooling(1) == OTCCalculationMethod.POINTS
-        assert deserialize_otc_method_cooling(2) == OTCCalculationMethod.FIX
-        assert deserialize_otc_method_cooling(3) is None  # Out of range
-        assert deserialize_otc_method_cooling(None) is None
-
-    def test_serialize_otc_method_cooling(self):
-        """Test cooling OTC serializer."""
-        assert serialize_otc_method_cooling(OTCCalculationMethod.DISABLED) == 0
-        assert serialize_otc_method_cooling(OTCCalculationMethod.POINTS) == 1
-        assert serialize_otc_method_cooling(OTCCalculationMethod.FIX) == 2
-
-    def test_convert_signed_16bit_positive(self):
-        """Test positive value."""
-        assert convert_signed_16bit(25) == 25
-
-    def test_convert_signed_16bit_negative(self):
-        """Test negative temperature (2's complement)."""
-        assert convert_signed_16bit(65531) == -5  # 0xFFFB
-
-    def test_convert_signed_16bit_none(self):
-        """None returns None."""
-        assert convert_signed_16bit(None) is None
-
-    def test_convert_signed_16bit_sensor_error(self):
-        """0xFFFF should return None (sensor error)."""
-        assert convert_signed_16bit(0xFFFF) is None
-
-    def test_convert_from_tenths(self):
-        """Test tenths conversion."""
-        assert convert_from_tenths(250) == 25.0
-        assert convert_from_tenths(None) is None
-        assert convert_from_tenths(0xFFFF) is None
+    def test_models(self):
+        """Every documented id decodes; others are unknown."""
+        assert [UNIT_MODEL.decode(i) for i in range(7)] == [
+            "yutaki_s",
+            "yutaki_s_combi",
+            "yutaki_s80",
+            "yutaki_m",
+            "yutaki_sc_lite",
+            "yutampo_r32",
+            "ycc",
+        ]
+        assert UNIT_MODEL.decode(99) == "unknown"
 
 
 class TestWriteAddressResolution:
@@ -230,11 +194,11 @@ class TestWriteAddressResolution:
         assert reg.write_address is None
 
     def test_pool_target_temp_no_tenths(self):
-        """HC-A(16/64)MB pool_target_temp should NOT have convert_from_tenths."""
+        """HC-A(16/64)MB pool_target_temp is integer °C, not tenths."""
         rmap = HcAMbRegisterMap()
         reg = rmap.all_registers["pool_target_temp"]
         # HC-A(16/64)MB stores pool temp as integer °C, not tenths
-        assert reg.deserializer is None
+        assert reg.codec is UNSIGNED
 
 
 class TestProfileDetectionWithHcAMb:
@@ -297,6 +261,6 @@ def test_mixing_valve_register():
     reg = reg_map.all_registers["circuit2_mixing_valve_position"]
     assert reg.address == 5000 + 200 + 160
     assert reg.write_address is None
-    assert 0xFFFF in reg.sentinel_values
+    assert reg.codec.decode(0xFFFF) is None
     assert "circuit2_mixing_valve_position" in reg_map.circuit_2_keys
     assert "circuit2_mixing_valve_position" in reg_map.base_keys

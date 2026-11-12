@@ -12,14 +12,17 @@ from custom_components.hitachi_yutaki.api.modbus.registers import (
     Keep,
     RegisterDefinition,
 )
+from custom_components.hitachi_yutaki.api.modbus.registers.codecs import UNSIGNED
 
 REGISTERS = {
-    "enable": RegisterDefinition(1, keep=Keep(valid_range=(0, 1))),
+    "enable": RegisterDefinition(1, UNSIGNED, keep=Keep(valid_range=(0, 1))),
     "setpoint": RegisterDefinition(
-        2, keep=Keep(valid_range=(5, 35), while_on="enable")
+        2, UNSIGNED, keep=Keep(valid_range=(5, 35), while_on="enable")
     ),
-    "copy": RegisterDefinition(3, keep=Keep(while_on="enable", seed_from="setpoint")),
-    "other": RegisterDefinition(4),
+    "copy": RegisterDefinition(
+        3, UNSIGNED, keep=Keep(while_on="enable", seed_from="setpoint")
+    ),
+    "other": RegisterDefinition(4, UNSIGNED),
 }
 
 

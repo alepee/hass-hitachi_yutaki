@@ -79,15 +79,19 @@ class KeptValues:
     def _is_loadable(self, key: str, value: Any) -> bool:
         """Return True for a persisted reference that can be trusted.
 
-        A known, kept, unseeded key; a number (not a bool), whole for a raw
-        register; inside ``valid_range`` when there is one.
+        A known, kept, unseeded key; a number (not a bool) its register codec
+        writes back unchanged; inside ``valid_range`` when there is one.
         """
         keep = self._keeps.get(key)
         if keep is None or keep.seed_from is not None:
             return False
         if isinstance(value, bool) or not isinstance(value, int | float):
             return False
-        if self._registers[key].deserializer is None and value != int(value):
+        codec = self._registers[key].codec
+        try:
+            if codec.decode(codec.encode(value)) != value:
+                return False
+        except (TypeError, ValueError):
             return False
         return keep.valid_range is None or (
             keep.valid_range[0] <= value <= keep.valid_range[1]

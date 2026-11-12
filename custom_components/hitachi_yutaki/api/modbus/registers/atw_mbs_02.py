@@ -8,6 +8,7 @@ from ....const import (
     OTCCalculationMethod,
 )
 from . import HitachiRegisterMap, Keep, RegisterDefinition
+from .codecs import SIGNED, TENTHS, UNSIGNED, EnumCodec, Prefixed, choice
 
 # System configuration bit masks (from register 1089)
 # Bit order per Modbus documentation:
@@ -45,277 +46,127 @@ MASK_SPACE_HEATER = 0x0100
 MASK_SMART_FUNCTION = 0x0200
 
 
-# State Maps
-SYSTEM_STATE_MAP = {
-    0: "synchronized",
-    1: "desynchronized",
-    2: "initializing",
-}
-
-OPERATION_STATE_MAP = {
-    0: "off",
-    1: "cool_demand_off",
-    2: "cool_thermo_off",
-    3: "cool_thermo_on",
-    4: "heat_demand_off",
-    5: "heat_thermo_off",
-    6: "heat_thermo_on",
-    7: "dhw_off",
-    8: "dhw_on",
-    9: "pool_off",
-    10: "pool_on",
-    11: "alarm",
-}
-
 # HVAC Unit mode values (ATW-MBS-02 specific)
 HVAC_UNIT_MODE_COOL = 0
 HVAC_UNIT_MODE_HEAT = 1
 HVAC_UNIT_MODE_AUTO = 2
 
-
-# Conversion functions
-
-
-def deserialize_system_state(value: int | None) -> str:
-    """Convert a raw system state value to a string."""
-    if value is None:
-        return "unknown"
-    return SYSTEM_STATE_MAP.get(value, "unknown")
-
-
-def deserialize_otc_method_heating(value: int | None) -> str | None:
-    """Convert a raw heating OTC method value to an OTC method constant."""
-    if value is None:
-        return None
-    # Mapping from numeric method ID to OTC method
-    method_map = {
+# Documented register values, applied by the generic codecs
+# 0 / 1 registers: run/stop, enable flags, eco/comfort.
+SWITCH = choice(0, 1)
+UNIT_MODE = choice(HVAC_UNIT_MODE_COOL, HVAC_UNIT_MODE_HEAT, HVAC_UNIT_MODE_AUTO)
+# "LCD Central Mode": 0 local, 1 air, 2 water, 3 full.
+CENTRAL_CONTROL_MODE = choice(0, 1, 2, 3)
+SYSTEM_STATE = EnumCodec(
+    {0: "synchronized", 1: "desynchronized", 2: "initializing"}, unknown="unknown"
+)
+OPERATION_STATE = EnumCodec(
+    {
+        raw: f"operation_state_{name}"
+        for raw, name in enumerate(
+            (
+                "off",
+                "cool_demand_off",
+                "cool_thermo_off",
+                "cool_thermo_on",
+                "heat_demand_off",
+                "heat_thermo_off",
+                "heat_thermo_on",
+                "dhw_off",
+                "dhw_on",
+                "pool_off",
+                "pool_on",
+                "alarm",
+            )
+        )
+    },
+    unknown="operation_state_unknown",
+)
+ALARM_CODE = Prefixed("alarm_code_")
+OTC_METHOD_HEATING = EnumCodec(
+    {
         0: OTCCalculationMethod.DISABLED,
         1: OTCCalculationMethod.POINTS,
         2: OTCCalculationMethod.GRADIENT,
         3: OTCCalculationMethod.FIX,
     }
-    return method_map.get(value)
-
-
-def serialize_otc_method_heating(value: str) -> int:
-    """Convert a heating OTC method constant to a raw value."""
-    method_map = {
-        OTCCalculationMethod.DISABLED: 0,
-        OTCCalculationMethod.POINTS: 1,
-        OTCCalculationMethod.GRADIENT: 2,
-        OTCCalculationMethod.FIX: 3,
-    }
-    return method_map.get(value, 0)
-
-
-def deserialize_otc_method_cooling(value: int | None) -> str | None:
-    """Convert a raw cooling OTC method value to an OTC method constant.
-
-    ATW-MBS-02 cooling OTC has only 3 options (no Gradient):
-        0=Disabled, 1=Points, 2=Fix
-    """
-    if value is None:
-        return None
-    method_map = {
+)
+# Cooling has no Gradient option: 0 disabled, 1 points, 2 fix.
+OTC_METHOD_COOLING = EnumCodec(
+    {
         0: OTCCalculationMethod.DISABLED,
         1: OTCCalculationMethod.POINTS,
         2: OTCCalculationMethod.FIX,
     }
-    return method_map.get(value)
-
-
-def serialize_otc_method_cooling(value: str) -> int:
-    """Convert a cooling OTC method constant to a raw value (ATW-MBS-02)."""
-    method_map = {
-        OTCCalculationMethod.DISABLED: 0,
-        OTCCalculationMethod.POINTS: 1,
-        OTCCalculationMethod.FIX: 2,
-    }
-    return method_map.get(value, 0)
-
-
-def deserialize_unit_model(value: int | None) -> str:
-    """Convert a raw unit model ID to a model key.
-
-    Mapping from ATW-MBS-02 documentation (register 1218):
-        0: YUTAKI S
-        1: YUTAKI S COMBI
-        2: S80
-        3: M
-
-    Note: Yutampo R32 uses unit_model=1 (S Combi) but with DHW only (no circuits).
-    Detection is handled in the profile's detect() method.
-    """
-    if value is None:
-        return "unknown"
-    model_map = {
-        0: "yutaki_s",
-        1: "yutaki_s_combi",
-        2: "yutaki_s80",
-        3: "yutaki_m",
-    }
-    return model_map.get(value, "unknown")
-
-
-def deserialize_operation_state(value: int | None) -> str:
-    """Convert a raw operation state value to a string."""
-    if value is None:
-        return "unknown"
-    return f"operation_state_{OPERATION_STATE_MAP.get(value, 'unknown')}"
-
-
-def deserialize_alarm_code(value: int | None) -> str:
-    """Convert a raw alarm code value to a translation key."""
-    if value is None:
-        return "unknown"
-    return f"alarm_code_{value}"
-
-
-def convert_signed_16bit(value: int | None) -> int | None:
-    """Convert signed 16-bit value using 2's complement for negative values.
-
-    Technical pattern: handles values that can be negative.
-    Marked as (*1) in ATW-MBS-02 documentation.
-    Range: -80~100 for temperatures, varies for other values.
-
-    Examples:
-        - Temperatures: outdoor, water inlet/outlet, DHW current, pool current
-        - Other signed measurements
-
-    """
-    if value is None:
-        return None
-    if value == 0xFFFF:  # Special value for sensor error
-        return None
-    if value > 32767:  # Handle negative values (2's complement)
-        value -= 65536
-    return int(value)
-
-
-def convert_from_tenths(value: int | None) -> float | None:
-    """Convert values stored in tenths to their actual decimal value.
-
-    Technical pattern: division by 10 to extract decimal precision.
-    Marked as (*3) in ATW-MBS-02 documentation for temperatures.
-
-    Examples:
-        - Temperatures: 500 → 50.0 °C (setpoints, targets, current temps)
-        - Water flow: 50 → 5.0 m³/h
-        - Secondary compressor current: 50 → 5.0 A
-
-    Note: max_flow_temp_*_otc registers are stored as integer degrees, not tenths.
-
-    """
-    if value is None:
-        return None
-    if value == 0xFFFF:  # Special value for sensor error
-        return None
-    return float(value) / 10.0
-
-
-def convert_to_tenths(value: float) -> int:
-    """Convert a decimal value to the tenths a register stores (22.5 → 225)."""
-    return round(value * 10)
-
-
-def convert_pressure(value: int | None) -> float | None:
-    """Convert pressure value to bar.
-
-    Raw values are stored in hundredths of MPa (e.g., 510 = 5.10 MPa).
-    Since 1 MPa = 10 bar, dividing by 10 converts to bar.
-    Example: 510 (raw) = 5.10 MPa = 51.0 bar
-
-    Per ATW-MBS-02 documentation:
-    - Discharge pressure: 0~510 (0.00~5.10 MPa)
-    - Suction pressure: 0~255 (0.00~2.55 MPa)
-    """
-    if value is None:
-        return None
-    if value == 0xFFFF:
-        return None
-    return float(value) / 10.0
-
+)
+# Register 1218.
+UNIT_MODEL = EnumCodec(
+    {0: "yutaki_s", 1: "yutaki_s_combi", 2: "yutaki_s80", 3: "yutaki_m"},
+    unknown="unknown",
+)
 
 # Registers grouped by logical device
 
 REGISTER_GATEWAY = {
-    "alarm_code": RegisterDefinition(1223, deserializer=deserialize_alarm_code),
-    "unit_model": RegisterDefinition(1218, deserializer=deserialize_unit_model),
-    "central_control_mode": RegisterDefinition(1088),
+    "alarm_code": RegisterDefinition(1223, ALARM_CODE),
+    "unit_model": RegisterDefinition(1218, UNIT_MODEL),
+    "central_control_mode": RegisterDefinition(1088, CENTRAL_CONTROL_MODE),
     # 0xFFFF is not a configuration but a garbage read (every capability bit
     # set); filter it rather than create phantom devices (#404).
-    "system_config": RegisterDefinition(1089, sentinel_values=frozenset({0xFFFF})),
-    "system_status": RegisterDefinition(1222),
-    "system_state": RegisterDefinition(1094, deserializer=deserialize_system_state),
+    "system_config": RegisterDefinition(1089, UNSIGNED),
+    "system_status": RegisterDefinition(1222, UNSIGNED),
+    "system_state": RegisterDefinition(1094, SYSTEM_STATE),
 }
 
 REGISTER_CONTROL_UNIT = {
-    "unit_power": RegisterDefinition(1050, write_address=1000),
-    "unit_mode": RegisterDefinition(1051, write_address=1001),
-    "operation_state": RegisterDefinition(
-        1090, deserializer=deserialize_operation_state
-    ),
-    "operation_state_code": RegisterDefinition(1090),
-    "outdoor_temp": RegisterDefinition(1091, deserializer=convert_signed_16bit),
-    "water_inlet_temp": RegisterDefinition(1092, deserializer=convert_signed_16bit),
+    "unit_power": RegisterDefinition(1050, SWITCH, write_address=1000),
+    "unit_mode": RegisterDefinition(1051, UNIT_MODE, write_address=1001),
+    "operation_state": RegisterDefinition(1090, OPERATION_STATE),
+    "operation_state_code": RegisterDefinition(1090, UNSIGNED),
+    "outdoor_temp": RegisterDefinition(1091, SIGNED),
+    "water_inlet_temp": RegisterDefinition(1092, SIGNED),
     "water_outlet_temp": RegisterDefinition(
-        1200,  # HP-level outlet (reg 1201) — correct for all modes including DHW/pool
-        deserializer=convert_signed_16bit,
-        fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
+        1200,
+        UNSIGNED,  # HP-level outlet (reg 1201) — correct for all modes including DHW/pool
+        fallback=RegisterDefinition(1093, SIGNED),
     ),
     "water_outlet_2_temp": RegisterDefinition(
-        1204, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
+        1204, SIGNED, sentinel_values=frozenset({-127})
     ),
     "water_outlet_3_temp": RegisterDefinition(
-        1205, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
+        1205, SIGNED, sentinel_values=frozenset({-127})
     ),
-    "water_target_temp": RegisterDefinition(1219, deserializer=convert_signed_16bit),
-    "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
-    "pump_speed": RegisterDefinition(1221),
+    "water_target_temp": RegisterDefinition(1219, SIGNED),
+    "water_flow": RegisterDefinition(1220, TENTHS),
+    "pump_speed": RegisterDefinition(1221, UNSIGNED),
     # Unit board (PCB) and controller (LCD) software numbers, read-only.
     # 0xFFFF is a garbage read, not a version (#404).
-    "software_pcb": RegisterDefinition(1095, sentinel_values=frozenset({0xFFFF})),
-    "software_lcd": RegisterDefinition(1096, sentinel_values=frozenset({0xFFFF})),
+    "software_pcb": RegisterDefinition(1095, UNSIGNED),
+    "software_lcd": RegisterDefinition(1096, UNSIGNED),
 }
 
 REGISTER_PRIMARY_COMPRESSOR = {
-    "compressor_tg_gas_temp": RegisterDefinition(
-        1206, deserializer=convert_signed_16bit
+    "compressor_tg_gas_temp": RegisterDefinition(1206, SIGNED),
+    "compressor_ti_liquid_temp": RegisterDefinition(1207, SIGNED),
+    "compressor_td_discharge_temp": RegisterDefinition(1208, SIGNED),
+    "compressor_te_evaporator_temp": RegisterDefinition(1209, SIGNED),
+    "compressor_evi_indoor_expansion_valve_opening": RegisterDefinition(1210, UNSIGNED),
+    "compressor_evo_outdoor_expansion_valve_opening": RegisterDefinition(
+        1211, UNSIGNED
     ),
-    "compressor_ti_liquid_temp": RegisterDefinition(
-        1207, deserializer=convert_signed_16bit
-    ),
-    "compressor_td_discharge_temp": RegisterDefinition(
-        1208, deserializer=convert_signed_16bit
-    ),
-    "compressor_te_evaporator_temp": RegisterDefinition(
-        1209, deserializer=convert_signed_16bit
-    ),
-    "compressor_evi_indoor_expansion_valve_opening": RegisterDefinition(1210),
-    "compressor_evo_outdoor_expansion_valve_opening": RegisterDefinition(1211),
-    "compressor_frequency": RegisterDefinition(1212),
-    "compressor_current": RegisterDefinition(1214),
+    "compressor_frequency": RegisterDefinition(1212, UNSIGNED),
+    "compressor_current": RegisterDefinition(1214, UNSIGNED),
 }
 
 REGISTER_SECONDARY_COMPRESSOR = {
-    "secondary_compressor_discharge_temp": RegisterDefinition(
-        1224, deserializer=convert_signed_16bit
-    ),
-    "secondary_compressor_suction_temp": RegisterDefinition(
-        1225, deserializer=convert_signed_16bit
-    ),
-    "secondary_compressor_discharge_pressure": RegisterDefinition(
-        1226, deserializer=convert_pressure
-    ),
-    "secondary_compressor_suction_pressure": RegisterDefinition(
-        1227, deserializer=convert_pressure
-    ),
-    "secondary_compressor_frequency": RegisterDefinition(1228),
-    "secondary_compressor_valve_opening": RegisterDefinition(1229),
-    "secondary_compressor_current": RegisterDefinition(
-        1230, deserializer=convert_from_tenths
-    ),
-    "secondary_compressor_retry_code": RegisterDefinition(1231),
+    "secondary_compressor_discharge_temp": RegisterDefinition(1224, SIGNED),
+    "secondary_compressor_suction_temp": RegisterDefinition(1225, SIGNED),
+    "secondary_compressor_discharge_pressure": RegisterDefinition(1226, TENTHS),
+    "secondary_compressor_suction_pressure": RegisterDefinition(1227, TENTHS),
+    "secondary_compressor_frequency": RegisterDefinition(1228, UNSIGNED),
+    "secondary_compressor_valve_opening": RegisterDefinition(1229, UNSIGNED),
+    "secondary_compressor_current": RegisterDefinition(1230, TENTHS),
+    "secondary_compressor_retry_code": RegisterDefinition(1231, UNSIGNED),
 }
 
 # A gateway reboot clears the "Thermostat Available" flag, a controller board
@@ -335,94 +186,92 @@ ROOM_VALUE_KEEP = {
 }
 
 REGISTER_CIRCUIT_1 = {
-    "circuit1_power": RegisterDefinition(1052, write_address=1002),
+    "circuit1_power": RegisterDefinition(1052, SWITCH, write_address=1002),
     "circuit1_otc_calculation_method_heating": RegisterDefinition(
-        1053, deserializer=deserialize_otc_method_heating, write_address=1003
+        1053, OTC_METHOD_HEATING, write_address=1003
     ),
     "circuit1_otc_calculation_method_cooling": RegisterDefinition(
-        1054, deserializer=deserialize_otc_method_cooling, write_address=1004
+        1054, OTC_METHOD_COOLING, write_address=1004
     ),
-    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1055, write_address=1005),
-    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1056, write_address=1006),
-    "circuit1_eco_mode": RegisterDefinition(1057, write_address=1007),
-    "circuit1_heat_eco_offset": RegisterDefinition(1058, write_address=1008),
-    "circuit1_cool_eco_offset": RegisterDefinition(1059, write_address=1009),
+    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(
+        1055, UNSIGNED, write_address=1005
+    ),
+    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(
+        1056, UNSIGNED, write_address=1006
+    ),
+    "circuit1_eco_mode": RegisterDefinition(1057, SWITCH, write_address=1007),
+    "circuit1_heat_eco_offset": RegisterDefinition(1058, UNSIGNED, write_address=1008),
+    "circuit1_cool_eco_offset": RegisterDefinition(1059, UNSIGNED, write_address=1009),
     # 0xFFFF is a garbage read of the CONTROL register, not "enabled" (#404).
-    "circuit1_thermostat": RegisterDefinition(
-        1010, sentinel_values=frozenset({0xFFFF}), keep=FLAG_KEEP
-    ),
+    "circuit1_thermostat": RegisterDefinition(1010, SWITCH, keep=FLAG_KEEP),
     "circuit1_target_temp": RegisterDefinition(
         1060,
-        deserializer=convert_from_tenths,
-        serializer=convert_to_tenths,
+        TENTHS,
         write_address=1011,
         keep=ROOM_TARGET_KEEP[1],
     ),
     "circuit1_current_temp": RegisterDefinition(
         1061,
-        deserializer=convert_from_tenths,
-        serializer=convert_to_tenths,
+        TENTHS,
         write_address=1012,
         keep=ROOM_VALUE_KEEP[1],
     ),
 }
 
 REGISTER_CIRCUIT_2 = {
-    "circuit2_power": RegisterDefinition(1064, write_address=1013),
+    "circuit2_power": RegisterDefinition(1064, SWITCH, write_address=1013),
     "circuit2_otc_calculation_method_heating": RegisterDefinition(
-        1065, deserializer=deserialize_otc_method_heating, write_address=1014
+        1065, OTC_METHOD_HEATING, write_address=1014
     ),
     "circuit2_otc_calculation_method_cooling": RegisterDefinition(
-        1066, deserializer=deserialize_otc_method_cooling, write_address=1015
+        1066, OTC_METHOD_COOLING, write_address=1015
     ),
-    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1067, write_address=1016),
-    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1068, write_address=1017),
-    "circuit2_eco_mode": RegisterDefinition(1069, write_address=1018),
-    "circuit2_heat_eco_offset": RegisterDefinition(1070, write_address=1019),
-    "circuit2_cool_eco_offset": RegisterDefinition(1071, write_address=1020),
-    "circuit2_thermostat": RegisterDefinition(
-        1021, sentinel_values=frozenset({0xFFFF}), keep=FLAG_KEEP
+    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(
+        1067, UNSIGNED, write_address=1016
     ),
+    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(
+        1068, UNSIGNED, write_address=1017
+    ),
+    "circuit2_eco_mode": RegisterDefinition(1069, SWITCH, write_address=1018),
+    "circuit2_heat_eco_offset": RegisterDefinition(1070, UNSIGNED, write_address=1019),
+    "circuit2_cool_eco_offset": RegisterDefinition(1071, UNSIGNED, write_address=1020),
+    "circuit2_thermostat": RegisterDefinition(1021, SWITCH, keep=FLAG_KEEP),
     "circuit2_target_temp": RegisterDefinition(
         1072,
-        deserializer=convert_from_tenths,
-        serializer=convert_to_tenths,
+        TENTHS,
         write_address=1022,
         keep=ROOM_TARGET_KEEP[2],
     ),
     "circuit2_current_temp": RegisterDefinition(
         1073,
-        deserializer=convert_from_tenths,
-        serializer=convert_to_tenths,
+        TENTHS,
         write_address=1023,
         keep=ROOM_VALUE_KEEP[2],
     ),
     # "MVP: Mixing valve position" (1216, %), circuit 2 only, read-only.
-    "circuit2_mixing_valve_position": RegisterDefinition(
-        1216, sentinel_values=frozenset({0xFFFF})
-    ),
+    "circuit2_mixing_valve_position": RegisterDefinition(1216, UNSIGNED),
 }
 
 REGISTER_DHW = {
-    "dhw_power": RegisterDefinition(1076, write_address=1024),
-    "dhw_target_temp": RegisterDefinition(1077, write_address=1025),
-    "dhw_boost": RegisterDefinition(1078, write_address=1026),
-    "dhw_high_demand": RegisterDefinition(1079, write_address=1027),
-    "dhw_antilegionella": RegisterDefinition(1084, write_address=1030),
-    "dhw_antilegionella_temp": RegisterDefinition(1085, write_address=1031),
-    "dhw_demand_mode": RegisterDefinition(1079),
+    "dhw_power": RegisterDefinition(1076, SWITCH, write_address=1024),
+    "dhw_target_temp": RegisterDefinition(1077, UNSIGNED, write_address=1025),
+    "dhw_boost": RegisterDefinition(1078, SWITCH, write_address=1026),
+    "dhw_high_demand": RegisterDefinition(1079, SWITCH, write_address=1027),
+    "dhw_antilegionella": RegisterDefinition(1084, SWITCH, write_address=1030),
+    "dhw_antilegionella_temp": RegisterDefinition(1085, UNSIGNED, write_address=1031),
+    "dhw_demand_mode": RegisterDefinition(1079, SWITCH),
     "dhw_current_temp": RegisterDefinition(
-        1080, deserializer=convert_signed_16bit, sentinel_values=frozenset({-67})
+        1080, SIGNED, sentinel_values=frozenset({-67})
     ),
-    "dhw_antilegionella_status": RegisterDefinition(1084),
-    "dhw_antilegionella_temp_status": RegisterDefinition(1085),
+    "dhw_antilegionella_status": RegisterDefinition(1084, SWITCH),
+    "dhw_antilegionella_temp_status": RegisterDefinition(1085, UNSIGNED),
 }
 
 REGISTER_POOL = {
-    "pool_power": RegisterDefinition(1081, write_address=1028),
-    "pool_target_temp": RegisterDefinition(1082, write_address=1029),
+    "pool_power": RegisterDefinition(1081, SWITCH, write_address=1028),
+    "pool_target_temp": RegisterDefinition(1082, UNSIGNED, write_address=1029),
     "pool_current_temp": RegisterDefinition(
-        1083, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
+        1083, SIGNED, sentinel_values=frozenset({-127})
     ),
 }
 
@@ -626,14 +475,3 @@ class AtwMbs02RegisterMap(HitachiRegisterMap):
     def hvac_unit_mode_auto(self) -> int | None:
         """Return the raw value for auto mode."""
         return HVAC_UNIT_MODE_AUTO
-
-    def serialize_otc_method_heating(self, value: str) -> int:
-        """Convert a heating OTC method constant to a raw register value."""
-        return serialize_otc_method_heating(value)
-
-    def serialize_otc_method_cooling(self, value: str) -> int:
-        """Convert a cooling OTC method constant to a raw register value.
-
-        ATW-MBS-02 cooling has a different mapping (no Gradient): 0=Disabled, 1=Points, 2=Fix.
-        """
-        return serialize_otc_method_cooling(value)

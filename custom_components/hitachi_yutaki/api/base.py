@@ -165,8 +165,8 @@ class HitachiApiClient(ABC):
         """Read a value from the API."""
 
     @abstractmethod
-    async def write_value(self, key: str, value: int) -> bool:
-        """Write a value to the API."""
+    async def write_value(self, key: str, value: Any) -> bool:
+        """Write a value to the API; the provider encodes it for the gateway."""
 
     @abstractmethod
     async def read_values(self, keys_to_read: list[str]) -> ReadResult:
@@ -280,7 +280,7 @@ class HitachiApiClient(ABC):
 
     @abstractmethod
     def get_operation_state(self) -> str | None:
-        """Get the deserialized unit operation state (e.g. heat_thermo_on)."""
+        """Get the decoded unit operation state (e.g. heat_thermo_on)."""
 
     @property
     def outdoor_link_lost(self) -> bool:

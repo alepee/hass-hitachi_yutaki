@@ -61,7 +61,7 @@ class ModbusApiClient(HitachiApiClient):
         self._data = {}
         self._register_map: HitachiRegisterMap = register_map or AtwMbs02RegisterMap()
         self._outage = GatewayOutage()
-        # key -> (expected deserialized value, monotonic deadline)
+        # key -> (expected decoded value, monotonic deadline)
         self._pending_writes: dict[str, tuple[Any, float]] = {}
         # Values the hardware forgets on reboot (#511), see ``Keep``.
         self._kept = KeptValues(
@@ -184,20 +184,25 @@ class ModbusApiClient(HitachiApiClient):
         """Read a value from the API."""
         return self._data.get(key)
 
-    async def write_value(self, key: str, value: int) -> bool:
-        """Write a value to the API."""
+    async def write_value(self, key: str, value: Any) -> bool:
+        """Write ``value`` to ``key``, encoded by the register codec."""
         if key not in self._register_map.writable_keys:
             _LOGGER.error("Unknown or non-writable register key: %s", key)
             return False
 
         reg = self._register_map.all_registers[key]
+        try:
+            raw = reg.codec.encode(value)
+        except (TypeError, ValueError) as exc:
+            _LOGGER.error("Cannot write %r to register %s: %s", value, key, exc)
+            return False
         register_address = (
             reg.write_address if reg.write_address is not None else reg.address
         )
         try:
             accepted = await self._with_reconnect(
                 f"write to register {key}",
-                lambda: self._transport.write_register(register_address, value),
+                lambda: self._transport.write_register(register_address, raw),
             )
         except GatewayCommunicationError as exc:
             _LOGGER.error("Error writing to register %s: %s", key, exc)
@@ -209,7 +214,7 @@ class ModbusApiClient(HitachiApiClient):
             _LOGGER.error("Gateway refused write to register %s", key)
             return False
 
-        self._shadow_written_value(key, reg, value)
+        self._shadow_written_value(key, reg, raw)
         return True
 
     async def _with_reconnect[T](
@@ -341,10 +346,10 @@ class ModbusApiClient(HitachiApiClient):
     ) -> None:
         """Publish a written value at once and shadow STATUS reads of ``key``.
 
-        The expected value is the deserialized raw value, i.e. what a STATUS
-        read reports once the unit has applied the command.
+        The expected value is the decoded raw word, i.e. what a STATUS read
+        reports once the unit has applied the command.
         """
-        expected = definition.deserializer(raw) if definition.deserializer else raw
+        expected = definition.codec.decode(raw)
         if expected is None:
             return
         self._data[key] = expected
@@ -379,20 +384,16 @@ class ModbusApiClient(HitachiApiClient):
     async def restore_lost_values(self) -> None:
         """Write back the kept values the last successful read found lost (#511).
 
-        Mechanical: each value goes back raw, through its register's
-        serializer, in the order :class:`KeptValues` plans from the ``Keep``
-        declarations. A write-back is confirmed by the pending-write shadow.
+        Mechanical: each value goes back through its register codec, in the
+        order :class:`KeptValues` plans from the ``Keep`` declarations. A
+        write-back is confirmed by the pending-write shadow.
         """
-        all_regs = self._register_map.all_registers
         for key, value in self._kept.plan(self._data, self._pending_writes):
             if not self._kept.wanted(key, value):
                 continue  # Home Assistant wrote it while earlier values went back.
-            serializer = all_regs[key].serializer
             self._writing_back = key
             try:
-                written = await self.write_value(
-                    key, serializer(value) if serializer else int(value)
-                )
+                written = await self.write_value(key, value)
             finally:
                 self._writing_back = None
             if not written:
@@ -420,22 +421,20 @@ class ModbusApiClient(HitachiApiClient):
         return self._kept.failed
 
     async def _read_register(self, definition: RegisterDefinition) -> Any:
-        """Read and deserialize a single register.
+        """Read and decode a single register.
 
-        Returns the deserialized value, _SENTINEL_FILTERED when the value is a
+        Returns the decoded value, _SENTINEL_FILTERED when the value is a
         gateway sentinel (unavailable sensor/module), or None when no fresh
         value is available. None covers both a Modbus read error
-        (``result.isError()``) and a deserializer that maps a sensor-error raw
-        value (e.g. 0xFFFF) to ``None``. Callers must treat a remaining None
+        (``result.isError()``) and a word the codec decodes to ``None`` (e.g.
+        0xFFFF on an unsigned register). Callers must treat a remaining None
         (after any fallback) as "no value" and clear the stored reading rather
         than retaining a stale one (see :meth:`read_values`, issue #320).
         """
         registers = await self._transport.read_holding_registers(definition.address)
         if not registers:
             return None
-        value = registers[0]
-        if definition.deserializer:
-            value = definition.deserializer(value)
+        value = definition.codec.decode(registers[0])
         if (
             value is not None
             and definition.sentinel_values
@@ -489,7 +488,7 @@ class ModbusApiClient(HitachiApiClient):
         return ReadResult.SUCCESS
 
     async def _read_system_state(self) -> int:
-        """Read ``system_state`` (preflight), store it deserialized, return it raw.
+        """Read ``system_state`` (preflight), store it decoded, return it raw.
 
         Raises :class:`GatewayCommunicationError` when the gateway answers the
         preflight with an exception response.
@@ -500,10 +499,8 @@ class ModbusApiClient(HitachiApiClient):
             raise GatewayCommunicationError("Preflight check failed")
 
         raw_state = preflight[0]
-        # Always store the deserialized value for entity consumption
-        self._data["system_state"] = (
-            definition.deserializer(raw_state) if definition.deserializer else raw_state
-        )
+        # Always store the decoded value for entity consumption
+        self._data["system_state"] = definition.codec.decode(raw_state)
         return raw_state
 
     def _check_readiness(self, raw_state: int) -> bool:
@@ -557,7 +554,7 @@ class ModbusApiClient(HitachiApiClient):
         """Read a register, then its fallback when no value came back.
 
         Falls back on any None (read error or a sensor-error raw value such as
-        0xFFFF deserialized to None), but not on a sentinel: a sentinel means
+        0xFFFF decoded to None), but not on a sentinel: a sentinel means
         the module is known-absent, so there is no point trying.
         """
         value = await self._read_register(definition)
@@ -582,7 +579,7 @@ class ModbusApiClient(HitachiApiClient):
             return False
         if value is None:
             # No fresh value: a sensor-error raw value (e.g. 0xFFFF)
-            # deserialized to None, or a read error, with no working fallback.
+            # decoded to None, or a read error, with no working fallback.
             self._data.pop(name, None)
             _LOGGER.debug(
                 "Clearing %s (no fresh value: sensor error or read error at %s)",
@@ -727,7 +724,7 @@ class ModbusApiClient(HitachiApiClient):
         return mode_map.get(unit_mode)
 
     def get_operation_state(self) -> str | None:
-        """Get the deserialized unit operation state (e.g. heat_thermo_on)."""
+        """Get the decoded unit operation state (e.g. heat_thermo_on)."""
         return self._data.get("operation_state")
 
     # Unit control - Setters
@@ -759,7 +756,7 @@ class ModbusApiClient(HitachiApiClient):
         return bool(value)
 
     def get_circuit_current_temperature(self, circuit_id: CIRCUIT_IDS) -> float | None:
-        """Get current temperature for a circuit (already deserialized by register)."""
+        """Get current temperature for a circuit (already decoded by register)."""
         key = f"circuit{circuit_id}_current_temp"
         temp = self._data.get(key)
         if temp is None:
@@ -767,7 +764,7 @@ class ModbusApiClient(HitachiApiClient):
         return float(temp)
 
     def get_circuit_target_temperature(self, circuit_id: CIRCUIT_IDS) -> float | None:
-        """Get target temperature for a circuit (already deserialized by register)."""
+        """Get target temperature for a circuit (already decoded by register)."""
         key = f"circuit{circuit_id}_target_temp"
         temp = self._data.get(key)
         if temp is None:
@@ -842,16 +839,14 @@ class ModbusApiClient(HitachiApiClient):
     ) -> bool:
         """Set target temperature for a circuit."""
         key = f"circuit{circuit_id}_target_temp"
-        value = int(temperature * 10)
-        return await self.write_value(key, value)
+        return await self.write_value(key, temperature)
 
     async def set_circuit_room_temperature(
         self, circuit_id: CIRCUIT_IDS, temperature: float
     ) -> bool:
         """Set measured room temperature for a circuit."""
         key = f"circuit{circuit_id}_current_temp"
-        value = int(temperature * 10)
-        return await self.write_value(key, value)
+        return await self.write_value(key, temperature)
 
     async def set_circuit_eco_mode(
         self, circuit_id: CIRCUIT_IDS, enabled: bool
@@ -874,18 +869,14 @@ class ModbusApiClient(HitachiApiClient):
     ) -> bool:
         """Set OTC calculation method for heating."""
         key = f"circuit{circuit_id}_otc_calculation_method_heating"
-        return await self.write_value(
-            key, self._register_map.serialize_otc_method_heating(method)
-        )
+        return await self.write_value(key, method)
 
     async def set_circuit_otc_method_cooling(
         self, circuit_id: CIRCUIT_IDS, method: str
     ) -> bool:
         """Set OTC calculation method for cooling."""
         key = f"circuit{circuit_id}_otc_calculation_method_cooling"
-        return await self.write_value(
-            key, self._register_map.serialize_otc_method_cooling(method)
-        )
+        return await self.write_value(key, method)
 
     async def set_circuit_max_flow_temp_heating(
         self, circuit_id: CIRCUIT_IDS, temperature: float
@@ -924,7 +915,7 @@ class ModbusApiClient(HitachiApiClient):
         return bool(value)
 
     def get_dhw_current_temperature(self) -> float | None:
-        """Get current DHW temperature (already deserialized by register)."""
+        """Get current DHW temperature (already decoded by register)."""
         temp = self._data.get("dhw_current_temp")
         if temp is None:
             return None
@@ -998,7 +989,7 @@ class ModbusApiClient(HitachiApiClient):
         return bool(value)
 
     def get_pool_current_temperature(self) -> float | None:
-        """Get current pool temperature (already deserialized by register)."""
+        """Get current pool temperature (already decoded by register)."""
         temp = self._data.get("pool_current_temp")
         if temp is None:
             return None
@@ -1018,9 +1009,4 @@ class ModbusApiClient(HitachiApiClient):
 
     async def set_pool_target_temperature(self, temperature: float) -> bool:
         """Set pool target temperature."""
-        reg = self._register_map.all_registers.get("pool_target_temp")
-        if reg and reg.serializer:
-            value = reg.serializer(temperature)
-        else:
-            value = int(temperature)
-        return await self.write_value("pool_target_temp", value)
+        return await self.write_value("pool_target_temp", int(temperature))

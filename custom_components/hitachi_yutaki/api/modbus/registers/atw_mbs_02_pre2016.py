@@ -18,17 +18,15 @@ from ....const import (
 )
 from . import HitachiRegisterMap, RegisterDefinition
 from .atw_mbs_02 import (
-    convert_from_tenths,
-    convert_pressure,
-    convert_signed_16bit,
-    deserialize_alarm_code,
-    deserialize_operation_state,
-    deserialize_otc_method_cooling,
-    deserialize_otc_method_heating,
-    deserialize_system_state,
-    serialize_otc_method_cooling,
-    serialize_otc_method_heating,
+    ALARM_CODE,
+    CENTRAL_CONTROL_MODE,
+    OPERATION_STATE,
+    OTC_METHOD_COOLING,
+    OTC_METHOD_HEATING,
+    SWITCH,
+    SYSTEM_STATE,
 )
+from .codecs import SIGNED, TENTHS, UNSIGNED, EnumCodec, choice
 
 # System configuration bit masks (from register 1074)
 # Only 8 bits — no wireless bits (8-11) in before-2016
@@ -63,142 +61,106 @@ MASK_SPACE_HEATER = 0x0100
 # Exposed via mask_smart_function for compatibility
 MASK_TARIFF_INPUT = 0x0200
 
-# State Maps — reuse from atw_mbs_02 via imported deserializers
-
 # HVAC Unit mode values (Before Line-up 2016 — NO Auto mode)
 HVAC_UNIT_MODE_COOL = 0
 HVAC_UNIT_MODE_HEAT = 1
 
-
-# Conversion functions specific to before-2016
-
-
-def deserialize_unit_model_pre2016(value: int | None) -> str:
-    """Convert a raw unit model ID to a model key (before-2016).
-
-    Mapping from ATW-MBS-02 documentation Section 5.2 (register 1217):
-        0: YUTAKI S
-        1: YUTAKI S COMBI
-
-    Gen 1 units only support these two models.
-    """
-    if value is None:
-        return "unknown"
-    model_map = {
-        0: "yutaki_s",
-        1: "yutaki_s_combi",
-    }
-    return model_map.get(value, "unknown")
-
+# Documented register values specific to this line-up; the others are the
+# same on both line-ups of the gateway and come from atw_mbs_02.
+UNIT_MODE = choice(HVAC_UNIT_MODE_COOL, HVAC_UNIT_MODE_HEAT)
+# Register 1217: Gen 1 is S or S Combi only.
+UNIT_MODEL = EnumCodec({0: "yutaki_s", 1: "yutaki_s_combi"}, unknown="unknown")
 
 # Registers grouped by logical device
 
 REGISTER_GATEWAY = {
-    "alarm_code": RegisterDefinition(1223, deserializer=deserialize_alarm_code),
-    "unit_model": RegisterDefinition(1217, deserializer=deserialize_unit_model_pre2016),
-    "central_control_mode": RegisterDefinition(1073),
+    "alarm_code": RegisterDefinition(1223, ALARM_CODE),
+    "unit_model": RegisterDefinition(1217, UNIT_MODEL),
+    "central_control_mode": RegisterDefinition(1073, CENTRAL_CONTROL_MODE),
     # 0xFFFF is a garbage read, not a configuration (#404).
-    "system_config": RegisterDefinition(1074, sentinel_values=frozenset({0xFFFF})),
-    "system_status": RegisterDefinition(1222),
-    "system_state": RegisterDefinition(1083, deserializer=deserialize_system_state),
+    "system_config": RegisterDefinition(1074, UNSIGNED),
+    "system_status": RegisterDefinition(1222, UNSIGNED),
+    "system_state": RegisterDefinition(1083, SYSTEM_STATE),
     # Gateway "Hardware version" (1081) / "Software version" (1082), read-only.
     # 0xFFFF is a garbage read, not a version (#404).
-    "gateway_hw_version": RegisterDefinition(1081, sentinel_values=frozenset({0xFFFF})),
-    "gateway_sw_version": RegisterDefinition(1082, sentinel_values=frozenset({0xFFFF})),
+    "gateway_hw_version": RegisterDefinition(1081, UNSIGNED),
+    "gateway_sw_version": RegisterDefinition(1082, UNSIGNED),
 }
 
 REGISTER_CONTROL_UNIT = {
-    "unit_power": RegisterDefinition(1000),
-    "unit_mode": RegisterDefinition(1050, write_address=1001),
-    "operation_state": RegisterDefinition(
-        1077, deserializer=deserialize_operation_state
-    ),
-    "operation_state_code": RegisterDefinition(1077),
-    "outdoor_temp": RegisterDefinition(1078, deserializer=convert_signed_16bit),
-    "water_inlet_temp": RegisterDefinition(1079, deserializer=convert_signed_16bit),
+    "unit_power": RegisterDefinition(1000, SWITCH),
+    "unit_mode": RegisterDefinition(1050, UNIT_MODE, write_address=1001),
+    "operation_state": RegisterDefinition(1077, OPERATION_STATE),
+    "operation_state_code": RegisterDefinition(1077, UNSIGNED),
+    "outdoor_temp": RegisterDefinition(1078, SIGNED),
+    "water_inlet_temp": RegisterDefinition(1079, SIGNED),
     "water_outlet_temp": RegisterDefinition(
         1199,
-        deserializer=convert_signed_16bit,
-        fallback=RegisterDefinition(1080, deserializer=convert_signed_16bit),
+        UNSIGNED,
+        fallback=RegisterDefinition(1080, SIGNED),
     ),
     "water_outlet_2_temp": RegisterDefinition(
-        1203, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
+        1203, SIGNED, sentinel_values=frozenset({-127})
     ),
     "water_outlet_3_temp": RegisterDefinition(
-        1204, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
+        1204, SIGNED, sentinel_values=frozenset({-127})
     ),
-    "water_target_temp": RegisterDefinition(1218, deserializer=convert_signed_16bit),
-    "water_flow": RegisterDefinition(1220, deserializer=convert_from_tenths),
-    "pump_speed": RegisterDefinition(1221),
+    "water_target_temp": RegisterDefinition(1218, SIGNED),
+    "water_flow": RegisterDefinition(1220, TENTHS),
+    "pump_speed": RegisterDefinition(1221, UNSIGNED),
     # Global eco mode register (addr 1027, same address for read and write).
     # Write 1=ECO / 0=Comfort. Not present in 2016+ map.
-    "eco_mode": RegisterDefinition(1027, write_address=1027),
+    "eco_mode": RegisterDefinition(1027, SWITCH, write_address=1027),
     # Global eco offset register (addr 1090, write_address=1030).
     # Write range 1~10, validated in set_eco_offset(). Not present in 2016+ map.
-    "eco_offset": RegisterDefinition(1090, write_address=1030),
+    "eco_offset": RegisterDefinition(1090, UNSIGNED, write_address=1030),
     # "PCB1 Software number" (1085) and "LCD Software number" (1084), read-only.
     # 0xFFFF is a garbage read, not a version (#404).
-    "software_pcb": RegisterDefinition(1085, sentinel_values=frozenset({0xFFFF})),
-    "software_lcd": RegisterDefinition(1084, sentinel_values=frozenset({0xFFFF})),
+    "software_pcb": RegisterDefinition(1085, UNSIGNED),
+    "software_lcd": RegisterDefinition(1084, UNSIGNED),
 }
 
 REGISTER_PRIMARY_COMPRESSOR = {
-    "compressor_tg_gas_temp": RegisterDefinition(
-        1205, deserializer=convert_signed_16bit
+    "compressor_tg_gas_temp": RegisterDefinition(1205, SIGNED),
+    "compressor_ti_liquid_temp": RegisterDefinition(1206, SIGNED),
+    "compressor_td_discharge_temp": RegisterDefinition(1207, SIGNED),
+    "compressor_te_evaporator_temp": RegisterDefinition(1208, SIGNED),
+    "compressor_evi_indoor_expansion_valve_opening": RegisterDefinition(1209, UNSIGNED),
+    "compressor_evo_outdoor_expansion_valve_opening": RegisterDefinition(
+        1210, UNSIGNED
     ),
-    "compressor_ti_liquid_temp": RegisterDefinition(
-        1206, deserializer=convert_signed_16bit
-    ),
-    "compressor_td_discharge_temp": RegisterDefinition(
-        1207, deserializer=convert_signed_16bit
-    ),
-    "compressor_te_evaporator_temp": RegisterDefinition(
-        1208, deserializer=convert_signed_16bit
-    ),
-    "compressor_evi_indoor_expansion_valve_opening": RegisterDefinition(1209),
-    "compressor_evo_outdoor_expansion_valve_opening": RegisterDefinition(1210),
-    "compressor_frequency": RegisterDefinition(1211),
-    "compressor_current": RegisterDefinition(1213),
+    "compressor_frequency": RegisterDefinition(1211, UNSIGNED),
+    "compressor_current": RegisterDefinition(1213, UNSIGNED),
 }
 
 # S80 wasn't in Gen 1, but keep for completeness (same addresses as 2016)
 REGISTER_SECONDARY_COMPRESSOR = {
-    "secondary_compressor_discharge_temp": RegisterDefinition(
-        1224, deserializer=convert_signed_16bit
-    ),
-    "secondary_compressor_suction_temp": RegisterDefinition(
-        1225, deserializer=convert_signed_16bit
-    ),
-    "secondary_compressor_discharge_pressure": RegisterDefinition(
-        1226, deserializer=convert_pressure
-    ),
-    "secondary_compressor_suction_pressure": RegisterDefinition(
-        1227, deserializer=convert_pressure
-    ),
-    "secondary_compressor_frequency": RegisterDefinition(1228),
-    "secondary_compressor_valve_opening": RegisterDefinition(1229),
-    "secondary_compressor_current": RegisterDefinition(
-        1230, deserializer=convert_from_tenths
-    ),
-    "secondary_compressor_retry_code": RegisterDefinition(1231),
+    "secondary_compressor_discharge_temp": RegisterDefinition(1224, SIGNED),
+    "secondary_compressor_suction_temp": RegisterDefinition(1225, SIGNED),
+    "secondary_compressor_discharge_pressure": RegisterDefinition(1226, TENTHS),
+    "secondary_compressor_suction_pressure": RegisterDefinition(1227, TENTHS),
+    "secondary_compressor_frequency": RegisterDefinition(1228, UNSIGNED),
+    "secondary_compressor_valve_opening": RegisterDefinition(1229, UNSIGNED),
+    "secondary_compressor_current": RegisterDefinition(1230, TENTHS),
+    "secondary_compressor_retry_code": RegisterDefinition(1231, UNSIGNED),
 }
 
 REGISTER_CIRCUIT_1 = {
-    "circuit1_power": RegisterDefinition(1051, write_address=1002),
+    "circuit1_power": RegisterDefinition(1051, SWITCH, write_address=1002),
     "circuit1_otc_calculation_method_heating": RegisterDefinition(
-        1052, deserializer=deserialize_otc_method_heating, write_address=1003
+        1052, OTC_METHOD_HEATING, write_address=1003
     ),
     "circuit1_otc_calculation_method_cooling": RegisterDefinition(
-        1053, deserializer=deserialize_otc_method_cooling, write_address=1004
+        1053, OTC_METHOD_COOLING, write_address=1004
     ),
-    "circuit1_target_temp": RegisterDefinition(
-        1054, deserializer=convert_from_tenths, write_address=1005
+    "circuit1_target_temp": RegisterDefinition(1054, TENTHS, write_address=1005),
+    "circuit1_current_temp": RegisterDefinition(1055, TENTHS, write_address=1006),
+    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(
+        1056, UNSIGNED, write_address=1007
     ),
-    "circuit1_current_temp": RegisterDefinition(
-        1055, deserializer=convert_from_tenths, write_address=1006
+    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(
+        1057, UNSIGNED, write_address=1008
     ),
-    "circuit1_max_flow_temp_heating_otc": RegisterDefinition(1056, write_address=1007),
-    "circuit1_max_flow_temp_cooling_otc": RegisterDefinition(1057, write_address=1008),
     # Pre-2016 hardware (PMML0419A Section 5.2) has a SINGLE global
     # "Room Thermostat available" enable at address 1029 (doc: 1028 = DHW Mode,
     # 1029 = Room Thermostat available). Unlike the 2016 line-up, which splits
@@ -208,52 +170,48 @@ REGISTER_CIRCUIT_1 = {
     # (always present); there is no per-circuit thermostat *control* register,
     # hence no circuit2_thermostat on this map. See #318.
     # 0xFFFF is a garbage read, not "enabled" (#404).
-    "circuit1_thermostat": RegisterDefinition(
-        1029, sentinel_values=frozenset({0xFFFF})
-    ),
+    "circuit1_thermostat": RegisterDefinition(1029, SWITCH),
 }
 
 REGISTER_CIRCUIT_2 = {
-    "circuit2_power": RegisterDefinition(1058, write_address=1009),
+    "circuit2_power": RegisterDefinition(1058, SWITCH, write_address=1009),
     "circuit2_otc_calculation_method_heating": RegisterDefinition(
-        1059, deserializer=deserialize_otc_method_heating, write_address=1010
+        1059, OTC_METHOD_HEATING, write_address=1010
     ),
     "circuit2_otc_calculation_method_cooling": RegisterDefinition(
-        1060, deserializer=deserialize_otc_method_cooling, write_address=1011
+        1060, OTC_METHOD_COOLING, write_address=1011
     ),
-    "circuit2_target_temp": RegisterDefinition(
-        1061, deserializer=convert_from_tenths, write_address=1012
+    "circuit2_target_temp": RegisterDefinition(1061, TENTHS, write_address=1012),
+    "circuit2_current_temp": RegisterDefinition(1062, TENTHS, write_address=1013),
+    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(
+        1063, UNSIGNED, write_address=1014
     ),
-    "circuit2_current_temp": RegisterDefinition(
-        1062, deserializer=convert_from_tenths, write_address=1013
+    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(
+        1064, UNSIGNED, write_address=1015
     ),
-    "circuit2_max_flow_temp_heating_otc": RegisterDefinition(1063, write_address=1014),
-    "circuit2_max_flow_temp_cooling_otc": RegisterDefinition(1064, write_address=1015),
     # "MVP: Mixing valve position" (1215, %), circuit 2 only, read-only.
-    "circuit2_mixing_valve_position": RegisterDefinition(
-        1215, sentinel_values=frozenset({0xFFFF})
-    ),
+    "circuit2_mixing_valve_position": RegisterDefinition(1215, UNSIGNED),
     # No circuit2_thermostat: pre-2016 has a single global thermostat-available
     # flag (modelled as circuit1_thermostat at address 1029). See #318.
 }
 
 REGISTER_DHW = {
-    "dhw_power": RegisterDefinition(1065, write_address=1016),
-    "dhw_target_temp": RegisterDefinition(1066, write_address=1017),
-    "dhw_antilegionella": RegisterDefinition(1069, write_address=1020),
-    "dhw_antilegionella_temp": RegisterDefinition(1070, write_address=1021),
+    "dhw_power": RegisterDefinition(1065, SWITCH, write_address=1016),
+    "dhw_target_temp": RegisterDefinition(1066, UNSIGNED, write_address=1017),
+    "dhw_antilegionella": RegisterDefinition(1069, SWITCH, write_address=1020),
+    "dhw_antilegionella_temp": RegisterDefinition(1070, UNSIGNED, write_address=1021),
     "dhw_current_temp": RegisterDefinition(
-        1075, deserializer=convert_signed_16bit, sentinel_values=frozenset({-67})
+        1075, SIGNED, sentinel_values=frozenset({-67})
     ),
-    "dhw_antilegionella_status": RegisterDefinition(1069),
-    "dhw_antilegionella_temp_status": RegisterDefinition(1070),
+    "dhw_antilegionella_status": RegisterDefinition(1069, SWITCH),
+    "dhw_antilegionella_temp_status": RegisterDefinition(1070, UNSIGNED),
 }
 
 REGISTER_POOL = {
-    "pool_power": RegisterDefinition(1067, write_address=1018),
-    "pool_target_temp": RegisterDefinition(1068, write_address=1019),
+    "pool_power": RegisterDefinition(1067, SWITCH, write_address=1018),
+    "pool_target_temp": RegisterDefinition(1068, UNSIGNED, write_address=1019),
     "pool_current_temp": RegisterDefinition(
-        1076, deserializer=convert_signed_16bit, sentinel_values=frozenset({-127})
+        1076, SIGNED, sentinel_values=frozenset({-127})
     ),
 }
 
@@ -464,11 +422,3 @@ class AtwMbs02Pre2016RegisterMap(HitachiRegisterMap):
         Before Line-up 2016 units do not support Auto mode.
         """
         return None
-
-    def serialize_otc_method_heating(self, value: str) -> int:
-        """Convert a heating OTC method constant to a raw register value."""
-        return serialize_otc_method_heating(value)
-
-    def serialize_otc_method_cooling(self, value: str) -> int:
-        """Convert a cooling OTC method constant to a raw register value."""
-        return serialize_otc_method_cooling(value)

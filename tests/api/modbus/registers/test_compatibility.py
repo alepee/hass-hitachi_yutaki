@@ -349,7 +349,7 @@ class TestThermostatSentinel:
     """A 0xFFFF garbage read of the thermostat flag must not report as ON (#404)."""
 
     def test_every_thermostat_flag_filters_0xffff(self):
-        """Every map filters 0xFFFF on read while keeping the key writable."""
+        """Every map decodes 0xFFFF as no value while keeping the key writable."""
         for register_map in (
             AtwMbs02RegisterMap(),
             AtwMbs02Pre2016RegisterMap(),
@@ -359,5 +359,5 @@ class TestThermostatSentinel:
                 reg = register_map.all_registers.get(key)
                 if reg is None:
                     continue
-                assert 0xFFFF in reg.sentinel_values, f"{key} on {register_map}"
+                assert reg.codec.decode(0xFFFF) is None, f"{key} on {register_map}"
                 assert key in register_map.writable_keys

@@ -81,11 +81,16 @@ def _create_switches(
     for description in descriptions:
         if description.condition is not None and not description.condition(coordinator):
             continue  # Skip entities that don't meet their condition
-        entities.append(HitachiYutakiSwitch(
-            coordinator=coordinator, description=description,
-            device_info=DeviceInfo(identifiers={(DOMAIN, f"{entry_id}_{device_type}")}),
-            register_prefix=register_prefix,
-        ))
+        entities.append(
+            HitachiYutakiSwitch(
+                coordinator=coordinator,
+                description=description,
+                device_info=DeviceInfo(
+                    identifiers={(DOMAIN, f"{entry_id}_{device_type}")}
+                ),
+                register_prefix=register_prefix,
+            )
+        )
     return entities
 ```
 
@@ -105,9 +110,11 @@ if coordinator.has_circuit(CIRCUIT_SECONDARY_ID, CIRCUIT_MODE_HEATING):
 **Description level** -- via the `condition` field on individual descriptions:
 
 ```python
-condition=lambda c: c.api_client.can_write(f"circuit{circuit_id}_thermostat")  # writable key
-condition=lambda c: c.has_dhw()   # DHW configured
-condition=lambda c: c.has_pool()  # pool configured
+condition = lambda c: c.api_client.can_write(
+    f"circuit{circuit_id}_thermostat"
+)  # writable key
+condition = lambda c: c.has_dhw()  # DHW configured
+condition = lambda c: c.has_pool()  # pool configured
 ```
 
 The factory evaluates `condition` at setup time; entities whose condition returns
@@ -151,7 +158,9 @@ DEVICE_POOL = "pool"
 build_circuit_switches(coordinator, entry_id, CIRCUIT_PRIMARY_ID, DEVICE_CIRCUIT_1)
 
 # Wrong: f"circuit{CIRCUIT_PRIMARY_ID}" produces "circuit1" != "circuit_1"
-build_circuit_switches(coordinator, entry_id, CIRCUIT_PRIMARY_ID, f"circuit{CIRCUIT_PRIMARY_ID}")
+build_circuit_switches(
+    coordinator, entry_id, CIRCUIT_PRIMARY_ID, f"circuit{CIRCUIT_PRIMARY_ID}"
+)
 ```
 
 ## Domain Folder Structure

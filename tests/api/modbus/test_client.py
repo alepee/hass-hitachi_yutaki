@@ -22,10 +22,14 @@ from custom_components.hitachi_yutaki.api.modbus.outage import GatewayOutage
 from custom_components.hitachi_yutaki.api.modbus.registers import RegisterDefinition
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02 import (
     AtwMbs02RegisterMap,
-    convert_signed_16bit,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 import (
     AtwMbs02Pre2016RegisterMap,
+)
+from custom_components.hitachi_yutaki.api.modbus.registers.codecs import (
+    SIGNED,
+    TENTHS,
+    UNSIGNED,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
     HcAMbRegisterMap,
@@ -217,10 +221,10 @@ def _make_modbus_error():
 
 
 @pytest.mark.asyncio
-async def test_read_register_returns_deserialized_value(api_client, mock_client):
-    """Test _read_register returns deserialized value on success."""
+async def test_read_register_returns_decoded_value(api_client, mock_client):
+    """Test _read_register returns the codec-decoded value on success."""
     mock_client.read_holding_registers.return_value = _make_modbus_result(350)
-    definition = RegisterDefinition(1200, deserializer=lambda v: v / 10.0)
+    definition = RegisterDefinition(1200, TENTHS)
 
     value = await api_client._read_register(definition)
 
@@ -228,12 +232,10 @@ async def test_read_register_returns_deserialized_value(api_client, mock_client)
 
 
 @pytest.mark.asyncio
-async def test_read_register_returns_raw_value_without_deserializer(
-    api_client, mock_client
-):
-    """Test _read_register returns raw value when no deserializer is set."""
+async def test_read_register_decodes_unsigned_value(api_client, mock_client):
+    """Test _read_register returns an unsigned quantity as is."""
     mock_client.read_holding_registers.return_value = _make_modbus_result(42)
-    definition = RegisterDefinition(1000)
+    definition = RegisterDefinition(1000, UNSIGNED)
 
     value = await api_client._read_register(definition)
 
@@ -244,7 +246,7 @@ async def test_read_register_returns_raw_value_without_deserializer(
 async def test_read_register_returns_none_on_error(api_client, mock_client):
     """Test _read_register returns None on Modbus read error."""
     mock_client.read_holding_registers.return_value = _make_modbus_error()
-    definition = RegisterDefinition(1200)
+    definition = RegisterDefinition(1200, UNSIGNED)
 
     value = await api_client._read_register(definition)
 
@@ -253,8 +255,8 @@ async def test_read_register_returns_none_on_error(api_client, mock_client):
 
 @pytest.mark.asyncio
 async def test_fallback_used_when_primary_returns_none(api_client, mock_client):
-    """Test that fallback register is read when primary deserializes to None."""
-    # Primary returns 0xFFFF (sensor error) → convert_signed_16bit returns None
+    """Test that fallback register is read when primary decodes to None."""
+    # Primary returns 0xFFFF (not exposed) → UNSIGNED decodes it to None
     # Fallback returns valid value
     primary_result = _make_modbus_result(0xFFFF)
     fallback_result = _make_modbus_result(350)  # 35.0°C as signed 16-bit
@@ -263,8 +265,8 @@ async def test_fallback_used_when_primary_returns_none(api_client, mock_client):
 
     definition = RegisterDefinition(
         1200,
-        deserializer=convert_signed_16bit,
-        fallback=RegisterDefinition(1093, deserializer=convert_signed_16bit),
+        UNSIGNED,
+        fallback=RegisterDefinition(1093, SIGNED),
     )
 
     value = await api_client._read_with_fallback(definition)
@@ -280,8 +282,8 @@ async def test_fallback_not_used_when_primary_succeeds(api_client, mock_client):
 
     definition = RegisterDefinition(
         1200,
-        deserializer=lambda v: v,
-        fallback=RegisterDefinition(1093, deserializer=lambda v: v),
+        UNSIGNED,
+        fallback=RegisterDefinition(1093, SIGNED),
     )
 
     value = await api_client._read_with_fallback(definition)
@@ -301,7 +303,8 @@ async def test_fallback_used_when_primary_read_errors(api_client, mock_client):
 
     definition = RegisterDefinition(
         1200,
-        fallback=RegisterDefinition(1093),
+        UNSIGNED,
+        fallback=RegisterDefinition(1093, SIGNED),
     )
 
     value = await api_client._read_with_fallback(definition)
@@ -317,7 +320,8 @@ async def test_fallback_also_fails_returns_none(api_client, mock_client):
 
     definition = RegisterDefinition(
         1200,
-        fallback=RegisterDefinition(1093),
+        UNSIGNED,
+        fallback=RegisterDefinition(1093, SIGNED),
     )
 
     value = await api_client._read_with_fallback(definition)
@@ -511,9 +515,12 @@ async def test_refused_write_neither_reconnects_nor_writes_again(
 @pytest.mark.asyncio
 async def test_read_with_fallback_skips_fallback_on_sentinel(api_client, mock_client):
     """A sentinel means the module is absent: the fallback is not read."""
-    mock_client.read_holding_registers.return_value = _make_modbus_result(0xFFFF)
+    mock_client.read_holding_registers.return_value = _make_modbus_result(0xFF81)
     definition = RegisterDefinition(
-        1200, sentinel_values=frozenset({0xFFFF}), fallback=RegisterDefinition(1093)
+        1200,
+        SIGNED,
+        sentinel_values=frozenset({-127}),
+        fallback=RegisterDefinition(1093, SIGNED),
     )
 
     value = await api_client._read_with_fallback(definition)
@@ -656,14 +663,14 @@ async def test_read_values_resets_throttle_state_on_recovery(
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
 @pytest.mark.asyncio
-async def test_read_values_clears_stale_value_on_sensor_error_without_fallback(
+async def test_read_values_decodes_0xffff_as_minus_one(
     _mock_ir, mock_hass, mock_client
 ):
-    """A 0xFFFF sensor-error with no fallback must clear the stale value (#320)."""
+    """0xFFFF on a signed temperature is -1 °C, not a sensor error (#533)."""
     api = _make_preflight_api_client(mock_hass, mock_client)
-    api._data["outdoor_temp"] = 5  # stale good value
+    api._data["outdoor_temp"] = 0  # previous reading
 
-    # [preflight system_state, outdoor_temp = 0xFFFF sensor error]
+    # [preflight system_state, outdoor_temp = 0xFFFF]
     mock_client.read_holding_registers.side_effect = [
         _make_modbus_result(0),
         _make_modbus_result(0xFFFF),
@@ -672,7 +679,7 @@ async def test_read_values_clears_stale_value_on_sensor_error_without_fallback(
     result = await api.read_values(["outdoor_temp"])
 
     assert result == ReadResult.SUCCESS
-    assert "outdoor_temp" not in api._data
+    assert api._data["outdoor_temp"] == -1
 
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")
@@ -706,7 +713,7 @@ async def test_read_values_keeps_value_on_successful_read(
 
     mock_client.read_holding_registers.side_effect = [
         _make_modbus_result(0),
-        _make_modbus_result(200),  # convert_signed_16bit(200) == 200
+        _make_modbus_result(200),  # SIGNED decodes 200 as 200
     ]
 
     result = await api.read_values(["outdoor_temp"])
@@ -720,7 +727,7 @@ async def test_read_values_keeps_value_on_successful_read(
 async def test_read_values_fallback_still_recovers_on_sensor_error(
     _mock_ir, mock_hass, mock_client
 ):
-    """Fallback register must still recover when primary is a 0xFFFF sensor-error."""
+    """Fallback register must still recover when the primary reads 0xFFFF."""
     api = _make_preflight_api_client(mock_hass, mock_client)
 
     # [preflight, primary 1200 = 0xFFFF, fallback 1093 = 350]
@@ -745,11 +752,11 @@ async def test_read_values_clears_when_both_primary_and_fallback_error(
     api = _make_preflight_api_client(mock_hass, mock_client)
     api._data["water_outlet_temp"] = 42  # stale good value
 
-    # [preflight, primary 1200 = 0xFFFF, fallback 1093 = 0xFFFF]
+    # [preflight, primary 1200 = 0xFFFF (not exposed), fallback 1093 = read error]
     mock_client.read_holding_registers.side_effect = [
         _make_modbus_result(0),
         _make_modbus_result(0xFFFF),
-        _make_modbus_result(0xFFFF),
+        _make_modbus_error(),
     ]
 
     result = await api.read_values(["water_outlet_temp"])
@@ -929,11 +936,9 @@ async def test_read_values_filters_garbage_system_config(
     [AtwMbs02RegisterMap(), AtwMbs02Pre2016RegisterMap(), HcAMbRegisterMap()],
     ids=["atw_mbs_02", "atw_mbs_02_pre2016", "hc_a_mb"],
 )
-def test_system_config_declares_garbage_sentinel(register_map):
-    """Every register map filters a 0xFFFF system_config (#404)."""
-    sentinels = register_map.all_registers["system_config"].sentinel_values
-    assert sentinels is not None
-    assert 0xFFFF in sentinels
+def test_system_config_filters_garbage_read(register_map):
+    """Every register map decodes a 0xFFFF system_config as no value (#404)."""
+    assert register_map.all_registers["system_config"].codec.decode(0xFFFF) is None
 
 
 @pytest.mark.parametrize(
@@ -965,16 +970,33 @@ async def test_read_values_system_state_ffff_is_not_ready(
 
 @pytest.mark.asyncio
 async def test_write_value_publishes_expected_value_at_once(mock_hass, mock_client):
-    """A successful write is visible in ``_data`` before any poll, deserialized."""
+    """A successful write is visible in ``_data`` before any poll, decoded."""
     api = _make_preflight_api_client(mock_hass, mock_client)
     api._data["circuit1_target_temp"] = 21.0
     mock_client.write_register.return_value = _make_modbus_result(0)
 
-    assert await api.write_value("circuit1_target_temp", 225) is True
+    assert await api.write_value("circuit1_target_temp", 22.5) is True
 
     assert api._data["circuit1_target_temp"] == 22.5
     assert api._pending_writes["circuit1_target_temp"][0] == 22.5
     assert mock_client.write_register.call_args.kwargs["address"] == 1011
+    assert mock_client.write_register.call_args.kwargs["value"] == 225
+
+
+@pytest.mark.asyncio
+async def test_write_value_refuses_a_value_the_register_cannot_hold(
+    mock_hass, mock_client
+):
+    """An unencodable value is refused before anything reaches the gateway."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+
+    assert (
+        await api.write_value("circuit1_otc_calculation_method_heating", "x") is False
+    )
+    assert await api.write_value("unit_power", 2) is False
+
+    mock_client.write_register.assert_not_called()
+    assert api._pending_writes == {}
 
 
 @pytest.mark.asyncio
