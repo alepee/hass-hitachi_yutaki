@@ -13,7 +13,7 @@ This custom integration allows you to control and monitor your Hitachi **Yutaki*
 ## Compatibility
 
 - **Compatible Models**: Hitachi air-to-water heat pumps (2016 and newer fully supported, pre-2016 in beta)
-- **Tested With**: Yutaki S80, Yutaki S, Yutaki S Combi, Yutampo R32
+- **Tested With**: Yutaki S80, Yutaki S, Yutaki S Combi, Yutaki M, Yutampo R32
 - **Required Hardware**: ATW-MBS-02 or HC-A(16/64)MB Modbus gateway
 
 > **Pre-2016 support (Beta)**: Gen 1 Yutaki S and S Combi units (NWE/NWSE suffix) are supported in beta. This implementation is based on the Hitachi documentation but has not been validated on real hardware yet. If you have a pre-2016 unit, select "Gen 1" during setup and [let us know how it goes](https://github.com/alepee/hass-hitachi_yutaki/discussions). Not sure which generation you have? Use the [model decoder tool](https://alepee.github.io/hass-hitachi_yutaki/model-decoder.html).
@@ -30,6 +30,7 @@ The integration automatically detects your heat pump model and creates devices b
 - **Domestic Hot Water** — water heater control, boost mode, anti-legionella treatment
 - **Swimming Pool** (if configured) — power and temperature control
 - **COP Sensors** — real-time Coefficient of Performance for heating, cooling, DHW, and pool with quality indicators
+- **Preventive maintenance (beta, opt-in)** — local early warnings for a slow refrigerant charge loss and for compressor short cycling, with repair issues on sustained alerts. See [Preventive maintenance](docs/reference/preventive-maintenance.md).
 
 See the [full entity reference](docs/reference/entities.md) for a detailed list of every entity per device.
 
@@ -39,12 +40,13 @@ Additional highlights:
 - Automated repair suggestions for gateway desynchronization
 - Comprehensive alarm descriptions with translations
 - Configurable: single/three phase power, external sensors, scan intervals
+- Optional electricity cost estimation from an electricity price entity
 
 ### Circuit Climate Modes
 
 Circuit behavior depends on the system configuration:
 - **Single circuit**: Exposes `off` / `heat` / `cool` / `auto` modes with direct global mode control
-- **Two circuits**: Exposes `off` / `heat_cool` (power toggle only) — global mode is controlled via the Control Unit's `operation_mode` select to avoid conflicts between circuits
+- **Two circuits**: Exposes `off` / `heat_cool` (power toggle only) — global mode is controlled via the Control Unit's operating mode select to avoid conflicts between circuits
 
 ### COP Monitoring
 
@@ -141,6 +143,7 @@ The configuration flow guides you through several steps:
 3. **Gateway configuration**: Connection details (name, IP, port, slave ID, scan interval). HC-A(16/64)MB also asks for the unit ID.
 4. **Model and power supply**: The integration auto-detects your heat pump model. You can override the detection if needed. The power supply type (single/three phase) is set on the same step.
 5. **External sensors**: Optional external entities for voltage, power, energy, and water temperatures (inlet/outlet) for more accurate COP and thermal calculations.
+6. **Advanced features (beta)**: Opt-in preventive maintenance detectors (refrigerant charge loss, compressor short cycling). Both are off by default.
 
 After setup, from **Settings** > **Devices & Services** > **Hitachi Heat Pump**:
 
@@ -152,9 +155,9 @@ After setup, from **Settings** > **Devices & Services** > **Hitachi Heat Pump**:
 This integration can optionally collect anonymous performance data to improve support for all heat pump models. **Telemetry is disabled by default** and requires explicit opt-in.
 
 - **Off** — No data collected (default)
-- **On** — Anonymized metrics every 5 minutes, daily aggregated stats, and a one-time register snapshot
+- **On** — Anonymized metrics every 5 minutes, installation info (model, gateway, configuration) re-sent once a day, and a one-time register snapshot
 
-All data is identified by a non-reversible hash. No personal information, IP addresses, or location data is ever collected. You can enable or disable telemetry at any time in the integration options.
+All data is identified by a non-reversible hash. No personal information is collected; the location is rounded to the nearest degree (about 110 km), enough for the climate region but too coarse to identify a city. You can enable or disable telemetry at any time in the integration options.
 
 See [Telemetry Reference](docs/reference/telemetry.md) for details on what is collected, and [Discussion #200](https://github.com/alepee/hass-hitachi_yutaki/discussions/200) for community context.
 
@@ -165,10 +168,10 @@ Separately from telemetry, the integration sends **one anonymous ping a day** pe
 ## Known Limitations
 
 - **Modbus TCP only**: Direct serial Modbus is not supported.
-- **Pre-2016 models**: Older Hitachi heat pumps use different register maps and are not compatible.
+- **Pre-2016 models**: Supported in beta only, not yet validated on real hardware (see [Compatibility](#compatibility)).
 - **Temperature precision**: Internal temperature sensors have 1°C precision. Configure external sensors for more accurate COP.
 - **Single gateway**: Each integration instance connects to one gateway. Multiple gateways require multiple instances.
-- **Global operating mode**: Heat/cool/auto is shared across all circuits. With two circuits active, change mode via the Control Unit's `operation_mode` select.
+- **Global operating mode**: Heat/cool/auto is shared across all circuits. With two circuits active, change mode via the Control Unit's operating mode select.
 - **No automatic discovery**: The gateway must be configured manually.
 
 ## Troubleshooting
