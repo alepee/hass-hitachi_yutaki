@@ -385,6 +385,39 @@ def _cycling_attributes(
         "days_since_valid_day": coordinator.data.get(
             "compressor_cycling_days_since_valid_day"
         ),
+        **_cycling_diagnosis_attributes(coordinator),
+    }
+
+
+def _cycling_diagnosis_attributes(
+    coordinator: HitachiYutakiDataCoordinator,
+) -> dict[str, object]:
+    """Expose the heat balance behind the cycling verdict (#512)."""
+    status = getattr(coordinator.derived_metrics, "cycling_status", None)
+    diagnosis = status.diagnosis if status is not None else None
+    if diagnosis is None:
+        return {}
+
+    def _round(value: float | None, digits: int = 1) -> float | None:
+        return round(value, digits) if value is not None else None
+
+    def _percent(value: float | None) -> int | None:
+        return round(value * 100) if value is not None else None
+
+    return {
+        "diagnosis_days": status.diagnosis_days,
+        "diagnosed_cycles": diagnosis.cycles,
+        "output_kw": _round(diagnosis.output_kw),
+        "absorbed_kw": _round(diagnosis.absorbed_kw),
+        "load_ratio_pct": _percent(diagnosis.load_ratio),
+        "loop_volume_l": round(diagnosis.loop_volume_l),
+        "cycle_run_min": _round(diagnosis.run_min),
+        "cycle_rest_min": _round(diagnosis.rest_min),
+        "water_swing_k": _round(diagnosis.swing_k),
+        "time_at_min_frequency_pct": _percent(diagnosis.floor_share),
+        "return_minus_target_at_stop_k": _round(diagnosis.return_minus_target_k),
+        "secondary_compressor_share_pct": _percent(diagnosis.secondary_share),
+        "secondary_compressor_water_target_c": _round(diagnosis.secondary_target_c),
     }
 
 

@@ -46,6 +46,10 @@ from .domain.services.cycling import (
 )
 from .domain.services.defrost_guard import DefrostGuard
 from .domain.services.maintenance import (
+    CYCLING_ADVICE_CASCADE,
+    CYCLING_ADVICE_DIAGNOSED,
+    CYCLING_ADVICE_GENERIC,
+    cycling_advice,
     cycling_alert_policy,
     refrigerant_alert_policy,
 )
@@ -71,6 +75,12 @@ _CYCLING_DOC_URL = (
     "https://github.com/alepee/hass-hitachi_yutaki/blob/main/"
     "docs/reference/cycling-monitoring.md"
 )
+
+_CYCLING_ISSUE_KEYS = {
+    CYCLING_ADVICE_GENERIC: "compressor_short_cycling",
+    CYCLING_ADVICE_DIAGNOSED: "compressor_short_cycling_diagnosed",
+    CYCLING_ADVICE_CASCADE: "compressor_short_cycling_cascade",
+}
 
 _MAX_BACKOFF = timedelta(seconds=300)
 
@@ -831,6 +841,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         status = getattr(self.derived_metrics, "cycling_status", None)
         if cycling_alert_policy(status).persistent:
+            # The text is tailored to the installation's own heat balance
+            # when one could be measured (#512), generic otherwise.
+            variant, placeholders = cycling_advice(status)
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,
@@ -838,9 +851,10 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 is_fixable=False,
                 is_persistent=False,
                 severity=ir.IssueSeverity.WARNING,
-                translation_key="compressor_short_cycling",
+                translation_key=_CYCLING_ISSUE_KEYS[variant],
                 translation_placeholders={
                     "period": str(int(CYCLING_PERIOD_THRESHOLD_MIN)),
+                    **placeholders,
                 },
                 learn_more_url=_CYCLING_DOC_URL,
             )

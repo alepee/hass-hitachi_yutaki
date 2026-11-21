@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- **The short-cycling alert now explains your own installation** (#512). When the unit reports its water flow, the detector applies a heat balance to every cycle it ends itself and the repair issue quotes the numbers: what the heat pump produces while it runs, what your emitters actually absorb, the water volume your loop behaves like, and how long each run and pause last. On a cascade unit (S80) whose secondary compressor runs a significant share of the time, it also gives the water target at which it engages. The same figures are attributes of the `Compressor cycling` sensor. Without a flow reading, the alert keeps the generic list of causes.
+
 ## [2.5.0-beta.1] - 2026-11-12
 
 This release reads temperatures of exactly -1 °C again, moves the gateway settings to a Reconfigure flow, and decodes every register by its documented type, so garbage readings no longer show up as values.

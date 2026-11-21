@@ -743,10 +743,33 @@ class DerivedMetricsAdapter:
         if monitor is None:
             return
 
+        operation_state = data.get("operation_state")
+        secondary_frequency = (
+            data.get("secondary_compressor_frequency")
+            if self._supports_secondary_compressor
+            else None
+        )
         cycling_input = CyclingInput(
-            operation_mode=resolve_cycling_regime(data.get("operation_state")),
+            operation_mode=resolve_cycling_regime(operation_state),
             compressor_running=data.get("is_compressor_running"),
             data_reliable=self.defrost_guard.is_data_reliable,
+            thermo_off=(
+                operation_state == "operation_state_heat_thermo_off"
+                if operation_state is not None
+                else None
+            ),
+            water_inlet_temp=self._get_temperature(
+                data, CONF_WATER_INLET_TEMP_ENTITY, "water_inlet_temp"
+            ),
+            water_outlet_temp=self._get_temperature(
+                data, CONF_WATER_OUTLET_TEMP_ENTITY, "water_outlet_temp"
+            ),
+            water_target_temp=data.get("water_target_temp"),
+            water_flow=data.get("water_flow"),
+            compressor_frequency=data.get("compressor_frequency"),
+            secondary_compressor_running=(
+                secondary_frequency > 0 if secondary_frequency is not None else None
+            ),
         )
 
         flushed = monitor.update(cycling_input)
@@ -764,6 +787,17 @@ class DerivedMetricsAdapter:
             status.last_valid_day.isoformat() if status.last_valid_day else None
         )
         data["compressor_cycling_days_since_valid_day"] = status.days_since_valid_day
+        # Heat balance behind the verdict (#512), None until a day is measured.
+        diagnosis = status.diagnosis
+        data["compressor_cycling_output_kw"] = (
+            round(diagnosis.output_kw, 2) if diagnosis else None
+        )
+        data["compressor_cycling_absorbed_kw"] = (
+            round(diagnosis.absorbed_kw, 2) if diagnosis else None
+        )
+        data["compressor_cycling_loop_volume_l"] = (
+            round(diagnosis.loop_volume_l) if diagnosis else None
+        )
 
         # A daily flush changed the persisted state - schedule a debounced save.
         if flushed and self._cycling_store is not None:

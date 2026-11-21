@@ -28,10 +28,24 @@ from statistics import median
 from typing import Any
 
 from ..models.clock import Timeline, civil_time
-from ..models.cycling import CyclingDailyAggregate, CyclingInput, CyclingStatus
+from ..models.cycling import (
+    CyclingDailyAggregate,
+    CyclingDiagnosis,
+    CyclingInput,
+    CyclingStatus,
+)
 from ..models.operation import MODE_HEATING
 from ..ports.clock import Clock
 from ..ports.storage import Storage
+from .cycling_diagnosis import (
+    DIAGNOSIS_DAYS,
+    CycleSample,
+    DailyCycleLog,
+    combine_diagnoses,
+    diagnosis_from_dict,
+    diagnosis_to_dict,
+    measure_cycle,
+)
 
 # Transition detection
 DEBOUNCE_S = 30.0  # a state change must hold this long to count as a transition
@@ -99,6 +113,19 @@ class CyclingMonitor:
         self._run_started: datetime | None = None
         self._regime_broken = True
 
+        # Per-cycle heat balance (#512, transient). Samples are buffered per
+        # phase: those of the committed state, and those of a pending state
+        # that the debounce has not confirmed yet, so each half of a cycle
+        # gets exactly the polls that belong to it.
+        self._phase_samples: list[CycleSample] = []
+        self._pending_samples: list[CycleSample] = []
+        self._run_valid = False
+        self._last_run: list[CycleSample] | None = None
+        self._last_run_s = 0.0
+        self._stop_at: datetime | None = None
+        self._stop_sample: CycleSample | None = None
+        self._day_log = DailyCycleLog()
+
     def update(self, data: CyclingInput, *, timestamp: datetime | None = None) -> bool:
         """Feed one poll of signals.
 
@@ -129,12 +156,13 @@ class CyclingMonitor:
         # the current cycle chain instead of contributing to it.
         if not data.data_reliable or data.operation_mode != MODE_HEATING:
             self._regime_broken = True
+            self._discard_cycle()
             self._state = data.compressor_running
             self._pending_state = None
             self._pending_since = None
             return flushed
 
-        self._observe_state(data.compressor_running, now)
+        self._observe_state(data.compressor_running, now, _sample(data))
         return flushed
 
     def get_status(self) -> CyclingStatus:
@@ -153,6 +181,11 @@ class CyclingMonitor:
                     "peak_starts": aggregate.peak_starts,
                     "median_run": aggregate.median_run,
                     "faulted": aggregate.faulted,
+                    "diagnosis": (
+                        diagnosis_to_dict(aggregate.diagnosis)
+                        if aggregate.diagnosis is not None
+                        else None
+                    ),
                 }
                 for aggregate in self._storage.get_all()
             ],
@@ -179,6 +212,11 @@ class CyclingMonitor:
                     peak_starts=int(item["peak_starts"]),
                     median_run=float(item["median_run"]),
                     faulted=bool(item["faulted"]),
+                    diagnosis=(
+                        diagnosis_from_dict(item["diagnosis"])
+                        if item.get("diagnosis")
+                        else None
+                    ),
                 )
                 for item in state.get("aggregates", [])
             ]
@@ -229,22 +267,29 @@ class CyclingMonitor:
             return 0.0
         return median(self._intervals)
 
-    def _observe_state(self, running: bool, now: datetime) -> None:
+    def _observe_state(self, running: bool, now: datetime, sample: CycleSample) -> None:
         """Advance the debounced transition state machine."""
         if self._state is None:
             self._state = running
             return
 
         if running == self._state:
+            # A flicker shorter than the debounce belongs to the current phase.
+            self._phase_samples.extend(self._pending_samples)
+            self._phase_samples.append(sample)
+            self._pending_samples = []
             self._pending_state = None
             self._pending_since = None
             return
 
         if self._pending_state != running:
+            self._phase_samples.extend(self._pending_samples)
+            self._pending_samples = [sample]
             self._pending_state = running
             self._pending_since = now
             return
 
+        self._pending_samples.append(sample)
         assert self._pending_since is not None
         if (now - self._pending_since).total_seconds() < DEBOUNCE_S:
             return
@@ -252,34 +297,84 @@ class CyclingMonitor:
         # The change held long enough: commit it, dated at the moment it was
         # first seen rather than when it was confirmed.
         changed_at = self._pending_since
+        closing = self._phase_samples
+        self._phase_samples = self._pending_samples
+        self._pending_samples = []
         self._state = running
         self._pending_state = None
         self._pending_since = None
 
         if running:
-            self._record_start(changed_at)
+            self._record_start(changed_at, rest=closing)
         else:
-            self._record_stop(changed_at)
+            self._record_stop(changed_at, run=closing)
 
-    def _record_start(self, when: datetime) -> None:
+    def _record_start(
+        self, when: datetime, *, rest: list[CycleSample] | None = None
+    ) -> None:
         """Record a compressor start and the period since the previous one."""
         if self._last_start is not None and not self._regime_broken:
             period = (when - self._last_start).total_seconds() / 60
             if period > 0:
                 self._periods.append(period)
+            self._close_cycle(when, rest or [])
+        self._last_run = None
+        self._stop_at = None
+        self._stop_sample = None
+        self._run_valid = True
         self._starts.append(when)
         self._last_start = when
         self._run_started = when
         self._regime_broken = False
 
-    def _record_stop(self, when: datetime) -> None:
+    def _record_stop(
+        self, when: datetime, *, run: list[CycleSample] | None = None
+    ) -> None:
         """Record the duration of the run that just ended."""
         started = self._run_started
         if started is not None:
-            run = (when - started).total_seconds() / 60
-            if run > 0:
-                self._runs.append(run)
+            duration = (when - started).total_seconds() / 60
+            if duration > 0:
+                self._runs.append(duration)
+            if self._run_valid and run:
+                self._day_log.add_run(run)
+                self._last_run = run
+                self._last_run_s = (when - started).total_seconds()
+                self._stop_at = when
+                # The first poll of the rest: what the unit reported as it stopped.
+                self._stop_sample = (
+                    self._phase_samples[0] if self._phase_samples else None
+                )
         self._run_started = None
+        self._run_valid = False
+
+    def _close_cycle(self, when: datetime, rest: list[CycleSample]) -> None:
+        """Measure the heat balance of the cycle that this start completes."""
+        run, stop_at, stop = self._last_run, self._stop_at, self._stop_sample
+        if run is None or stop_at is None or stop is None:
+            return
+        # Only a stop the unit decided itself (water target reached) saturates
+        # the loop; a room thermostat ending the demand does not.
+        if stop.thermo_off is not True:
+            return
+        measurement = measure_cycle(
+            run,
+            rest,
+            run_s=self._last_run_s,
+            rest_s=(when - stop_at).total_seconds(),
+            stop=stop,
+        )
+        if measurement is not None:
+            self._day_log.cycles.append(measurement)
+
+    def _discard_cycle(self) -> None:
+        """Drop the cycle in progress: its heat balance no longer holds."""
+        self._phase_samples = []
+        self._pending_samples = []
+        self._run_valid = False
+        self._last_run = None
+        self._stop_at = None
+        self._stop_sample = None
 
     def _peak_starts(self) -> int:
         """Return the highest number of starts within any 60-minute window."""
@@ -309,6 +404,7 @@ class CyclingMonitor:
                     peak_starts=peak,
                     median_run=median(self._runs) if self._runs else 0.0,
                     faulted=faulted,
+                    diagnosis=self._day_log.diagnose(),
                 )
             )
             added = True
@@ -343,6 +439,8 @@ class CyclingMonitor:
         self._last_start = None
         self._run_started = None
         self._regime_broken = True
+        self._day_log = DailyCycleLog()
+        self._discard_cycle()
 
     def _reset_transition_state(self) -> None:
         """Drop the debounced state machine without inventing a transition."""
@@ -350,6 +448,19 @@ class CyclingMonitor:
         self._pending_state = None
         self._pending_since = None
         self._regime_broken = True
+        self._discard_cycle()
+
+    def _diagnosis(self) -> tuple[CyclingDiagnosis | None, int]:
+        """Return the installation-level heat balance and the days behind it.
+
+        Drawn from the most recent stored days that carry one, preferring the
+        faulted days among them: the advice is about the days that cycled.
+        """
+        recent = [a for a in self._storage.get_all() if a.diagnosis is not None]
+        recent = recent[-DIAGNOSIS_DAYS:]
+        chosen = [a for a in recent if a.faulted] or recent
+        days = [a.diagnosis for a in chosen if a.diagnosis is not None]
+        return combine_diagnoses(days), len(days)
 
     def _evaluate(self) -> CyclingStatus:
         """Derive the current verdict from stored days and the running day."""
@@ -361,6 +472,7 @@ class CyclingMonitor:
         peak_today = self._peak_starts() if self._starts else None
         last_valid_day = aggregates[-1].day if aggregates else None
         days_since = self._days_since_valid_day()
+        diagnosis, diagnosis_days = self._diagnosis()
 
         if valid_days == 0:
             return CyclingStatus(
@@ -373,6 +485,8 @@ class CyclingMonitor:
                 alert_streak=self._alert_streak,
                 last_valid_day=last_valid_day,
                 days_since_valid_day=days_since,
+                diagnosis=diagnosis,
+                diagnosis_days=diagnosis_days,
             )
 
         if self._alert_streak >= ALERT_PERSIST_DAYS:
@@ -392,6 +506,8 @@ class CyclingMonitor:
             alert_streak=self._alert_streak,
             last_valid_day=last_valid_day,
             days_since_valid_day=days_since,
+            diagnosis=diagnosis,
+            diagnosis_days=diagnosis_days,
         )
 
     def _today_faulted(self, period: float | None, peak: int | None) -> bool:
@@ -401,3 +517,16 @@ class CyclingMonitor:
         if len(self._periods) < MIN_CYCLES_PER_DAY:
             return False
         return period <= PERIOD_THRESHOLD_MIN and peak >= PEAK_STARTS_THRESHOLD
+
+
+def _sample(data: CyclingInput) -> CycleSample:
+    """Extract the heat-balance signals of one poll."""
+    return CycleSample(
+        inlet=data.water_inlet_temp,
+        outlet=data.water_outlet_temp,
+        target=data.water_target_temp,
+        flow=data.water_flow,
+        frequency=data.compressor_frequency,
+        secondary_running=data.secondary_compressor_running,
+        thermo_off=data.thermo_off,
+    )

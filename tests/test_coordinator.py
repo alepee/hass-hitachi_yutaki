@@ -15,7 +15,10 @@ from custom_components.hitachi_yutaki.const import (
     DOMAIN,
 )
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
-from custom_components.hitachi_yutaki.domain.models.cycling import CyclingStatus
+from custom_components.hitachi_yutaki.domain.models.cycling import (
+    CyclingDiagnosis,
+    CyclingStatus,
+)
 from custom_components.hitachi_yutaki.domain.models.refrigerant import RefrigerantStatus
 from custom_components.hitachi_yutaki.domain.services.defrost_guard import DefrostState
 from custom_components.hitachi_yutaki.domain.services.refrigerant import (
@@ -599,6 +602,45 @@ def test_cycling_issue_translates_detector_verdict(coordinator, verdict):
     else:
         mock_ir.async_create_issue.assert_not_called()
         mock_ir.async_delete_issue.assert_called_once()
+
+
+def test_cycling_issue_quotes_the_measured_heat_balance(coordinator):
+    """With a heat balance, the repair text carries the unit's numbers (#512)."""
+    coordinator.config_entry.options = {CONF_CYCLING_DETECTION: True}
+    coordinator.derived_metrics = MagicMock()
+    coordinator.derived_metrics.cycling_status = CyclingStatus(
+        status="alert",
+        cycles_today=0,
+        peak_starts_today=None,
+        median_period_today=None,
+        median_run_today=None,
+        valid_days=3,
+        alert_streak=3,
+        diagnosis=CyclingDiagnosis(
+            cycles=120,
+            output_kw=5.9,
+            absorbed_kw=3.0,
+            load_ratio=0.51,
+            loop_volume_l=89.6,
+            run_min=6.6,
+            rest_min=4.0,
+            swing_k=3.0,
+            floor_share=1.0,
+            return_minus_target_k=0.0,
+            secondary_share=0.4,
+            secondary_target_c=45.0,
+        ),
+        diagnosis_days=3,
+    )
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        coordinator._update_cycling_issue()
+    kwargs = mock_ir.async_create_issue.call_args.kwargs
+    assert kwargs["translation_key"] == "compressor_short_cycling_cascade"
+    placeholders = kwargs["translation_placeholders"]
+    assert placeholders["period"] == "15"
+    assert placeholders["output_kw"] == "5.9"
+    assert placeholders["volume_l"] == "90"
+    assert placeholders["secondary_target"] == "45"
 
 
 @pytest.mark.parametrize("detector", ["refrigerant", "cycling"])

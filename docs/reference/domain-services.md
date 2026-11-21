@@ -238,6 +238,11 @@ Full rationale, thresholds and fleet calibration: [Cycling monitoring](cycling-m
 | Class | Role |
 |---|---|
 | `CyclingMonitor` | Debounced transition tracking, per-day aggregation, absolute-threshold verdict |
+| `DailyCycleLog` (`cycling_diagnosis.py`) | Per-cycle heat balance of thermo-off cycles: output, absorbed heat, loop volume, time at minimum frequency, secondary compressor share (#512) |
+
+`cycling_advice` (`maintenance.py`) picks the repair text: generic without a measured
+heat balance, tailored with the unit's numbers otherwise, plus a cascade hint when the
+secondary compressor runs at least 20% of the time.
 
 ### Design note
 
