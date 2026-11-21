@@ -12,7 +12,10 @@ from custom_components.hitachi_yutaki.api.modbus.registers import (
     Keep,
     RegisterDefinition,
 )
-from custom_components.hitachi_yutaki.api.modbus.registers.codecs import UNSIGNED
+from custom_components.hitachi_yutaki.api.modbus.registers.codecs import (
+    HALF_DEGREE,
+    UNSIGNED,
+)
 
 REGISTERS = {
     "enable": RegisterDefinition(1, UNSIGNED, keep=Keep(valid_range=(0, 1))),
@@ -63,3 +66,19 @@ def test_load_skips_what_it_cannot_trust():
     assert kept.snapshot() == {}
     kept.load({"enable": 0, "setpoint": 21})
     assert kept.snapshot() == {"enable": 0, "setpoint": 21}
+
+
+def test_load_keeps_a_reference_at_its_write_resolution():
+    """A reference off the write resolution is loaded as it will be written (#540).
+
+    A room setpoint of 21.3 persisted before half-degree writes is restored as
+    21.5, the value the register reads back after the write-back.
+    """
+    registers = {
+        "room": RegisterDefinition(1, HALF_DEGREE, keep=Keep(valid_range=(5.0, 35.0)))
+    }
+    kept = KeptValues(registers, set(registers))
+    kept.load({"room": 21.3})
+    assert kept.snapshot() == {"room": 21.5}
+    kept.load({"room": 35.2})  # Written as 35.0: inside the range once rounded.
+    assert kept.snapshot() == {"room": 35.0}

@@ -163,8 +163,9 @@ class RegisterDefinition:
   the last reading that is not lost) and, when a successful read shows the
   value lost (a reading of 0, or outside `Keep.valid_range`), plans a
   write-back that the client executes through the register codec, like any
-  write. A persisted reference is only trusted when the codec writes it back
-  unchanged (`decode(encode(value)) == value`). Two declarative links order
+  write. A persisted reference is only trusted when the codec can write it,
+  and is loaded as written back (`decode(encode(value))`, e.g. a room setpoint
+  of 21.3 persisted before #540 comes back as 21.5). Two declarative links order
   the restore, checked by `validate_kept_registers` when the client starts
   (along with every kept register being writable):
   - `Keep.while_on` names a kept value this one depends on (an enable flag).
@@ -265,7 +266,9 @@ OTC methods, unit models) belong to the gateway and are declared by its
 register map, which instantiates `EnumCodec` with them (the before-2016 map
 reuses the lists of the 2016 map, same gateway). A codec converts both ways: `decode(raw)` on read,
 `encode(value)` on write, and guarantees `decode(encode(value)) == value` for
-every value `encode` accepts (pinned by `test_every_register_round_trips`).
+every value `encode` accepts at the register's write resolution; a value off it
+is rounded to it once and then reads back stable (pinned by
+`test_every_register_round_trips`).
 `encode` raises for a value the register cannot hold, so `write_value` refuses
 it before anything reaches the gateway. Writers therefore pass the value the
 integration stores (22.5 °C, `"points"`, 1), never a raw word.
@@ -274,7 +277,8 @@ integration stores (22.5 °C, `"points"`, 1), never a raw word.
 | --- | --- | --- | --- |
 | `UNSIGNED` | Quantity (frequency, opening, setpoint in °C) | word, `0xFFFF` → `None` | whole value in 0~65534 |
 | `SIGNED` | Signed quantity, marked (*1) | two's complement, `0xFFFF` → `-1` | two's complement |
-| `TENTHS` (`Scaled(10)`) | Tenths (*3), pressures in hundredths of MPa = tenths of bar | `253` → `25.3`, `0xFFFF` → `None` | `round(value × 10)` |
+| `TENTHS` (`Scaled(10)`) | Tenths (*3), pressures in hundredths of MPa = tenths of bar | `253` → `25.3`, `0xFFFF` → `None` | `value × 10`, rounded half up |
+| `HALF_DEGREE` (`Scaled(10, step=5)`) | Circuit room setpoint and room temperature (`circuit{1,2}_target_temp`, `circuit{1,2}_current_temp`), stored in tenths but applied by the unit by half degrees, truncated (#540) | `197` → `19.7` (the word written) | tenths rounded half up to the nearest 5: `23.3` → `235`, `23.2` → `230` |
 | `EnumCodec` | Closed list declared by the map: `SWITCH` (0/1), unit mode, central mode, states, OTC methods, unit model | documented word → value, else `unknown` (default `None`) | `writes` (default: inverse of the reads), else `ValueError` |
 | `Prefixed` | Alarm code as translation key | `42` → `"alarm_code_42"`, `0xFFFF` → `None` | key → code |
 

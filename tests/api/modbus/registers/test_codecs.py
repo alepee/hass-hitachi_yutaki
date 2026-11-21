@@ -16,6 +16,7 @@ from custom_components.hitachi_yutaki.api.modbus.registers.atw_mbs_02_pre2016 im
     AtwMbs02Pre2016RegisterMap,
 )
 from custom_components.hitachi_yutaki.api.modbus.registers.codecs import (
+    HALF_DEGREE,
     SIGNED,
     TENTHS,
     UNSIGNED,
@@ -83,6 +84,59 @@ class TestTenths:
         assert TENTHS.encode(22.5) == 225
 
 
+class TestHalfDegree:
+    """Room temperatures: stored in tenths, applied by half degrees (#540)."""
+
+    def test_decode_keeps_tenths(self):
+        """The register reports the word written, tenths included."""
+        assert HALF_DEGREE.decode(197) == 19.7
+        assert HALF_DEGREE.decode(0xFFFF) is None
+
+    @pytest.mark.parametrize(
+        ("value", "word"),
+        [
+            (23.0, 230),
+            (23.2, 230),
+            (23.25, 235),
+            (23.3, 235),
+            (23.4, 235),
+            (23.5, 235),
+            (23.7, 235),
+            (23.74, 235),
+            (23.75, 240),
+            (23.8, 240),
+            (23.9, 240),
+            (5, 50),
+        ],
+    )
+    def test_encode_rounds_to_nearest_half(self, value, word):
+        """The unit truncates (23.4 applied as 23.0); writing 23.5 is nearer."""
+        assert HALF_DEGREE.encode(value) == word
+
+    def test_encode_is_idempotent(self):
+        """A value written and read back is written again unchanged."""
+        for raw in range(150, 260):
+            value = HALF_DEGREE.decode(raw)
+            word = HALF_DEGREE.encode(value)
+            assert HALF_DEGREE.encode(HALF_DEGREE.decode(word)) == word
+
+    def test_encode_refuses_bad_values(self):
+        """Range and type are checked as for any scaled register."""
+        with pytest.raises(ValueError):
+            HALF_DEGREE.encode(-1)
+        with pytest.raises(TypeError):
+            HALF_DEGREE.encode("21")
+
+
+@pytest.mark.parametrize("register_map", MAPS, ids=lambda m: type(m).__name__)
+def test_room_registers_are_written_by_half_degree(register_map):
+    """Every circuit room setpoint and room temperature uses HALF_DEGREE (#540)."""
+    for cid in (1, 2):
+        for kind in ("target", "current"):
+            key = f"circuit{cid}_{kind}_temp"
+            assert register_map.all_registers[key].codec is HALF_DEGREE, key
+
+
 class TestEnumCodec:
     """Closed lists: an undocumented word is unknown, a bad value is refused."""
 
@@ -144,6 +198,8 @@ class TestPrefixed:
 def test_every_register_round_trips(register_map):
     """Every value a register reads, when writable, reads back as written.
 
+    A value off the register's write resolution (a room temperature in
+    tenths, #540) is rounded to it once, then reads back stable.
     This is the codec contract the write path, the read-back shadow and the
     reboot restore rely on. Sampled words: the low range, the signed boundary
     and the top of the range.
@@ -161,7 +217,10 @@ def test_every_register_round_trips(register_map):
                     encoded = definition.codec.encode(value)
                 except ValueError:
                     continue  # readable but not writable (e.g. HC-A auto mode)
-                assert definition.codec.decode(encoded) == value, (key, raw)
+                written = definition.codec.decode(encoded)
+                assert definition.codec.encode(written) == encoded, (key, raw)
+                if raw % getattr(definition.codec, "step", 1) == 0:
+                    assert written == value, (key, raw)
 
 
 @pytest.mark.parametrize("register_map", MAPS, ids=lambda m: type(m).__name__)
@@ -169,6 +228,6 @@ def test_writable_registers_encode_their_reading(register_map):
     """A value read from a writable register can be written back as is."""
     for key in register_map.writable_keys:
         codec = register_map.all_registers[key].codec
-        value = codec.decode(1)
+        value = codec.decode(getattr(codec, "step", 1))
         if value is not None:
             assert codec.decode(codec.encode(value)) == value, key

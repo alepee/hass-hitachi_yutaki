@@ -311,6 +311,8 @@ Register 1223 (address 1222):
 
 > **Room settings across reboots (field observation, #511):** the "Thermostat Available" flags (addresses 1010 / 1021) exist only in this CONTROL block, with no STATUS counterpart and no LCD setting. A reboot of the ATW-MBS-02 clears them while the room targets survive; a reboot of the controller board (ATW-YMM-01 on a Yutaki M) zeroes the room targets (STATUS 1060 / 1072) and room temperatures (1061 / 1073) while the flags survive. The manual says nothing about either. The integration writes the flags and targets back and seeds a zeroed room temperature with the target (`RegisterDefinition.keep`, see [api-data-keys](../development/api-data-keys.md)); the real room temperature comes back with whoever feeds it.
 
+> **Room values are applied by half degrees (field observation, #540):** the room setpoints (addresses 1011 / 1022) and room temperatures (1012 / 1023) take tenths and their STATUS registers report the tenths written, but the unit applies them truncated to the half degree: 23.4 °C is regulated as 23.0 °C. A regression of the corrected water target on the room temperature sent confirms it on a Yutaki S80 (the target is flat from 19.5 to 19.9 °C received). The integration writes these registers rounded to the nearest half degree (`HALF_DEGREE` codec), on every map.
+
 ### Status Registers (R)
 
 | Register | Address | Description | Range | Type |
