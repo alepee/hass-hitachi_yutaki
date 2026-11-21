@@ -83,6 +83,11 @@ class TestTenths:
         assert TENTHS.encode(21.3) == 213
         assert TENTHS.encode(22.5) == 225
 
+    def test_encode_rounds_half_up(self):
+        """An exact half tenth goes up, not to the even tenth."""
+        assert TENTHS.encode(2.25) == 23
+        assert TENTHS.encode(2.75) == 28
+
 
 class TestHalfDegree:
     """Room temperatures: stored in tenths, applied by half degrees (#540)."""

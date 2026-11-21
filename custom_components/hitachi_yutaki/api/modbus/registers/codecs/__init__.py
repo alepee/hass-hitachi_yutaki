@@ -5,9 +5,10 @@ word read from the gateway into the value the integration stores; ``encode``
 turns a value back into the word to write. A raw word is never consumed or
 written as is (#533).
 
-Contract: for every value ``encode`` accepts, ``decode(encode(value)) ==
-value`` once the value is at the register's write resolution; ``encode`` rounds
-any other value to it, so ``encode(decode(encode(value))) == encode(value)``. ``encode`` raises ``ValueError`` (``TypeError`` for a non-number) for
+Contract: for every value ``encode`` accepts at the register's write
+resolution, ``decode(encode(value)) == value``. ``encode`` rounds any other
+value to that resolution, after which it is stable:
+``encode(decode(encode(value))) == encode(value)``. ``encode`` raises ``ValueError`` (``TypeError`` for a non-number) for
 a value the register cannot hold.
 ``decode`` returns ``None`` when the word carries no value (e.g. ``0xFFFF`` on
 an unsigned register, or a code outside a closed domain).

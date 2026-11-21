@@ -34,11 +34,9 @@ class Scaled:
         """Return the word for ``value``, rounded half up to the write resolution."""
         if isinstance(value, bool) or not isinstance(value, int | float):
             raise TypeError(f"not a number: {value!r}")
-        # Round to the stored resolution first, then to the step, both half
-        # up (not Python's half to even): the step applies to the value as
-        # stored, so 23.25 is written 23.5 like 23.3, and 23.74 is 23.5.
-        stored = math.floor(value * self.factor + 0.5)
-        raw = math.floor(stored / self.step + 0.5) * self.step
+        # One rounding, half up (not Python's half to even): 23.25 is written
+        # 23.5 like 23.3, and 23.74 is 23.5.
+        raw = math.floor(value * self.factor / self.step + 0.5) * self.step
         if not 0 <= raw < NOT_EXPOSED:
             raise ValueError(f"out of range: {value!r}")
         return raw

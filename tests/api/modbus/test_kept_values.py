@@ -82,3 +82,16 @@ def test_load_keeps_a_reference_at_its_write_resolution():
     assert kept.snapshot() == {"room": 21.5}
     kept.load({"room": 35.2})  # Written as 35.0: inside the range once rounded.
     assert kept.snapshot() == {"room": 35.0}
+
+
+def test_reference_read_off_the_write_resolution_settles_once_written():
+    """A reading of 21.3 is written back as 21.5 once, then read right (#540)."""
+    registers = {
+        "room": RegisterDefinition(1, HALF_DEGREE, keep=Keep(valid_range=(5.0, 35.0)))
+    }
+    kept = KeptValues(registers, set(registers))
+    assert _step(kept, {"room": 21.3}) == []
+    assert _step(kept, {"room": 0}) == [("room", 21.3)]
+    kept.written("room", HALF_DEGREE.decode(HALF_DEGREE.encode(21.3)), by_restore=True)
+    assert kept.snapshot() == {"room": 21.5}
+    assert _step(kept, {"room": 21.5}) == []

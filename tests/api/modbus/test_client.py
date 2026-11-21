@@ -983,6 +983,35 @@ async def test_write_value_publishes_expected_value_at_once(mock_hass, mock_clie
     assert mock_client.write_register.call_args.kwargs["value"] == 225
 
 
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_room_temperature_is_written_to_the_nearest_half_degree(
+    _mock_ir, mock_hass, mock_client
+):
+    """23.4 is written 23.5, not left for the unit to truncate to 23.0 (#540).
+
+    The written value is published at once and the STATUS read of the word
+    written confirms it.
+    """
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    mock_client.write_register.return_value = _make_modbus_result(0)
+
+    assert await api.set_circuit_room_temperature(1, 23.4) is True
+
+    assert mock_client.write_register.call_args.kwargs["address"] == 1012
+    assert mock_client.write_register.call_args.kwargs["value"] == 235
+    assert api._data["circuit1_current_temp"] == 23.5
+
+    # [preflight system_state, circuit1_current_temp reads the word written]
+    mock_client.read_holding_registers.side_effect = [
+        _make_modbus_result(0),
+        _make_modbus_result(235),
+    ]
+    await api.read_values(["circuit1_current_temp"])
+    assert api._pending_writes == {}
+    assert api._data["circuit1_current_temp"] == 23.5
+
+
 @pytest.mark.asyncio
 async def test_write_value_refuses_a_value_the_register_cannot_hold(
     mock_hass, mock_client
