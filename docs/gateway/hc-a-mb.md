@@ -336,6 +336,8 @@ These registers are specific to Yutaki air-to-water heat pumps connected via the
 | 166 | System status 2 | See [System Status 2 Bits](#system-status-2-bits) | Read | O |
 | 167 | Alarm number | 0: Alarm, XXX: Alarm number | Read | O |
 
+> **Room values are written by half degrees (#540):** the room setpoints and room temperatures (CONTROL offsets 61 / 62 / 72 / 73) are written rounded to the nearest half degree (`HALF_DEGREE` codec), as on the ATW-MBS-02 where the unit was seen to truncate tenths (see [atw-mbs-02](atw-mbs-02.md)). Not verified on an HC-A(16/64)MB installation.
+
 ### R134a Secondary Compressor (Yutaki S80 only)
 
 | Offset | Description | R/W | ATW |

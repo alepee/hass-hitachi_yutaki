@@ -20,7 +20,7 @@ from ....const import (
     OTCCalculationMethod,
 )
 from . import HitachiRegisterMap, RegisterDefinition
-from .codecs import SIGNED, TENTHS, UNSIGNED, EnumCodec, Prefixed, choice
+from .codecs import HALF_DEGREE, SIGNED, TENTHS, UNSIGNED, EnumCodec, Prefixed, choice
 
 # ──────────────────────────────────────────────────────────────────────────────
 # System configuration bit masks (from offset 140 — identical to ATW-MBS-02)
@@ -345,12 +345,12 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             ),
             "circuit1_target_temp": RegisterDefinition(
                 self._addr(110),
-                TENTHS,
+                HALF_DEGREE,
                 write_address=self._addr(61),
             ),
             "circuit1_current_temp": RegisterDefinition(
                 self._addr(111),
-                TENTHS,
+                HALF_DEGREE,
                 write_address=self._addr(62),
             ),
         }
@@ -392,12 +392,12 @@ class HcAMbRegisterMap(HitachiRegisterMap):
             ),
             "circuit2_target_temp": RegisterDefinition(
                 self._addr(122),
-                TENTHS,
+                HALF_DEGREE,
                 write_address=self._addr(72),
             ),
             "circuit2_current_temp": RegisterDefinition(
                 self._addr(123),
-                TENTHS,
+                HALF_DEGREE,
                 write_address=self._addr(73),
             ),
             # "Mixing Valve Opening" (160, %), circuit 2 only, read-only.

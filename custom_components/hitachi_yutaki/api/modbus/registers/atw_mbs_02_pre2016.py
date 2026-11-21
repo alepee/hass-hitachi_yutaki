@@ -26,7 +26,7 @@ from .atw_mbs_02 import (
     SWITCH,
     SYSTEM_STATE,
 )
-from .codecs import SIGNED, TENTHS, UNSIGNED, EnumCodec, choice
+from .codecs import HALF_DEGREE, SIGNED, TENTHS, UNSIGNED, EnumCodec, choice
 
 # System configuration bit masks (from register 1074)
 # Only 8 bits — no wireless bits (8-11) in before-2016
@@ -153,8 +153,8 @@ REGISTER_CIRCUIT_1 = {
     "circuit1_otc_calculation_method_cooling": RegisterDefinition(
         1053, OTC_METHOD_COOLING, write_address=1004
     ),
-    "circuit1_target_temp": RegisterDefinition(1054, TENTHS, write_address=1005),
-    "circuit1_current_temp": RegisterDefinition(1055, TENTHS, write_address=1006),
+    "circuit1_target_temp": RegisterDefinition(1054, HALF_DEGREE, write_address=1005),
+    "circuit1_current_temp": RegisterDefinition(1055, HALF_DEGREE, write_address=1006),
     "circuit1_max_flow_temp_heating_otc": RegisterDefinition(
         1056, UNSIGNED, write_address=1007
     ),
@@ -181,8 +181,8 @@ REGISTER_CIRCUIT_2 = {
     "circuit2_otc_calculation_method_cooling": RegisterDefinition(
         1060, OTC_METHOD_COOLING, write_address=1011
     ),
-    "circuit2_target_temp": RegisterDefinition(1061, TENTHS, write_address=1012),
-    "circuit2_current_temp": RegisterDefinition(1062, TENTHS, write_address=1013),
+    "circuit2_target_temp": RegisterDefinition(1061, HALF_DEGREE, write_address=1012),
+    "circuit2_current_temp": RegisterDefinition(1062, HALF_DEGREE, write_address=1013),
     "circuit2_max_flow_temp_heating_otc": RegisterDefinition(
         1063, UNSIGNED, write_address=1014
     ),

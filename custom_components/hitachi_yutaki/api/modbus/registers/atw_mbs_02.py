@@ -8,7 +8,7 @@ from ....const import (
     OTCCalculationMethod,
 )
 from . import HitachiRegisterMap, Keep, RegisterDefinition
-from .codecs import SIGNED, TENTHS, UNSIGNED, EnumCodec, Prefixed, choice
+from .codecs import HALF_DEGREE, SIGNED, TENTHS, UNSIGNED, EnumCodec, Prefixed, choice
 
 # System configuration bit masks (from register 1089)
 # Bit order per Modbus documentation:
@@ -204,15 +204,18 @@ REGISTER_CIRCUIT_1 = {
     "circuit1_cool_eco_offset": RegisterDefinition(1059, UNSIGNED, write_address=1009),
     # 0xFFFF is a garbage read of the CONTROL register, not "enabled" (#404).
     "circuit1_thermostat": RegisterDefinition(1010, SWITCH, keep=FLAG_KEEP),
+    # Room setpoint and room temperature are stored in tenths but applied by
+    # the unit by half degrees, truncated: 23.4 becomes 23.0 (#540). The
+    # codec writes them rounded to the nearest half degree instead.
     "circuit1_target_temp": RegisterDefinition(
         1060,
-        TENTHS,
+        HALF_DEGREE,
         write_address=1011,
         keep=ROOM_TARGET_KEEP[1],
     ),
     "circuit1_current_temp": RegisterDefinition(
         1061,
-        TENTHS,
+        HALF_DEGREE,
         write_address=1012,
         keep=ROOM_VALUE_KEEP[1],
     ),
@@ -238,13 +241,13 @@ REGISTER_CIRCUIT_2 = {
     "circuit2_thermostat": RegisterDefinition(1021, SWITCH, keep=FLAG_KEEP),
     "circuit2_target_temp": RegisterDefinition(
         1072,
-        TENTHS,
+        HALF_DEGREE,
         write_address=1022,
         keep=ROOM_TARGET_KEEP[2],
     ),
     "circuit2_current_temp": RegisterDefinition(
         1073,
-        TENTHS,
+        HALF_DEGREE,
         write_address=1023,
         keep=ROOM_VALUE_KEEP[2],
     ),

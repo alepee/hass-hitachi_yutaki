@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **The room temperature sent to the heat pump is no longer biased downwards** (#540). The unit applies the room temperature and the room setpoint by half degrees and truncates the rest, so 23.4 °C sent through `hitachi_yutaki.set_room_temperature` or the Room temperature entity was regulated as 23.0 °C, and the heat pump heated as if the room were up to 0.4 °C colder than it was. These values are now written rounded to the nearest half degree (23.4 °C becomes 23.5 °C, 23.2 °C becomes 23.0 °C), and the room temperature read back shows the value the unit applies. Automations that already round to the half degree are unaffected.
+
 ## [2.5.0-beta.1] - 2026-11-12
 
 This release reads temperatures of exactly -1 °C again, moves the gateway settings to a Reconfigure flow, and decodes every register by its documented type, so garbage readings no longer show up as values.

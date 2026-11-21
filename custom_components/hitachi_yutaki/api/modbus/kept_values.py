@@ -73,29 +73,35 @@ class KeptValues:
     def load(self, values: Mapping[str, Any]) -> None:
         """Load persisted references, skipping anything not trustworthy."""
         for key, value in values.items():
-            if self._is_loadable(key, value):
-                self._references[key] = value
+            loaded = self._loadable(key, value)
+            if loaded is not None:
+                self._references[key] = loaded
 
-    def _is_loadable(self, key: str, value: Any) -> bool:
-        """Return True for a persisted reference that can be trusted.
+    def _loadable(self, key: str, value: Any) -> Any:
+        """Return a persisted reference as it will be written back, or None.
 
         A known, kept, unseeded key; a number (not a bool) its register codec
-        writes back unchanged; inside ``valid_range`` when there is one.
+        can write; inside ``valid_range`` when there is one. The reference is
+        returned at the register's write resolution, i.e. as written back: a
+        room setpoint of 21.3 persisted before #540 is restored as 21.5.
         """
         keep = self._keeps.get(key)
         if keep is None or keep.seed_from is not None:
-            return False
+            return None
         if isinstance(value, bool) or not isinstance(value, int | float):
-            return False
+            return None
         codec = self._registers[key].codec
         try:
-            if codec.decode(codec.encode(value)) != value:
-                return False
+            written = codec.decode(codec.encode(value))
         except (TypeError, ValueError):
-            return False
-        return keep.valid_range is None or (
-            keep.valid_range[0] <= value <= keep.valid_range[1]
-        )
+            return None
+        if written is None:
+            return None
+        if keep.valid_range is not None and not (
+            keep.valid_range[0] <= written <= keep.valid_range[1]
+        ):
+            return None
+        return written
 
     def listen(self, listener: Callable[[], None]) -> None:
         """Call ``listener`` whenever a reference changes."""
