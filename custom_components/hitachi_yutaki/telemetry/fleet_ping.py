@@ -41,6 +41,7 @@ _LOGGER = logging.getLogger(__name__)
 STORE_VERSION = 1
 STORE_KEY = f"{DOMAIN}_fleet_ping"
 DATA_KEY = f"{DOMAIN}_fleet_ping"
+LEDGER_KEY = f"{DOMAIN}_fleet_ping_ledger"
 
 # First attempt after HA start: late enough for every entry's first poll, so
 # the day's ping lists all units rather than only the fastest gateway's.
@@ -73,6 +74,70 @@ def _load_koppen_lookup() -> dict[str, str]:
         return json.load(file)
 
 
+class FleetPingLedger:
+    """Claim each UTC day's fleet ping for the whole Home Assistant instance.
+
+    The single owner of "has today's ping been sent?". It outlives the pingers:
+    a reload stops the pinger and starts a new one while the old one's POST
+    may still be in flight, so the day is claimed here, in memory and
+    synchronously, before the request leaves. A pinger that finds the day
+    delivered or claimed does not send.
+
+    A send whose outcome is unknown (cancelled mid-flight) counts as
+    delivered: the ping is at most once a day, a missed day is preferable to
+    a day counted twice.
+    """
+
+    def __init__(self, store: Store[dict[str, str]]) -> None:
+        """Initialize the ledger. Call async_load before use."""
+        self._store = store
+        self._delivered: date | None = None
+        self._claimed: date | None = None
+        self._loaded = False
+
+    @property
+    def delivered(self) -> date | None:
+        """Return the UTC day of the last delivered ping."""
+        return self._delivered
+
+    async def async_load(self) -> None:
+        """Load the last delivered day from the store, once per HA run.
+
+        Later calls keep the in-memory state, which may be ahead of the store.
+        """
+        if self._loaded:
+            return
+        self._loaded = True
+        stored = await self._store.async_load() or {}
+        if last_sent := stored.get("last_sent"):
+            try:
+                self._delivered = date.fromisoformat(last_sent)
+            except ValueError:
+                self._delivered = None
+
+    @callback
+    def claim(self, day: date) -> bool:
+        """Reserve the day's ping. False when delivered or already in flight."""
+        if day == self._delivered or self._claimed is not None:
+            return False
+        self._claimed = day
+        return True
+
+    @callback
+    def settle(self, day: date, *, delivered: bool) -> None:
+        """Close the claim; a delivered day is persisted, a failed one freed."""
+        self._claimed = None
+        if delivered:
+            self._delivered = day
+            # Not awaited: settle also runs while a cancelled send unwinds.
+            self._store.async_delay_save(self._data_to_save, 0)
+
+    def _data_to_save(self) -> dict[str, str]:
+        """Return the persisted state."""
+        assert self._delivered is not None
+        return {"last_sent": self._delivered.isoformat()}
+
+
 class FleetPinger:
     """Send the fleet ping at most once per UTC day for this HA instance."""
 
@@ -81,34 +146,27 @@ class FleetPinger:
         hass: HomeAssistant,
         session: aiohttp.ClientSession,
         integration_version: str,
+        ledger: FleetPingLedger,
         endpoint: str = FLEET_PING_ENDPOINT,
     ) -> None:
         """Initialize the pinger. Call async_start before use."""
         self._hass = hass
         self._session = session
         self._integration_version = integration_version
+        self._ledger = ledger
         self._endpoint = endpoint
-        self._store: Store[dict[str, str]] = Store(hass, STORE_VERSION, STORE_KEY)
         self._providers: dict[str, tuple[UnitProvider, FleetPingConsent]] = {}
-        self._last_sent: date | None = None
         self._climate_zone: str | None = None
-        self._lock = asyncio.Lock()
+        self._send_task: asyncio.Task[bool] | None = None
         self._unsubs: list[CALLBACK_TYPE] = []
 
     @property
     def last_sent(self) -> date | None:
         """Return the UTC day of the last delivered ping."""
-        return self._last_sent
+        return self._ledger.delivered
 
     async def async_start(self) -> None:
-        """Load the persisted state, resolve the climate zone, arm the timers."""
-        stored = await self._store.async_load() or {}
-        if last_sent := stored.get("last_sent"):
-            try:
-                self._last_sent = date.fromisoformat(last_sent)
-            except ValueError:
-                self._last_sent = None
-
+        """Resolve the climate zone and arm the timers."""
         lookup = await self._hass.async_add_executor_job(_load_koppen_lookup)
         self._climate_zone = classify_climate_zone(
             lookup, self._hass.config.latitude, self._hass.config.longitude
@@ -130,9 +188,12 @@ class FleetPinger:
 
     @callback
     def async_stop(self) -> None:
-        """Cancel the timers."""
+        """Cancel the timers and a send in flight."""
         while self._unsubs:
             self._unsubs.pop()()
+        if self._send_task is not None:
+            self._send_task.cancel()
+            self._send_task = None
 
     @callback
     def register(
@@ -147,45 +208,48 @@ class FleetPinger:
         self._providers.pop(entry_id, None)
         return not self._providers
 
-    async def _async_scheduled(self, _now: datetime) -> None:
-        """Timer callback."""
-        await self.async_maybe_send()
+    @callback
+    def _async_scheduled(self, _now: datetime) -> None:
+        """Timer callback: start a send owned by this pinger."""
+        if self._send_task is not None and not self._send_task.done():
+            return
+        self._send_task = self._hass.async_create_background_task(
+            self.async_maybe_send(), name=f"{DOMAIN} fleet ping"
+        )
 
     async def async_maybe_send(self) -> bool:
-        """Send today's ping unless it was already delivered.
+        """Send today's ping unless it was already delivered or claimed.
 
         Return True when a ping was delivered by this call.
         """
-        if self._lock.locked():
+        today = dt_util.utcnow().date()
+        # Consent is asked here, not at registration: an entry whose user
+        # just turned the ping off stays registered until it reloads.
+        units = tuple(
+            unit
+            for provider, consent in self._providers.values()
+            if consent.fleet_ping_allowed() and (unit := provider()) is not None
+        )
+        # No consenting unit has completed a poll yet: nothing to count.
+        if not units:
             return False
-        async with self._lock:
-            today = dt_util.utcnow().date()
-            if self._last_sent == today:
-                return False
+        # Claimed before the first await, so no other pinger can send today.
+        if not self._ledger.claim(today):
+            return False
 
-            # Consent is asked here, not at registration: an entry whose user
-            # just turned the ping off stays registered until it reloads.
-            units = tuple(
-                unit
-                for provider, consent in self._providers.values()
-                if consent.fleet_ping_allowed() and (unit := provider()) is not None
-            )
-            # No consenting unit has completed a poll yet: nothing to count.
-            if not units:
-                return False
-
-            ping = FleetPing(
-                integration_version=self._integration_version,
-                ha_version=HA_VERSION,
-                climate_zone=self._climate_zone,
-                units=units,
-            )
-            if not await self._async_post(ping):
-                return False
-
-            self._last_sent = today
-            await self._store.async_save({"last_sent": today.isoformat()})
-            return True
+        ping = FleetPing(
+            integration_version=self._integration_version,
+            ha_version=HA_VERSION,
+            climate_zone=self._climate_zone,
+            units=units,
+        )
+        # Interrupted mid-flight, the ping may have reached the endpoint.
+        delivered = True
+        try:
+            delivered = await self._async_post(ping)
+        finally:
+            self._ledger.settle(today, delivered=delivered)
+        return delivered
 
     async def _async_post(self, ping: FleetPing) -> bool:
         """POST the ping. Single attempt: the hourly check is the retry."""
@@ -217,10 +281,28 @@ async def async_register_fleet_ping(
     """Add an entry's unit to the instance's ping, starting the pinger if needed."""
     pinger: FleetPinger | None = hass.data.get(DATA_KEY)
     if pinger is None:
-        pinger = FleetPinger(hass, async_get_clientsession(hass), integration_version)
+        ledger = _get_ledger(hass)
+        pinger = FleetPinger(
+            hass, async_get_clientsession(hass), integration_version, ledger
+        )
         hass.data[DATA_KEY] = pinger
+        await ledger.async_load()
         await pinger.async_start()
     pinger.register(entry_id, provider, consent)
+
+
+@callback
+def _get_ledger(hass: HomeAssistant) -> FleetPingLedger:
+    """Return the instance's ledger, kept for the whole HA run.
+
+    Unlike the pinger, it is never dropped: the pinger a reload starts must
+    see the day the previous one claimed.
+    """
+    ledger: FleetPingLedger | None = hass.data.get(LEDGER_KEY)
+    if ledger is None:
+        ledger = FleetPingLedger(Store(hass, STORE_VERSION, STORE_KEY))
+        hass.data[LEDGER_KEY] = ledger
+    return ledger
 
 
 @callback

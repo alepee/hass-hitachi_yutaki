@@ -354,7 +354,8 @@ Coordinator poll ──→ TelemetryCollector (circular buffer)
 - Binary consent (Off / On) — stored in `entry.options`, changeable without reconfiguration
 - Collector runs at poll frequency, flush runs on a 5-min timer — decoupled
 - Installation info is re-sent once per UTC day boundary to keep the fleet dashboard's 90-day window populated — there is no in-memory daily-stats accumulator
-- One-time sends (installation info, register snapshot) are fire-and-forget (`async_create_task`) with `asyncio.Lock` + exponential backoff to avoid blocking the Modbus poll path
+- One-time sends (installation info, register snapshot) run in a background task of the config entry (`entry.async_create_background_task`), one at a time, with exponential backoff, so they never block the Modbus poll path and an unload cancels them. The periodic and catch-up flushes are entry background tasks too
+- The fleet ping's "sent today" lives in one instance-wide `FleetPingLedger` that outlives the pinger: the day is claimed synchronously before the POST, so the pinger a reload starts cannot send the day a previous one has in flight
 - `thermal_power`, `electrical_power`, `cop_instant` are NULL — they require per-entity domain service state and can be recomputed server-side from raw data
 - Poll interval for time-based aggregations (compressor hours, energy kWh) is computed from actual point timestamps, not hardcoded
 - Installation payloads are mirrored to Workers Analytics Engine (`hitachi_installations`, 90-day window) to power a Grafana fleet-inventory dashboard; R2 receives every payload; raw metrics and snapshots expire after 30 days, once a daily job (`backend/lake/`) has compacted them into a Parquet data lake whose copy under R2 `lake/` is the permanent archive

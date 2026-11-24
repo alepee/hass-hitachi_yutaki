@@ -38,13 +38,6 @@ def _make_coordinator(initial_entry_data: dict, system_config_value: int):
     hass = MagicMock()
     hass.config_entries.async_update_entry = MagicMock()
 
-    # Close the one-time telemetry coroutine immediately so we don't get
-    # "coroutine was never awaited" warnings during the test.
-    def _close_coro(coro):
-        coro.close()
-
-    hass.async_create_task = MagicMock(side_effect=_close_coro)
-
     api_client = MagicMock()
     api_client.connected = True
     api_client.read_values = AsyncMock(return_value=ReadResult.SUCCESS)
@@ -67,6 +60,11 @@ def _make_coordinator(initial_entry_data: dict, system_config_value: int):
     entry = MagicMock()
     entry.data = dict(initial_entry_data)
     entry.data.setdefault(CONF_SCAN_INTERVAL, 5)
+    # Close the one-time telemetry coroutine immediately so we don't get
+    # "coroutine was never awaited" warnings during the test.
+    entry.async_create_background_task.side_effect = lambda _hass, coro, name: (
+        coro.close()
+    )
 
     with patch("custom_components.hitachi_yutaki.coordinator.ir"):
         coord = HitachiYutakiDataCoordinator(hass, entry, api_client, profile)

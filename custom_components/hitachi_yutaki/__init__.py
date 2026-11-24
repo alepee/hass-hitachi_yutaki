@@ -415,15 +415,17 @@ def _schedule_telemetry_flush(
     entry: HitachiYutakiConfigEntry,
     coordinator: HitachiYutakiDataCoordinator,
 ) -> None:
-    """Flush telemetry every cycle, with a catch-up when a backlog remains."""
+    """Flush telemetry every cycle, with a catch-up when a backlog remains.
+
+    Each flush runs as a background task of the entry, so an unload cancels a
+    flush still in flight instead of letting it race the final unload flush.
+    """
     cancel_catchup: CALLBACK_TYPE | None = None
 
-    async def _telemetry_catchup(_now: datetime) -> None:
-        nonlocal cancel_catchup
-        cancel_catchup = None
+    async def _telemetry_catchup() -> None:
         await coordinator.async_flush_telemetry()
 
-    async def _telemetry_flush(_now: datetime) -> None:
+    async def _telemetry_flush() -> None:
         nonlocal cancel_catchup
         delivered = await coordinator.async_flush_telemetry()
         # Only after a delivered batch: a backlog left by a failing send
@@ -434,8 +436,22 @@ def _schedule_telemetry_flush(
             and cancel_catchup is None
         ):
             cancel_catchup = async_call_later(
-                hass, TELEMETRY_CATCHUP_DELAY, _telemetry_catchup
+                hass, TELEMETRY_CATCHUP_DELAY, _start_catchup
             )
+
+    @callback
+    def _start_catchup(_now: datetime) -> asyncio.Task[None]:
+        nonlocal cancel_catchup
+        cancel_catchup = None
+        return entry.async_create_background_task(
+            hass, _telemetry_catchup(), f"{DOMAIN} telemetry catch-up flush"
+        )
+
+    @callback
+    def _start_flush(_now: datetime) -> asyncio.Task[None]:
+        return entry.async_create_background_task(
+            hass, _telemetry_flush(), f"{DOMAIN} telemetry flush"
+        )
 
     @callback
     def _cancel_telemetry_catchup() -> None:
@@ -443,7 +459,7 @@ def _schedule_telemetry_flush(
             cancel_catchup()
 
     entry.async_on_unload(
-        async_track_time_interval(hass, _telemetry_flush, TELEMETRY_FLUSH_INTERVAL)
+        async_track_time_interval(hass, _start_flush, TELEMETRY_FLUSH_INTERVAL)
     )
     entry.async_on_unload(_cancel_telemetry_catchup)
 

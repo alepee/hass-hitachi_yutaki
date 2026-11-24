@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import timedelta
+import asyncio
+from datetime import date, timedelta
 import gzip
 import json
 from pathlib import Path
@@ -26,7 +27,9 @@ from custom_components.hitachi_yutaki.telemetry.fleet_ping import (
     DATA_KEY,
     INITIAL_DELAY,
     STORE_KEY,
+    STORE_VERSION,
     FleetPinger,
+    FleetPingLedger,
     _load_koppen_lookup,
     async_register_fleet_ping,
     async_unregister_fleet_ping,
@@ -36,6 +39,7 @@ from custom_components.hitachi_yutaki.telemetry.models import FleetPing, FleetPi
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.storage import Store
 
 _REPO_ROOT = Path(__file__).parent.parent
 
@@ -80,7 +84,10 @@ def _sent_payload(session: MagicMock) -> dict:
 
 
 async def _started_pinger(hass: HomeAssistant, session: MagicMock) -> FleetPinger:
-    pinger = FleetPinger(hass, session, "2.2.0")
+    """Start a pinger as after a Home Assistant start (fresh ledger)."""
+    ledger = FleetPingLedger(Store(hass, STORE_VERSION, STORE_KEY))
+    await ledger.async_load()
+    pinger = FleetPinger(hass, session, "2.2.0", ledger)
     await pinger.async_start()
     return pinger
 
@@ -232,6 +239,8 @@ class TestFleetPinger:
         pinger.register("entry1", lambda: UNIT, CONSENT)
         await pinger.async_maybe_send()
         pinger.async_stop()
+        # The day is saved by a zero-delay write, which survives a cancelled send.
+        async_fire_time_changed(hass)
         await hass.async_block_till_done()
         assert STORE_KEY in hass_storage
 
@@ -381,3 +390,112 @@ class TestNoticeRepairFlow:
         result = await flow.async_step_confirm()
         assert result["type"] is FlowResultType.ABORT
         assert ir.async_get(hass).async_get_issue(DOMAIN, flow.issue_id) is None
+
+
+class TestReloadRace:
+    """A reload while a ping is in flight must not send a second one (#468)."""
+
+    async def test_reload_during_inflight_ping_sends_once(
+        self, hass: HomeAssistant
+    ) -> None:
+        """The pinger started by the reload sees the day already claimed."""
+        release = asyncio.Event()
+        resp = AsyncMock()
+        resp.status = 202
+
+        async def _slow_answer(*_args, **_kwargs):
+            await release.wait()
+            return resp
+
+        ctx = AsyncMock()
+        ctx.__aenter__ = AsyncMock(side_effect=_slow_answer)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock(spec=aiohttp.ClientSession)
+        session.post = MagicMock(return_value=ctx)
+
+        with patch(
+            "custom_components.hitachi_yutaki.telemetry.fleet_ping.async_get_clientsession",
+            return_value=session,
+        ):
+            await async_register_fleet_ping(hass, "entry1", "2.2.0", lambda: UNIT)
+            first = hass.data[DATA_KEY]
+            inflight = hass.async_create_task(first.async_maybe_send())
+            await asyncio.sleep(0)
+            assert session.post.call_count == 1
+
+            # Reload of the only entry: the pinger stops, a new one starts.
+            async_unregister_fleet_ping(hass, "entry1")
+            await async_register_fleet_ping(hass, "entry1", "2.2.0", lambda: UNIT)
+            second = hass.data[DATA_KEY]
+            second_send = hass.async_create_task(second.async_maybe_send())
+            await asyncio.sleep(0)
+
+            release.set()
+            await asyncio.gather(inflight, second_send, return_exceptions=True)
+
+        assert session.post.call_count == 1
+        assert await second.async_maybe_send() is False
+        assert session.post.call_count == 1
+        async_unregister_fleet_ping(hass, "entry1")
+
+    async def test_stop_cancels_the_send_in_flight(
+        self, hass: HomeAssistant, freezer: FrozenDateTimeFactory
+    ) -> None:
+        """A timer-started send belongs to its pinger and counts once cancelled."""
+        started = asyncio.Event()
+
+        async def _never_answers(*_args, **_kwargs):
+            started.set()
+            await asyncio.Event().wait()
+
+        ctx = AsyncMock()
+        ctx.__aenter__ = AsyncMock(side_effect=_never_answers)
+        ctx.__aexit__ = AsyncMock(return_value=False)
+        session = MagicMock(spec=aiohttp.ClientSession)
+        session.post = MagicMock(return_value=ctx)
+
+        pinger = await _started_pinger(hass, session)
+        pinger.register("entry1", lambda: UNIT)
+        freezer.tick(INITIAL_DELAY)
+        async_fire_time_changed(hass)
+        await asyncio.wait_for(started.wait(), 1)
+
+        pinger.async_stop()
+        await hass.async_block_till_done()
+
+        # The outcome is unknown: the day counts, so no second ping today.
+        assert pinger.last_sent is not None
+        assert await pinger.async_maybe_send() is False
+        assert session.post.call_count == 1
+
+
+class TestLedger:
+    """The day is claimed once, whichever pinger asks."""
+
+    async def test_claim_is_exclusive_until_settled(self, hass: HomeAssistant) -> None:
+        """A claim in flight blocks others; a failure frees the day."""
+        ledger = FleetPingLedger(Store(hass, STORE_VERSION, STORE_KEY))
+        await ledger.async_load()
+        today = date(2026, 11, 24)
+
+        assert ledger.claim(today) is True
+        assert ledger.claim(today) is False
+        ledger.settle(today, delivered=False)
+        assert ledger.delivered is None
+        assert ledger.claim(today) is True
+        ledger.settle(today, delivered=True)
+        assert ledger.delivered == today
+        assert ledger.claim(today) is False
+
+    async def test_load_keeps_state_ahead_of_the_store(
+        self, hass: HomeAssistant
+    ) -> None:
+        """A second load does not roll back a day not yet written."""
+        ledger = FleetPingLedger(Store(hass, STORE_VERSION, STORE_KEY))
+        await ledger.async_load()
+        today = date(2026, 11, 24)
+        assert ledger.claim(today)
+        ledger.settle(today, delivered=True)
+
+        await ledger.async_load()
+        assert ledger.delivered == today

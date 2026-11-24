@@ -19,6 +19,8 @@ def _setup(delivered: bool, buffered: int):
     """Wire the scheduler on mocks; return the timers and their callbacks."""
     hass = MagicMock()
     entry = MagicMock()
+    # Hand the flush coroutine back instead of scheduling it, so tests await it.
+    entry.async_create_background_task.side_effect = lambda _hass, coro, name: coro
     coordinator = MagicMock()
     coordinator.async_flush_telemetry = AsyncMock(return_value=delivered)
     coordinator.telemetry_collector.buffer_size = buffered

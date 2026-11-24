@@ -35,10 +35,7 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 @pytest.fixture
 def mock_hass():
     """Create a mock Home Assistant instance."""
-    hass = MagicMock()
-    # The fake HA instance does not schedule tasks; close background telemetry.
-    hass.async_create_task.side_effect = lambda coroutine: coroutine.close()
-    return hass
+    return MagicMock()
 
 
 @pytest.fixture
@@ -70,6 +67,10 @@ def coordinator(mock_hass, mock_api_client, mock_profile):
     """Create a coordinator instance."""
     entry = MagicMock()
     entry.data = {CONF_SCAN_INTERVAL: 5}
+    # The fake entry does not schedule tasks; close background telemetry.
+    entry.async_create_background_task.side_effect = lambda _hass, coroutine, name: (
+        coroutine.close()
+    )
 
     with patch("custom_components.hitachi_yutaki.coordinator.ir"):
         coord = HitachiYutakiDataCoordinator(
