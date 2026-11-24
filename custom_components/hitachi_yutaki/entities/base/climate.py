@@ -28,12 +28,14 @@ from ...coordinator import HitachiYutakiDataCoordinator
 from ...domain.models.circuit import CircuitActivity
 from .command import CommandStep, async_send_command
 
-_ACTIVITY_TO_HA = {
+# UNKNOWN maps to no action: HA shows nothing rather than a guessed activity.
+_ACTIVITY_TO_HA: dict[CircuitActivity, HVACAction | None] = {
     CircuitActivity.OFF: HVACAction.OFF,
     CircuitActivity.IDLE: HVACAction.IDLE,
     CircuitActivity.HEATING: HVACAction.HEATING,
     CircuitActivity.COOLING: HVACAction.COOLING,
     CircuitActivity.DEFROSTING: HVACAction.DEFROSTING,
+    CircuitActivity.UNKNOWN: None,
 }
 
 
@@ -161,7 +163,7 @@ class HitachiYutakiClimate(
         if self.coordinator.data is None:
             return None
         activity = get_circuit_activity(self.coordinator.api_client, self._circuit_id)
-        return _ACTIVITY_TO_HA.get(activity)
+        return _ACTIVITY_TO_HA[activity]
 
     @property
     def preset_mode(self) -> str | None:

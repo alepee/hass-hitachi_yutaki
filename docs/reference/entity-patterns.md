@@ -223,9 +223,10 @@ Climate entities map `CircuitActivity` verdicts to Home Assistant `HVACAction`.
 calls the pure `domain/services/circuit.py` policy. A powered circuit is idle
 while the compressor serves DHW or the pool, or the reported operation is inactive.
 Actual heating/cooling takes precedence over the selected global mode. When the
-operation state is unavailable, explicit heat/cool modes retain their fallback;
-auto without an activity signal remains unknown. Circuit power and defrost retain
-precedence.
+operation state is unavailable, a running compressor yields
+`CircuitActivity.UNKNOWN` whatever the selected mode, and the climate entity
+reports no `hvac_action` rather than a guessed heating or cooling. Circuit power,
+defrost and a stopped compressor retain precedence.
 
 Writable modes and ECO availability come from `supported_unit_modes` and
 `can_write` on the API client. With multiple circuits, climate entities only

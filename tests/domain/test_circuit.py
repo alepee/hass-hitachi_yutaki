@@ -24,11 +24,9 @@ _RUNNING = CircuitActivityInput(
     defrosting=False,
     operation_mode=MODE_HEATING,
     operation_state_available=True,
-    unit_mode=MODE_HEATING,
 )
 
 
-@pytest.mark.parametrize("unit_mode", [MODE_HEATING, MODE_COOLING, None])
 @pytest.mark.parametrize(
     ("operation", "expected"),
     [
@@ -39,9 +37,9 @@ _RUNNING = CircuitActivityInput(
         (None, CircuitActivity.IDLE),
     ],
 )
-def test_actual_operation_takes_precedence(unit_mode, operation, expected):
+def test_actual_operation_takes_precedence(operation, expected):
     """Compressor work on another load never means space heating/cooling."""
-    data = replace(_RUNNING, operation_mode=operation, unit_mode=unit_mode)
+    data = replace(_RUNNING, operation_mode=operation)
     assert resolve_circuit_activity(data) == expected
 
 
@@ -49,7 +47,7 @@ def test_actual_operation_takes_precedence(unit_mode, operation, expected):
     ("changes", "expected"),
     [
         ({"powered": False, "defrosting": True}, CircuitActivity.OFF),
-        ({"powered": None}, None),
+        ({"powered": None}, CircuitActivity.UNKNOWN),
         ({"defrosting": True, "compressor_running": False}, CircuitActivity.DEFROSTING),
         ({"compressor_running": False}, CircuitActivity.IDLE),
     ],
@@ -60,19 +58,33 @@ def test_power_defrost_and_compressor_precedence(changes, expected):
 
 
 @pytest.mark.parametrize(
-    ("unit_mode", "expected"),
+    "changes",
     [
-        (MODE_HEATING, CircuitActivity.HEATING),
-        (MODE_COOLING, CircuitActivity.COOLING),
-        (None, None),
+        {},
+        {"operation_mode": MODE_DHW},
+        {"operation_mode": MODE_POOL},
+        {"operation_mode": MODE_COOLING},
     ],
 )
-def test_missing_operation_state_keeps_fixed_mode_fallback(unit_mode, expected):
-    """Gateways without activity data retain explicit heat/cool behavior."""
-    data = replace(
-        _RUNNING,
-        operation_mode=None,
-        operation_state_available=False,
-        unit_mode=unit_mode,
-    )
+def test_unreadable_operation_state_is_unknown(changes):
+    """Without the operation state, a running compressor proves no circuit load.
+
+    The unit may be producing DHW or heating the pool: the selected global mode
+    cannot tell, so the verdict is UNKNOWN rather than a guessed HEATING.
+    """
+    data = replace(_RUNNING, **changes, operation_state_available=False)
+    assert resolve_circuit_activity(data) == CircuitActivity.UNKNOWN
+
+
+@pytest.mark.parametrize(
+    ("changes", "expected"),
+    [
+        ({"powered": False}, CircuitActivity.OFF),
+        ({"defrosting": True}, CircuitActivity.DEFROSTING),
+        ({"compressor_running": False}, CircuitActivity.IDLE),
+    ],
+)
+def test_unreadable_operation_state_keeps_known_verdicts(changes, expected):
+    """Power, defrost and a stopped compressor stay conclusive on their own."""
+    data = replace(_RUNNING, **changes, operation_state_available=False)
     assert resolve_circuit_activity(data) == expected

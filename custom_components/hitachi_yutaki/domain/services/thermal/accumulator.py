@@ -12,11 +12,19 @@ from ...models.operation import (
     MODE_COOLING,
     MODE_HEATING,
 )
+from ...models.thermal import DELTA_T_DEADBAND
 from ...ports.clock import Clock
 
 
 class ThermalEnergyAccumulator:
-    """Accumulates thermal energy over time for heating and cooling separately."""
+    """Accumulates thermal energy over time for heating and cooling separately.
+
+    Post-cycle rule: once the compressor stops, only the inertia of what it
+    last produced is counted, and only while the water ΔT stays outside the
+    deadband. Then a lock counts nothing, in either direction, until the
+    compressor restarts. With no production observed yet, there is no known
+    inertia and a stopped compressor counts nothing.
+    """
 
     def __init__(
         self,
@@ -48,6 +56,8 @@ class ThermalEnergyAccumulator:
         self._daily_start_time: float | None = None
         self._last_reset = self._clock.now().date()
         self._post_cycle_lock = False
+        # Last direction counted: what the compressor produced, or its inertia.
+        # None means no production observed yet, so no inertia to count.
         self._last_mode: str | None = None
 
     @property
@@ -137,6 +147,8 @@ class ThermalEnergyAccumulator:
         cooling_power: float,
         compressor_running: bool,
         operation_mode: str | None = None,
+        *,
+        delta_t: float | None = None,
     ) -> None:
         """Update energy accumulation with thermal powers.
 
@@ -146,6 +158,9 @@ class ThermalEnergyAccumulator:
             compressor_running: Whether compressor is active
             operation_mode: Current operation mode (e.g. MODE_HEATING, MODE_COOLING,
                 MODE_DHW, MODE_POOL). DHW and pool are always heating operations.
+            delta_t: Water outlet minus inlet temperature behind these powers,
+                when known. With the compressor stopped, a ΔT inside the
+                deadband ends the inertia.
 
         """
         # DHW and pool are always heating operations regardless of ΔT.
@@ -159,27 +174,13 @@ class ThermalEnergyAccumulator:
             heating_power = total_power
             cooling_power = 0.0
 
-        # If compressor restarts, exit post-cycle lock
         if compressor_running:
+            # The compressor produces again: exit the post-cycle lock
             self._post_cycle_lock = False
-
-        # Handle inertia and post-cycle lock (both modes)
-        if not compressor_running:
-            # Activate lock when delta T drops to zero in current mode
-            if (
-                self._last_mode == MODE_HEATING
-                and heating_power <= 0
-                or self._last_mode == MODE_COOLING
-                and cooling_power <= 0
-            ):
-                self._post_cycle_lock = True
-
-            # When locked, force power to 0 for current mode
-            if self._post_cycle_lock:
-                if self._last_mode == MODE_HEATING:
-                    heating_power = 0.0
-                elif self._last_mode == MODE_COOLING:
-                    cooling_power = 0.0
+        else:
+            heating_power, cooling_power = self._post_cycle_powers(
+                heating_power, cooling_power, delta_t
+            )
 
         # Mode decision and accumulation
         if heating_power > 0:
@@ -200,6 +201,28 @@ class ThermalEnergyAccumulator:
                 self._update_energy(0.0, mode=self._last_mode)
             self._last_heating_power = 0.0
             self._last_cooling_power = 0.0
+
+    def _post_cycle_powers(
+        self, heating_power: float, cooling_power: float, delta_t: float | None
+    ) -> tuple[float, float]:
+        """Return the powers a stopped compressor may still account for.
+
+        Only the inertia of the last produced direction counts. It ends, and
+        the lock engages, when that direction is unknown, its power is gone,
+        or the ΔT falls inside the deadband.
+        """
+        if self._last_mode == MODE_HEATING:
+            inertia = (heating_power, 0.0)
+        elif self._last_mode == MODE_COOLING:
+            inertia = (0.0, cooling_power)
+        else:
+            inertia = (0.0, 0.0)
+
+        inside_deadband = delta_t is not None and abs(delta_t) <= DELTA_T_DEADBAND
+        if max(inertia) <= 0 or inside_deadband:
+            self._post_cycle_lock = True
+
+        return (0.0, 0.0) if self._post_cycle_lock else inertia
 
     def _update_energy(self, thermal_power: float, mode: str) -> None:
         """Update energy accumulation.

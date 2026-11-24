@@ -159,7 +159,9 @@ Follow the domain builder pattern. See [docs/development/adding-entities.md](doc
 Feature-specific sensor attributes belong in description callbacks, not in
 sensor-key dispatch inside generic base classes. Climate entities translate the
 domain's actual-activity verdict; selected global mode alone does not establish
-that a circuit is heating while the unit produces DHW or heats the pool.
+that a circuit is heating while the unit produces DHW or heats the pool. When the
+observations do not settle a verdict, the domain says so with an explicit
+`UNKNOWN` member rather than a plausible default.
 
 ### When Modifying Calculations
 Domain logic goes in `domain/services/`, adapter logic in `adapters/`. See [docs/reference/domain-services.md](docs/reference/domain-services.md). The domain layer must remain HA-agnostic.

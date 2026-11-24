@@ -12,14 +12,18 @@ class CircuitActivity(StrEnum):
     HEATING = "heating"
     COOLING = "cooling"
     DEFROSTING = "defrosting"
+    UNKNOWN = "unknown"
+    """The observations do not establish what the circuit is doing."""
 
 
 @dataclass(frozen=True)
 class CircuitActivityInput:
     """Circuit power and unit activity normalized by the adapter.
 
-    Unit mode is a fallback only when the operation state is unavailable.
-    An available state with no active operation mode denotes inactivity.
+    The operation state is the only evidence of what a running compressor
+    serves. When it is unavailable, the selected global mode is no substitute:
+    the unit may be producing DHW or heating the pool. An available state with
+    no active operation mode denotes inactivity.
     """
 
     powered: bool | None
@@ -27,4 +31,3 @@ class CircuitActivityInput:
     defrosting: bool
     operation_mode: str | None
     operation_state_available: bool
-    unit_mode: str | None
