@@ -921,5 +921,13 @@
       "title": "Heat pump has lost contact with its outdoor unit",
       "description": "Your heat pump reports alarm **{code}**: the indoor unit no longer communicates with the outdoor unit. Home Assistant first saw it on {since}. The unit usually stops, or runs on its backup heater if it has one.\n\nWhile the alarm lasts, the unit reports 0 instead of the readings that come from the outdoor unit (outdoor temperature, compressor data). These sensors show as unavailable rather than a false 0.\n\nCheck the outdoor unit's power supply and the communication cable between the two units, and contact your installer if the alarm persists. This notice clears by itself once the unit no longer reports the alarm."
     }
+  },
+  "exceptions": {
+    "write_failed": {
+      "message": "The heat pump did not apply the {step} change requested on {entity}. Its state was read again; check the gateway connection before retrying."
+    },
+    "command_partially_applied": {
+      "message": "The command on {entity} was only partially applied: {applied} succeeded, but the heat pump did not apply the {step} change. Its state was read again; check it before retrying."
+    }
   }
 }

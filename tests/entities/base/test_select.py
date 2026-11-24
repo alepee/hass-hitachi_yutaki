@@ -62,10 +62,12 @@ async def test_failed_write_is_a_service_error() -> None:
     coordinator = _coordinator(("cool", "heat"))
     coordinator.api_client.set_unit_mode.return_value = False
     entity = build_control_unit_selects(coordinator, "test")[0]
-    with pytest.raises(HomeAssistantError, match="Failed to select"):
+    with pytest.raises(HomeAssistantError) as err:
         await entity.async_select_option("heat")
+    assert err.value.translation_key == "write_failed"
     coordinator.api_client.set_unit_mode.assert_awaited_once_with("heat")
-    coordinator.async_request_refresh.assert_not_awaited()
+    # Re-read the device so the select shows the mode actually in force.
+    coordinator.async_request_refresh.assert_awaited_once()
 
 
 async def test_successful_write_refreshes_state() -> None:

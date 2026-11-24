@@ -13,6 +13,7 @@ from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ...coordinator import HitachiYutakiDataCoordinator
+from .command import CommandStep, async_send_command
 
 
 @dataclass
@@ -62,9 +63,15 @@ class HitachiYutakiButton(
 
     async def async_press(self) -> None:
         """Handle the button press."""
-        if self.entity_description.action_fn:
-            await self.entity_description.action_fn(self.coordinator)
-            await self.coordinator.async_request_refresh()
+        if (action_fn := self.entity_description.action_fn) is None:
+            return
+        await async_send_command(
+            self.coordinator,
+            self.entity_id,
+            CommandStep(
+                self.entity_description.key, lambda: action_fn(self.coordinator)
+            ),
+        )
 
 
 def _create_buttons(

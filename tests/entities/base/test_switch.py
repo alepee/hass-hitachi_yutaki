@@ -8,6 +8,7 @@ from custom_components.hitachi_yutaki.entities.base.switch import (
     HitachiYutakiSwitch,
     HitachiYutakiSwitchEntityDescription,
 )
+from homeassistant.exceptions import HomeAssistantError
 
 
 def _make_switch(set_result: bool, data, register_prefix: str | None = None):
@@ -38,9 +39,12 @@ def _make_switch(set_result: bool, data, register_prefix: str | None = None):
 
 @pytest.mark.asyncio
 async def test_turn_on_failure_does_not_write_optimistic_state():
-    """A failed write must not push an optimistic True into coordinator data."""
+    """A failed write raises and pushes no optimistic True into coordinator data."""
     switch, coordinator, _ = _make_switch(set_result=False, data={"power": False})
-    with patch.object(switch, "async_write_ha_state") as write_state:
+    with (
+        patch.object(switch, "async_write_ha_state") as write_state,
+        pytest.raises(HomeAssistantError),
+    ):
         await switch.async_turn_on()
 
     assert coordinator.data.get("power") is False
@@ -50,9 +54,12 @@ async def test_turn_on_failure_does_not_write_optimistic_state():
 
 @pytest.mark.asyncio
 async def test_turn_off_failure_does_not_write_optimistic_state():
-    """A failed write must not push an optimistic False into coordinator data."""
+    """A failed write raises and pushes no optimistic False into coordinator data."""
     switch, coordinator, _ = _make_switch(set_result=False, data={"power": True})
-    with patch.object(switch, "async_write_ha_state") as write_state:
+    with (
+        patch.object(switch, "async_write_ha_state") as write_state,
+        pytest.raises(HomeAssistantError),
+    ):
         await switch.async_turn_off()
 
     assert coordinator.data.get("power") is True
