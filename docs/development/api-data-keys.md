@@ -190,8 +190,15 @@ class RegisterDefinition:
   whose prerequisites cannot be restored, is reported rather than written,
   re-evaluated on every read and logged once. A value also waits while one
   of its prerequisites went unread. A write-back is confirmed through the
-  pending-write shadow and abandoned after `MAX_RESTORE_ATTEMPTS` (3);
-  `restore_failed` stays true until the values read right or Home Assistant
+  pending-write shadow and abandoned after `MAX_RESTORE_ATTEMPTS` (3).
+  Write-backs and commands from Home Assistant share the client's single,
+  serialized write path: each planned write-back is re-checked inside the
+  write lock and dropped when Home Assistant wrote that key since the plan
+  (seeded values included, the real room value beats the placeholder), and a
+  command sent during a write-back lands after it. Only the write-back itself
+  counts as an attempt; a command settles the restore.
+  `restore_failed`
+  stays true until the values read right or Home Assistant
   writes them. `read_values` never writes: it updates the references and
   queues the lost values, and the coordinator calls `restore_lost_values()`
   after each successful read, once the unit is verified (a no-op when

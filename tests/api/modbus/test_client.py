@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import threading
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -68,7 +70,7 @@ def api_client(mock_hass, mock_client):
         api._hass = mock_hass
         api._transport = _transport(mock_hass, mock_client)
         api._pending_writes = {}
-        api._writing_back = None
+        api._write_lock = asyncio.Lock()
         api._kept = (
             KeptValues(api._register_map.all_registers, api._register_map.writable_keys)
             if hasattr(api, "_register_map")
@@ -491,6 +493,82 @@ async def test_write_value_retries_once_after_reconnection(mock_hass, mock_clien
     assert mock_client.write_register.call_count == 2
 
 
+class _ThreadedGateway:
+    """pymodbus clients served from real executor threads, logging each call.
+
+    The first client blocks its write until released and fails its reads, as
+    on a link that drops while a command waits for its acknowledgement; the
+    clients a reconnection builds answer every read with 0.
+    """
+
+    def __init__(self) -> None:
+        self.events: list[str] = []
+        self.write_entered = threading.Event()
+        self.release_write = threading.Event()
+        self.clients = 0
+
+    def build(self, **_kwargs) -> MagicMock:
+        self.clients += 1
+        name = f"client{self.clients}"
+        client = MagicMock()
+        client.is_socket_open.return_value = True
+        client.connect.return_value = True
+        client.close.side_effect = lambda: self.events.append(f"{name} close")
+        if self.clients == 1:
+            client.write_register.side_effect = self._blocking_write
+            client.read_holding_registers.side_effect = self._failing_read
+        else:
+            client.read_holding_registers.return_value = _make_modbus_result(0)
+        return client
+
+    def _blocking_write(self, **_kwargs):
+        self.events.append("write sent")
+        self.write_entered.set()
+        assert self.release_write.wait(5)
+        self.events.append("write acknowledged")
+        return _make_modbus_result(0)
+
+    def _failing_read(self, **_kwargs):
+        self.events.append("read failed")
+        raise ConnectionError("reset")
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_reconnection_waits_for_the_write_in_flight(_mock_ir, mock_hass):
+    """A poll that loses the link cannot close the socket under a pending write.
+
+    Real executor threads: the write waits for its acknowledgement while the
+    poll's read fails and reconnects. The reconnection runs once the write is
+    over, so the write is sent once and reported as applied.
+    """
+    loop = asyncio.get_running_loop()
+    mock_hass.async_add_executor_job = lambda job: loop.run_in_executor(None, job)
+    gateway = _ThreadedGateway()
+    with patch(
+        "custom_components.hitachi_yutaki.api.modbus.transport.ModbusTcpClient",
+        side_effect=gateway.build,
+    ):
+        api = _make_preflight_api_client(mock_hass, gateway.build())
+
+        command = asyncio.create_task(api.write_value("unit_power", 1))
+        await loop.run_in_executor(None, gateway.write_entered.wait, 5)
+        poll = asyncio.create_task(api.read_values(["unit_power"]))
+        await asyncio.sleep(0.1)  # time for the poll to fail and reconnect
+        gateway.release_write.set()
+
+        assert await command is True
+        assert await poll is ReadResult.SUCCESS
+
+    assert gateway.events[:4] == [
+        "write sent",
+        "write acknowledged",
+        "read failed",
+        "client1 close",
+    ]
+    assert gateway.events.count("write sent") == 1
+
+
 @pytest.mark.asyncio
 async def test_refused_write_neither_reconnects_nor_writes_again(
     mock_hass, mock_client, caplog
@@ -542,7 +620,7 @@ def _make_preflight_api_client(mock_hass, mock_client):
         api._register_map = AtwMbs02RegisterMap()
         api._outage = GatewayOutage()
         api._pending_writes = {}
-        api._writing_back = None
+        api._write_lock = asyncio.Lock()
         api._kept = (
             KeptValues(api._register_map.all_registers, api._register_map.writable_keys)
             if hasattr(api, "_register_map")
@@ -830,7 +908,7 @@ def pre2016_api_client(mock_hass, mock_client):
         api._register_map = AtwMbs02Pre2016RegisterMap()
         api._data = {}
         api._pending_writes = {}
-        api._writing_back = None
+        api._write_lock = asyncio.Lock()
         api._kept = (
             KeptValues(api._register_map.all_registers, api._register_map.writable_keys)
             if hasattr(api, "_register_map")
@@ -1247,7 +1325,7 @@ ROOM_SUFFIXES = ("thermostat", "target_temp", "current_temp")
 ROOM_KEYS = [f"circuit1_{suffix}" for suffix in ROOM_SUFFIXES]
 
 
-async def _poll(
+async def _read(
     api,
     mock_client,
     flag: int,
@@ -1256,14 +1334,19 @@ async def _poll(
     state: int = 0,
     circuit: int = 1,
 ):
-    """Run one poll of a circuit's flag, room target and room value (raw tenths)."""
+    """Read a circuit's flag, room target and room value (raw tenths)."""
     mock_client.read_holding_registers.side_effect = [
         _make_modbus_result(state),
         _make_modbus_result(flag),
         _make_modbus_result(target),
         _make_modbus_result(room),
     ]
-    result = await api.read_values([f"circuit{circuit}_{s}" for s in ROOM_SUFFIXES])
+    return await api.read_values([f"circuit{circuit}_{s}" for s in ROOM_SUFFIXES])
+
+
+async def _poll(api, mock_client, flag: int, target: int, **kwargs):
+    """Run one poll: a read, then the write-backs it queued."""
+    result = await _read(api, mock_client, flag, target, **kwargs)
     await api.restore_lost_values()
     return result
 
@@ -1280,6 +1363,28 @@ def _writes(mock_client) -> list[tuple[int, int]]:
         (c.kwargs["address"], c.kwargs["value"])
         for c in mock_client.write_register.call_args_list
     ]
+
+
+class _SlowGateway:
+    """Gateway whose write of the ``held`` raw value waits until released.
+
+    Records writes in the order they land, to reproduce a command and a
+    write-back racing for the same register.
+    """
+
+    def __init__(self, api, held: int) -> None:
+        self.writes: list[tuple[int, int]] = []
+        self.held_write = asyncio.Event()
+        self.release = asyncio.Event()
+        self._held = held
+        api._transport.write_register = self._write
+
+    async def _write(self, address: int, value: int) -> bool:
+        if value == self._held:
+            self.held_write.set()
+            await self.release.wait()
+        self.writes.append((address, value))
+        return True
 
 
 def _expire_pending(api) -> None:
@@ -1464,16 +1569,100 @@ async def test_flag_turned_off_from_home_assistant_stays_off(
 async def test_value_changed_by_home_assistant_meanwhile_is_not_written(
     _mock_ir, mock_hass, mock_client
 ):
-    """A reference that moved after the plan wins over the planned write-back."""
+    """A command in flight when the write-back starts wins over the planned value."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=215)
+    await _read(api, mock_client, flag=1, target=0)  # queues the target, 21.5
+    gateway = _SlowGateway(api, held=230)
+
+    command = asyncio.create_task(api.set_circuit_target_temperature(1, 23.0))
+    await gateway.held_write.wait()
+    restore = asyncio.create_task(api.restore_lost_values())
+    await asyncio.sleep(0)
+    gateway.release.set()
+    assert await command
+    await restore
+
+    assert gateway.writes == [(1011, 230)]
+    assert api.kept_values()["circuit1_target_temp"] == 23.0
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_command_sent_during_a_write_back_is_applied_last(
+    _mock_ir, mock_hass, mock_client
+):
+    """A command that arrives while a write-back is on the wire is not overwritten."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=215)
+    await _read(api, mock_client, flag=1, target=0)
+    gateway = _SlowGateway(api, held=215)
+
+    restore = asyncio.create_task(api.restore_lost_values())
+    await gateway.held_write.wait()
+    command = asyncio.create_task(api.set_circuit_target_temperature(1, 23.0))
+    await asyncio.sleep(0)
+    gateway.release.set()
+    await restore
+    assert await command
+
+    assert gateway.writes == [(1011, 215), (1011, 230)]
+    assert api._data["circuit1_target_temp"] == 23.0
+    assert api._pending_writes["circuit1_target_temp"][0] == 23.0
+    assert api.kept_values()["circuit1_target_temp"] == 23.0
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_room_value_fed_meanwhile_is_not_overwritten_by_its_seed(
+    _mock_ir, mock_hass, mock_client
+):
+    """A real room value written during the restore beats the placeholder seed."""
     api = _room_api(mock_hass, mock_client)
     await _poll(api, mock_client, flag=1, target=220)
-    assert await api.set_external_room_sensor(1, False)
-    mock_client.write_register.reset_mock()
+    await _read(api, mock_client, flag=1, target=220, room=0)  # seed queued: 22.0
+    gateway = _SlowGateway(api, held=195)
 
-    with patch.object(api._kept, "plan", return_value=[("circuit1_thermostat", 1)]):
-        await api.restore_lost_values()
+    command = asyncio.create_task(api.set_circuit_room_temperature(1, 19.5))
+    await gateway.held_write.wait()
+    restore = asyncio.create_task(api.restore_lost_values())
+    await asyncio.sleep(0)
+    gateway.release.set()
+    assert await command
+    await restore
 
-    assert _writes(mock_client) == []
+    assert gateway.writes == [(1012, 195)]
+    assert api._data["circuit1_current_temp"] == 19.5
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_command_during_a_write_back_is_not_taken_for_one(
+    _mock_ir, mock_hass, mock_client
+):
+    """Only the write-back counts as an attempt: a command racing it settles it."""
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=215)
+    for _ in range(MAX_RESTORE_ATTEMPTS - 1):
+        await _poll(api, mock_client, flag=1, target=0)
+        _expire_pending(api)
+    await _read(api, mock_client, flag=1, target=0)
+    gateway = _SlowGateway(api, held=215)
+
+    restore = asyncio.create_task(api.restore_lost_values())  # last attempt
+    await gateway.held_write.wait()
+    command = asyncio.create_task(api.set_circuit_target_temperature(1, 23.0))
+    await asyncio.sleep(0)
+    gateway.release.set()
+    await restore
+    assert await command
+    _expire_pending(api)
+
+    # The command settled the restore: a value lost again is written back
+    # with fresh attempts instead of being given up on.
+    await _poll(api, mock_client, flag=1, target=0)
+    assert gateway.writes[-1] == (1011, 230)
+    assert api.restore_failed is False
 
 
 @patch("custom_components.hitachi_yutaki.api.modbus.ir")

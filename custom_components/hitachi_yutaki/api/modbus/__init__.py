@@ -1,5 +1,6 @@
 """Modbus client for Hitachi heat pumps."""
 
+import asyncio
 from collections.abc import Awaitable, Callable, Mapping
 import logging
 import time
@@ -37,7 +38,12 @@ class ModbusApiClient(HitachiApiClient):
     """Modbus client for Hitachi heat pumps.
 
     Holds the gateway logic (register maps, sentinels, module gating, pending
-    writes). Every register access goes through a :class:`ModbusTransport`.
+    writes). Every register access goes through a :class:`ModbusTransport`,
+    which runs one operation at a time.
+
+    Writes have a single path, serialized by a lock: a command from Home
+    Assistant and a write-back of a value lost on reboot never overlap, and a
+    write-back is re-checked inside the lock, so a newer command always wins.
     """
 
     def __init__(
@@ -67,8 +73,8 @@ class ModbusApiClient(HitachiApiClient):
         self._kept = KeptValues(
             self._register_map.all_registers, self._register_map.writable_keys
         )
-        # Key being written back, so that write is not mistaken for a command.
-        self._writing_back: str | None = None
+        # One write at a time, from the check of a write-back to its shadow.
+        self._write_lock = asyncio.Lock()
 
     @property
     def register_map(self) -> HitachiRegisterMap:
@@ -185,7 +191,27 @@ class ModbusApiClient(HitachiApiClient):
         return self._data.get(key)
 
     async def write_value(self, key: str, value: Any) -> bool:
-        """Write ``value`` to ``key``, encoded by the register codec."""
+        """Write a command from Home Assistant: ``value`` to ``key``, encoded.
+
+        Waits for any write in progress, a write-back included, so the
+        command lands after it and is the value the unit keeps.
+        """
+        async with self._write_lock:
+            return await self._write(key, value, by_restore=False)
+
+    async def _write(self, key: str, value: Any, *, by_restore: bool) -> bool:
+        """Write ``value`` to ``key``; the caller holds the write lock.
+
+        ``by_restore`` tells a write-back (#511) from a command, which settles
+        the restore of ``key``.
+
+        Retry policy: a link failure gets one reconnection and one more write
+        of the same word. A function 06 write sets a register to an absolute
+        value, so repeating it after a lost acknowledgement leaves the unit as
+        a single write would. A second failure reports the write as failed
+        although the first may have reached the unit: nothing is shadowed, so
+        the next poll shows what the unit applied.
+        """
         if key not in self._register_map.writable_keys:
             _LOGGER.error("Unknown or non-writable register key: %s", key)
             return False
@@ -214,7 +240,7 @@ class ModbusApiClient(HitachiApiClient):
             _LOGGER.error("Gateway refused write to register %s", key)
             return False
 
-        self._shadow_written_value(key, reg, raw)
+        self._shadow_written_value(key, reg, raw, by_restore=by_restore)
         return True
 
     async def _with_reconnect[T](
@@ -342,7 +368,7 @@ class ModbusApiClient(HitachiApiClient):
     _SENTINEL_FILTERED = object()
 
     def _shadow_written_value(
-        self, key: str, definition: RegisterDefinition, raw: int
+        self, key: str, definition: RegisterDefinition, raw: int, *, by_restore: bool
     ) -> None:
         """Publish a written value at once and shadow STATUS reads of ``key``.
 
@@ -354,7 +380,7 @@ class ModbusApiClient(HitachiApiClient):
             return
         self._data[key] = expected
         self._pending_writes[key] = (expected, time.monotonic() + PENDING_WRITE_TTL)
-        self._kept.written(key, expected, by_restore=self._writing_back == key)
+        self._kept.written(key, expected, by_restore=by_restore)
 
     def _is_shadowed_by_pending_write(self, key: str, value: Any) -> bool:
         """Return True when a fresh STATUS read of ``key`` must be ignored.
@@ -387,15 +413,15 @@ class ModbusApiClient(HitachiApiClient):
         Mechanical: each value goes back through its register codec, in the
         order :class:`KeptValues` plans from the ``Keep`` declarations. A
         write-back is confirmed by the pending-write shadow.
+
+        Each write-back is re-checked inside the write lock: a command from
+        Home Assistant written since the plan supersedes it.
         """
         for key, value in self._kept.plan(self._data, self._pending_writes):
-            if not self._kept.wanted(key, value):
-                continue  # Home Assistant wrote it while earlier values went back.
-            self._writing_back = key
-            try:
-                written = await self.write_value(key, value)
-            finally:
-                self._writing_back = None
+            async with self._write_lock:
+                if not self._kept.wanted(key, value):
+                    continue  # Home Assistant wrote it since the plan.
+                written = await self._write(key, value, by_restore=True)
             if not written:
                 _LOGGER.warning("Writing %s back failed", key)
 

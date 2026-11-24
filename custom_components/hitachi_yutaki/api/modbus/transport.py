@@ -4,6 +4,11 @@ Only knows Modbus TCP: the connection, its reconnection, and the three
 register operations the gateways need. Register maps, sentinels and every
 gateway rule live in :class:`ModbusApiClient`, which receives a transport.
 
+One operation at a time: register operations, connection, reconnection and
+close share one lock. The poll and the commands from Home Assistant share the
+transport, so without it a reconnection started by a failed read could close
+the socket under a write still waiting for its acknowledgement.
+
 Register operations return plain values. A Modbus exception response from the
 gateway is returned as ``None`` (reads) or ``False`` (writes); a communication
 failure raises :class:`GatewayCommunicationError`, chained to the pymodbus or
@@ -56,6 +61,9 @@ class ModbusTransport:
         self._connect_attempts = connect_attempts
         self._device_param = get_pymodbus_device_param()
         self._client = ModbusTcpClient(host=host, port=port)
+        # Held for the whole of each operation, so a reconnect or a close
+        # never replaces the client under one in flight.
+        self._lock = asyncio.Lock()
 
     @property
     def connected(self) -> bool:
@@ -66,8 +74,14 @@ class ModbusTransport:
         """Open a fresh connection, retrying with exponential backoff.
 
         Any open socket is closed first and a new pymodbus client is built,
-        so a stale connection never survives a reconnect.
+        so a stale connection never survives a reconnect. Waits for the
+        operation in flight, if any.
         """
+        async with self._lock:
+            return await self._connect()
+
+    async def _connect(self) -> bool:
+        """Open a fresh connection; the caller holds the lock."""
         for attempt in range(self._connect_attempts):
             try:
                 if self._client.is_socket_open():
@@ -111,25 +125,34 @@ class ModbusTransport:
         return False
 
     async def reconnect(self) -> bool:
-        """Drop the current socket, whatever its state, then connect again."""
-        with contextlib.suppress(Exception):
-            await self._hass.async_add_executor_job(self._client.close)
-        return await self.connect()
+        """Drop the current socket, whatever its state, then connect again.
+
+        Waits for the operation in flight, if any: it is never cut off.
+        """
+        async with self._lock:
+            with contextlib.suppress(Exception):
+                await self._hass.async_add_executor_job(self._client.close)
+            return await self._connect()
 
     async def close(self) -> None:
-        """Close the connection."""
+        """Close the connection, once the operation in flight is over."""
         _LOGGER.debug("Closing connection to Modbus gateway")
-        await self._run(self._client.close)
+        await self._run(self._close_client)
+
+    def _close_client(self) -> None:
+        """Close the client current when the lock is taken, not when queued."""
+        self._client.close()
 
     async def _run(self, job: Callable[[], Any]) -> Any:
-        """Run a blocking pymodbus call, translating its failures.
+        """Run a blocking pymodbus call under the lock, translating its failures.
 
         pymodbus raises ``ModbusException`` (``ConnectionException`` included)
         and the socket raises ``OSError`` (``ConnectionError`` and
         ``TimeoutError`` included); both become GatewayCommunicationError.
         """
         try:
-            return await self._hass.async_add_executor_job(job)
+            async with self._lock:
+                return await self._hass.async_add_executor_job(job)
         except (ModbusException, OSError) as exc:
             raise GatewayCommunicationError(
                 f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__
