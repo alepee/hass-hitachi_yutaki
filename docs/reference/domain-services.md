@@ -224,6 +224,27 @@ marks aged evidence as stale without clearing a frozen off-season warning.
 monitor already owns expiry. Their `MaintenanceAlert` output is independent of
 HA issue severity, translations and presentation, which remain infrastructure.
 
+## Unit Identity Guard
+
+**File:** `domain/services/unit_identity.py`
+
+On a gateway hosting several units, a reboot can move a unit to another
+address, and a reboot always drops the connection (#476). `UnitIdentityGuard`
+binds the proof that the client still reads the entry's unit to the
+**connection epoch** the client reports (`HitachiApiClient.connection_epoch`):
+
+- `is_due(epoch)`: a check is due before any proof, on any connection other
+  than the one the unit was proven on, after `force_check()` (failed poll), or
+  every `UNIT_CHECK_INTERVAL_S` (60 s) on an unchanged connection. A clock
+  going backwards counts as elapsed.
+- `proven(epoch)`: records a successful check.
+- `unverified(epoch)`: when the check cannot be made, `PUBLISH` on the
+  connection the unit was proven on (or before any runtime proof, where the
+  setup binding stands), `WITHHOLD` on any other connection.
+
+The coordinator performs the check (`async_verify_unit`) and acts on the
+verdict; elapsed time comes from the `Clock` port.
+
 ---
 
 ## Compressor Short-Cycling Detection

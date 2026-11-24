@@ -91,6 +91,9 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
   client has a single write path behind its own lock, which write-backs
   re-check `KeptValues.wanted()` inside so a newer command always wins. Do not
   write to the transport around `write_value`/`_write`.
+- On a multi-unit gateway, the unit check (`async_verify_unit`) is bound to the
+  client's `connection_epoch`: any new connection, even one reopened inside a
+  read, voids the proof before readings are published (`UnitIdentityGuard`).
 - Providers own transport-specific validation, fallback identity and optional
   configuration URLs. Setup and config flows do not interpret Modbus states or
   exceptions.
