@@ -17,12 +17,12 @@ HA Integration (HttpTelemetryClient)
 | Service | Identifier | Purpose |
 |---------|------------|---------|
 | **Cloudflare Worker** | `hitachi-telemetry.antoine-04c.workers.dev` | Ingestion proxy |
-| **R2** | `hitachi-telemetry-archive` | Permanent JSON archive of all payloads |
+| **R2** | `hitachi-telemetry-archive` | Permanent JSON archive of all payloads (metrics and snapshots gzipped) |
 | **Analytics Engine** | `hitachi_installations` | Installation payloads mirrored for the Grafana fleet dashboard |
 
 ## Querying the archive
 
-R2 holds every telemetry payload as JSON, partitioned Hive-style by date. The recommended way to explore the archive is DuckDB with the `httpfs` extension and an R2 access key:
+R2 holds every telemetry payload as JSON, partitioned Hive-style by date. Metrics batches and snapshots are gzipped (`.json.gz`), older objects are plain `.json`: end globs in `.json*` to read both. The recommended way to explore the archive is DuckDB with the `httpfs` extension and an R2 access key:
 
 ```sql
 INSTALL httpfs; LOAD httpfs;
@@ -32,7 +32,7 @@ SET s3_secret_access_key = '<r2-secret>';
 
 SELECT instance_hash, COUNT(*) AS points
 FROM read_json_auto(
-  's3://hitachi-telemetry-archive/metrics/year=2026/month=04/day=*/batch_*.json'
+  's3://hitachi-telemetry-archive/metrics/year=2026/month=04/day=*/batch_*.json*'
 )
 GROUP BY 1
 ORDER BY points DESC;

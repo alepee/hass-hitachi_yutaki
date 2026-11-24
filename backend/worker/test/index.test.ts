@@ -160,6 +160,22 @@ function installationPayload(data: Record<string, unknown> = {}) {
   };
 }
 
+/**
+ * The payload the bucket was asked to write, from the `index`-th `put` call.
+ * Metrics and snapshots are stored gzipped, installations as plain text.
+ */
+async function storedPayload(
+  bucket: ReturnType<typeof createFakeBucket>,
+  index = 0,
+): Promise<any> {
+  const body = bucket.put.mock.calls[index][1] as unknown as string | ArrayBuffer;
+  if (typeof body === "string") {
+    return JSON.parse(body);
+  }
+  const stream = new Blob([body]).stream().pipeThrough(new DecompressionStream("gzip"));
+  return JSON.parse(await new Response(stream).text());
+}
+
 /** The key the bucket was asked to write, from the first `put` call. */
 function writtenKey(bucket: ReturnType<typeof createFakeBucket>): string {
   return bucket.put.mock.calls[0][0] as unknown as string;
@@ -270,7 +286,7 @@ describe("hardening (#414)", () => {
       );
 
       expect(res.status).toBe(202);
-      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      const archived = await storedPayload(bucket);
       expect(archived.data).toMatchObject(detectors);
     });
 
@@ -282,7 +298,7 @@ describe("hardening (#414)", () => {
         makeEnv(bucket),
       );
 
-      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      const archived = await storedPayload(bucket);
       expect(archived.data.refrigerant_resets_button).toBeUndefined();
     });
   });
@@ -297,7 +313,7 @@ describe("hardening (#414)", () => {
       );
 
       expect(res.status).toBe(202);
-      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      const archived = await storedPayload(bucket);
       expect(archived.data.latitude).toBeUndefined();
       expect(archived.data.profile).toBe("yutaki_s80");
     });
@@ -328,7 +344,7 @@ describe("hardening (#414)", () => {
         makeEnv(bucket),
       );
 
-      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      const archived = await storedPayload(bucket);
       expect(archived.data.longitude).toBeUndefined();
     });
 
@@ -351,7 +367,7 @@ describe("hardening (#414)", () => {
       const res = await worker.fetch(request, makeEnv(bucket));
 
       expect(res.status).toBe(202);
-      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      const archived = await storedPayload(bucket);
       expect(archived.data.latitude).toBeUndefined();
       expect(archived.data.max_circuits).toBe(2);
     });
@@ -377,7 +393,7 @@ describe("hardening (#414)", () => {
 
       await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
 
-      expect(writtenKey(bucket).endsWith(`_${HASH.slice(0, 12)}.json`)).toBe(true);
+      expect(writtenKey(bucket).endsWith(`_${HASH.slice(0, 12)}.json.gz`)).toBe(true);
     });
 
     it("leaves the installation object name stable", async () => {
@@ -402,7 +418,7 @@ describe("hardening (#414)", () => {
       expect(install.status).toBe(202);
       expect(metrics.status).toBe(202);
       expect(ae.writeDataPoint).toHaveBeenCalledTimes(1);
-      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      const archived = await storedPayload(bucket);
       expect(archived.data).toMatchObject({
         profile: "yutaki_s80",
         gateway_type: "modbus_atw_mbs_02",
@@ -441,7 +457,7 @@ describe("hardening (#414)", () => {
 
       await worker.fetch(makeRequest(payload), makeEnv(bucket));
 
-      const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+      const archived = await storedPayload(bucket);
       expect("latitude" in archived.data).toBe(false);
     });
   });
@@ -618,7 +634,7 @@ describe("payload types that had no test at all", () => {
       makeEnv(bucket),
     );
 
-    const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+    const archived = await storedPayload(bucket);
     expect(archived.data.postcode).toBeUndefined();
     expect(archived.data.owner).toBeUndefined();
     expect(archived.data.cop_avg).toBe(3.2);
@@ -631,7 +647,7 @@ describe("payload types that had no test at all", () => {
 
     expect(res.status).toBe(202);
     expect(writtenKey(bucket)).toMatch(/^snapshots\/year=2026\/month=03\/day=13\/snap_/);
-    expect(writtenKey(bucket).endsWith(`_${HASH.slice(0, 12)}.json`)).toBe(true);
+    expect(writtenKey(bucket).endsWith(`_${HASH.slice(0, 12)}.json.gz`)).toBe(true);
   });
 
   it("archives the client time of a snapshot", async () => {
@@ -642,7 +658,7 @@ describe("payload types that had no test at all", () => {
 
     await worker.fetch(makeRequest(snapshotPayload()), makeEnv(bucket));
 
-    const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+    const archived = await storedPayload(bucket);
     expect(archived.time).toBe("2026-03-13T12:00:00Z");
   });
 
@@ -660,7 +676,7 @@ describe("payload types that had no test at all", () => {
     );
 
     expect(res.status).toBe(202);
-    const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+    const archived = await storedPayload(bucket);
     const archivedTime = new Date(archived.time).getTime();
     expect(archivedTime).toBeGreaterThanOrEqual(before);
     expect(archivedTime).toBeLessThanOrEqual(Date.now());
@@ -680,7 +696,7 @@ describe("payload types that had no test at all", () => {
       makeEnv(bucket),
     );
 
-    const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+    const archived = await storedPayload(bucket);
     expect(archived.registers.outdoor_temp).toBe(5);
     expect(archived.registers.serial).toBeUndefined();
     expect(archived.registers.nested).toBeUndefined();
@@ -761,7 +777,7 @@ describe("the identity gate", () => {
       makeEnv(bucket),
     );
 
-    const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+    const archived = await storedPayload(bucket);
     expect(archived.points[0].outdoor_temp).toBe(5);
     expect(archived.points[0].nested).toBeUndefined();
   });
@@ -805,6 +821,31 @@ describe("object metadata", () => {
 
     const [, , options] = bucket.put.mock.calls[0];
     expect(options.customMetadata).toMatchObject({ instance_hash: HASH, type: "metrics" });
+    expect(options.httpMetadata.contentType).toBe("application/gzip");
+  });
+});
+
+describe("compressed storage", () => {
+  it("stores a metrics batch gzipped under a .json.gz key", async () => {
+    const bucket = createFakeBucket();
+
+    await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
+
+    expect(writtenKey(bucket)).toMatch(/\.json\.gz$/);
+    const body = new Uint8Array(bucket.put.mock.calls[0][1] as unknown as ArrayBuffer);
+    // gzip magic number: the bytes are compressed, not merely relabelled.
+    expect([body[0], body[1]]).toEqual([0x1f, 0x8b]);
+    expect((await storedPayload(bucket)).points).toHaveLength(1);
+  });
+
+  it("keeps an installation as plain JSON, since it is a small overwritten document", async () => {
+    const bucket = createFakeBucket();
+
+    await worker.fetch(makeRequest(installationPayload()), makeEnv(bucket));
+
+    expect(writtenKey(bucket)).toMatch(/\.json$/);
+    expect(typeof bucket.put.mock.calls[0][1]).toBe("string");
+    const [, , options] = bucket.put.mock.calls[0];
     expect(options.httpMetadata.contentType).toBe("application/json");
   });
 });
@@ -841,7 +882,7 @@ describe("device_hash validation (#395)", () => {
       makeRequest({ ...metricsPayload(), device_hash: DEVICE }),
       makeEnv(bucket),
     );
-    const archived = JSON.parse(bucket.put.mock.calls[0][1] as string);
+    const archived = await storedPayload(bucket);
     expect(archived.device_hash).toBe(DEVICE);
     expect(archived).not.toHaveProperty("hasExplicitDeviceHash");
     expect(archived).not.toHaveProperty("has_explicit_device_hash");
@@ -850,7 +891,7 @@ describe("device_hash validation (#395)", () => {
   it("falls back to the instance identity for a legacy payload", async () => {
     const bucket = createFakeBucket();
     await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
-    const archived = JSON.parse(bucket.put.mock.calls[0][1] as string);
+    const archived = await storedPayload(bucket);
     expect(archived.device_hash).toBe(HASH);
   });
 });
@@ -1045,9 +1086,9 @@ describe("device_hash absence (#414)", () => {
     );
 
     expect(res.status).toBe(202);
-    const archived = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string);
+    const archived = await storedPayload(bucket);
     expect(archived.device_hash).toBe(HASH);
-    expect(writtenKey(bucket).endsWith(`_${HASH.slice(0, 12)}.json`)).toBe(true);
+    expect(writtenKey(bucket).endsWith(`_${HASH.slice(0, 12)}.json.gz`)).toBe(true);
   });
 
   it("keys the rate limit on the instance identity for a null device_hash", async () => {
