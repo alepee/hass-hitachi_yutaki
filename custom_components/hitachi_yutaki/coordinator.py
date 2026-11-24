@@ -64,6 +64,7 @@ from .telemetry.anonymizer import (
     anonymize_installation_info,
     anonymize_point,
 )
+from .telemetry.boundary import shareable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -493,13 +494,12 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         meta = self._telemetry_meta
 
-        # Build register dict: only numeric values, skip meta keys
-        registers: dict[str, float] = {}
-        for key, value in data.items():
-            if key == "is_available":
-                continue
-            if isinstance(value, (int, float)):
-                registers[key] = value
+        # Build register dict: only numeric values of what may be shared
+        registers: dict[str, float] = {
+            key: value
+            for key, value in shareable(data).items()
+            if isinstance(value, (int, float))
+        }
 
         snapshot = RegisterSnapshot(
             instance_hash=meta["instance_hash"],
@@ -559,6 +559,15 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                 _LOGGER.info(
                     "[%s] Telemetry flush: batch of %d points already accepted "
                     "by the endpoint, not re-queued",
+                    self.config_entry.title,
+                    len(points),
+                )
+            elif result is SendResult.NOT_CONSENTED:
+                # The user turned telemetry off since this client was built
+                # (the entry reloads next). These points must never leave the
+                # instance, so drop them; nothing failed.
+                _LOGGER.debug(
+                    "[%s] Telemetry flush: consent withdrawn, %d points dropped",
                     self.config_entry.title,
                     len(points),
                 )

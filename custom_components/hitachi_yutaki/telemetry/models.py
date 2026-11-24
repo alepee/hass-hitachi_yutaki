@@ -24,7 +24,9 @@ class SendResult(Enum):
     rejected too and telemetry never recovers (#395).
 
     The same reasoning applies to a batch the endpoint has almost certainly
-    already stored: re-queueing it archives the points twice (#395).
+    already stored: re-queueing it archives the points twice (#395), and to a
+    payload withheld because the user withdrew consent: it must be dropped,
+    not retried, and it is not a failure of the endpoint.
 
     Truthiness follows success, so callers that only care whether the payload
     landed can keep testing the result directly. PROBABLY_DELIVERED is
@@ -35,6 +37,7 @@ class SendResult(Enum):
     FAILED = "failed"
     PAYLOAD_TOO_LARGE = "payload_too_large"
     PROBABLY_DELIVERED = "probably_delivered"
+    NOT_CONSENTED = "not_consented"
 
     def __bool__(self) -> bool:
         """Return True only for SUCCESS."""
