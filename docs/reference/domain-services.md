@@ -44,6 +44,11 @@ current/frequency, optional secondary compressor data, and operation mode.
 | `preliminary` | < 15 measurements **or** time span < 15 min |
 | `optimal` | >= 15 measurements **and** time span >= 15 min |
 
+The value and its quality are read at read time: only the measurements inside the
+window ending *now* (the injected `Clock`, or an explicit `timestamp`) count. Stored
+samples are only pruned when a new one is admitted, so without this a stopped
+compressor would keep reporting its last value as `optimal` for hours.
+
 ### COP formula
 
 ```

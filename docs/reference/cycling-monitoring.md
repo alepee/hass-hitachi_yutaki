@@ -47,6 +47,10 @@ verdict has no actionable meaning in August, and freezing an alert for a whole s
 would only teach users to ignore it. The detector re-earns its verdict in three days
 when heating resumes. The `days_since_valid_day` attribute exposes the data age.
 
+The expiry is part of the verdict, evaluated against the current day, not an event
+that only a day change triggers: after a restart or a re-enable, an alert that went
+stale meanwhile is dropped on the first poll instead of staying up until midnight.
+
 ## Why not the usual "3 starts per hour"
 
 Because these machines genuinely run short cycles, and the rule of thumb does not survive

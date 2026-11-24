@@ -1,5 +1,7 @@
 """Tests for COP domain service — mode filtering via operation_mode."""
 
+from datetime import UTC, datetime, timedelta
+
 from custom_components.hitachi_yutaki.adapters.storage.in_memory import InMemoryStorage
 from custom_components.hitachi_yutaki.domain.models.cop import (
     COPInput,
@@ -41,7 +43,9 @@ def _make_input(
     )
 
 
-def _build_service(*, expected_mode: str | None = None) -> COPService:
+def _build_service(
+    *, expected_mode: str | None = None, clock: FakeClock | None = None
+) -> COPService:
     """Build a COPService with simple passthrough calculators."""
     storage: InMemoryStorage[PowerMeasurement] = InMemoryStorage(
         max_len=COP_MEASUREMENTS_HISTORY_SIZE,
@@ -60,7 +64,7 @@ def _build_service(*, expected_mode: str | None = None) -> COPService:
         thermal_calculator=thermal_calc,
         electrical_calculator=electrical_calc,
         expected_mode=expected_mode,
-        clock=FakeClock(),
+        clock=clock or FakeClock(),
     )
 
 
@@ -221,4 +225,63 @@ class TestCOPTransientNoneTimer:
 
         assert service._last_measurement_time == fixed_now, (
             "Timer must advance to now when a valid measurement is attempted"
+        )
+
+
+class TestCOPReadTimeExpiry:
+    """The COP verdict is a function of the stored samples *and* of now.
+
+    Samples are only pruned when a new one is admitted. Once the compressor
+    stops, no sample is admitted, so the verdict must expire at read time
+    against the injected clock rather than wait for the next sample.
+    """
+
+    def _service_with_optimal_window(self) -> tuple[COPService, FakeClock]:
+        clock = FakeClock()
+        service = _build_service(expected_mode=None, clock=clock)
+        for _ in range(20):
+            # A flow that yields a plausible COP (~2.5), so a value is reported.
+            service.update(_make_input(operation_mode=None, water_flow=500.0))
+            clock.seconds += COP_MEASUREMENTS_INTERVAL
+        assert service.get_quality().quality == "optimal"
+        assert service.get_value() is not None
+        return service, clock
+
+    def test_quality_expires_without_new_samples(self):
+        """Six hours after the last sample, nothing optimal is left to report."""
+        service, clock = self._service_with_optimal_window()
+
+        clock.seconds += 6 * 3600
+
+        quality = service.get_quality()
+        assert quality.quality == "no_data"
+        assert quality.measurements == 0
+        assert service.get_value() is None
+
+    def test_window_slides_at_read_time(self):
+        """Samples leave the window one by one as time passes, with no event."""
+        service, clock = self._service_with_optimal_window()
+        before = service.get_quality().measurements
+
+        # 30-minute period: past 25 minutes, the oldest samples fall out.
+        clock.seconds += 25 * 60
+
+        after = service.get_quality()
+        assert after.measurements < before
+        assert after.quality != "optimal"
+
+    def test_explicit_read_timestamp(self):
+        """Replay-style use reads the verdict at an explicit instant."""
+        service = _build_service(expected_mode=None)
+        start = datetime(2026, 1, 1, 12, tzinfo=UTC)
+        for minute in range(20):
+            service.update(
+                _make_input(operation_mode=None),
+                timestamp=start + timedelta(minutes=minute),
+            )
+        end = start + timedelta(minutes=19)
+
+        assert service.get_quality(timestamp=end).quality == "optimal"
+        assert (
+            service.get_quality(timestamp=end + timedelta(hours=6)).quality == "no_data"
         )

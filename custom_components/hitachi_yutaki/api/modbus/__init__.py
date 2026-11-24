@@ -444,6 +444,10 @@ class ModbusApiClient(HitachiApiClient):
         """Call ``listener`` whenever a reference changes, to persist it."""
         self._kept.listen(listener)
 
+    def listen_restore_settled(self, listener: Callable[[], None]) -> None:
+        """Call ``listener`` when a write from Home Assistant settles a failed restore."""
+        self._kept.listen_settled(listener)
+
     def retry_restores(self) -> None:
         """Give every value that could not be written back a fresh set of attempts."""
         self._kept.retry()

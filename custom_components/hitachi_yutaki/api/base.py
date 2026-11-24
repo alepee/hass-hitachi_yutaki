@@ -420,6 +420,13 @@ class HitachiApiClient(ABC):
     def listen_kept_values(self, listener: Callable[[], None]) -> None:
         """Call ``listener`` whenever a reference changes, to persist it."""
 
+    def listen_restore_settled(self, listener: Callable[[], None]) -> None:
+        """Call ``listener`` when a write from Home Assistant settles a failed restore.
+
+        Lets the caller clear its report of ``restore_failed`` at once instead
+        of on the next read.
+        """
+
     def retry_restores(self) -> None:
         """Give the values that could not be written back a fresh set of attempts."""
 

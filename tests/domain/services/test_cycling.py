@@ -349,3 +349,56 @@ def test_alert_expires_out_of_season() -> None:
     assert status.status == STATUS_OK
     assert status.days_since_valid_day is not None
     assert status.days_since_valid_day > STALE_AFTER_DAYS
+
+
+def test_stale_alert_expires_on_first_update_after_restore() -> None:
+    """A restored alert that went stale while nothing polled is not shown again.
+
+    The stored streak only expired on a day change. After a restart (or a
+    re-enable) the first poll merely set the current day, so the expired alert
+    stayed displayed until the next midnight.
+    """
+    monitor = _monitor()
+    day_start = START
+    for _ in range(ALERT_PERSIST_DAYS):
+        end = _run_cycles(
+            monitor,
+            start=day_start,
+            count=8,
+            run=timedelta(minutes=4),
+            rest=timedelta(minutes=4),
+        )
+        day_start = _end_day(monitor, after=end)
+    assert monitor.get_status().status == STATUS_ALERT
+    snapshot = monitor.serialize()
+
+    restored = _monitor()
+    restored.restore(snapshot)
+    far_later = day_start + timedelta(days=STALE_AFTER_DAYS + 1)
+    restored.update(_input(running=False), timestamp=far_later)
+
+    status = restored.get_status()
+    assert status.status == STATUS_OK
+    assert status.alert_streak == 0
+    assert restored.serialize()["alert_streak"] == 0
+
+
+def test_fresh_alert_survives_restore() -> None:
+    """A restored alert that is still current keeps its verdict."""
+    monitor = _monitor()
+    day_start = START
+    for _ in range(ALERT_PERSIST_DAYS):
+        end = _run_cycles(
+            monitor,
+            start=day_start,
+            count=8,
+            run=timedelta(minutes=4),
+            rest=timedelta(minutes=4),
+        )
+        day_start = _end_day(monitor, after=end)
+
+    restored = _monitor()
+    restored.restore(monitor.serialize())
+    restored.update(_input(running=False), timestamp=day_start + timedelta(hours=1))
+
+    assert restored.get_status().status == STATUS_ALERT
