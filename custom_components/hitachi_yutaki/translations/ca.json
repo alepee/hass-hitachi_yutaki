@@ -921,5 +921,13 @@
       "title": "La bomba de calor ha perdut el contacte amb la unitat exterior",
       "description": "La bomba de calor indica l'alarma **{code}**: la unitat interior ja no es comunica amb la unitat exterior. Home Assistant la va detectar per primera vegada el {since}. La unitat sol aturar-se, o funciona amb la resistència de suport si en té.\n\nMentre dura l'alarma, la unitat envia 0 en lloc de les lectures que provenen de la unitat exterior (temperatura exterior, dades del compressor). Aquests sensors es mostren no disponibles en lloc d'un 0 fals.\n\nComproveu l'alimentació de la unitat exterior i el cable de comunicació entre les dues unitats, i contacteu amb l'instal·lador si l'alarma persisteix. Aquest avís desapareix sol quan la unitat deixa d'indicar l'alarma."
     }
+  },
+  "exceptions": {
+    "write_failed": {
+      "message": "La bomba de calor no ha aplicat el canvi {step} sol·licitat a {entity}. S'ha tornat a llegir el seu estat; comproveu la connexió amb la passarel·la abans de tornar-ho a provar."
+    },
+    "command_partially_applied": {
+      "message": "L'ordre a {entity} només s'ha aplicat en part: {applied} ha funcionat, però la bomba de calor no ha aplicat el canvi {step}. S'ha tornat a llegir el seu estat; comproveu-lo abans de tornar-ho a provar."
+    }
   }
 }

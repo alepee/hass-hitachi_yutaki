@@ -921,5 +921,13 @@
       "title": "Warmtepomp heeft geen contact meer met de buitenunit",
       "description": "Uw warmtepomp meldt alarm **{code}**: de binnenunit communiceert niet meer met de buitenunit. Home Assistant zag het voor het eerst op {since}. De unit stopt meestal, of draait op het bijverwarmingselement als dat aanwezig is.\n\nZolang het alarm duurt, geeft de unit 0 door in plaats van de waarden die van de buitenunit komen (buitentemperatuur, compressorgegevens). Deze sensoren worden als niet beschikbaar getoond in plaats van een onjuiste 0.\n\nControleer de voeding van de buitenunit en de communicatiekabel tussen beide units, en neem contact op met uw installateur als het alarm aanhoudt. Deze melding verdwijnt vanzelf zodra de unit het alarm niet meer meldt."
     }
+  },
+  "exceptions": {
+    "write_failed": {
+      "message": "De warmtepomp heeft de gevraagde wijziging {step} op {entity} niet toegepast. De status is opnieuw gelezen; controleer de verbinding met de gateway voordat u het opnieuw probeert."
+    },
+    "command_partially_applied": {
+      "message": "De opdracht op {entity} is slechts gedeeltelijk toegepast: {applied} is gelukt, maar de warmtepomp heeft de wijziging {step} niet toegepast. De status is opnieuw gelezen; controleer deze voordat u het opnieuw probeert."
+    }
   }
 }
