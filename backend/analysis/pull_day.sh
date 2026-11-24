@@ -38,7 +38,7 @@ COPY (
     TRY_CAST(json_extract(p.value, '$.compressor_frequency') AS DOUBLE)          AS freq,
     json_extract_string(p.value, '$.operation_state')                            AS op_state
   FROM read_json(
-         's3://hitachi-telemetry-archive/metrics/year=$Y/month=$M/day=$D/batch_*.json',
+         's3://hitachi-telemetry-archive/metrics/year=$Y/month=$M/day=$D/batch_*.json*',
          columns = {instance_hash: 'VARCHAR', points: 'JSON'}
        ),
        json_each(points) AS p

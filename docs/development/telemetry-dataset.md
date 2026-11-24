@@ -10,13 +10,13 @@ This guide is for agents and maintainers building such a dataset. See [../refere
 
 ## R2 archive layout
 
-Payloads are stored as individual JSON files, Hive-partitioned by date (`backend/worker/src/archive.ts`):
+Payloads are stored as individual JSON files, Hive-partitioned by date (`backend/worker/src/archive.ts`). Metrics batches and snapshots are gzipped (`.json.gz`, about 10x smaller); objects archived before that change are plain `.json`, so a glob must end in `.json*` to match both. DuckDB picks the compression from the extension; over the REST API, pipe a `.json.gz` body through `gunzip`.
 
 ```
 installations/install_<instance12>_<device12>.json   (clients >= this release)
 installations/install_<instance12>.json              (legacy, swept on first new send)
-snapshots/year=YYYY/month=MM/day=DD/snap_<ts>_<rand>_<hash12>.json
-metrics/year=YYYY/month=MM/day=DD/batch_<ts>_<rand>_<hash12>.json
+snapshots/year=YYYY/month=MM/day=DD/snap_<ts>_<rand>_<hash12>.json.gz
+metrics/year=YYYY/month=MM/day=DD/batch_<ts>_<rand>_<hash12>.json.gz
 daily_stats/year=YYYY/month=MM/daily_<date>_<hash12>.json
 ```
 
@@ -37,12 +37,12 @@ export CF_ACCOUNT=…        # Cloudflare account id
 
 - **List** objects (paginate on `result_info.cursor` while `is_truncated`):
   `GET https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT/r2/buckets/hitachi-telemetry-archive/objects?prefix=installations/&per_page=1000`
-- **Get** an object body: `GET …/objects/<key>` (returns the raw JSON payload).
+- **Get** an object body: `GET …/objects/<key>` (returns the payload as stored: gzip bytes for a `.json.gz` key, plain JSON otherwise).
 - Header: `Authorization: Bearer $CF_TOKEN`.
 
 Workflow to find fixtures for a given model:
 1. Page `installations/`, download each, keep those whose `data.profile` matches the target model → collect their instance and device hashes (the object body carries both, and so does its `customMetadata`).
-2. Page `snapshots/`, match files whose filename **contains** one of the 12-char hashes. Use a substring match, not an ends-with one: a snapshot from an upgraded client is named `snap_<ts>_<rand>_<instance12>_<device12>.json`, so its name ends with the *device* hash and an ends-with match on the instance hash finds nothing.
+2. Page `snapshots/`, match files whose filename **contains** one of the 12-char hashes. Use a substring match, not an ends-with one: a snapshot from an upgraded client is named `snap_<ts>_<rand>_<instance12>_<device12>.json.gz`, so its name ends with the *device* hash and an ends-with match on the instance hash finds nothing.
 3. Download a matching snapshot for the full `registers` dict (incl. `system_config`).
 
 Object names come in two shapes. Objects written before #395, and those from a client that has not upgraded yet, carry a bare `<instance12>`. Newer ones carry `<instance12>_<device12>`. A substring match on `<instance12>` therefore finds every unit of a household in both shapes, while a substring match on `<instance12>_<device12>` narrows it to one specific heat-pump unit. The same applies to `metrics/` batch filenames.
@@ -61,7 +61,7 @@ SET s3_access_key_id = '<r2-access-key>';
 SET s3_secret_access_key = '<r2-secret>';
 
 SELECT registers
-FROM read_json_auto('s3://hitachi-telemetry-archive/snapshots/year=2026/month=*/day=*/snap_*.json')
+FROM read_json_auto('s3://hitachi-telemetry-archive/snapshots/year=2026/month=*/day=*/snap_*.json*')
 WHERE profile = 'yutampo_r32'
 LIMIT 1;
 ```
