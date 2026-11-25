@@ -202,8 +202,12 @@ describe("hardening (#414)", () => {
 
     it("still partitions on the point's own date when it is valid", async () => {
       const bucket = createFakeBucket();
-
-      await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
+      vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-03-13T18:00:00Z") });
+      try {
+        await worker.fetch(makeRequest(metricsPayload()), makeEnv(bucket));
+      } finally {
+        vi.useRealTimers();
+      }
 
       expect(writtenKey(bucket)).toContain("metrics/year=2026/month=03/day=13/");
     });
@@ -642,8 +646,13 @@ describe("payload types that had no test at all", () => {
 
   it("accepts a snapshot payload and partitions it by its own time", async () => {
     const bucket = createFakeBucket();
-
-    const res = await worker.fetch(makeRequest(snapshotPayload()), makeEnv(bucket));
+    vi.useFakeTimers({ toFake: ["Date"], now: new Date("2026-03-14T08:00:00Z") });
+    let res: Response;
+    try {
+      res = await worker.fetch(makeRequest(snapshotPayload()), makeEnv(bucket));
+    } finally {
+      vi.useRealTimers();
+    }
 
     expect(res.status).toBe(202);
     expect(writtenKey(bucket)).toMatch(/^snapshots\/year=2026\/month=03\/day=13\/snap_/);
@@ -822,6 +831,56 @@ describe("object metadata", () => {
     const [, , options] = bucket.put.mock.calls[0];
     expect(options.customMetadata).toMatchObject({ instance_hash: HASH, type: "metrics" });
     expect(options.httpMetadata.contentType).toBe("application/gzip");
+  });
+});
+
+describe("partition window", () => {
+  // The lake job compacts a day once, two days later, before its raw objects
+  // expire: a write into an older day would never reach the lake.
+  const NOW = new Date("2026-03-20T10:00:00Z");
+
+  async function partitionFor(time: string): Promise<string> {
+    const bucket = createFakeBucket();
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    try {
+      await worker.fetch(
+        makeRequest({ ...metricsPayload(), points: [{ time, outdoor_temp: 5 }] }),
+        makeEnv(bucket),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+    return writtenKey(bucket).split("/batch_")[0];
+  }
+
+  it.each([
+    ["today", "2026-03-20T00:00:00Z", "day=20"],
+    ["yesterday, from midnight", "2026-03-19T00:00:00Z", "day=19"],
+    ["tomorrow", "2026-03-21T23:59:59Z", "day=21"],
+  ])("keeps the client date when it is %s", async (_label, time, day) => {
+    expect(await partitionFor(time)).toBe(`metrics/year=2026/month=03/${day}`);
+  });
+
+  it.each([
+    ["before yesterday", "2026-03-18T23:59:59Z"],
+    ["months behind", "2025-11-01T12:00:00Z"],
+    ["past tomorrow", "2026-03-22T00:00:00Z"],
+  ])("uses the ingestion date when the client date is %s", async (_label, time) => {
+    expect(await partitionFor(time)).toBe("metrics/year=2026/month=03/day=20");
+  });
+
+  it("keeps the client time in the body whatever the partition", async () => {
+    const bucket = createFakeBucket();
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    try {
+      await worker.fetch(
+        makeRequest({ ...metricsPayload(), points: [{ time: "2025-11-01T12:00:00Z", outdoor_temp: 5 }] }),
+        makeEnv(bucket),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+    expect((await storedPayload(bucket)).points[0].time).toBe("2025-11-01T12:00:00Z");
   });
 });
 
