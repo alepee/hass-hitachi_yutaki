@@ -10,7 +10,7 @@ This guide is for agents and maintainers building such a dataset. See [../refere
 
 ## R2 archive layout
 
-Payloads are stored as individual JSON files, Hive-partitioned by date (`backend/worker/src/archive.ts`). Metrics batches and snapshots are gzipped (`.json.gz`, about 10x smaller); objects archived before that change are plain `.json`, so a glob must end in `.json*` to match both. DuckDB picks the compression from the extension; over the REST API, pipe a `.json.gz` body through `gunzip`.
+Payloads are stored as individual JSON files, Hive-partitioned by date (`backend/worker/src/archive.ts`). **Metrics and snapshots are kept 30 days** (bucket lifecycle rule): older days only exist in the Parquet data lake, under `lake/` in the same bucket (layout in [backend/lake/](../../backend/lake/README.md)), which the same S3 credentials read with `read_parquet('r2://hitachi-telemetry-archive/lake/metrics/**/*.parquet', hive_partitioning = true, union_by_name = true)`. Metrics batches and snapshots are gzipped (`.json.gz`, about 25x smaller); objects archived before that change are plain `.json`, so a glob must end in `.json*` to match both. DuckDB picks the compression from the extension; over the REST API, pipe a `.json.gz` body through `gunzip`.
 
 ```
 installations/install_<instance12>_<device12>.json   (clients >= this release)

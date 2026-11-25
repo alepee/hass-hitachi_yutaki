@@ -8,7 +8,8 @@
  *   - Accepts gzipped or plain JSON
  *   - Validates and sanitizes payload (field whitelist)
  *   - Rate limits per device_hash (1 req/min via Cache API)
- *   - R2 (permanent JSON archive, partitioned Hive-style) — sole archive, all types
+ *   - R2 (JSON archive, partitioned Hive-style) — sole sink, all types; metrics and
+ *     snapshots expire after 30 days, compacted beforehand into Parquet (backend/lake/)
  *   - Analytics Engine (dataset hitachi_installations) — installation payloads only, for the fleet dashboard
  *   - Returns 202 Accepted on success, 502 Bad Gateway if R2 is unavailable
  */
