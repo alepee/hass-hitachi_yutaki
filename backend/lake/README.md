@@ -31,10 +31,12 @@ One day of metrics, about 2.5 GB of JSON, compacts to about 11 MB of Parquet.
 
 1. List the day's objects, download them in parallel (64 connections by
    default) and flatten them to a local NDJSON file.
-2. Convert it to Parquet with DuckDB, streaming.
-3. Check the Parquet file actually written: every listed object was read,
-   every flattened row is there and, for snapshots, every object appears as a
-   `source`. Only then is the file moved into place and the manifest written.
+2. Convert it to Parquet with DuckDB, streaming, in the work dir: DuckDB
+   cannot lock a file on an SMB share, and the lake only receives checked files.
+3. Check the Parquet file written: every listed object was read, every
+   flattened row is there and, for snapshots, every object appears as a
+   `source`. Only then is the file copied into the lake and the manifest
+   written.
 
 Only complete days (before today, UTC) are processed. A day with a manifest is
 skipped, so a run catches up on any day missed since the last one; `--force`
@@ -59,9 +61,10 @@ uv run --no-project --with-requirements backend/lake/requirements.txt \
 |---|---|---|
 | `--lake` | `$LAKE_DIR` or `./lake` | lake root |
 | `--start`, `--end` | 35 days ago, yesterday | days to consider |
-| `--work-dir` | `$LAKE_WORK_DIR` or `<lake>/_tmp` | scratch for one day of NDJSON (~3 GB), keep it on a local disk |
+| `--work-dir` | `$LAKE_WORK_DIR` or `<lake>/_tmp` | scratch for one day of NDJSON and Parquet (~3 GB), on a local disk |
 | `--memory-limit` | `$LAKE_MEMORY_LIMIT` or `1GB` | DuckDB memory limit |
 | `--threads` | `$LAKE_THREADS` or `8` | DuckDB threads |
+| | `$LAKE_DOWNLOAD_WORKERS` or `64` | concurrent downloads |
 | `--upload` | off | copy the Parquet files to R2 `lake/` |
 
 Measured on a laptop: about 100 s per day and a 1.7 GB peak in memory.

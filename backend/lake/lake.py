@@ -31,6 +31,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import shutil
 import sys
 import time
 
@@ -147,6 +148,15 @@ def ndjson_to_parquet(con: duckdb.DuckDBPyConnection, ndjson: Path, out: Path) -
     )
 
 
+def publish(tmp: Path, out: Path) -> None:
+    """Move a checked file into the lake; the final name appears only once complete."""
+    out.parent.mkdir(parents=True, exist_ok=True)
+    partial = out.with_name(out.name + ".partial")
+    shutil.copyfile(tmp, partial)
+    partial.replace(out)
+    tmp.unlink()
+
+
 def compact_day(
     con: duckdb.DuckDBPyConnection, s3, kind: str, day: date, lake: Path, work: Path
 ) -> dict[str, int]:
@@ -158,10 +168,11 @@ def compact_day(
         return {"objects": 0, "rows": 0}
 
     ndjson = work / f"{kind}-{day}.ndjson"
+    # Built and checked in the work dir, a local disk: DuckDB cannot lock a
+    # file on an SMB share, and the lake only ever receives a checked file.
+    tmp = work / f"{kind}-{day}.parquet"
     try:
         read, rows = download_day(s3, kind, objects, ndjson)
-        out.parent.mkdir(parents=True, exist_ok=True)
-        tmp = out.with_suffix(".parquet.tmp")
         ndjson_to_parquet(con, ndjson, tmp)
     finally:
         ndjson.unlink(missing_ok=True)
@@ -182,7 +193,7 @@ def compact_day(
             f"{rows} rows flattened, {written_rows} rows and {written_sources} "
             "sources written"
         )
-    tmp.replace(out)
+    publish(tmp, out)
     return {
         "objects": len(objects),
         "rows": rows,
@@ -201,19 +212,18 @@ def copy_installations(
         for key in keys:
             payload = json.loads(s3.get_object(Bucket=BUCKET, Key=key)["Body"].read())
             out.write(json.dumps({**payload, "source": key}) + "\n")
-    out_path = lake / "installations" / f"date={day:%Y-%m-%d}" / "part-0.parquet"
-    out_path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = work / "installations.parquet"
     try:
-        ndjson_to_parquet(con, ndjson, out_path)
+        ndjson_to_parquet(con, ndjson, tmp)
     finally:
         ndjson.unlink(missing_ok=True)
-    rows = con.execute(
-        "SELECT count(*) FROM read_parquet(?)", [str(out_path)]
-    ).fetchone()[0]
+    rows = con.execute("SELECT count(*) FROM read_parquet(?)", [str(tmp)]).fetchone()[0]
     if rows != len(keys):
+        tmp.unlink()
         raise RuntimeError(
             f"installations: {len(keys)} objects but {rows} rows written"
         )
+    publish(tmp, lake / "installations" / f"date={day:%Y-%m-%d}" / "part-0.parquet")
     return {"rows": rows}
 
 
@@ -287,7 +297,7 @@ def main() -> int:
         default=Path(os.environ["LAKE_WORK_DIR"])
         if os.environ.get("LAKE_WORK_DIR")
         else None,
-        help="scratch space for one day of NDJSON, ~3 GB; keep it on a local disk (default: <lake>/_tmp)",
+        help="local scratch for one day of NDJSON and Parquet, ~3 GB (default: <lake>/_tmp)",
     )
     parser.add_argument(
         "--force", action="store_true", help="redo days that have a manifest"
