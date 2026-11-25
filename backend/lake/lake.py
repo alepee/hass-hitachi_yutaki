@@ -37,12 +37,14 @@ import time
 
 import boto3
 from botocore.config import Config
+from botocore.exceptions import BotoCoreError
 import duckdb
 
 BUCKET = "hitachi-telemetry-archive"
 KINDS = ("metrics", "snapshots")
 DOWNLOAD_WORKERS = int(os.environ.get("LAKE_DOWNLOAD_WORKERS", "64"))
 DOWNLOAD_CHUNK = 1000
+FETCH_ATTEMPTS = 5
 # First day of the archive (bucket created 2026-03-15).
 ARCHIVE_START = date(2026, 3, 13)
 
@@ -117,7 +119,16 @@ def download_day(s3, kind: str, keys: list[str], ndjson: Path) -> tuple[int, int
     """
 
     def fetch(key: str) -> tuple[str, bytes]:
-        return key, s3.get_object(Bucket=BUCKET, Key=key)["Body"].read()
+        # botocore retries a failed request, not a body cut off while it is
+        # read (connection reset, read timeout): retry the whole object.
+        for attempt in range(FETCH_ATTEMPTS):
+            try:
+                return key, s3.get_object(Bucket=BUCKET, Key=key)["Body"].read()
+            except (BotoCoreError, OSError):
+                if attempt == FETCH_ATTEMPTS - 1:
+                    raise
+                time.sleep(2**attempt)
+        raise AssertionError("unreachable")
 
     read = rows = 0
     with ThreadPoolExecutor(DOWNLOAD_WORKERS) as pool, ndjson.open("w") as out:
