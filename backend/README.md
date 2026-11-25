@@ -22,6 +22,9 @@ HA Integration (HttpTelemetryClient)
 
 ## Querying the archive
 
+For anything beyond a few days, query the Parquet data lake built by [lake/](lake/README.md) instead: one file per day instead of ~22,000 objects.
+
+
 R2 holds every telemetry payload as JSON, partitioned Hive-style by date. Metrics batches and snapshots are gzipped (`.json.gz`), older objects are plain `.json`: end globs in `.json*` to read both. The recommended way to explore the archive is DuckDB with the `httpfs` extension and an R2 access key:
 
 ```sql

@@ -51,6 +51,9 @@ Note that the archived body of a payload from a client that has not upgraded car
 
 ## Access path B: DuckDB + httpfs (R2 S3 credentials)
 
+For a fleet-wide or multi-day query, prefer the Parquet data lake compacted from the archive ([backend/lake/](../../backend/lake/README.md)): the same data, one file per day.
+
+
 When R2 S3 access keys are available, query the archive directly with DuckDB (documented in `backend/README.md`):
 
 ```sql
