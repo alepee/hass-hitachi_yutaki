@@ -47,7 +47,13 @@ redoes them. A failed day is logged and retried on the next run, and the exit
 code is non-zero.
 
 With `--upload`, the day's Parquet files are copied to the bucket under
-`lake/`: the off-site copy of the lake once the raw JSON expires from R2.
+`lake/`: the off-site copy of the lake, and the permanent archive, since raw
+metrics and snapshots expire from R2 after 30 days (bucket lifecycle rule).
+Since a day is compacted two days later, the job has about four weeks to catch
+up after an outage before a day is lost.
+
+In production it runs as a daily CronJob on the maintainer's cluster, writing
+to a NAS share.
 
 ## Running it
 

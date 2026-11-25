@@ -8,7 +8,8 @@ Anonymous telemetry ingestion pipeline for the Hitachi Yutaki integration.
 HA Integration (HttpTelemetryClient)
     → POST /v1/ingest (gzip JSON)
     → Cloudflare Worker (validate, rate limit, enrich with Köppen zone)
-        → R2 (permanent JSON archive, partitioned Hive-style)
+        → R2 (JSON archive, partitioned Hive-style; metrics and snapshots kept 30 days)
+            → daily job (lake/) → Parquet data lake (NAS + R2 lake/)
         → Analytics Engine (installation payloads only, fleet dashboard)
 ```
 
@@ -17,7 +18,7 @@ HA Integration (HttpTelemetryClient)
 | Service | Identifier | Purpose |
 |---------|------------|---------|
 | **Cloudflare Worker** | `hitachi-telemetry.antoine-04c.workers.dev` | Ingestion proxy |
-| **R2** | `hitachi-telemetry-archive` | Permanent JSON archive of all payloads (metrics and snapshots gzipped) |
+| **R2** | `hitachi-telemetry-archive` | JSON archive of all payloads. Metrics and snapshots are gzipped and expire after 30 days (lifecycle rule), once compacted into the Parquet data lake, kept under `lake/` |
 | **Analytics Engine** | `hitachi_installations` | Installation payloads mirrored for the Grafana fleet dashboard |
 
 ## Querying the archive

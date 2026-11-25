@@ -327,9 +327,12 @@ Coordinator poll ──→ TelemetryCollector (circular buffer)
                          │
               ┌──────────┴───────────┐
               ▼                      ▼
-     R2 (permanent JSON       Analytics Engine
-     archive, all types)      (installation only,
-                              90-day fleet dashboard)
+     R2 (JSON archive,        Analytics Engine
+     metrics/snapshots        (installation only,
+     kept 30 days)            90-day fleet dashboard)
+          │
+          ▼  daily job (backend/lake/)
+     Parquet data lake (NAS, copy in R2 lake/)
 ```
 
 **Key design decisions:**
@@ -339,4 +342,4 @@ Coordinator poll ──→ TelemetryCollector (circular buffer)
 - One-time sends (installation info, register snapshot) are fire-and-forget (`async_create_task`) with `asyncio.Lock` + exponential backoff to avoid blocking the Modbus poll path
 - `thermal_power`, `electrical_power`, `cop_instant` are NULL — they require per-entity domain service state and can be recomputed server-side from raw data
 - Poll interval for time-based aggregations (compressor hours, energy kWh) is computed from actual point timestamps, not hardcoded
-- Installation payloads are mirrored to Workers Analytics Engine (`hitachi_installations`, 90-day window) to power a Grafana fleet-inventory dashboard; R2 stays the only permanent archive
+- Installation payloads are mirrored to Workers Analytics Engine (`hitachi_installations`, 90-day window) to power a Grafana fleet-inventory dashboard; R2 receives every payload; raw metrics and snapshots expire after 30 days, once a daily job (`backend/lake/`) has compacted them into a Parquet data lake whose copy under R2 `lake/` is the permanent archive
