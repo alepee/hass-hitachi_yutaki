@@ -14,7 +14,7 @@ One day of metrics, about 2.5 GB of JSON, compacts to about 11 MB of Parquet.
 ```
 <lake>/metrics/year=YYYY/month=MM/day=DD/part-0.parquet     one row per metrics point
 <lake>/snapshots/year=YYYY/month=MM/day=DD/part-0.parquet   one row per register snapshot
-<lake>/installations/date=YYYY-MM-DD/part-0.parquet         daily copy of installations/
+<lake>/installations/date=YYYY-MM-DD/part-0.parquet         copy of installations/ on each run day
 <lake>/_manifest/YYYY-MM-DD.json                            counts and checks for the day
 ```
 
@@ -38,7 +38,10 @@ One day of metrics, about 2.5 GB of JSON, compacts to about 11 MB of Parquet.
    `source`. Only then is the file copied into the lake and the manifest
    written.
 
-Only complete days (before today, UTC) are processed. A day with a manifest is
+A day is compacted two days later (UTC). The Worker files a batch under its
+first point's date only while that date is yesterday, today or tomorrow, and
+under the ingestion date otherwise, so a day stops receiving objects once the
+next one ends, whatever a client's clock says. A day with a manifest is
 skipped, so a run catches up on any day missed since the last one; `--force`
 redoes them. A failed day is logged and retried on the next run, and the exit
 code is non-zero.
@@ -60,7 +63,7 @@ uv run --no-project --with-requirements backend/lake/requirements.txt \
 | Option | Default | |
 |---|---|---|
 | `--lake` | `$LAKE_DIR` or `./lake` | lake root |
-| `--start`, `--end` | 35 days ago, yesterday | days to consider |
+| `--start`, `--end` | 27 days before `--end`, two days ago | days to consider |
 | `--work-dir` | `$LAKE_WORK_DIR` or `<lake>/_tmp` | scratch for one day of NDJSON and Parquet (~3 GB), on a local disk |
 | `--memory-limit` | `$LAKE_MEMORY_LIMIT` or `1GB` | DuckDB memory limit |
 | `--threads` | `$LAKE_THREADS` or `8` | DuckDB threads |

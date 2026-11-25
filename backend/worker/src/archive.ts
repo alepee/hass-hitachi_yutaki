@@ -42,6 +42,26 @@ function dateParts(isoDate?: string): { year: string; month: string; day: string
   };
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Partition of a metrics batch or snapshot: the client's date, kept only
+ * while it falls between yesterday and tomorrow (UTC), else ingestion time.
+ *
+ * The data lake job (backend/lake/) compacts a day once, two days later, and
+ * the raw objects then expire from R2. A client clock running late would
+ * otherwise write into a day already compacted, and that object would expire
+ * without ever reaching the lake. With this window, no write lands in a day
+ * older than yesterday. A batch keeps its exact times in its body.
+ */
+function partitionParts(isoDate?: string): { year: string; month: string; day: string } {
+  const now = Date.now();
+  const startOfToday = now - (now % DAY_MS);
+  const t = isoDate ? new Date(isoDate).getTime() : Number.NaN;
+  const inWindow = t >= startOfToday - DAY_MS && t < startOfToday + 2 * DAY_MS;
+  return dateParts(inWindow ? new Date(t).toISOString() : undefined);
+}
+
 function shortHash(instanceHash: string): string {
   return instanceHash.slice(0, 12);
 }
@@ -140,7 +160,7 @@ function buildKey(payload: TelemetryPayload, hasExplicitDeviceHash: boolean): st
       return `installations/install_${suffix}.json`;
     case "metrics": {
       const firstTime = (payload as MetricsPayload).points[0]?.time;
-      const { year, month, day } = dateParts(firstTime);
+      const { year, month, day } = partitionParts(firstTime);
       return `metrics/year=${year}/month=${month}/day=${day}/batch_${ts}_${nonce()}_${suffix}.json`;
     }
     case "daily_stats": {
@@ -149,8 +169,8 @@ function buildKey(payload: TelemetryPayload, hasExplicitDeviceHash: boolean): st
     }
     case "snapshot": {
       // The validator guarantees a parseable `time` (#442), so body and
-      // partition agree; `dateParts` still guards against the impossible.
-      const { year, month, day } = dateParts((payload as SnapshotPayload).time);
+      // partition agree, within the window `partitionParts` allows.
+      const { year, month, day } = partitionParts((payload as SnapshotPayload).time);
       return `snapshots/year=${year}/month=${month}/day=${day}/snap_${ts}_${nonce()}_${suffix}.json`;
     }
   }

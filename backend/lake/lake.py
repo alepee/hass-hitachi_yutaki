@@ -9,8 +9,9 @@ archive:
     <lake>/installations/date=YYYY-MM-DD/part-0.parquet         daily copy of installations/
     <lake>/_manifest/YYYY-MM-DD.json                            what was compacted, and checked
 
-A day is written only once it is complete (strictly before today, UTC) and is
-checked before its manifest is written: every object listed in R2 must appear
+A day is compacted two days later (UTC): the Worker never files an object
+under a day older than yesterday, so a compacted day receives no more writes
+before its raw objects expire from R2. It is checked before its manifest is written: every object listed in R2 must appear
 in the Parquet file, and the row count must match what was read. A day with a
 manifest is skipped, so the job is idempotent and catches up on missed days.
 
@@ -47,6 +48,7 @@ DOWNLOAD_CHUNK = 1000
 FETCH_ATTEMPTS = 5
 # First day of the archive (bucket created 2026-03-15).
 ARCHIVE_START = date(2026, 3, 13)
+CLOSED_AFTER_DAYS = 2
 
 _LOGGER = logging.getLogger("lake")
 
@@ -262,9 +264,6 @@ def process_day(
         for kind in KINDS
         if manifest[kind]["objects"]
     ]
-    if day == datetime.now(UTC).date() - timedelta(days=1):
-        manifest["installations"] = copy_installations(con, s3, day, lake, work)
-        files.append(lake / "installations" / f"date={day:%Y-%m-%d}" / "part-0.parquet")
     if do_upload:
         upload(s3, lake, files)
         manifest["uploaded"] = True
@@ -297,10 +296,12 @@ def main() -> int:
     parser.add_argument(
         "--start",
         type=date.fromisoformat,
-        help="first day to process (default: 35 days ago, i.e. R2's retention)",
+        help="first day to process (default: 27 days before --end, inside R2's 30-day retention)",
     )
     parser.add_argument(
-        "--end", type=date.fromisoformat, help="last day (default: yesterday, UTC)"
+        "--end",
+        type=date.fromisoformat,
+        help="last day (default and latest: two days ago, UTC)",
     )
     parser.add_argument(
         "--work-dir",
@@ -327,9 +328,12 @@ def main() -> int:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s"
     )
-    yesterday = datetime.now(UTC).date() - timedelta(days=1)
-    end = min(args.end or yesterday, yesterday)
-    start = max(args.start or yesterday - timedelta(days=34), ARCHIVE_START)
+    today = datetime.now(UTC).date()
+    # Still open to writes until the end of the next day (see the Worker's
+    # partition window), so two days ago is the latest complete day.
+    latest = today - timedelta(days=CLOSED_AFTER_DAYS)
+    end = min(args.end or latest, latest)
+    start = max(args.start or latest - timedelta(days=27), ARCHIVE_START)
     days = _range(start, end) if args.force else pending_days(args.lake, start, end)
     _LOGGER.info("%d day(s) to process between %s and %s", len(days), start, end)
 
@@ -342,6 +346,17 @@ def main() -> int:
             process_day(con, s3, day, args.lake, work, args.upload)
         except Exception:  # noqa: BLE001 - one bad day must not stop the others
             _LOGGER.exception("day %s failed", day)
+            failed += 1
+    snapshot = args.lake / "installations" / f"date={today:%Y-%m-%d}" / "part-0.parquet"
+    if not snapshot.exists():
+        try:
+            _LOGGER.info(
+                "installations: %s", copy_installations(con, s3, today, args.lake, work)
+            )
+            if args.upload:
+                upload(s3, args.lake, [snapshot])
+        except Exception:  # noqa: BLE001
+            _LOGGER.exception("installations copy failed")
             failed += 1
     return 1 if failed else 0
 
