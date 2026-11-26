@@ -154,7 +154,8 @@ class HitachiApiClient(ABC):
     async def async_verify_unit(self) -> bool | None:
         """Return whether the client still reads the unit it was bound to.
 
-        Called periodically by the coordinator. False means another unit now
+        Called periodically by the coordinator, and by a client before it
+        retries a write on a new connection. False means another unit now
         sits at the client's address and the entry must be set up again; None
         means the check could not be made. Always True on single-unit gateways.
         """

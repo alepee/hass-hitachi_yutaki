@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Mapping
 from contextlib import suppress
-from datetime import datetime, timedelta
+from datetime import timedelta
 import logging
 from typing import Any
 
@@ -17,14 +17,10 @@ from homeassistant.const import (
     MINOR_VERSION,
     __version__ as HA_VERSION,
 )
-from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers import device_registry as dr, entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
-from homeassistant.helpers.event import (
-    async_call_later,
-    async_track_time_interval,
-)
 from homeassistant.helpers.instance_id import async_get as async_get_instance_id
 from homeassistant.helpers.issue_registry import (
     IssueSeverity,
@@ -89,19 +85,9 @@ from .telemetry.anonymizer import hash_device_id, hash_instance_id
 from .telemetry.collector import compute_buffer_max_size, compute_collect_stride
 from .telemetry.consent import ConfigEntryConsent, is_fleet_ping_enabled
 from .telemetry.fleet_ping import async_register_fleet_ping, async_unregister_fleet_ping
+from .telemetry.flush_schedule import TELEMETRY_FLUSH_INTERVAL, TelemetryFlushSchedule
 
 _LOGGER = logging.getLogger(__name__)
-
-# How often buffered telemetry points are sent. Paired with the poll interval
-# it also fixes how many points a cycle produces, hence the collect stride.
-TELEMETRY_FLUSH_INTERVAL = timedelta(minutes=5)
-
-# Delay before a catch-up flush, when a delivered batch left points behind.
-# A flush is capped in bytes, so on the widest profiles one request carries
-# fewer points than a 5s poll produces in a cycle and the buffer slowly
-# saturates. One extra request per cycle doubles the drain rate. It sits past
-# the endpoint's 60s rate-limit window and well before the next regular flush.
-TELEMETRY_CATCHUP_DELAY = timedelta(seconds=65)
 
 # `async_get_or_create` takes `via_device_id` since HA 2026.8 and drops the
 # identifier-based `via_device` in 2027.8. Older releases only know the latter.
@@ -414,54 +400,23 @@ def _schedule_telemetry_flush(
     hass: HomeAssistant,
     entry: HitachiYutakiConfigEntry,
     coordinator: HitachiYutakiDataCoordinator,
-) -> None:
+) -> TelemetryFlushSchedule:
     """Flush telemetry every cycle, with a catch-up when a backlog remains.
 
-    Each flush runs as a background task of the entry, so an unload cancels a
-    flush still in flight instead of letting it race the final unload flush.
+    The schedule is kept on the coordinator: the unload stops it, flushes in
+    flight included, before the final flush (see ``async_unload_entry``).
     """
-    cancel_catchup: CALLBACK_TYPE | None = None
-
-    async def _telemetry_catchup() -> None:
-        await coordinator.async_flush_telemetry()
-
-    async def _telemetry_flush() -> None:
-        nonlocal cancel_catchup
-        delivered = await coordinator.async_flush_telemetry()
-        # Only after a delivered batch: a backlog left by a failing send
-        # waits for the next cycle rather than doubling the failed requests.
-        if (
-            delivered
-            and coordinator.telemetry_collector.buffer_size
-            and cancel_catchup is None
-        ):
-            cancel_catchup = async_call_later(
-                hass, TELEMETRY_CATCHUP_DELAY, _start_catchup
-            )
-
-    @callback
-    def _start_catchup(_now: datetime) -> asyncio.Task[None]:
-        nonlocal cancel_catchup
-        cancel_catchup = None
-        return entry.async_create_background_task(
-            hass, _telemetry_catchup(), f"{DOMAIN} telemetry catch-up flush"
-        )
-
-    @callback
-    def _start_flush(_now: datetime) -> asyncio.Task[None]:
-        return entry.async_create_background_task(
-            hass, _telemetry_flush(), f"{DOMAIN} telemetry flush"
-        )
-
-    @callback
-    def _cancel_telemetry_catchup() -> None:
-        if cancel_catchup is not None:
-            cancel_catchup()
-
-    entry.async_on_unload(
-        async_track_time_interval(hass, _start_flush, TELEMETRY_FLUSH_INTERVAL)
+    schedule = TelemetryFlushSchedule(
+        hass,
+        entry,
+        coordinator.async_flush_telemetry,
+        lambda: coordinator.telemetry_collector.buffer_size,
     )
-    entry.async_on_unload(_cancel_telemetry_catchup)
+    schedule.start()
+    # Backstop for an unload that fails before stopping it.
+    entry.async_on_unload(schedule.stop)
+    coordinator.telemetry_flush_schedule = schedule
+    return schedule
 
 
 async def _async_setup_fleet_ping(
@@ -1013,15 +968,22 @@ async def async_unload_entry(
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator = entry.runtime_data
 
-        # Flush remaining telemetry data before closing. The client asks the
-        # entry's current options, so a reload triggered by turning telemetry
-        # off sends nothing here and the backlog is dropped. One request only:
-        # the endpoint accepts one per minute per unit, so draining a deeper
-        # backlog here would be rejected anyway. Bounded, so an unreachable
-        # endpoint cannot stall the shutdown. Say what is being discarded
-        # rather than let it vanish with the coordinator (#395).
+        # Flush remaining telemetry data before closing. Home Assistant
+        # cancels the entry's background tasks only after this function
+        # returns, so a periodic flush may still be in flight: stop the
+        # schedule and wait for that flush to put its points back first, or
+        # the two would send at once and its points would be stranded. The
+        # client asks the entry's current options, so a reload triggered by
+        # turning telemetry off sends nothing here and the backlog is
+        # dropped. One request only: the endpoint accepts one per minute per
+        # unit, so draining a deeper backlog here would be rejected anyway.
+        # Bounded, so an unreachable endpoint cannot stall the shutdown. Say
+        # what is being discarded rather than let it vanish with the
+        # coordinator (#395).
         try:
             async with asyncio.timeout(UNLOAD_FLUSH_TIMEOUT):
+                if coordinator.telemetry_flush_schedule is not None:
+                    await coordinator.telemetry_flush_schedule.async_stop()
                 await coordinator.async_flush_telemetry()
         except TimeoutError:
             _LOGGER.info(

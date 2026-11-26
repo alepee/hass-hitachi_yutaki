@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pymodbus.exceptions import ConnectionException, ModbusException
@@ -271,3 +272,61 @@ async def test_a_closed_socket_alone_keeps_the_epoch(transport, pymodbus_client)
     await transport.close()
 
     assert transport.connection_epoch == epoch
+
+
+@pytest.mark.asyncio
+async def test_closed_transport_never_reopens_the_socket(transport, pymodbus_client):
+    """After close, operations fail without reaching pymodbus.
+
+    pymodbus reopens a closed socket when a request finds it closed, so a poll
+    still in flight at unload would otherwise leave an orphan connection on a
+    gateway that accepts few of them.
+    """
+    await transport.close()
+    pymodbus_client.close.assert_called_once()
+
+    with patch(f"{MODULE}.ModbusTcpClient") as factory:
+        with pytest.raises(GatewayCommunicationError, match="closed"):
+            await transport.read_holding_registers(1000)
+        with pytest.raises(GatewayCommunicationError, match="closed"):
+            await transport.write_register(1000, 1)
+        assert await transport.reconnect() is False
+        assert await transport.connect() is False
+
+    factory.assert_not_called()
+    pymodbus_client.read_holding_registers.assert_not_called()
+    pymodbus_client.write_register.assert_not_called()
+    pymodbus_client.connect.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_operation_queued_behind_close_does_not_run(
+    mock_hass, transport, pymodbus_client
+):
+    """A read waiting for the lock when close is called fails instead of reopening."""
+    entered = asyncio.Event()
+    release = asyncio.Event()
+    calls: list[str] = []
+
+    async def _executor(job, *args):
+        calls.append(getattr(job, "__name__", "job"))
+        if len(calls) == 1:
+            entered.set()
+            await release.wait()
+        return job(*args)
+
+    mock_hass.async_add_executor_job = AsyncMock(side_effect=_executor)
+    pymodbus_client.read_holding_registers.return_value = _result([1])
+
+    in_flight = asyncio.create_task(transport.read_holding_registers(1000))
+    await entered.wait()
+    closing = asyncio.create_task(transport.close())
+    queued = asyncio.create_task(transport.read_holding_registers(1001))
+    await asyncio.sleep(0)
+    release.set()
+
+    assert await in_flight == [1]  # The operation in flight is never cut off.
+    await closing
+    with pytest.raises(GatewayCommunicationError, match="closed"):
+        await queued
+    assert pymodbus_client.read_holding_registers.call_count == 1

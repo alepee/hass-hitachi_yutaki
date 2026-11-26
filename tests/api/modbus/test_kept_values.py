@@ -155,3 +155,22 @@ def test_a_write_back_does_not_settle_a_failure():
 
     assert kept.failed
     assert calls == []
+
+
+def test_a_command_between_the_read_and_the_plan_is_not_overwritten():
+    """A write from Home Assistant after the read found the value lost wins.
+
+    The read queues the write-back of the old reference; a command landing
+    before the plan (e.g. while the unit is being verified after a reboot)
+    must withdraw it, or the plan would overwrite the fresh command with the
+    stale reference.
+    """
+    kept = _kept(enable=1, setpoint=20)
+    data = {"enable": 1, "setpoint": 0, "copy": 19}
+    kept.track(data, data)
+
+    kept.written("setpoint", 22, by_restore=False)
+    data["setpoint"] = 22  # The client publishes the written value at once.
+
+    assert kept.plan(data, {"setpoint"}) == []
+    assert kept.snapshot()["setpoint"] == 22

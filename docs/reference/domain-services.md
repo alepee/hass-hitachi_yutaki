@@ -259,8 +259,10 @@ binds the proof that the client still reads the entry's unit to the
   going backwards counts as elapsed.
 - `proven(epoch)`: records a successful check.
 - `unverified(epoch)`: when the check cannot be made, `PUBLISH` on the
-  connection the unit was proven on (or before any runtime proof, where the
-  setup binding stands), `WITHHOLD` on any other connection.
+  connection the unit was proven on, `WITHHOLD` on any other connection.
+  Before any runtime proof, the first readings stand on the setup binding, so
+  an unreadable check does not block the setup: their connection becomes the
+  trusted one, and a later reconnection withholds as it would after a proof.
 
 The coordinator performs the check (`async_verify_unit`) and acts on the
 verdict; elapsed time comes from the `Clock` port.

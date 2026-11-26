@@ -1,86 +1,117 @@
-"""Tests for the telemetry flush timer and its catch-up flush."""
+"""Tests for the telemetry flush timer, its catch-up flush, and how it stops."""
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, MagicMock, patch
+import asyncio
+from unittest.mock import AsyncMock
 
+from freezegun.api import FrozenDateTimeFactory
 import pytest
-
-from custom_components.hitachi_yutaki import (
-    TELEMETRY_CATCHUP_DELAY,
-    TELEMETRY_FLUSH_INTERVAL,
-    _schedule_telemetry_flush,
+from pytest_homeassistant_custom_component.common import (
+    MockConfigEntry,
+    async_fire_time_changed,
 )
 
-_MODULE = "custom_components.hitachi_yutaki"
+from custom_components.hitachi_yutaki.const import DOMAIN
+from custom_components.hitachi_yutaki.telemetry.flush_schedule import (
+    TELEMETRY_CATCHUP_DELAY,
+    TELEMETRY_FLUSH_INTERVAL,
+    TelemetryFlushSchedule,
+)
+from homeassistant.core import HomeAssistant
 
 
-def _setup(delivered: bool, buffered: int):
-    """Wire the scheduler on mocks; return the timers and their callbacks."""
-    hass = MagicMock()
-    entry = MagicMock()
-    # Hand the flush coroutine back instead of scheduling it, so tests await it.
-    entry.async_create_background_task.side_effect = lambda _hass, coro, name: coro
-    coordinator = MagicMock()
-    coordinator.async_flush_telemetry = AsyncMock(return_value=delivered)
-    coordinator.telemetry_collector.buffer_size = buffered
+def _schedule(
+    hass: HomeAssistant, flush: AsyncMock, backlog: int
+) -> TelemetryFlushSchedule:
+    entry = MockConfigEntry(domain=DOMAIN)
+    entry.add_to_hass(hass)
+    schedule = TelemetryFlushSchedule(hass, entry, flush, lambda: backlog)
+    schedule.start()
+    return schedule
 
-    with (
-        patch(f"{_MODULE}.async_track_time_interval") as track,
-        patch(f"{_MODULE}.async_call_later") as call_later,
-    ):
-        _schedule_telemetry_flush(hass, entry, coordinator)
-    flush = track.call_args[0][1]
-    assert track.call_args[0][2] == TELEMETRY_FLUSH_INTERVAL
-    return coordinator, entry, flush, call_later
+
+async def _advance(hass: HomeAssistant, freezer: FrozenDateTimeFactory, delay) -> None:
+    freezer.tick(delay)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
 
 
 @pytest.mark.asyncio
-async def test_backlog_after_delivery_schedules_a_catchup():
+async def test_backlog_after_delivery_schedules_a_catchup(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
     """A delivered batch that left points behind gets one early follow-up."""
-    coordinator, _, flush, call_later = _setup(delivered=True, buffered=8)
+    flush = AsyncMock(return_value=True)
+    schedule = _schedule(hass, flush, backlog=8)
 
-    with patch(f"{_MODULE}.async_call_later", call_later):
-        await flush(None)
-
-    call_later.assert_called_once()
-    assert call_later.call_args[0][1] == TELEMETRY_CATCHUP_DELAY
-
-    catchup = call_later.call_args[0][2]
-    await catchup(None)
-    assert coordinator.async_flush_telemetry.await_count == 2
+    await _advance(hass, freezer, TELEMETRY_FLUSH_INTERVAL)
+    assert flush.await_count == 1
+    await _advance(hass, freezer, TELEMETRY_CATCHUP_DELAY)
+    assert flush.await_count == 2
+    schedule.stop()
 
 
 @pytest.mark.asyncio
-async def test_empty_buffer_after_delivery_schedules_nothing():
-    """The normal cycle: everything went out, no extra request."""
-    _, _, flush, call_later = _setup(delivered=True, buffered=0)
+@pytest.mark.parametrize(
+    ("delivered", "backlog"),
+    [(True, 0), (False, 60)],
+    ids=["empty-buffer-after-delivery", "failed-send"],
+)
+async def test_no_catchup_without_a_delivered_backlog(
+    hass: HomeAssistant,
+    freezer: FrozenDateTimeFactory,
+    delivered: bool,
+    backlog: int,
+) -> None:
+    """Everything went out, or the send failed: the next regular cycle waits."""
+    flush = AsyncMock(return_value=delivered)
+    schedule = _schedule(hass, flush, backlog=backlog)
 
-    with patch(f"{_MODULE}.async_call_later", call_later):
-        await flush(None)
+    await _advance(hass, freezer, TELEMETRY_FLUSH_INTERVAL)
+    await _advance(hass, freezer, TELEMETRY_CATCHUP_DELAY)
 
-    call_later.assert_not_called()
+    assert flush.await_count == 1
+    schedule.stop()
 
 
 @pytest.mark.asyncio
-async def test_failed_send_schedules_nothing():
-    """A backlog left by a failure waits for the next regular cycle."""
-    _, _, flush, call_later = _setup(delivered=False, buffered=60)
+async def test_stop_cancels_the_pending_catchup_and_the_timer(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """Stopping leaves no timer behind, catch-up included."""
+    flush = AsyncMock(return_value=True)
+    schedule = _schedule(hass, flush, backlog=8)
+    await _advance(hass, freezer, TELEMETRY_FLUSH_INTERVAL)
 
-    with patch(f"{_MODULE}.async_call_later", call_later):
-        await flush(None)
+    schedule.stop()
+    schedule.stop()  # Idempotent: the unload and its backstop both call it.
+    await _advance(hass, freezer, TELEMETRY_FLUSH_INTERVAL)
 
-    call_later.assert_not_called()
+    assert flush.await_count == 1
 
 
 @pytest.mark.asyncio
-async def test_pending_catchup_is_cancelled_on_unload():
-    """Unloading the entry must not leave a catch-up timer behind."""
-    _, entry, flush, call_later = _setup(delivered=True, buffered=8)
+async def test_async_stop_waits_for_the_flush_in_flight(
+    hass: HomeAssistant, freezer: FrozenDateTimeFactory
+) -> None:
+    """The flush in flight is cancelled and over when ``async_stop`` returns."""
+    started = asyncio.Event()
+    cleaned_up = asyncio.Event()
 
-    with patch(f"{_MODULE}.async_call_later", call_later):
-        await flush(None)
+    async def _never_answers() -> bool:
+        started.set()
+        try:
+            await asyncio.Event().wait()
+        finally:
+            cleaned_up.set()  # Where the coordinator re-queues its points.
+        return True
 
-    cancel_catchup = entry.async_on_unload.call_args_list[-1][0][0]
-    cancel_catchup()
-    call_later.return_value.assert_called_once()
+    schedule = _schedule(hass, AsyncMock(side_effect=_never_answers), backlog=0)
+    freezer.tick(TELEMETRY_FLUSH_INTERVAL)
+    async_fire_time_changed(hass)
+    await asyncio.wait_for(started.wait(), 1)
+
+    await schedule.async_stop()
+
+    assert cleaned_up.is_set()

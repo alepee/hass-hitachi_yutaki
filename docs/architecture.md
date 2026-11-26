@@ -234,7 +234,7 @@ Sensor entities must always read from STATUS registers. Reading CONTROL register
 
 Gateway-specific behaviour stays inside `api/`. The rest of the integration only uses gateway-agnostic extension points:
 
-- **Client** (`HitachiApiClient`, created with `create_api_client`): `async_bind_unit` locates the entry's unit at setup and `async_verify_unit` tells the coordinator whether it still reads that unit. Both are no-ops on a single-unit gateway; `HcAMbApiClient` implements them with the gateway unit table, since a unit's slot moves when the bus is re-enumerated (#476). `connection_epoch` changes whenever the connection is replaced, including a reconnection inside a read or a write; the coordinator's `UnitIdentityGuard` (`domain/services/unit_identity.py`) binds the unit check to it, so readings taken on a new connection are checked before they are published.
+- **Client** (`HitachiApiClient`, created with `create_api_client`): `async_bind_unit` locates the entry's unit at setup and `async_verify_unit` tells the coordinator whether it still reads that unit. Both are no-ops on a single-unit gateway; `HcAMbApiClient` implements them with the gateway unit table, since a unit's slot moves when the bus is re-enumerated (#476). `connection_epoch` changes whenever the connection is replaced, including a reconnection inside a read or a write; the coordinator's `UnitIdentityGuard` (`domain/services/unit_identity.py`) binds the unit check to it, so readings taken on a new connection are checked before they are published, and the client checks the unit itself before retrying a write on a new connection.
 - **Config provider** (`GatewayConfigProvider`): besides the config steps, the `unique_id` suffix, conflicts with entries already configured, the identity of the unit an entry is bound to, and the gateway section of the diagnostics.
 
 The client exposes logical `base_keys` and `gateway_keys`, `supports_key`,
@@ -254,7 +254,12 @@ client keeps the decision to reconnect and retry: `_with_reconnect` reconnects
 once on a `GatewayCommunicationError` and runs the read cycle or the write once
 more (the transport's `connection_epoch` records every new socket, including
 the ones pymodbus reopens on its own before a request), while a refused write is reported as a failure without a reconnection
-(the gateway answered, the link is fine). Repeating a write is deliberate: a
+(the gateway answered, the link is fine). A write is retried only once
+`async_verify_unit` proves the unit on the new connection (`before_retry`):
+a reconnection is when a multi-unit gateway may have moved the unit, and a
+command must not land on another one, so without that proof the write is
+reported as failed. Reads keep their retry, the coordinator checks the unit
+before publishing them. Repeating a write is deliberate: a
 function 06 write sets an absolute value, so a second one after a lost
 acknowledgement leaves the unit as one would; a second failure is reported as
 failed and shadows nothing, so the next poll shows what the unit applied.
@@ -267,14 +272,21 @@ closing its socket. The client has a single write path, behind its own lock:
 `write_value` (a command) and `restore_lost_values` (a write-back after a
 reboot, #511) never overlap, and a write-back re-checks
 `KeptValues.wanted()` inside that lock, so a command written since the plan
-always wins. Each write says whether it is a write-back (`by_restore`), so a
+always wins. A command also withdraws a lost value the last read queued and
+no plan took yet (the coordinator verifies the unit between the read and the
+restore), so it is never overwritten by the old reference. Each write says whether it is a write-back (`by_restore`), so a
 command is never mistaken for one. The transport is the only
 module of the integration that imports pymodbus (with its version shim
 `compat.py`): it translates every pymodbus and socket exception raised by a
 register operation or `close` into `GatewayCommunicationError`, chained to the
 original, and that is the only error clients and providers catch. `connect`
 reports failure as `False` after its retries, and a client's `close()` never
-raises, so a failing close cannot replace the result of a `finally` block. Replacing
+raises, so a failing close cannot replace the result of a `finally` block.
+Closing a transport is final: pymodbus reopens a closed socket before a
+request, so a poll still in flight at unload would otherwise leave an orphan
+connection on a gateway with few connection slots. After `close()`, register
+operations raise `GatewayCommunicationError` and `connect`/`reconnect` return
+`False`, without touching pymodbus; a new setup builds a new client. Replacing
 the transport (HA's shared Modbus connection, #419, or another bus) leaves the
 gateway logic and the providers untouched.
 
@@ -356,7 +368,7 @@ Coordinator poll ──→ TelemetryCollector (circular buffer)
 - Binary consent (Off / On) — stored in `entry.options`, changeable without reconfiguration
 - Collector runs at poll frequency, flush runs on a 5-min timer — decoupled
 - Installation info is re-sent once per UTC day boundary to keep the fleet dashboard's 90-day window populated — there is no in-memory daily-stats accumulator
-- One-time sends (installation info, register snapshot) run in a background task of the config entry (`entry.async_create_background_task`), one at a time, with exponential backoff, so they never block the Modbus poll path and an unload cancels them. The periodic and catch-up flushes are entry background tasks too
+- One-time sends (installation info, register snapshot) run in a background task of the config entry (`entry.async_create_background_task`), one at a time, with exponential backoff, so they never block the Modbus poll path and an unload cancels them. The periodic and catch-up flushes are entry background tasks too, owned by a `TelemetryFlushSchedule` (`telemetry/flush_schedule.py`). Home Assistant cancels an entry's background tasks only after `async_unload_entry` returns, so the unload stops the schedule first (`async_stop`: no new flush, the flush in flight cancelled and awaited, its points re-queued) and only then runs the final flush, once
 - The fleet ping's "sent today" lives in one instance-wide `FleetPingLedger` that outlives the pinger: the day is claimed synchronously before the POST, so the pinger a reload starts cannot send the day a previous one has in flight
 - `thermal_power`, `electrical_power`, `cop_instant` are NULL — they require per-entity domain service state and can be recomputed server-side from raw data
 - Poll interval for time-based aggregations (compressor hours, energy kWh) is computed from actual point timestamps, not hardcoded

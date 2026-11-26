@@ -9,6 +9,14 @@ close share one lock. The poll and the commands from Home Assistant share the
 transport, so without it a reconnection started by a failed read could close
 the socket under a write still waiting for its acknowledgement.
 
+Closing is final. pymodbus reopens a closed socket on its own when a request
+finds it closed, so a poll still in flight when the entry unloads would leave
+an orphan connection behind, and a gateway accepts few of them. Once
+:meth:`ModbusTransport.close` is called, every later operation fails without
+touching pymodbus: register operations raise
+:class:`GatewayCommunicationError`, connect and reconnect return False. A
+transport is never reopened: a new setup builds a new client.
+
 Register operations return plain values. A Modbus exception response from the
 gateway is returned as ``None`` (reads) or ``False`` (writes); a communication
 failure raises :class:`GatewayCommunicationError`, chained to the pymodbus or
@@ -67,6 +75,8 @@ class ModbusTransport:
         # Socket the current epoch was counted on (identity only, never used).
         self._socket: object | None = None
         self._epoch = 0
+        # Set by close(), for good: nothing reopens the connection afterwards.
+        self._closed = False
 
     @property
     def connected(self) -> bool:
@@ -96,13 +106,17 @@ class ModbusTransport:
 
         Any open socket is closed first and a new pymodbus client is built,
         so a stale connection never survives a reconnect. Waits for the
-        operation in flight, if any.
+        operation in flight, if any. Returns False once the transport is
+        closed.
         """
         async with self._lock:
             return await self._connect()
 
     async def _connect(self) -> bool:
         """Open a fresh connection; the caller holds the lock."""
+        if self._closed:
+            _LOGGER.debug("Modbus transport closed, not reconnecting")
+            return False
         for attempt in range(self._connect_attempts):
             try:
                 if self._client.is_socket_open():
@@ -150,32 +164,42 @@ class ModbusTransport:
         """Drop the current socket, whatever its state, then connect again.
 
         Waits for the operation in flight, if any: it is never cut off.
+        Returns False once the transport is closed.
         """
         async with self._lock:
+            if self._closed:
+                return False
             with contextlib.suppress(Exception):
                 await self._hass.async_add_executor_job(self._client.close)
             return await self._connect()
 
     async def close(self) -> None:
-        """Close the connection, once the operation in flight is over."""
+        """Close the connection for good, once the operation in flight is over.
+
+        Operations queued behind it fail instead of reopening the socket.
+        """
         _LOGGER.debug("Closing connection to Modbus gateway")
-        await self._run(self._close_client)
+        self._closed = True
+        await self._run(self._close_client, closing=True)
 
     def _close_client(self) -> None:
         """Close the client current when the lock is taken, not when queued."""
         self._client.close()
 
-    async def _run(self, job: Callable[[], Any]) -> Any:
+    async def _run(self, job: Callable[[], Any], *, closing: bool = False) -> Any:
         """Run a blocking pymodbus call under the lock, translating its failures.
 
         pymodbus raises ``ModbusException`` (``ConnectionException`` included)
         and the socket raises ``OSError`` (``ConnectionError`` and
         ``TimeoutError`` included); both become GatewayCommunicationError.
         pymodbus reopens a closed socket before sending a request, so the
-        epoch is checked after every call, whatever its outcome.
+        epoch is checked after every call, whatever its outcome, and nothing
+        but the close itself runs once the transport is closed.
         """
         try:
             async with self._lock:
+                if self._closed and not closing:
+                    raise GatewayCommunicationError("Modbus transport closed")
                 try:
                     return await self._hass.async_add_executor_job(job)
                 finally:

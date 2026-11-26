@@ -64,6 +64,7 @@ from .telemetry.anonymizer import (
     anonymize_installation_info,
     anonymize_point,
 )
+from .telemetry.flush_schedule import TelemetryFlushSchedule
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -127,6 +128,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self._telemetry_retry_delay: int = 30  # seconds, doubles on each failure
         self.telemetry_last_send: datetime | None = None
         self.telemetry_send_failures: int = 0
+        # Periodic flushes, stopped by the unload before its final flush.
+        self.telemetry_flush_schedule: TelemetryFlushSchedule | None = None
 
         super().__init__(
             hass,
