@@ -253,7 +253,21 @@ value (`None` for a read, `False` for a write) and raises
 client keeps the decision to reconnect and retry: `_with_reconnect` reconnects
 once on a `GatewayCommunicationError` and runs the read cycle or the write once
 more, while a refused write is reported as a failure without a reconnection
-(the gateway answered, the link is fine). The transport is the only
+(the gateway answered, the link is fine). Repeating a write is deliberate: a
+function 06 write sets an absolute value, so a second one after a lost
+acknowledgement leaves the unit as one would; a second failure is reported as
+failed and shadows nothing, so the next poll shows what the unit applied.
+
+The poll and the commands from Home Assistant share one client, so access is
+serialized at two levels. The transport runs one operation at a time: register
+operations, `connect`, `reconnect` and `close` share one `asyncio.Lock`, so a
+reconnection started by a failed read waits for a write in flight instead of
+closing its socket. The client has a single write path, behind its own lock:
+`write_value` (a command) and `restore_lost_values` (a write-back after a
+reboot, #511) never overlap, and a write-back re-checks
+`KeptValues.wanted()` inside that lock, so a command written since the plan
+always wins. Each write says whether it is a write-back (`by_restore`), so a
+command is never mistaken for one. The transport is the only
 module of the integration that imports pymodbus (with its version shim
 `compat.py`): it translates every pymodbus and socket exception raised by a
 register operation or `close` into `GatewayCommunicationError`, chained to the

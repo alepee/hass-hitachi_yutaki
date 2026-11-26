@@ -58,6 +58,9 @@ class KeptValues:
         }
         self._references: dict[str, Any] = {}
         self._lost: dict[str, Any] = {}
+        # key -> value of the write-back planned and not yet written; a
+        # command from Home Assistant on that key withdraws it.
+        self._planned: dict[str, Any] = {}
         self._attempts: dict[str, int] = {}
         self._failed: set[str] = set()
         self._unrestorable: set[str] = set()
@@ -108,20 +111,28 @@ class KeptValues:
         self._listener = listener
 
     def written(self, key: str, value: Any, *, by_restore: bool) -> None:
-        """Record a successful write; a command from Home Assistant settles a restore."""
+        """Record a successful write; a command from Home Assistant settles a restore.
+
+        Either way the planned write-back of ``key`` is done with: performed,
+        or superseded by the command.
+        """
         keep = self._keeps.get(key)
         if keep is None:
             return
+        self._planned.pop(key, None)
         if keep.seed_from is None:
             self._remember(key, value)
         if not by_restore:
             self._settle(key)
 
     def wanted(self, key: str, value: Any) -> bool:
-        """Return False when Home Assistant changed a reference after the plan."""
-        return self._keeps[key].seed_from is not None or (
-            self._references.get(key) == value
-        )
+        """Return True while the write-back of ``key`` to ``value`` still stands.
+
+        False once a command from Home Assistant wrote ``key`` after the
+        plan, seeded values included: the real value beats the placeholder.
+        The caller checks it in the same critical section as the write.
+        """
+        return key in self._planned and self._planned[key] == value
 
     # --- Reads and plan ---------------------------------------------------
 
@@ -169,6 +180,7 @@ class KeptValues:
             value = self._plan_one(key, lost, data, pending)
             if value is not None:
                 writes.append((key, value))
+        self._planned = dict(writes)
         return writes
 
     def _plan_one(

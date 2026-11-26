@@ -86,6 +86,11 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Values the hardware forgets on reboot are declared with
   `RegisterDefinition.keep` and written back by the provider (#511); the
   coordinator only persists the references and raises the repair issue.
+- Gateway access is serialized: the transport runs one operation at a time
+  (register operations, connect, reconnect and close share one lock), and the
+  client has a single write path behind its own lock, which write-backs
+  re-check `KeptValues.wanted()` inside so a newer command always wins. Do not
+  write to the transport around `write_value`/`_write`.
 - Providers own transport-specific validation, fallback identity and optional
   configuration URLs. Setup and config flows do not interpret Modbus states or
   exceptions.

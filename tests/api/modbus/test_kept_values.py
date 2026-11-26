@@ -95,3 +95,25 @@ def test_reference_read_off_the_write_resolution_settles_once_written():
     kept.written("room", HALF_DEGREE.decode(HALF_DEGREE.encode(21.3)), by_restore=True)
     assert kept.snapshot() == {"room": 21.5}
     assert _step(kept, {"room": 21.5}) == []
+
+
+def test_a_command_after_the_plan_withdraws_the_write_back():
+    """A write from Home Assistant since the plan wins, seeded values included."""
+    kept = _kept(enable=1, setpoint=20)
+    assert _step(kept, {"enable": 1, "setpoint": 20, "copy": 0}) == [("copy", 20)]
+    assert kept.wanted("copy", 20)
+
+    kept.written("copy", 18, by_restore=False)
+
+    assert not kept.wanted("copy", 20)
+
+
+def test_a_write_back_is_wanted_once():
+    """Performed, the write-back is done with; a stale plan entry is not wanted."""
+    kept = _kept(enable=1, setpoint=20)
+    assert _step(kept, {"enable": 1, "setpoint": 0, "copy": 19}) == [("setpoint", 20)]
+    assert not kept.wanted("setpoint", 21)
+
+    kept.written("setpoint", 20, by_restore=True)
+
+    assert not kept.wanted("setpoint", 20)

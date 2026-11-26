@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- **A setting changed while the integration restores values after a reboot is no longer overwritten.** After a gateway or controller reboot the integration writes back the room settings the unit forgot (#511). A command sent from Home Assistant at that moment, such as a new room setpoint or room temperature, could be overwritten by the older value being written back, with no message: the setpoint showed 23.0 °C and the unit kept 21.5 °C. Writes to a gateway now go one at a time, a write-back is dropped when Home Assistant wrote the same setting meanwhile, and a command sent during a write-back is applied after it.
+- **A connection drop no longer cuts off a command in flight.** The poll and the commands from Home Assistant share the gateway connection; when a read failed, the reconnection could close the socket while a write was still waiting for its acknowledgement, so the command was sent a second time and could be reported as failed although the unit applied it. Reads, writes, reconnections and closes now run one at a time on each gateway. A write whose connection drops is still sent once more after reconnecting (setting a register twice to the same value is harmless), and this retry policy is now documented.
+
 ## [2.5.0-beta.2] - 2026-11-21
 
 This beta stops the room temperature sent to the heat pump from being biased downwards: room values are now written rounded to the half degree the unit actually applies.
