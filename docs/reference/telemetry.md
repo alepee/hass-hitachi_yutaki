@@ -105,6 +105,7 @@ The aggregated results are public: [fleet stats](https://alepee.github.io/hass-h
 - **Telemetry Off leaves the fleet ping on its own toggle.**
 - A one-time repair notice presents the fleet ping and lets you turn it off. Afterwards, change it in **Settings → Devices & Services → Hitachi Yutaki → Configure**: the fleet ping step follows the telemetry step when telemetry is off.
 - With several Hitachi units on one instance, the ping only lists the units whose entry has it enabled, and is not sent if none does.
+- **Consent is checked when sending, not when the integration starts.** Saving the options writes your choice immediately and reloads the entry a moment later. Every send asks the entry's current options right before it leaves: telemetry metrics, installation info, register snapshot, each retry of these, the last flush when the entry unloads, and the fleet ping (which lists a unit only while its entry still consents). Turning telemetry off therefore drops whatever was still buffered instead of sending it with the reload. One module (`telemetry/consent.py`) owns this policy; the senders receive it as a small consent port.
 
 ## How to enable or disable telemetry
 

@@ -562,6 +562,15 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
                     self.config_entry.title,
                     len(points),
                 )
+            elif result is SendResult.NOT_CONSENTED:
+                # The user turned telemetry off since this client was built
+                # (the entry reloads next). These points must never leave the
+                # instance, so drop them; nothing failed.
+                _LOGGER.debug(
+                    "[%s] Telemetry flush: consent withdrawn, %d points dropped",
+                    self.config_entry.title,
+                    len(points),
+                )
             elif result is SendResult.PAYLOAD_TOO_LARGE:
                 # The batch itself is unacceptable, so re-queueing it would
                 # grow the next one and pin telemetry on a permanent rejection.

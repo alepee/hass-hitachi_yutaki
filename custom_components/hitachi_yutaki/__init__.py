@@ -87,11 +87,8 @@ from .telemetry import (
 )
 from .telemetry.anonymizer import hash_device_id, hash_instance_id
 from .telemetry.collector import compute_buffer_max_size, compute_collect_stride
-from .telemetry.fleet_ping import (
-    async_register_fleet_ping,
-    async_unregister_fleet_ping,
-    is_fleet_ping_enabled,
-)
+from .telemetry.consent import ConfigEntryConsent, is_fleet_ping_enabled
+from .telemetry.fleet_ping import async_register_fleet_ping, async_unregister_fleet_ping
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -461,7 +458,11 @@ async def _async_setup_fleet_ping(
     # Fleet ping (#468): anonymous, once a day per HA instance, its own consent.
     if is_fleet_ping_enabled(entry.options):
         await async_register_fleet_ping(
-            hass, entry.entry_id, integration_version, coordinator.fleet_ping_unit
+            hass,
+            entry.entry_id,
+            integration_version,
+            coordinator.fleet_ping_unit,
+            ConfigEntryConsent(entry),
         )
         entry.async_on_unload(lambda: async_unregister_fleet_ping(hass, entry.entry_id))
 
@@ -609,7 +610,10 @@ async def async_setup_entry(
     if telemetry_level != TelemetryLevel.OFF:
         session = async_get_clientsession(hass)
         coordinator.telemetry_client = HttpTelemetryClient(
-            session, instance_hash, label=entry.title
+            session,
+            instance_hash,
+            consent=ConfigEntryConsent(entry),
+            label=entry.title,
         )
     else:
         coordinator.telemetry_client = NoopTelemetryClient()
@@ -993,7 +997,9 @@ async def async_unload_entry(
     if unload_ok := await hass.config_entries.async_unload_platforms(entry, PLATFORMS):
         coordinator = entry.runtime_data
 
-        # Flush remaining telemetry data before closing. One request only:
+        # Flush remaining telemetry data before closing. The client asks the
+        # entry's current options, so a reload triggered by turning telemetry
+        # off sends nothing here and the backlog is dropped. One request only:
         # the endpoint accepts one per minute per unit, so draining a deeper
         # backlog here would be rejected anyway. Bounded, so an unreachable
         # endpoint cannot stall the shutdown. Say what is being discarded

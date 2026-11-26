@@ -21,6 +21,7 @@ from custom_components.hitachi_yutaki.repairs import (
     FleetPingNoticeRepairFlow,
     async_create_fix_flow,
 )
+from custom_components.hitachi_yutaki.telemetry.consent import is_fleet_ping_enabled
 from custom_components.hitachi_yutaki.telemetry.fleet_ping import (
     DATA_KEY,
     INITIAL_DELAY,
@@ -30,7 +31,6 @@ from custom_components.hitachi_yutaki.telemetry.fleet_ping import (
     async_register_fleet_ping,
     async_unregister_fleet_ping,
     classify_climate_zone,
-    is_fleet_ping_enabled,
 )
 from custom_components.hitachi_yutaki.telemetry.models import FleetPing, FleetPingUnit
 from homeassistant.core import HomeAssistant
@@ -49,6 +49,16 @@ UNIT = FleetPingUnit(
     max_circuits=2,
     has_secondary_compressor=True,
 )
+
+
+class _Consenting:
+    """A unit whose user consents to the ping (gating is tested elsewhere)."""
+
+    def fleet_ping_allowed(self) -> bool:
+        return True
+
+
+CONSENT = _Consenting()
 
 
 def _mock_session(status: int = 202) -> MagicMock:
@@ -156,7 +166,7 @@ class TestFleetPinger:
         """A delivered ping is not sent again the same day."""
         session = _mock_session()
         pinger = await _started_pinger(hass, session)
-        pinger.register("entry1", lambda: UNIT)
+        pinger.register("entry1", lambda: UNIT, CONSENT)
 
         assert await pinger.async_maybe_send() is True
         assert await pinger.async_maybe_send() is False
@@ -168,8 +178,8 @@ class TestFleetPinger:
         hass.config.latitude, hass.config.longitude = 48.85, 2.35
         session = _mock_session()
         pinger = await _started_pinger(hass, session)
-        pinger.register("entry1", lambda: UNIT)
-        pinger.register("entry2", lambda: UNIT)
+        pinger.register("entry1", lambda: UNIT, CONSENT)
+        pinger.register("entry2", lambda: UNIT, CONSENT)
 
         await pinger.async_maybe_send()
 
@@ -187,7 +197,7 @@ class TestFleetPinger:
         session = _mock_session()
         pinger = await _started_pinger(hass, session)
         assert await pinger.async_maybe_send() is False
-        pinger.register("entry1", lambda: None)
+        pinger.register("entry1", lambda: None, CONSENT)
         assert await pinger.async_maybe_send() is False
         session.post.assert_not_called()
         pinger.async_stop()
@@ -196,7 +206,7 @@ class TestFleetPinger:
         """A rejected ping does not count as today's."""
         session = _mock_session(status=500)
         pinger = await _started_pinger(hass, session)
-        pinger.register("entry1", lambda: UNIT)
+        pinger.register("entry1", lambda: UNIT, CONSENT)
 
         assert await pinger.async_maybe_send() is False
         assert pinger.last_sent is None
@@ -209,7 +219,7 @@ class TestFleetPinger:
         session = _mock_session()
         session.post.side_effect = aiohttp.ClientError("down")
         pinger = await _started_pinger(hass, session)
-        pinger.register("entry1", lambda: UNIT)
+        pinger.register("entry1", lambda: UNIT, CONSENT)
         assert await pinger.async_maybe_send() is False
         pinger.async_stop()
 
@@ -219,14 +229,14 @@ class TestFleetPinger:
         """The persisted day prevents a second ping after a restart."""
         session = _mock_session()
         pinger = await _started_pinger(hass, session)
-        pinger.register("entry1", lambda: UNIT)
+        pinger.register("entry1", lambda: UNIT, CONSENT)
         await pinger.async_maybe_send()
         pinger.async_stop()
         await hass.async_block_till_done()
         assert STORE_KEY in hass_storage
 
         restarted = await _started_pinger(hass, session)
-        restarted.register("entry1", lambda: UNIT)
+        restarted.register("entry1", lambda: UNIT, CONSENT)
         assert await restarted.async_maybe_send() is False
         assert session.post.call_count == 1
         restarted.async_stop()
@@ -238,7 +248,7 @@ class TestFleetPinger:
         freezer.move_to("2026-10-11 23:00:00+00:00")
         session = _mock_session()
         pinger = await _started_pinger(hass, session)
-        pinger.register("entry1", lambda: UNIT)
+        pinger.register("entry1", lambda: UNIT, CONSENT)
         assert await pinger.async_maybe_send() is True
 
         freezer.move_to("2026-10-12 01:00:00+00:00")
@@ -252,7 +262,7 @@ class TestFleetPinger:
         """The timer sends the first ping once the initial delay elapsed."""
         session = _mock_session()
         pinger = await _started_pinger(hass, session)
-        pinger.register("entry1", lambda: UNIT)
+        pinger.register("entry1", lambda: UNIT, CONSENT)
 
         freezer.tick(INITIAL_DELAY - timedelta(seconds=1))
         async_fire_time_changed(hass)
@@ -275,9 +285,13 @@ class TestRegistration:
             "custom_components.hitachi_yutaki.telemetry.fleet_ping.async_get_clientsession",
             return_value=_mock_session(),
         ):
-            await async_register_fleet_ping(hass, "entry1", "2.2.0", lambda: UNIT)
+            await async_register_fleet_ping(
+                hass, "entry1", "2.2.0", lambda: UNIT, CONSENT
+            )
             pinger = hass.data[DATA_KEY]
-            await async_register_fleet_ping(hass, "entry2", "2.2.0", lambda: UNIT)
+            await async_register_fleet_ping(
+                hass, "entry2", "2.2.0", lambda: UNIT, CONSENT
+            )
             assert hass.data[DATA_KEY] is pinger
 
         async_unregister_fleet_ping(hass, "entry1")

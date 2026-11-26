@@ -27,6 +27,13 @@ from custom_components.hitachi_yutaki.telemetry.models import (
 )
 
 
+class _Consenting:
+    """Telemetry consent that always says yes (gating is tested elsewhere)."""
+
+    def telemetry_allowed(self) -> bool:
+        return True
+
+
 def _make_client(
     session: aiohttp.ClientSession | None = None,
     instance_hash: str = "abc123",
@@ -37,6 +44,7 @@ def _make_client(
     return HttpTelemetryClient(
         session=session or MagicMock(spec=aiohttp.ClientSession),
         instance_hash=instance_hash,
+        consent=_Consenting(),
         endpoint=endpoint,
         label=label,
     )

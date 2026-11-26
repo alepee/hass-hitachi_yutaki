@@ -11,6 +11,7 @@ from typing import Any
 import aiohttp
 
 from ..const import TELEMETRY_ENDPOINT
+from .consent import TelemetryConsent
 from .models import InstallationInfo, MetricsBatch, RegisterSnapshot, SendResult
 
 _LOGGER = logging.getLogger(__name__)
@@ -35,21 +36,28 @@ class HttpTelemetryClient:
 
     Retries with exponential backoff on transient failures.
     Never raises: logs warnings and returns a non-success SendResult on error.
+    Asks its consent port before every attempt, retries included, and sends
+    nothing once consent is withdrawn.
     """
 
     def __init__(
         self,
         session: aiohttp.ClientSession,
         instance_hash: str,
+        *,
+        consent: TelemetryConsent,
         endpoint: str = TELEMETRY_ENDPOINT,
         label: str = "",
     ) -> None:
         """Initialize the HTTP telemetry client.
 
+        `consent` is asked before each request rather than once here: the
+        client outlives an options update until the entry reloads.
         `label` is the config entry title. It prefixes every log line so a
         multi-gateway installation can tell which entry failed (#395).
         """
         self._session = session
+        self._consent = consent
         self._instance_hash = instance_hash
         self._endpoint = endpoint
         self._prefix = f"[{label}] " if label else ""
@@ -84,8 +92,8 @@ class HttpTelemetryClient:
         """Send a JSON payload with gzip compression and retry logic.
 
         Returns SUCCESS on 2xx, PAYLOAD_TOO_LARGE on 413, PROBABLY_DELIVERED
-        on a 429 that this call's own earlier attempt provoked, and FAILED
-        otherwise.
+        on a 429 that this call's own earlier attempt provoked, NOT_CONSENTED
+        when consent is withdrawn before an attempt, and FAILED otherwise.
         """
         body = gzip.compress(json.dumps(payload).encode())
         headers = {
@@ -101,6 +109,13 @@ class HttpTelemetryClient:
         sent_unobserved = False
 
         for attempt in range(MAX_RETRIES):
+            # Asked before every attempt: a retry waits up to 45 s, long
+            # enough for the user to turn telemetry off in between.
+            if not self._consent.telemetry_allowed():
+                _LOGGER.debug(
+                    "%sTelemetry consent withdrawn, payload not sent", self._prefix
+                )
+                return SendResult.NOT_CONSENTED
             try:
                 async with self._session.post(
                     self._endpoint,

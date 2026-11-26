@@ -8,19 +8,20 @@ so no identifier is needed.
 
 This is not telemetry. It has its own consent (opt-out, on by default), and
 turning telemetry on implies it. Whether a config entry takes part is decided
-by the caller, which registers a unit provider per participating entry.
+by the caller, which registers a unit provider per participating entry,
+together with that entry's consent: the pinger asks it again right before each
+ping, because the user can withdraw it before the entry reloads.
 """
 
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 import gzip
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 import aiohttp
 
@@ -31,16 +32,9 @@ from homeassistant.helpers.event import async_call_later, async_track_time_inter
 from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
-from ..const import (
-    CONF_FLEET_PING,
-    CONF_TELEMETRY_LEVEL,
-    DEFAULT_FLEET_PING,
-    DEFAULT_TELEMETRY_LEVEL,
-    DOMAIN,
-    FLEET_PING_ENDPOINT,
-    FLEET_PING_STATS_URL,
-)
-from .models import FleetPing, FleetPingUnit, TelemetryLevel
+from ..const import DOMAIN, FLEET_PING_ENDPOINT, FLEET_PING_STATS_URL
+from .consent import FleetPingConsent
+from .models import FleetPing, FleetPingUnit
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -58,19 +52,6 @@ REQUEST_TIMEOUT = 10  # seconds
 _KOPPEN_LOOKUP_PATH = Path(__file__).parent / "koppen_lookup.json"
 
 UnitProvider = Callable[[], FleetPingUnit | None]
-
-
-def is_fleet_ping_enabled(options: Mapping[str, Any]) -> bool:
-    """Return whether a config entry takes part in the fleet ping.
-
-    Telemetry ON implies the ping: telemetry already shares a superset of it,
-    so opting out of the ping alone would make no sense. Otherwise the ping
-    follows its own toggle, on by default.
-    """
-    telemetry = options.get(CONF_TELEMETRY_LEVEL, DEFAULT_TELEMETRY_LEVEL)
-    if telemetry == TelemetryLevel.ON.value:
-        return True
-    return bool(options.get(CONF_FLEET_PING, DEFAULT_FLEET_PING))
 
 
 def classify_climate_zone(
@@ -108,7 +89,7 @@ class FleetPinger:
         self._integration_version = integration_version
         self._endpoint = endpoint
         self._store: Store[dict[str, str]] = Store(hass, STORE_VERSION, STORE_KEY)
-        self._providers: dict[str, UnitProvider] = {}
+        self._providers: dict[str, tuple[UnitProvider, FleetPingConsent]] = {}
         self._last_sent: date | None = None
         self._climate_zone: str | None = None
         self._lock = asyncio.Lock()
@@ -154,9 +135,11 @@ class FleetPinger:
             self._unsubs.pop()()
 
     @callback
-    def register(self, entry_id: str, provider: UnitProvider) -> None:
-        """Make a config entry's unit part of the ping."""
-        self._providers[entry_id] = provider
+    def register(
+        self, entry_id: str, provider: UnitProvider, consent: FleetPingConsent
+    ) -> None:
+        """Make a config entry's unit part of the ping, while it consents."""
+        self._providers[entry_id] = (provider, consent)
 
     @callback
     def unregister(self, entry_id: str) -> bool:
@@ -180,12 +163,14 @@ class FleetPinger:
             if self._last_sent == today:
                 return False
 
+            # Consent is asked here, not at registration: an entry whose user
+            # just turned the ping off stays registered until it reloads.
             units = tuple(
                 unit
-                for provider in self._providers.values()
-                if (unit := provider()) is not None
+                for provider, consent in self._providers.values()
+                if consent.fleet_ping_allowed() and (unit := provider()) is not None
             )
-            # No unit has completed a poll yet: nothing worth counting.
+            # No consenting unit has completed a poll yet: nothing to count.
             if not units:
                 return False
 
@@ -227,6 +212,7 @@ async def async_register_fleet_ping(
     entry_id: str,
     integration_version: str,
     provider: UnitProvider,
+    consent: FleetPingConsent,
 ) -> None:
     """Add an entry's unit to the instance's ping, starting the pinger if needed."""
     pinger: FleetPinger | None = hass.data.get(DATA_KEY)
@@ -234,7 +220,7 @@ async def async_register_fleet_ping(
         pinger = FleetPinger(hass, async_get_clientsession(hass), integration_version)
         hass.data[DATA_KEY] = pinger
         await pinger.async_start()
-    pinger.register(entry_id, provider)
+    pinger.register(entry_id, provider, consent)
 
 
 @callback
