@@ -241,6 +241,15 @@ a specific hardware feature is present (DHW, pool, cooling mode, second
 compressor), add a `condition` lambda. Without it, entities appear for users
 whose hardware does not support the feature and show permanently unavailable.
 
+**Checking a write result in the entity.** A `set_fn` (or a button
+`action_fn`) returns the API client's `bool`; do not test it yourself. The base
+entities send every write through `async_send_command`
+(`entities/base/command.py`), which re-reads the device and raises a translated
+`HomeAssistantError` when the gateway refuses a write. A command made of several
+writes is passed as several `CommandStep`s, so a half-applied command is
+reported as such (`command_partially_applied`). A new base class that writes
+must use the same path.
+
 **Using the wrong data key.** If the value your entity reads seems stuck or
 does not reflect the actual hardware state, the underlying register may be
 wrong. See [API Layer & Data Keys](api-data-keys.md) for the CONTROL vs STATUS

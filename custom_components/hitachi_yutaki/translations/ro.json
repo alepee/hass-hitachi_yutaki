@@ -921,5 +921,13 @@
       "title": "Pompa de căldură a pierdut legătura cu unitatea exterioară",
       "description": "Pompa de căldură semnalează alarma **{code}**: unitatea interioară nu mai comunică cu unitatea exterioară. Home Assistant a observat-o prima dată pe {since}. Unitatea se oprește de obicei sau funcționează pe rezistența de rezervă, dacă are una.\n\nCât timp durează alarma, unitatea trimite 0 în locul valorilor care provin de la unitatea exterioară (temperatura exterioară, datele compresorului). Acești senzori apar indisponibili în loc de un 0 fals.\n\nVerificați alimentarea unității exterioare și cablul de comunicație dintre cele două unități și contactați instalatorul dacă alarma persistă. Această notificare dispare de la sine când unitatea nu mai semnalează alarma."
     }
+  },
+  "exceptions": {
+    "write_failed": {
+      "message": "Pompa de căldură nu a aplicat modificarea {step} solicitată pentru {entity}. Starea a fost citită din nou; verificați conexiunea cu gateway-ul înainte de a reîncerca."
+    },
+    "command_partially_applied": {
+      "message": "Comanda pentru {entity} a fost aplicată doar parțial: {applied} a reușit, dar pompa de căldură nu a aplicat modificarea {step}. Starea a fost citită din nou; verificați-o înainte de a reîncerca."
+    }
   }
 }

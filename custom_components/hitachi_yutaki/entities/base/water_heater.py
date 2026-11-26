@@ -16,6 +16,7 @@ from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ...const import PRESET_DHW_HEAT_PUMP, PRESET_DHW_HIGH_DEMAND, PRESET_DHW_OFF
 from ...coordinator import HitachiYutakiDataCoordinator
+from .command import CommandStep, async_send_command
 
 
 @dataclass
@@ -133,51 +134,65 @@ class HitachiYutakiWaterHeater(
         if temperature is None:
             return
 
-        await self.coordinator.api_client.set_dhw_target_temperature(temperature)
-        await self.coordinator.async_request_refresh()
+        api = self.coordinator.api_client
+        await self._async_command(
+            CommandStep(
+                "dhw_target_temperature",
+                lambda: api.set_dhw_target_temperature(temperature),
+            )
+        )
 
     @property
     def _has_high_demand(self) -> bool:
         """Return True if the register map supports high demand mode."""
         return self.coordinator.api_client.can_write("dhw_high_demand")
 
+    async def _async_command(self, *steps: CommandStep) -> None:
+        """Send ``steps`` as one command, raising if the gateway refuses one."""
+        await async_send_command(self.coordinator, self.entity_id, *steps)
+
+    def _power_step(self, enabled: bool) -> CommandStep:
+        """Return the write that switches DHW production on or off."""
+        api = self.coordinator.api_client
+        return CommandStep("dhw_power", lambda: api.set_dhw_power(enabled))
+
+    def _high_demand_step(self, enabled: bool) -> CommandStep:
+        """Return the write that switches high demand mode on or off."""
+        api = self.coordinator.api_client
+        return CommandStep("dhw_high_demand", lambda: api.set_dhw_high_demand(enabled))
+
+    def _off_steps(self) -> list[CommandStep]:
+        """Return the writes that turn DHW off, high demand first."""
+        steps = [self._high_demand_step(False)] if self._has_high_demand else []
+        steps.append(self._power_step(False))
+        return steps
+
     async def async_set_operation_mode(self, operation_mode: str) -> None:
         """Set new operation mode."""
         if operation_mode == PRESET_DHW_OFF:
-            # First disable high demand mode if it was active
-            if self._has_high_demand:
-                await self.coordinator.api_client.set_dhw_high_demand(False)
-            # Then turn off DHW
-            await self.coordinator.api_client.set_dhw_power(False)
-            await self.coordinator.async_request_refresh()
+            await self._async_command(*self._off_steps())
             return
 
+        steps: list[CommandStep] = []
         # First ensure DHW is turned on if it was off
-        current_power = self.coordinator.api_client.get_dhw_power()
-        if not current_power:
-            await self.coordinator.api_client.set_dhw_power(True)
+        if not self.coordinator.api_client.get_dhw_power():
+            steps.append(self._power_step(True))
 
         # Then set the mode
         if operation_mode == PRESET_DHW_HIGH_DEMAND and self._has_high_demand:
-            await self.coordinator.api_client.set_dhw_high_demand(True)
+            steps.append(self._high_demand_step(True))
         elif operation_mode == PRESET_DHW_HEAT_PUMP and self._has_high_demand:
-            await self.coordinator.api_client.set_dhw_high_demand(False)
+            steps.append(self._high_demand_step(False))
 
-        await self.coordinator.async_request_refresh()
+        await self._async_command(*steps)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         """Turn the water heater on."""
-        await self.coordinator.api_client.set_dhw_power(True)
-        await self.coordinator.async_request_refresh()
+        await self._async_command(self._power_step(True))
 
     async def async_turn_off(self, **kwargs: Any) -> None:
         """Turn the water heater off."""
-        # First disable high demand mode if it was active
-        if self._has_high_demand:
-            await self.coordinator.api_client.set_dhw_high_demand(False)
-        # Then turn off DHW
-        await self.coordinator.api_client.set_dhw_power(False)
-        await self.coordinator.async_request_refresh()
+        await self._async_command(*self._off_steps())
 
     def set_temperature(self, **kwargs: Any) -> None:
         """Set new target temperature."""

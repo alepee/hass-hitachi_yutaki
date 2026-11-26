@@ -12,12 +12,12 @@ from homeassistant.components.number import (
     NumberMode,
 )
 from homeassistant.const import EntityCategory
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from ...const import DEVICE_TYPES, DOMAIN
 from ...coordinator import HitachiYutakiDataCoordinator
+from .command import CommandStep, async_send_command
 
 
 @dataclass
@@ -143,14 +143,16 @@ class HitachiYutakiNumber(
         """Set new value, surfacing a refused write instead of faking it."""
         if not self.entity_description.set_fn:
             return
-        result = await self.entity_description.set_fn(
-            self.coordinator.api_client, self._circuit_id, value
+        set_fn = self.entity_description.set_fn
+        api = self.coordinator.api_client
+        await async_send_command(
+            self.coordinator,
+            self.entity_id,
+            CommandStep(
+                self.entity_description.key,
+                lambda: set_fn(api, self._circuit_id, value),
+            ),
         )
-        await self.coordinator.async_request_refresh()
-        if result is False:
-            raise HomeAssistantError(
-                f"Failed to set {self.entity_description.key} to {value}"
-            )
 
     def set_native_value(self, value: float) -> None:
         """Set new value."""

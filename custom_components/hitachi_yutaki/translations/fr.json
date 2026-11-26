@@ -921,5 +921,13 @@
       "title": "La pompe à chaleur a perdu le contact avec son groupe extérieur",
       "description": "Votre pompe à chaleur signale l'alarme **{code}** : l'unité intérieure ne communique plus avec le groupe extérieur. Home Assistant l'a relevée pour la première fois le {since}. L'unité s'arrête généralement, ou fonctionne sur sa résistance d'appoint si elle en a une.\n\nTant que l'alarme dure, l'unité renvoie 0 à la place des mesures qui viennent du groupe extérieur (température extérieure, données du compresseur). Ces capteurs apparaissent indisponibles plutôt qu'à un faux 0.\n\nVérifiez l'alimentation du groupe extérieur et le câble de communication entre les deux unités, et contactez votre installateur si l'alarme persiste. Cet avertissement disparaît de lui-même dès que l'unité ne signale plus l'alarme."
     }
+  },
+  "exceptions": {
+    "write_failed": {
+      "message": "La pompe à chaleur n'a pas appliqué le changement {step} demandé sur {entity}. Son état a été relu ; vérifiez la connexion à la passerelle avant de réessayer."
+    },
+    "command_partially_applied": {
+      "message": "La commande sur {entity} n'a été appliquée qu'en partie : {applied} a réussi, mais la pompe à chaleur n'a pas appliqué le changement {step}. Son état a été relu ; vérifiez-le avant de réessayer."
+    }
   }
 }

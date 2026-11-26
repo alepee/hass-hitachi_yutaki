@@ -33,7 +33,7 @@ Key fields across entity types:
 | `key` | Unique identifier within the domain. Used in unique ID and register lookup. |
 | `translation_key` | Maps to the entity translation keys in `translations/en.json` (and other locale files under `translations/`) for localized names. |
 | `value_fn` | Read callback (sensors, binary sensors). Receives the coordinator. |
-| `get_fn` / `set_fn` | Read/write callbacks (switches, numbers, selects). Receive the API client and an optional circuit ID. |
+| `get_fn` / `set_fn` | Read/write callbacks (switches, numbers, selects). Receive the API client and an optional circuit ID. `set_fn` returns the API's `bool`; the base entity turns `False` into an error (see [Write commands](#write-commands)). |
 | `attributes_fn` | Sensor attributes callback. Diagnostic codes belong to control-unit descriptions; the base sensor never dispatches by key. |
 | `condition` | Lambda that receives the coordinator; entity is skipped when it returns `False`. |
 
@@ -230,3 +230,25 @@ precedence.
 Writable modes and ECO availability come from `supported_unit_modes` and
 `can_write` on the API client. With multiple circuits, climate entities only
 control their own power; the control-unit select owns the global mode.
+`climate.set_temperature` with an `hvac_mode` applies the mode first, through
+the same writes as `set_hvac_mode`, then the temperature.
+
+## Write commands
+
+The API client reports a write as a `bool` (`False`: the gateway did not apply
+it; link errors never escape as exceptions). Every base entity that writes
+(climate, water heater, switch, number, select, button) goes through
+`async_send_command` in `entities/base/command.py`, the single place where that
+`bool` becomes a Home Assistant error:
+
+- the `CommandStep`s of a command run in order and stop at the first refused
+  write, so a refused power-on never goes on to change the global mode;
+- the coordinator is refreshed whatever the outcome, so the entity shows the
+  device state rather than the requested one;
+- a refusal raises `HomeAssistantError` with the `write_failed` translation, or
+  `command_partially_applied` when earlier steps were applied (for example a
+  circuit powered on whose operating mode was refused). Nothing is rolled back:
+  the previous state is not known reliably enough to restore it.
+
+A step returning `None` (an action that is not a gateway write, such as the
+refrigerant baseline reset) counts as applied.

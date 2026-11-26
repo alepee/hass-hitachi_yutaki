@@ -72,7 +72,9 @@ See [docs/reference/domain-services.md](docs/reference/domain-services.md) for d
 - Consumers use logical `base_keys`/`gateway_keys`, `supports_key`, `can_write`
   and `supported_unit_modes`; concrete register maps stay inside `api/`.
 - A readable key is not necessarily writable. UI commands must use writable
-  capabilities and propagate failed writes.
+  capabilities and propagate failed writes: entities send writes through
+  `async_send_command` (`entities/base/command.py`), never test a write's
+  `bool` themselves.
 - Every `RegisterDefinition` declares a **codec** (`api/modbus/registers/codecs/`)
   that decodes reads and encodes writes: no register is read or written raw.
   Pick it from the documented type (`SIGNED` for (*1), `TENTHS` for tenths,

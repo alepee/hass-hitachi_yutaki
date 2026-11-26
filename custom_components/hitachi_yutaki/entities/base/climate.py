@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from homeassistant.components.climate import (
+    ATTR_HVAC_MODE,
     PRESET_ECO,
     ClimateEntity,
     ClimateEntityDescription,
@@ -25,6 +26,7 @@ from ...const import (
 )
 from ...coordinator import HitachiYutakiDataCoordinator
 from ...domain.models.circuit import CircuitActivity
+from .command import CommandStep, async_send_command
 
 _ACTIVITY_TO_HA = {
     CircuitActivity.OFF: HVACAction.OFF,
@@ -173,51 +175,86 @@ class HitachiYutakiClimate(
 
         return PRESET_ECO if is_eco else PRESET_COMFORT
 
-    async def async_set_temperature(self, **kwargs) -> None:
-        """Set new target temperature."""
-        if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
-            return
+    def _hvac_mode_steps(self, hvac_mode: HVACMode) -> list[CommandStep]:
+        """Return the writes that put the circuit in ``hvac_mode``.
 
-        await self.coordinator.api_client.set_circuit_target_temperature(
-            self._circuit_id, temperature
-        )
-        await self.coordinator.async_request_refresh()
+        Off only cuts the circuit power. Any other mode powers the circuit on,
+        and a single circuit also sets the global unit mode; with two circuits
+        the global mode belongs to the operating-mode select.
+        """
+        api = self.coordinator.api_client
+        circuit_id = self._circuit_id
+        if hvac_mode == HVACMode.OFF:
+            return [
+                CommandStep(
+                    "circuit_power", lambda: api.set_circuit_power(circuit_id, False)
+                )
+            ]
+        steps = [
+            CommandStep(
+                "circuit_power", lambda: api.set_circuit_power(circuit_id, True)
+            )
+        ]
+        if not self._multi_circuit:
+            steps.append(CommandStep("unit_mode", lambda: api.set_unit_mode(hvac_mode)))
+        return steps
+
+    async def _async_command(self, *steps: CommandStep) -> None:
+        """Send ``steps`` as one command, raising if the gateway refuses one."""
+        await async_send_command(self.coordinator, self.entity_id, *steps)
+
+    async def async_set_temperature(self, **kwargs) -> None:
+        """Set new target temperature, and the HVAC mode when one is given.
+
+        The ``climate.set_temperature`` action may carry an ``hvac_mode``: it is
+        applied first, through the same writes as ``async_set_hvac_mode``.
+        """
+        temperature = kwargs.get(ATTR_TEMPERATURE)
+        hvac_mode = kwargs.get(ATTR_HVAC_MODE)
+        steps = [] if hvac_mode is None else self._hvac_mode_steps(hvac_mode)
+        if temperature is not None:
+            api = self.coordinator.api_client
+            circuit_id = self._circuit_id
+            steps.append(
+                CommandStep(
+                    "target_temperature",
+                    lambda: api.set_circuit_target_temperature(circuit_id, temperature),
+                )
+            )
+        if steps:
+            await self._async_command(*steps)
 
     async def async_set_room_temperature(self, **kwargs) -> None:
         """Set the measured room temperature (Modbus thermostat mode)."""
         if (temperature := kwargs.get(ATTR_TEMPERATURE)) is None:
             return
 
-        await self.coordinator.api_client.set_circuit_room_temperature(
-            self._circuit_id, temperature
+        api = self.coordinator.api_client
+        await self._async_command(
+            CommandStep(
+                "room_temperature",
+                lambda: api.set_circuit_room_temperature(self._circuit_id, temperature),
+            )
         )
-        await self.coordinator.async_request_refresh()
 
     async def async_set_hvac_mode(self, hvac_mode: HVACMode) -> None:
         """Set new target hvac mode."""
-        if hvac_mode == HVACMode.OFF:
-            await self.coordinator.api_client.set_circuit_power(self._circuit_id, False)
-            await self.coordinator.async_request_refresh()
-            return
-
-        # Ensure circuit is powered on
-        await self.coordinator.api_client.set_circuit_power(self._circuit_id, True)
-
-        if not self._multi_circuit:
-            # Single circuit: also set the global unit mode
-            await self.coordinator.api_client.set_unit_mode(hvac_mode)
-
-        await self.coordinator.async_request_refresh()
+        await self._async_command(*self._hvac_mode_steps(hvac_mode))
 
     async def async_set_preset_mode(self, preset_mode: str) -> None:
         """Set new preset mode."""
         if preset_mode not in self.preset_modes:
             return
 
-        await self.coordinator.api_client.set_circuit_eco_mode(
-            self._circuit_id, preset_mode == PRESET_ECO
+        api = self.coordinator.api_client
+        await self._async_command(
+            CommandStep(
+                "eco_mode",
+                lambda: api.set_circuit_eco_mode(
+                    self._circuit_id, preset_mode == PRESET_ECO
+                ),
+            )
         )
-        await self.coordinator.async_request_refresh()
 
     async def async_turn_on(self) -> None:
         """Turn the entity on."""
