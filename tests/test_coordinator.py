@@ -624,6 +624,26 @@ async def test_unconfirmed_unit_after_a_reconnection_is_not_published(
 
 
 @pytest.mark.asyncio
+async def test_unconfirmed_unit_after_a_reconnection_is_withheld_without_any_proof(
+    coordinator, mock_api_client
+):
+    """An inconclusive first check does not exempt later reconnections (#476).
+
+    The first readings stand on the setup binding, so setup is not blocked;
+    readings from a new connection whose unit still cannot be checked are
+    withheld all the same.
+    """
+    _set_entry_id(coordinator)
+    mock_api_client.async_verify_unit.return_value = None
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        assert (await coordinator._async_update_data())["is_available"] is True
+        mock_api_client.connection_epoch += 1
+        with pytest.raises(UpdateFailed, match="after a reconnection"):
+            await coordinator._async_update_data()
+
+
+@pytest.mark.asyncio
 async def test_unit_check_spanning_a_reconnection_is_not_a_proof(
     coordinator, mock_api_client
 ):

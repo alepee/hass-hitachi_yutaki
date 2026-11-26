@@ -20,15 +20,17 @@ from pytest_homeassistant_custom_component.common import (
 from custom_components.hitachi_yutaki import (
     TELEMETRY_FLUSH_INTERVAL,
     _schedule_telemetry_flush,
+    async_unload_entry,
 )
 from custom_components.hitachi_yutaki.api.base import ReadResult
 from custom_components.hitachi_yutaki.const import DOMAIN
 from custom_components.hitachi_yutaki.coordinator import HitachiYutakiDataCoordinator
 from custom_components.hitachi_yutaki.telemetry import (
+    SendResult,
     TelemetryCollector,
     TelemetryLevel,
 )
-from homeassistant.const import CONF_SCAN_INTERVAL
+from homeassistant.const import CONF_NAME, CONF_SCAN_INTERVAL
 from homeassistant.core import HomeAssistant
 
 
@@ -136,33 +138,63 @@ async def test_onetime_send_runs_one_at_a_time(hass: HomeAssistant) -> None:
 
 
 @pytest.mark.asyncio
-async def test_flush_in_flight_is_cancelled_when_the_entry_unloads(
+async def test_unload_waits_for_the_flush_in_flight_before_the_final_flush(
     hass: HomeAssistant, freezer: FrozenDateTimeFactory
 ) -> None:
-    """A periodic flush does not race the final unload flush."""
-    entry = MockConfigEntry(domain=DOMAIN, data={CONF_SCAN_INTERVAL: 5})
+    """The final unload flush neither races nor strands a periodic flush.
+
+    Home Assistant cancels an entry's background tasks only once
+    ``async_unload_entry`` has returned, so the periodic flush is still alive
+    while the entry unloads. Unloading must cancel it, let it put its points
+    back, then send them once.
+    """
+    entry = MockConfigEntry(
+        domain=DOMAIN, data={CONF_SCAN_INTERVAL: 5, CONF_NAME: "Yutaki"}
+    )
     entry.add_to_hass(hass)
+    coordinator = _coordinator(hass, entry)
+    coordinator.api_client.close = AsyncMock()
+    entry.runtime_data = coordinator
+    for _ in range(3):
+        coordinator.telemetry_collector.collect(
+            {"is_available": True, "outdoor_temp": 5.0}
+        )
 
     started = asyncio.Event()
-    cancelled = asyncio.Event()
+    sending = 0
+    max_sending = 0
+    delivered: list[list] = []
 
-    async def _never_answers() -> bool:
-        started.set()
+    async def _send(batch) -> SendResult:
+        nonlocal sending, max_sending
+        sending += 1
+        max_sending = max(max_sending, sending)
         try:
-            await asyncio.Event().wait()
-        except asyncio.CancelledError:
-            cancelled.set()
-            raise
-        return True
+            if not started.is_set():
+                started.set()
+                await asyncio.Event().wait()  # The periodic send never answers.
+            delivered.append(batch.points)
+            return SendResult.SUCCESS
+        finally:
+            sending -= 1
 
-    coordinator = MagicMock()
-    coordinator.async_flush_telemetry = AsyncMock(side_effect=_never_answers)
+    client = MagicMock()
+    client.send_metrics = AsyncMock(side_effect=_send)
+    coordinator.telemetry_client = client
+
     _schedule_telemetry_flush(hass, entry, coordinator)
-
     freezer.tick(TELEMETRY_FLUSH_INTERVAL)
     async_fire_time_changed(hass)
     await asyncio.wait_for(started.wait(), 1)
 
-    await entry._async_process_on_unload(hass)
+    with patch.object(
+        hass.config_entries, "async_unload_platforms", AsyncMock(return_value=True)
+    ):
+        assert await async_unload_entry(hass, entry)
 
-    assert cancelled.is_set()
+    assert max_sending == 1
+    assert [len(points) for points in delivered] == [3]
+    assert coordinator.telemetry_collector.buffer_size == 0
+    # What Home Assistant does next finds nothing left to cancel.
+    await entry._async_process_on_unload(hass)
+    assert client.send_metrics.await_count == 2

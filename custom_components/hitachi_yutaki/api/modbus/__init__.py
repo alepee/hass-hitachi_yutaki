@@ -216,6 +216,12 @@ class ModbusApiClient(HitachiApiClient):
         a single write would. A second failure reports the write as failed
         although the first may have reached the unit: nothing is shadowed, so
         the next poll shows what the unit applied.
+
+        The second write goes out only once :meth:`async_verify_unit` proves
+        the unit on the new connection (#476): a reconnection is when a
+        gateway hosting several units may have rebooted and moved them, and a
+        command must never land on another unit. Without that proof the write
+        is reported as failed.
         """
         if key not in self._register_map.writable_keys:
             _LOGGER.error("Unknown or non-writable register key: %s", key)
@@ -234,6 +240,7 @@ class ModbusApiClient(HitachiApiClient):
             accepted = await self._with_reconnect(
                 f"write to register {key}",
                 lambda: self._transport.write_register(register_address, raw),
+                before_retry=self._verify_unit_on_new_connection,
             )
         except GatewayCommunicationError as exc:
             _LOGGER.error("Error writing to register %s: %s", key, exc)
@@ -249,14 +256,21 @@ class ModbusApiClient(HitachiApiClient):
         return True
 
     async def _with_reconnect[T](
-        self, operation: str, attempt: Callable[[], Awaitable[T]]
+        self,
+        operation: str,
+        attempt: Callable[[], Awaitable[T]],
+        *,
+        before_retry: Callable[[], Awaitable[None]] | None = None,
     ) -> T:
         """Run ``attempt``, reconnecting and running it once more on a link failure.
 
         A failed reconnection, or a second failure, propagates the
         :class:`GatewayCommunicationError`. A reconnection advances
         :attr:`connection_epoch`, which tells the caller that the unit must be
-        checked again: the gateway may have rebooted and moved it.
+        checked again: the gateway may have rebooted and moved it. Reads
+        leave that check to the coordinator, which makes it before publishing;
+        ``before_retry`` runs it first for an operation that cannot be taken
+        back, and raises :class:`GatewayCommunicationError` to cancel the retry.
         """
         try:
             return await attempt()
@@ -269,8 +283,25 @@ class ModbusApiClient(HitachiApiClient):
             if not await self._transport.reconnect():
                 _LOGGER.error("Reconnection failed, %s aborted", operation)
                 raise
+        if before_retry is not None:
+            await before_retry()
         _LOGGER.warning("Reconnection successful, retrying %s", operation)
         return await attempt()
+
+    async def _verify_unit_on_new_connection(self) -> None:
+        """Prove the unit on the connection just opened, or raise (#476).
+
+        A proof obtained while the connection was replaced again proves
+        nothing about the current one.
+        """
+        epoch = self.connection_epoch
+        verified = await self.async_verify_unit()
+        if verified is not True or self.connection_epoch != epoch:
+            raise GatewayCommunicationError(
+                "Unit not confirmed after the reconnection"
+                if verified is False
+                else "Unit could not be checked after the reconnection"
+            )
 
     @property
     def has_dhw(self) -> bool:

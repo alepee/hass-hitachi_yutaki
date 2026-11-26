@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from pymodbus.exceptions import ModbusException
@@ -10,6 +11,7 @@ import pytest
 from custom_components.hitachi_yutaki.api.base import UnitBindingStatus
 from custom_components.hitachi_yutaki.api.modbus import ModbusApiClient
 from custom_components.hitachi_yutaki.api.modbus.hc_a_mb import HcAMbApiClient
+from custom_components.hitachi_yutaki.api.modbus.kept_values import KeptValues
 from custom_components.hitachi_yutaki.api.modbus.registers.hc_a_mb import (
     HcAMbRegisterMap,
 )
@@ -244,3 +246,28 @@ async def test_verify_still_runs_when_the_table_was_unreadable_at_setup(
 
     _serve(mock_client, SHIFTED)  # slot 2 now holds (7, 8)
     assert await api_client.async_verify_unit() is False
+
+
+@pytest.mark.asyncio
+async def test_write_after_a_reboot_does_not_reach_the_unit_now_in_the_slot(
+    api_client, mock_client
+):
+    """A write that reconnects onto a re-enumerated bus is not sent again (#476).
+
+    The link drops during the write; once reconnected, slot 2 holds another
+    unit. The command is reported as failed rather than written to that unit.
+    """
+    _serve(mock_client, DUMP_A)
+    await api_client.async_bind_unit(_entry(2, 5, 6))
+    api_client._pending_writes = {}
+    api_client._write_lock = asyncio.Lock()
+    api_client._data = {}
+    rmap = api_client.register_map
+    api_client._kept = KeptValues(rmap.all_registers, rmap.writable_keys)
+    api_client._transport.reconnect = AsyncMock(return_value=True)
+    mock_client.write_register.side_effect = ConnectionError("reset")
+    _serve(mock_client, SHIFTED)
+
+    assert "unit_power" in rmap.writable_keys
+    assert await api_client.write_value("unit_power", 1) is False
+    assert mock_client.write_register.call_count == 1

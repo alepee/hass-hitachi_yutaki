@@ -103,6 +103,11 @@ def coordinator(gateway):
 
     entry = MagicMock()
     entry.entry_id = "entry"
+    # Telemetry is off: drop the one-time send instead of leaving its
+    # coroutine unawaited in a mock.
+    entry.async_create_background_task.side_effect = (
+        lambda _hass, coroutine, name=None: coroutine.close()
+    )
     entry.data = {CONF_SCAN_INTERVAL: 5}
     profile = MagicMock()
     profile.extra_register_keys = []

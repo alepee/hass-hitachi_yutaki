@@ -122,7 +122,9 @@ class KeptValues:
         """Record a successful write; a command from Home Assistant settles a restore.
 
         Either way the planned write-back of ``key`` is done with: performed,
-        or superseded by the command.
+        or superseded by the command. A command also withdraws a lost value
+        queued by the last read and not planned yet, so the next plan does not
+        overwrite the command with the old reference.
 
         Settling the last failure notifies the settled listener at once, so
         the failure is not reported until the next read.
@@ -134,6 +136,7 @@ class KeptValues:
         if keep.seed_from is None:
             self._remember(key, value)
         if not by_restore:
+            self._lost.pop(key, None)
             was_failed = self.failed
             self._settle(key)
             self._unrestorable.discard(key)

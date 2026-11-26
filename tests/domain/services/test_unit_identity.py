@@ -86,3 +86,28 @@ def test_inconclusive_check_without_any_proof_keeps_the_setup_binding():
     guard, _ = _guard()
 
     assert guard.unverified(3) is UnverifiedVerdict.PUBLISH
+
+
+def test_inconclusive_check_after_a_reconnection_withholds_without_any_proof():
+    """The setup binding only stands on the connection of the first readings.
+
+    When the first check is inconclusive the unit is never proven; a later
+    reconnection is still exactly when the unit may have moved, so readings
+    whose check fails there are withheld like after a proof.
+    """
+    guard, _ = _guard()
+
+    assert guard.unverified(1) is UnverifiedVerdict.PUBLISH
+    assert guard.unverified(1) is UnverifiedVerdict.PUBLISH
+    assert guard.unverified(2) is UnverifiedVerdict.WITHHOLD
+    assert guard.is_due(2)
+
+
+def test_a_proof_after_an_unproven_start_takes_over():
+    """Once proven, the proof's connection is the trusted one."""
+    guard, _ = _guard()
+    guard.unverified(1)
+    guard.proven(2)
+
+    assert guard.unverified(2) is UnverifiedVerdict.PUBLISH
+    assert guard.unverified(1) is UnverifiedVerdict.WITHHOLD

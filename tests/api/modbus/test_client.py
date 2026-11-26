@@ -493,6 +493,68 @@ async def test_write_value_retries_once_after_reconnection(mock_hass, mock_clien
     assert mock_client.write_register.call_count == 2
 
 
+@pytest.mark.parametrize("verdict", [False, None], ids=["moved", "unknown"])
+@pytest.mark.asyncio
+async def test_write_is_not_retried_on_an_unverified_unit(
+    mock_hass, mock_client, verdict
+):
+    """A write that reconnects is retried only once the unit is proven again.
+
+    A reconnection is when a multi-unit gateway may have rebooted and moved
+    the unit: retrying blindly could land the command on another unit. The
+    write is reported as failed instead (#476).
+    """
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+    api.async_verify_unit = AsyncMock(return_value=verdict)
+    mock_client.write_register.side_effect = [
+        ConnectionError("reset"),
+        _make_modbus_result(0),
+    ]
+
+    assert await api.write_value("unit_power", 1) is False
+
+    api.async_verify_unit.assert_awaited_once()
+    assert mock_client.write_register.call_count == 1
+    assert api._pending_writes == {}
+
+
+@pytest.mark.asyncio
+async def test_write_is_not_retried_when_the_check_ran_on_another_connection(
+    mock_hass, mock_client
+):
+    """A proof obtained on a connection replaced meanwhile proves nothing."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+
+    async def _reconnecting_check() -> bool:
+        api._transport._epoch += 1  # pymodbus reopened the socket on its own
+        return True
+
+    api.async_verify_unit = AsyncMock(side_effect=_reconnecting_check)
+    mock_client.write_register.side_effect = [
+        ConnectionError("reset"),
+        _make_modbus_result(0),
+    ]
+
+    assert await api.write_value("unit_power", 1) is False
+    assert mock_client.write_register.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_read_retry_leaves_the_unit_check_to_the_coordinator(
+    mock_hass, mock_client
+):
+    """Reads keep their retry: the coordinator checks the unit before publishing."""
+    api = _make_preflight_api_client(mock_hass, mock_client)
+    api._transport.reconnect = AsyncMock(return_value=True)
+    api.async_verify_unit = AsyncMock(return_value=False)
+    attempt = AsyncMock(side_effect=[GatewayCommunicationError("drop"), "ok"])
+
+    assert await api._with_reconnect("read", attempt) == "ok"
+    api.async_verify_unit.assert_not_awaited()
+
+
 class _ThreadedGateway:
     """pymodbus clients served from real executor threads, logging each call.
 
@@ -1584,6 +1646,30 @@ async def test_value_changed_by_home_assistant_meanwhile_is_not_written(
     await restore
 
     assert gateway.writes == [(1011, 230)]
+    assert api.kept_values()["circuit1_target_temp"] == 23.0
+
+
+@patch("custom_components.hitachi_yutaki.api.modbus.ir")
+@pytest.mark.asyncio
+async def test_command_between_the_read_and_the_restore_is_not_overwritten(
+    _mock_ir, mock_hass, mock_client
+):
+    """A command sent while the poll verifies the unit wins over the old value.
+
+    The coordinator verifies the unit between the read that finds the target
+    lost and the restore. A command landing in that window, e.g. right after
+    an HC-A reboot, is the value the unit keeps: the restore must not write
+    the old reference over it.
+    """
+    api = _room_api(mock_hass, mock_client)
+    await _poll(api, mock_client, flag=1, target=215)
+    await _read(api, mock_client, flag=1, target=0)  # queues the target, 21.5
+
+    assert await api.set_circuit_target_temperature(1, 23.0)
+    await api.restore_lost_values()
+
+    assert _writes(mock_client) == [(1011, 230)]
+    assert api._data["circuit1_target_temp"] == 23.0
     assert api.kept_values()["circuit1_target_temp"] == 23.0
 
 

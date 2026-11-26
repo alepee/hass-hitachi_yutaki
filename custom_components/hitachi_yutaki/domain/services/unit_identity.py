@@ -24,8 +24,9 @@ UNIT_CHECK_INTERVAL_S = 60.0
 class UnverifiedVerdict(StrEnum):
     """What to do with readings whose unit check could not be made."""
 
-    # Publish: the connection is the one the unit was last proven on (or no
-    # proof was ever obtained at runtime, the setup binding stands).
+    # Publish: the connection is the one the unit was last proven on (or, with
+    # no proof ever obtained at runtime, the one of the first readings, where
+    # the setup binding stands).
     PUBLISH = "publish"
     # Withhold: the connection changed since the last proof, the readings may
     # come from another unit.
@@ -44,6 +45,9 @@ class UnitIdentityGuard:
         self._interval = interval
         # Connection epoch the unit was last proven on, None before any proof.
         self._proven_epoch: int | None = None
+        # Connection of the first readings whose check was inconclusive: the
+        # setup binding is trusted there, and only there, until a proof.
+        self._setup_epoch: int | None = None
         # Monotonic time of the last proof, None to force a check.
         self._proven_at: float | None = None
 
@@ -74,7 +78,17 @@ class UnitIdentityGuard:
         An inconclusive check on the connection the unit was proven on is a
         transient hiccup. On any other connection the readings are withheld,
         since a reconnection is exactly when the unit may have moved.
+
+        Before any proof, the first readings stand on the setup binding, so an
+        unreadable check does not block the setup; their connection is then
+        the trusted one, and a reconnection withholds as it would after a
+        proof.
         """
-        if self._proven_epoch is None or self._proven_epoch == epoch:
+        trusted = self._proven_epoch
+        if trusted is None:
+            if self._setup_epoch is None:
+                self._setup_epoch = epoch
+            trusted = self._setup_epoch
+        if trusted == epoch:
             return UnverifiedVerdict.PUBLISH
         return UnverifiedVerdict.WITHHOLD
