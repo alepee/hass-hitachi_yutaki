@@ -234,7 +234,7 @@ Sensor entities must always read from STATUS registers. Reading CONTROL register
 
 Gateway-specific behaviour stays inside `api/`. The rest of the integration only uses gateway-agnostic extension points:
 
-- **Client** (`HitachiApiClient`, created with `create_api_client`): `async_bind_unit` locates the entry's unit at setup and `async_verify_unit` tells the coordinator whether it still reads that unit. Both are no-ops on a single-unit gateway; `HcAMbApiClient` implements them with the gateway unit table, since a unit's slot moves when the bus is re-enumerated (#476).
+- **Client** (`HitachiApiClient`, created with `create_api_client`): `async_bind_unit` locates the entry's unit at setup and `async_verify_unit` tells the coordinator whether it still reads that unit. Both are no-ops on a single-unit gateway; `HcAMbApiClient` implements them with the gateway unit table, since a unit's slot moves when the bus is re-enumerated (#476). `connection_epoch` changes whenever the connection is replaced, including a reconnection inside a read or a write; the coordinator's `UnitIdentityGuard` (`domain/services/unit_identity.py`) binds the unit check to it, so readings taken on a new connection are checked before they are published.
 - **Config provider** (`GatewayConfigProvider`): besides the config steps, the `unique_id` suffix, conflicts with entries already configured, the identity of the unit an entry is bound to, and the gateway section of the diagnostics.
 
 The client exposes logical `base_keys` and `gateway_keys`, `supports_key`,
@@ -252,7 +252,8 @@ value (`None` for a read, `False` for a write) and raises
 `GatewayCommunicationError` (`api/base.py`) on a communication failure, so the
 client keeps the decision to reconnect and retry: `_with_reconnect` reconnects
 once on a `GatewayCommunicationError` and runs the read cycle or the write once
-more, while a refused write is reported as a failure without a reconnection
+more (the transport's `connection_epoch` records every new socket, including
+the ones pymodbus reopens on its own before a request), while a refused write is reported as a failure without a reconnection
 (the gateway answered, the link is fine). Repeating a write is deliberate: a
 function 06 write sets an absolute value, so a second one after a lost
 acknowledgement leaves the unit as one would; a second failure is reported as

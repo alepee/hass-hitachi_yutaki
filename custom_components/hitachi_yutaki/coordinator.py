@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, date, datetime, timedelta
 import logging
-import time
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -49,6 +48,7 @@ from .domain.services.maintenance import (
     cycling_alert_policy,
     refrigerant_alert_policy,
 )
+from .domain.services.unit_identity import UnitIdentityGuard, UnverifiedVerdict
 from .profiles import HitachiHeatPumpProfile
 from .telemetry import (
     FleetPingUnit,
@@ -74,11 +74,6 @@ _CYCLING_DOC_URL = (
 
 _MAX_BACKOFF = timedelta(seconds=300)
 
-# How often a healthy entry re-checks that the client still reads its unit
-# (#476). Also checked on the first poll after any failure, which is when a
-# gateway reboot would have moved the units.
-_UNIT_CHECK_INTERVAL = 60.0
-
 KEPT_VALUES_STORE_VERSION = 1
 _KEPT_VALUES_SAVE_DELAY_S = 10
 
@@ -103,8 +98,8 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self.derived_metrics: DerivedMetricsAdapter | None = None
         self._normal_interval = timedelta(seconds=entry.data[CONF_SCAN_INTERVAL])
         self._gateway_not_ready_count: int = 0
-        # Monotonic time of the last unit slot check, None to check next poll.
-        self._unit_checked_at: float | None = None
+        # When the unit behind the client must be checked again (#476).
+        self._unit_guard = UnitIdentityGuard(HomeAssistantClock(hass))
         # Seed from persisted value (0 = unknown / never refreshed) so callers
         # of has_dhw/has_pool/has_circuit get sensible answers before the
         # first successful refresh. The api_client cache is the live source,
@@ -180,29 +175,36 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         return self._gateway_not_ready_count > 0
 
     async def _async_verify_unit(self) -> None:
-        """Reload the entry when the client no longer reads its unit (#476).
+        """Make sure the readings just taken come from the entry's unit (#476).
 
         On a gateway hosting several units, a gateway reboot while Home
         Assistant runs can move a unit to another address; polling would then
-        carry on reading another unit's data under this entry's name. Checked
-        on the first good poll after any failure (when such a reboot shows up)
-        and periodically otherwise. Raises ``UpdateFailed`` and schedules a
-        reload, which binds the client to the unit again.
+        carry on reading another unit's data under this entry's name. A reboot
+        drops the connection, so the proof of identity is bound to the
+        client's connection epoch: readings taken on a new connection (even
+        one the client reopened on its own in the middle of a read) are
+        checked before they are published, and a healthy connection is
+        re-checked periodically. A unit that moved raises ``UpdateFailed`` and
+        schedules a reload, which binds the client to the unit again.
         """
-        now = time.monotonic()
-        if (
-            self._unit_checked_at is not None
-            and now - self._unit_checked_at < _UNIT_CHECK_INTERVAL
-        ):
+        epoch = self.api_client.connection_epoch
+        if not self._unit_guard.is_due(epoch):
             return
         verified = await self.api_client.async_verify_unit()
+        if self.api_client.connection_epoch != epoch:
+            # The check ran on another connection than the readings.
+            verified = None
         if verified is None:
-            return
-        self._unit_checked_at = now
+            if self._unit_guard.unverified(epoch) is UnverifiedVerdict.PUBLISH:
+                return
+            raise UpdateFailed(
+                "Could not confirm the heat pump unit after a reconnection"
+            )
         if verified:
+            self._unit_guard.proven(epoch)
             return
 
-        self._unit_checked_at = None
+        self._unit_guard.force_check()
         self.hass.config_entries.async_schedule_reload(self.config_entry.entry_id)
         raise UpdateFailed("Heat pump unit moved to another gateway address")
 
@@ -219,7 +221,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             result = await self.api_client.read_values(keys_to_read)
 
             if result == ReadResult.GATEWAY_NOT_READY:
-                self._unit_checked_at = None
+                self._unit_guard.force_check()
                 self._gateway_not_ready_count += 1
                 backoff = min(
                     self._normal_interval * (2**self._gateway_not_ready_count),
@@ -265,7 +267,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             raise
 
         except Exception as exc:
-            self._unit_checked_at = None
+            self._unit_guard.force_check()
             ir.async_create_issue(
                 self.hass,
                 DOMAIN,

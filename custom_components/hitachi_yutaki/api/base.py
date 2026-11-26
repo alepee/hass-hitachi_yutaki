@@ -160,6 +160,18 @@ class HitachiApiClient(ABC):
         """
         return True
 
+    @property
+    def connection_epoch(self) -> int:
+        """Return a number that changes whenever the connection is replaced.
+
+        Covers every new connection, including the ones a read or a write opens
+        on its own to recover from a link failure. The coordinator binds the
+        ``async_verify_unit`` proof to it: readings taken on a connection the
+        unit was not proven on are checked before they are published. A client
+        without such a notion keeps the default constant.
+        """
+        return 0
+
     @abstractmethod
     async def read_value(self, key: str) -> Any:
         """Read a value from the API."""

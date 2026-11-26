@@ -64,11 +64,32 @@ class ModbusTransport:
         # Held for the whole of each operation, so a reconnect or a close
         # never replaces the client under one in flight.
         self._lock = asyncio.Lock()
+        # Socket the current epoch was counted on (identity only, never used).
+        self._socket: object | None = None
+        self._epoch = 0
 
     @property
     def connected(self) -> bool:
         """Return True if the socket is open."""
         return self._client.is_socket_open()
+
+    @property
+    def connection_epoch(self) -> int:
+        """Return a number that changes whenever a new socket is opened.
+
+        Counts every connection: the ones :meth:`connect` and :meth:`reconnect`
+        open, and the ones pymodbus opens on its own when a request finds its
+        socket closed. Readings taken under different epochs may come from a
+        gateway that rebooted in between.
+        """
+        return self._epoch
+
+    def _observe_socket(self) -> None:
+        """Advance the epoch when the pymodbus client now holds a new socket."""
+        sock = getattr(self._client, "socket", None)
+        if sock is not None and sock is not self._socket:
+            self._socket = sock
+            self._epoch += 1
 
     async def connect(self) -> bool:
         """Open a fresh connection, retrying with exponential backoff.
@@ -94,6 +115,7 @@ class ModbusTransport:
                 success = await self._hass.async_add_executor_job(self._client.connect)
 
                 if success and self._client.is_socket_open():
+                    self._observe_socket()
                     _LOGGER.debug(
                         "Successfully connected to Modbus gateway at %s:%s",
                         self._host,
@@ -149,10 +171,15 @@ class ModbusTransport:
         pymodbus raises ``ModbusException`` (``ConnectionException`` included)
         and the socket raises ``OSError`` (``ConnectionError`` and
         ``TimeoutError`` included); both become GatewayCommunicationError.
+        pymodbus reopens a closed socket before sending a request, so the
+        epoch is checked after every call, whatever its outcome.
         """
         try:
             async with self._lock:
-                return await self._hass.async_add_executor_job(job)
+                try:
+                    return await self._hass.async_add_executor_job(job)
+                finally:
+                    self._observe_socket()
         except (ModbusException, OSError) as exc:
             raise GatewayCommunicationError(
                 f"{type(exc).__name__}: {exc}" if str(exc) else type(exc).__name__

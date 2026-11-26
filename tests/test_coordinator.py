@@ -48,6 +48,7 @@ def mock_api_client():
     client.connected = True
     client.read_values = AsyncMock(return_value=ReadResult.SUCCESS)
     client.async_verify_unit = AsyncMock(return_value=True)
+    client.connection_epoch = 1
     client.read_value = AsyncMock(return_value=None)
     client.base_keys = ["system_state"]
     client.is_defrosting = False
@@ -543,6 +544,76 @@ async def test_unit_check_retries_when_it_cannot_be_made(coordinator, mock_api_c
 
     assert mock_api_client.async_verify_unit.await_count == 2
     coordinator.hass.config_entries.async_schedule_reload.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unit_check_runs_again_after_a_reconnection_within_the_interval(
+    coordinator, mock_api_client
+):
+    """A reconnection inside a read voids the proof, however recent (#476).
+
+    The client reconnects on its own when a gateway reboot drops the link
+    mid-read, so the poll itself succeeds. The readings come from the new
+    connection, where another unit may now sit at the client's address.
+    """
+    _set_entry_id(coordinator)
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+
+        async def reconnecting_read(_keys):
+            mock_api_client.connection_epoch += 1
+            return ReadResult.SUCCESS
+
+        mock_api_client.read_values.side_effect = reconnecting_read
+        mock_api_client.async_verify_unit.return_value = False
+        with pytest.raises(UpdateFailed, match="unit moved"):
+            await coordinator._async_update_data()
+
+    assert mock_api_client.async_verify_unit.await_count == 2
+    coordinator.hass.config_entries.async_schedule_reload.assert_called_once_with(
+        "entry"
+    )
+
+
+@pytest.mark.asyncio
+async def test_unconfirmed_unit_after_a_reconnection_is_not_published(
+    coordinator, mock_api_client
+):
+    """Readings from a new connection whose unit cannot be checked are withheld."""
+    _set_entry_id(coordinator)
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        mock_api_client.connection_epoch += 1
+        mock_api_client.async_verify_unit.return_value = None
+        with pytest.raises(UpdateFailed, match="after a reconnection"):
+            await coordinator._async_update_data()
+        # Confirmed on the next poll: published again.
+        mock_api_client.async_verify_unit.return_value = True
+        assert (await coordinator._async_update_data())["is_available"] is True
+
+    coordinator.hass.config_entries.async_schedule_reload.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_unit_check_spanning_a_reconnection_is_not_a_proof(
+    coordinator, mock_api_client
+):
+    """A check answered on another connection than the readings proves nothing."""
+    _set_entry_id(coordinator)
+
+    with patch("custom_components.hitachi_yutaki.coordinator.ir"):
+        await coordinator._async_update_data()
+        mock_api_client.connection_epoch += 1
+
+        async def reconnecting_check():
+            mock_api_client.connection_epoch += 1
+            return True
+
+        mock_api_client.async_verify_unit.side_effect = reconnecting_check
+        with pytest.raises(UpdateFailed, match="after a reconnection"):
+            await coordinator._async_update_data()
 
 
 def test_fallback_defrost_guard_has_infrastructure_clock(coordinator):

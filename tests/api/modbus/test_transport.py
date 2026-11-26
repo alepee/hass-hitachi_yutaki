@@ -198,3 +198,76 @@ async def test_no_pymodbus_or_socket_exception_leaves_the_transport(
 
     assert err.value.__cause__ is exc
     assert type(exc).__name__ in str(err.value)
+
+
+# --- Connection epoch (#476) ---
+
+
+@pytest.mark.asyncio
+async def test_each_connection_advances_the_epoch(transport):
+    """connect() and reconnect() each open a new socket, hence a new epoch."""
+
+    def fresh_client(**_kwargs) -> MagicMock:
+        client = MagicMock()
+        client.connect.return_value = True
+        client.is_socket_open.return_value = True
+        client.socket = object()
+        return client
+
+    with patch(f"{MODULE}.ModbusTcpClient", side_effect=fresh_client):
+        assert await transport.connect() is True
+        first = transport.connection_epoch
+        assert await transport.reconnect() is True
+
+    assert transport.connection_epoch == first + 1
+
+
+@pytest.mark.asyncio
+async def test_requests_on_the_same_socket_keep_the_epoch(transport, pymodbus_client):
+    """Reads served by one socket all belong to one epoch."""
+    pymodbus_client.read_holding_registers.return_value = _result([42])
+    await transport.read_holding_registers(1050)
+    epoch = transport.connection_epoch
+
+    await transport.read_holding_registers(1051)
+    await transport.write_register(1001, 1)
+
+    assert transport.connection_epoch == epoch
+
+
+@pytest.mark.asyncio
+async def test_a_socket_pymodbus_reopens_on_its_own_advances_the_epoch(
+    transport, pymodbus_client
+):
+    """Pymodbus reopens a closed socket before a request: that is a new connection.
+
+    A gateway reboot closes the socket; the next request reconnects inside
+    pymodbus without the transport being asked to, and reads the rebooted
+    gateway.
+    """
+    pymodbus_client.socket = object()
+    pymodbus_client.read_holding_registers.return_value = _result([42])
+    await transport.read_holding_registers(1050)
+    epoch = transport.connection_epoch
+
+    def reopen_then_read(**_kwargs):
+        pymodbus_client.socket = object()
+        return _result([7])
+
+    pymodbus_client.read_holding_registers.side_effect = reopen_then_read
+    assert await transport.read_holding_registers(1050) == [7]
+
+    assert transport.connection_epoch == epoch + 1
+
+
+@pytest.mark.asyncio
+async def test_a_closed_socket_alone_keeps_the_epoch(transport, pymodbus_client):
+    """Closing is not a new connection; only the next socket is."""
+    pymodbus_client.socket = object()
+    await transport.read_holding_registers(1050)
+    epoch = transport.connection_epoch
+
+    pymodbus_client.socket = None
+    await transport.close()
+
+    assert transport.connection_epoch == epoch

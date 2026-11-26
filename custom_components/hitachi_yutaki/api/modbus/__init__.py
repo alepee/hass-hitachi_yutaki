@@ -139,6 +139,11 @@ class ModbusApiClient(HitachiApiClient):
         return self._transport.connected
 
     @property
+    def connection_epoch(self) -> int:
+        """Return the transport's connection epoch, see :class:`ModbusTransport`."""
+        return self._transport.connection_epoch
+
+    @property
     def capabilities(self) -> dict:
         """Return the capabilities of the gateway."""
         return self._data.get("capabilities", {})
@@ -249,7 +254,9 @@ class ModbusApiClient(HitachiApiClient):
         """Run ``attempt``, reconnecting and running it once more on a link failure.
 
         A failed reconnection, or a second failure, propagates the
-        :class:`GatewayCommunicationError`.
+        :class:`GatewayCommunicationError`. A reconnection advances
+        :attr:`connection_epoch`, which tells the caller that the unit must be
+        checked again: the gateway may have rebooted and moved it.
         """
         try:
             return await attempt()
