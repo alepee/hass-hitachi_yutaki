@@ -120,7 +120,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         self._installation_info_sent: bool = False
         self._installation_sent_date: date | None = None
         self._snapshot_sent: bool = False
-        self._onetime_send_lock: asyncio.Lock = asyncio.Lock()
+        # The one-time send in flight, owned by the config entry so an unload
+        # cancels it rather than letting it retry with a discarded client.
+        self._onetime_task: asyncio.Task[None] | None = None
         self._telemetry_next_retry: datetime | None = None
         self._telemetry_retry_delay: int = 30  # seconds, doubles on each failure
         self.telemetry_last_send: datetime | None = None
@@ -321,9 +323,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             self._maybe_rearm_installation_resend(datetime.now(tz=UTC).date())
 
             # Send one-time telemetry data (with backoff on failure)
-            # Fire-and-forget to avoid blocking the Modbus poll path
-            if not self._installation_info_sent or not self._snapshot_sent:
-                self.hass.async_create_task(self._send_onetime_telemetry(data))
+            self._schedule_onetime_telemetry(data)
         except Exception:
             _LOGGER.exception(
                 "Post-fetch enrichment failed; returning raw poll data "
@@ -332,40 +332,52 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         return data
 
+    def _schedule_onetime_telemetry(self, data: dict[str, Any]) -> None:
+        """Start the one-time send in the background, one at a time.
+
+        Not awaited, so a slow endpoint never holds up the Modbus poll. The
+        task belongs to the config entry: unloading it cancels the send.
+        """
+        if self._installation_info_sent and self._snapshot_sent:
+            return
+        if self._onetime_task is not None and not self._onetime_task.done():
+            return
+        self._onetime_task = self.config_entry.async_create_background_task(
+            self.hass,
+            self._send_onetime_telemetry(data),
+            name=f"{DOMAIN} one-time telemetry",
+        )
+
     async def _send_onetime_telemetry(self, data: dict[str, Any]) -> None:
         """Send one-time telemetry (installation info + snapshot) with backoff."""
-        if self._onetime_send_lock.locked():
+        now = datetime.now(tz=UTC)
+
+        # Respect backoff delay
+        if self._telemetry_next_retry and now < self._telemetry_next_retry:
             return
 
-        async with self._onetime_send_lock:
-            now = datetime.now(tz=UTC)
+        success = True
 
-            # Respect backoff delay
-            if self._telemetry_next_retry and now < self._telemetry_next_retry:
-                return
-
-            success = True
-
+        if not self._installation_info_sent:
+            await self._send_installation_info()
             if not self._installation_info_sent:
-                await self._send_installation_info()
-                if not self._installation_info_sent:
-                    success = False
+                success = False
 
+        if not self._snapshot_sent:
+            await self._send_register_snapshot(data)
             if not self._snapshot_sent:
-                await self._send_register_snapshot(data)
-                if not self._snapshot_sent:
-                    success = False
+                success = False
 
-            if not success:
-                # Exponential backoff: 30s, 60s, 120s, 240s, capped at 5 min
-                self._telemetry_next_retry = now + timedelta(
-                    seconds=self._telemetry_retry_delay
-                )
-                self._telemetry_retry_delay = min(self._telemetry_retry_delay * 2, 300)
-            else:
-                self._telemetry_next_retry = None
-                # Reset so each new day's installation re-send starts with a fresh backoff baseline.
-                self._telemetry_retry_delay = 30
+        if not success:
+            # Exponential backoff: 30s, 60s, 120s, 240s, capped at 5 min
+            self._telemetry_next_retry = now + timedelta(
+                seconds=self._telemetry_retry_delay
+            )
+            self._telemetry_retry_delay = min(self._telemetry_retry_delay * 2, 300)
+        else:
+            self._telemetry_next_retry = None
+            # Reset so each new day's installation re-send starts with a fresh backoff baseline.
+            self._telemetry_retry_delay = 30
 
     def _maybe_rearm_installation_resend(self, today: date) -> None:
         """Re-arm the installation telemetry send when the UTC day changes.
@@ -373,7 +385,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         WAE retains 90 days, so a stable installation that never restarts HA
         would otherwise drop off the fleet dashboard. Re-arming once per UTC
         day keeps the 90-day window populated. The actual send rides the
-        existing one-time send path (lock + exponential backoff). Only the
+        existing one-time send path (single task + exponential backoff). Only the
         installation flag is re-armed; the register snapshot is a genuine
         one-time payload and is intentionally left sent.
         """

@@ -30,7 +30,12 @@ from custom_components.hitachi_yutaki.telemetry.consent import (
     is_fleet_ping_enabled,
     is_telemetry_enabled,
 )
-from custom_components.hitachi_yutaki.telemetry.fleet_ping import FleetPinger
+from custom_components.hitachi_yutaki.telemetry.fleet_ping import (
+    STORE_KEY,
+    STORE_VERSION,
+    FleetPinger,
+    FleetPingLedger,
+)
 from custom_components.hitachi_yutaki.telemetry.http_client import (
     HttpTelemetryClient,
 )
@@ -40,6 +45,7 @@ from custom_components.hitachi_yutaki.telemetry.models import (
     SendResult,
 )
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 
 from .test_init_telemetry_identity import _make_entry, _setup
 
@@ -242,6 +248,13 @@ class TestUnloadFlush:
         assert coordinator._snapshot_sent is False
 
 
+async def _pinger(hass: HomeAssistant, session: MagicMock) -> FleetPinger:
+    """Build a pinger on a fresh day ledger, as after a Home Assistant start."""
+    ledger = FleetPingLedger(Store(hass, STORE_VERSION, STORE_KEY))
+    await ledger.async_load()
+    return FleetPinger(hass, session, "2.2.0", ledger)
+
+
 class TestFleetPingGate:
     """Problem (b): the pinger between the options write and the reload."""
 
@@ -251,7 +264,7 @@ class TestFleetPingGate:
         entry = _make_entry(title="PAC", unique_id=f"{DOMAIN}_HW1_1", telemetry="on")
         entry.add_to_hass(hass)
         session = _mock_session()
-        pinger = FleetPinger(hass, session, "2.2.0")
+        pinger = await _pinger(hass, session)
         await pinger.async_start()
         pinger.register(entry.entry_id, lambda: UNIT, ConfigEntryConsent(entry))
 
@@ -265,7 +278,7 @@ class TestFleetPingGate:
     async def test_only_consenting_units_are_listed(self, hass: HomeAssistant) -> None:
         """A withdrawn entry drops out; the others are still counted."""
         session = _mock_session()
-        pinger = FleetPinger(hass, session, "2.2.0")
+        pinger = await _pinger(hass, session)
         await pinger.async_start()
         pinger.register("kept", lambda: UNIT, _Toggle(True))
         pinger.register("left", lambda: UNIT, _Toggle(False))
