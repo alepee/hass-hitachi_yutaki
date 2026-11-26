@@ -66,6 +66,7 @@ class KeptValues:
         self._unrestorable: set[str] = set()
         self._was_unrestorable: set[str] = set()
         self._listener: Callable[[], None] | None = None
+        self._settled_listener: Callable[[], None] | None = None
 
     # --- References -------------------------------------------------------
 
@@ -110,11 +111,21 @@ class KeptValues:
         """Call ``listener`` whenever a reference changes."""
         self._listener = listener
 
+    def listen_settled(self, listener: Callable[[], None]) -> None:
+        """Call ``listener`` when a write from Home Assistant settles the last failure.
+
+        Fired outside any read or plan, so ``failed`` is coherent when it runs.
+        """
+        self._settled_listener = listener
+
     def written(self, key: str, value: Any, *, by_restore: bool) -> None:
         """Record a successful write; a command from Home Assistant settles a restore.
 
         Either way the planned write-back of ``key`` is done with: performed,
         or superseded by the command.
+
+        Settling the last failure notifies the settled listener at once, so
+        the failure is not reported until the next read.
         """
         keep = self._keeps.get(key)
         if keep is None:
@@ -123,7 +134,11 @@ class KeptValues:
         if keep.seed_from is None:
             self._remember(key, value)
         if not by_restore:
+            was_failed = self.failed
             self._settle(key)
+            self._unrestorable.discard(key)
+            if was_failed and not self.failed and self._settled_listener:
+                self._settled_listener()
 
     def wanted(self, key: str, value: Any) -> bool:
         """Return True while the write-back of ``key`` to ``value`` still stands.

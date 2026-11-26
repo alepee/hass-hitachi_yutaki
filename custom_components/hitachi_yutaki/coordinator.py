@@ -176,6 +176,25 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         """
         return self._gateway_not_ready_count > 0
 
+    def _update_connection_issue(self, *, reachable: bool) -> None:
+        """Derive the connection-error repair issue from the gateway link state.
+
+        The one place the issue is raised or cleared. A gateway that answers is
+        reachable, whether its poll succeeds or reports GATEWAY_NOT_READY, so
+        the issue only stays up while the gateway cannot be reached at all.
+        """
+        if reachable:
+            ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
+        else:
+            ir.async_create_issue(
+                self.hass,
+                DOMAIN,
+                "connection_error",
+                is_fixable=False,
+                severity=ir.IssueSeverity.ERROR,
+                translation_key="connection_error",
+            )
+
     async def _async_verify_unit(self) -> None:
         """Make sure the readings just taken come from the entry's unit (#476).
 
@@ -223,6 +242,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             result = await self.api_client.read_values(keys_to_read)
 
             if result == ReadResult.GATEWAY_NOT_READY:
+                # The gateway answered: the link is up, only the H-LINK side
+                # is not ready yet (initializing or desynchronized).
+                self._update_connection_issue(reachable=True)
                 self._unit_guard.force_check()
                 self._gateway_not_ready_count += 1
                 backoff = min(
@@ -261,7 +283,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
             # Poll succeeded: clear any connection error issue now, before
             # the post-fetch stages, so an enrichment bug cannot keep it
             # alive or re-create it.
-            ir.async_delete_issue(self.hass, DOMAIN, "connection_error")
+            self._update_connection_issue(reachable=True)
 
         except UpdateFailed:
             # Re-raise so the generic Exception handler below doesn't
@@ -270,14 +292,7 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         except Exception as exc:
             self._unit_guard.force_check()
-            ir.async_create_issue(
-                self.hass,
-                DOMAIN,
-                "connection_error",
-                is_fixable=False,
-                severity=ir.IssueSeverity.ERROR,
-                translation_key="connection_error",
-            )
+            self._update_connection_issue(reachable=False)
             _LOGGER.warning("Error communicating with Hitachi Yutaki gateway: %s", exc)
             raise UpdateFailed("Failed to communicate with device") from exc
 
@@ -751,6 +766,9 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
         # Saved as soon as a reference changes, e.g. a switch turned off from
         # Home Assistant, so a power cut right after does not undo it.
         self.api_client.listen_kept_values(self._schedule_kept_values_save)
+        # A value the user set from Home Assistant settles a failed restore:
+        # the repair issue follows at once instead of waiting for the next poll.
+        self.api_client.listen_restore_settled(self._update_kept_values)
 
     def _schedule_kept_values_save(self) -> None:
         """Persist the kept values shortly after a reference changed."""

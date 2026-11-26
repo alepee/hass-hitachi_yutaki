@@ -299,7 +299,9 @@ evidence is stale. The cycling monitor owns its verdict expiry. Telemetry's
 `max_circuits` comes from the profile hardware capability, including zero; it is
 not inferred from configured circuits.
 
-Failure attribution follows the same boundary: only errors in the fetch path (connect, register reads) raise `UpdateFailed` and surface the `connection_error` repair issue; a failure in a post-fetch stage (derived-metrics enrichment, refrigerant issue update, telemetry collection) is logged as an integration bug with a stack trace and the raw register data is still returned, so register-backed entities remain available.
+Time-dependent state is a function of the state *and* of now, read through the `Clock`, never of the last event that happened to arrive: the COP window and the cycling verdict expire at read time even when no sample comes in.
+
+Failure attribution follows the same boundary: only errors in the fetch path (connect, register reads) raise `UpdateFailed` and surface the `connection_error` repair issue, which follows the gateway link state alone (`_update_connection_issue`): a gateway that answers `GATEWAY_NOT_READY` is reachable and clears it; a failure in a post-fetch stage (derived-metrics enrichment, refrigerant issue update, telemetry collection) is logged as an integration bug with a stack trace and the raw register data is still returned, so register-backed entities remain available.
 
 ## Domain-to-Entity Matrix
 

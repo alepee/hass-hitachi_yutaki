@@ -87,9 +87,13 @@ class EnergyAccumulator:
         if last_timestamp is not None:
             self._prune_old_measurements(last_timestamp)
 
-    def get_cop(self) -> float | None:
-        """Calculate COP from accumulated energy using trapezoidal integration."""
-        measurements = self._storage.get_all()
+    def get_cop(self, now: datetime | None = None) -> float | None:
+        """Calculate COP from accumulated energy using trapezoidal integration.
+
+        With ``now``, only the measurements inside the period ending at ``now``
+        count, so a value expires even when no new sample arrives.
+        """
+        measurements = self._window(now)
         if not measurements:
             return None
 
@@ -133,9 +137,12 @@ class EnergyAccumulator:
 
         return cop_value
 
-    def get_quality(self) -> COPQuality:
-        """Assess the quality of the COP measurement."""
-        measurements = self.measurements
+    def get_quality(self, now: datetime | None = None) -> COPQuality:
+        """Assess the quality of the COP measurement.
+
+        With ``now``, stale measurements no longer count (see ``get_cop``).
+        """
+        measurements = self._window(now)
         if not measurements:
             return COPQuality(quality="no_data", measurements=0, time_span_minutes=0.0)
 
@@ -163,6 +170,19 @@ class EnergyAccumulator:
             measurements=num_measurements,
             time_span_minutes=round(time_span, 1),
         )
+
+    def _window(self, now: datetime | None) -> list[PowerMeasurement]:
+        """Return the measurements inside the period ending at ``now``.
+
+        Pure read: the storage is only pruned when a measurement is added.
+        Without ``now`` (explicit-timestamp use), every stored measurement
+        counts, as before.
+        """
+        measurements = self._storage.get_all()
+        if now is None:
+            return measurements
+        cutoff_time = now - self.period
+        return [item for item in measurements if item.timestamp >= cutoff_time]
 
     def _prune_old_measurements(self, reference_time: datetime) -> None:
         """Remove measurements outside of the configured time period."""
@@ -241,14 +261,28 @@ class COPService:
             expected_mode=self._expected_mode,
         )
 
-    def get_value(self) -> float | None:
-        """Get current COP value rounded to 2 decimals."""
-        cop = self._accumulator.get_cop()
+    def get_value(self, *, timestamp: datetime | None = None) -> float | None:
+        """Get current COP value rounded to 2 decimals.
+
+        Evaluated at read time (``timestamp``, or the injected clock), so the
+        value expires with its samples even while none are admitted.
+        """
+        cop = self._accumulator.get_cop(self._read_time(timestamp))
         return round(cop, 2) if cop is not None else None
 
-    def get_quality(self) -> COPQuality:
-        """Get quality assessment of the COP measurement."""
-        return self._accumulator.get_quality()
+    def get_quality(self, *, timestamp: datetime | None = None) -> COPQuality:
+        """Get quality assessment of the COP measurement, at read time."""
+        return self._accumulator.get_quality(self._read_time(timestamp))
+
+    def _read_time(self, timestamp: datetime | None) -> datetime | None:
+        """Return the instant a verdict is read at, on the measurements' timeline.
+
+        None without a clock or timestamp: the verdict then covers every
+        stored measurement, as in pure explicit-timestamp use.
+        """
+        if timestamp is None and self._clock is None:
+            return None
+        return self._timeline.at(timestamp)
 
     def preload_measurements(self, measurements: Iterable[PowerMeasurement]) -> None:
         """Preload measurements (used during Recorder replay)."""

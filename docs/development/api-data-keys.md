@@ -208,7 +208,10 @@ class RegisterDefinition:
   coordinator persists them in a `Store`
   (`hitachi_yutaki_kept_values_{entry_id}`), loaded before the first poll and
   saved shortly after every reference change, and raises the generic
-  `kept_values_restore_failed_{entry_id}` issue. The issue is fixable: its
+  `kept_values_restore_failed_{entry_id}` issue. A write from Home Assistant
+  that settles the last failure is signalled through
+  `listen_restore_settled()`, never mid-read, so the issue clears at once
+  rather than on the next poll. The issue is fixable: its
   fix flow calls `retry_restores()` (a fresh set of attempts) and polls at
   once, and the next poll raises it again if the values still do not stick.
 

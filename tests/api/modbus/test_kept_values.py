@@ -117,3 +117,41 @@ def test_a_write_back_is_wanted_once():
     kept.written("setpoint", 20, by_restore=True)
 
     assert not kept.wanted("setpoint", 20)
+
+
+def test_a_write_from_home_assistant_settling_a_failure_notifies_at_once():
+    """Setting a value that would not go back clears its failure without a read.
+
+    The settled listener hears it, so the failure report follows at once
+    instead of lingering until the next poll. The reference listener does not:
+    the written value equals the reference.
+    """
+    kept = _kept(enable=1, setpoint=20)
+    lost = {"enable": 1, "setpoint": 0, "copy": 20}
+    for _ in range(3):
+        assert _step(kept, lost) == [("setpoint", 20)]
+    assert _step(kept, lost) == []
+    assert kept.failed
+
+    settled, references = [], []
+    kept.listen_settled(lambda: settled.append(True))
+    kept.listen(lambda: references.append(True))
+    kept.written("setpoint", 20, by_restore=False)
+
+    assert not kept.failed
+    assert settled == [True]
+    assert references == []
+
+
+def test_a_write_back_does_not_settle_a_failure():
+    """A write-back is not the user's word: it neither settles nor notifies."""
+    kept = _kept(enable=1, setpoint=20)
+    lost = {"enable": 1, "setpoint": 0, "copy": 20}
+    for _ in range(4):
+        _step(kept, lost)
+    calls = []
+    kept.listen_settled(lambda: calls.append(True))
+    kept.written("setpoint", 20, by_restore=True)
+
+    assert kept.failed
+    assert calls == []

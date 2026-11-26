@@ -110,7 +110,10 @@ class CyclingMonitor:
         flushed = False
         today = civil_time(self._clock, timestamp).date()
         if self._current_day is None:
+            # First poll after start-up, restore or re-enable: the persisted
+            # streak may have gone stale while nothing was polling.
             self._current_day = today
+            self._expire_stale_alert(today)
         elif today != self._current_day:
             flushed = self._flush_day()
             self._current_day = today
@@ -327,12 +330,23 @@ class CyclingMonitor:
             return None
         return (reference - aggregates[-1].day).days
 
-    def _expire_stale_alert(self, today: date) -> None:
-        """Drop the alert streak once heating has been idle for too long."""
-        if self._alert_streak == 0:
-            return
+    def _is_stale(self, today: date | None = None) -> bool:
+        """Return whether heating has been idle too long for the streak to count."""
         days_since = self._days_since_valid_day(today)
-        if days_since is not None and days_since > STALE_AFTER_DAYS:
+        return days_since is not None and days_since > STALE_AFTER_DAYS
+
+    def _effective_streak(self) -> int:
+        """Return the alert streak as it stands on the current day.
+
+        The verdict is a function of the state *and* of the day it is read on,
+        so an expired streak never reaches the verdict, whichever event last
+        advanced the stored one.
+        """
+        return 0 if self._is_stale() else self._alert_streak
+
+    def _expire_stale_alert(self, today: date) -> None:
+        """Drop the stored alert streak once heating has been idle for too long."""
+        if self._alert_streak and self._is_stale(today):
             self._alert_streak = 0
 
     def _reset_day_buffers(self) -> None:
@@ -361,6 +375,7 @@ class CyclingMonitor:
         peak_today = self._peak_starts() if self._starts else None
         last_valid_day = aggregates[-1].day if aggregates else None
         days_since = self._days_since_valid_day()
+        alert_streak = self._effective_streak()
 
         if valid_days == 0:
             return CyclingStatus(
@@ -370,14 +385,14 @@ class CyclingMonitor:
                 median_period_today=period_today,
                 median_run_today=run_today,
                 valid_days=valid_days,
-                alert_streak=self._alert_streak,
+                alert_streak=alert_streak,
                 last_valid_day=last_valid_day,
                 days_since_valid_day=days_since,
             )
 
-        if self._alert_streak >= ALERT_PERSIST_DAYS:
+        if alert_streak >= ALERT_PERSIST_DAYS:
             status = STATUS_ALERT
-        elif self._alert_streak > 0 or self._today_faulted(period_today, peak_today):
+        elif alert_streak > 0 or self._today_faulted(period_today, peak_today):
             status = STATUS_WATCH
         else:
             status = STATUS_OK
@@ -389,7 +404,7 @@ class CyclingMonitor:
             median_period_today=period_today,
             median_run_today=run_today,
             valid_days=valid_days,
-            alert_streak=self._alert_streak,
+            alert_streak=alert_streak,
             last_valid_day=last_valid_day,
             days_since_valid_day=days_since,
         )

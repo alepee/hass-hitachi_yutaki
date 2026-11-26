@@ -276,6 +276,32 @@ async def test_modbus_read_values_failure_reports_connection_error(
 
 
 @pytest.mark.asyncio
+async def test_gateway_not_ready_clears_connection_error(coordinator, mock_api_client):
+    """A gateway that answers GATEWAY_NOT_READY is reachable: no connection error.
+
+    The issue used to be cleared only by a successful poll, so it stayed up
+    for as long as the gateway kept initializing or desynchronized, although
+    the link itself was back.
+    """
+    mock_api_client.read_values = AsyncMock(side_effect=ConnectionError("dead link"))
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as mock_ir:
+        with pytest.raises(UpdateFailed):
+            await coordinator._async_update_data()
+        mock_ir.async_create_issue.assert_called_once()
+
+        mock_api_client.read_values = AsyncMock(
+            return_value=ReadResult.GATEWAY_NOT_READY
+        )
+        with pytest.raises(UpdateFailed, match="not ready"):
+            await coordinator._async_update_data()
+
+    mock_ir.async_delete_issue.assert_called_once_with(
+        coordinator.hass, DOMAIN, "connection_error"
+    )
+    mock_ir.async_create_issue.assert_called_once()
+
+
+@pytest.mark.asyncio
 async def test_modbus_mid_poll_failure_reports_connection_error(
     coordinator, mock_api_client
 ):
@@ -888,6 +914,27 @@ async def test_kept_values_loaded_and_saved_on_change(coordinator, mock_api_clie
     save = store_cls.return_value.async_delay_save
     save.assert_called_once()
     assert save.call_args.args[0] is mock_api_client.kept_values
+
+
+@pytest.mark.asyncio
+async def test_kept_values_change_reports_the_restore_state_at_once(
+    coordinator, mock_api_client
+):
+    """A failed restore settled from Home Assistant drops its issue without a poll."""
+    _set_entry_id(coordinator)
+    with patch("custom_components.hitachi_yutaki.coordinator.Store") as store_cls:
+        store_cls.return_value.async_load = AsyncMock(return_value=None)
+        await coordinator.async_restore_kept_values()
+
+    (listener,) = mock_api_client.listen_restore_settled.call_args.args
+    mock_api_client.restore_failed = False
+    with patch("custom_components.hitachi_yutaki.coordinator.ir") as ir_mock:
+        listener()
+
+    ir_mock.async_create_issue.assert_not_called()
+    ir_mock.async_delete_issue.assert_called_once_with(
+        coordinator.hass, DOMAIN, "kept_values_restore_failed_entry"
+    )
 
 
 @pytest.mark.asyncio
