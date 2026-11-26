@@ -78,6 +78,7 @@ class ThermalPowerService:
             cooling_power=cooling_power,
             compressor_running=compressor_running,
             operation_mode=operation_mode,
+            delta_t=thermal_input.water_outlet_temp - thermal_input.water_inlet_temp,
         )
 
     def get_heating_power(self) -> float:

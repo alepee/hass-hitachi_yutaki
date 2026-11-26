@@ -204,3 +204,35 @@ class TestDefrostGuard:
         assert guard.state == DefrostState.DEFROST
         guard.update(is_defrosting=True, delta_t=0.0)
         assert guard.state == DefrostState.DEFROST
+
+
+class TestPreDefrostDirection:
+    """The pre-defrost direction is learned per defrost, or left unknown."""
+
+    @staticmethod
+    def _recover_on_positive_readings(guard: DefrostGuard) -> None:
+        guard.update(is_defrosting=False, delta_t=-2.0)
+        for _ in range(3):
+            guard.update(is_defrosting=False, delta_t=3.0)
+
+    def test_unknown_direction_does_not_reuse_a_previous_defrost(self, clock):
+        """A defrost entered without ΔT waits for the timeout, like the first one."""
+        guard = DefrostGuard(clock=clock, stable_readings_required=3)
+        guard.update(is_defrosting=True, delta_t=5.0)
+        self._recover_on_positive_readings(guard)
+        assert guard.state == DefrostState.NORMAL
+
+        guard.update(is_defrosting=True, delta_t=None)
+        self._recover_on_positive_readings(guard)
+        assert guard.state == DefrostState.RECOVERY
+
+    def test_delta_t_inside_deadband_leaves_direction_unknown(self, clock):
+        """A ΔT within sensor noise establishes no direction to wait for."""
+        guard = DefrostGuard(clock=clock, stable_readings_required=3)
+        guard.update(is_defrosting=True, delta_t=0.3)
+        self._recover_on_positive_readings(guard)
+        assert guard.state == DefrostState.RECOVERY
+
+        clock.seconds += 300.0
+        guard.update(is_defrosting=False, delta_t=3.0)
+        assert guard.state == DefrostState.NORMAL

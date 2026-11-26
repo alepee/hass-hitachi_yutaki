@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from enum import Enum
 
+from ..models.thermal import ThermalDirection, thermal_direction
 from ..ports.clock import Clock
 
 
@@ -31,7 +32,9 @@ class DefrostGuard:
     - NORMAL → DEFROST: when is_defrosting becomes True
     - DEFROST → RECOVERY: when is_defrosting becomes False
     - RECOVERY → NORMAL: after stable_readings_required consecutive readings
-      with ΔT sign matching pre-defrost sign, OR recovery_timeout elapsed
+      with ΔT direction matching the pre-defrost direction, OR recovery_timeout
+      elapsed. When the pre-defrost direction is unknown (no ΔT, or a ΔT inside
+      the deadband), only the timeout can end recovery.
     - RECOVERY → DEFROST: if is_defrosting goes back to True
     """
 
@@ -56,7 +59,7 @@ class DefrostGuard:
         self._stable_readings_required = stable_readings_required
         self._recovery_timeout = recovery_timeout
         self._state = DefrostState.NORMAL
-        self._pre_defrost_sign: bool | None = None  # True = positive (heating)
+        self._pre_defrost_direction = ThermalDirection.UNKNOWN
         self._stable_count = 0
         self._recovery_start_time: float = 0.0
 
@@ -106,9 +109,8 @@ class DefrostGuard:
     def _handle_normal(self, is_defrosting: bool, delta_t: float | None) -> None:
         """Handle NORMAL state transitions."""
         if is_defrosting:
-            # Remember ΔT sign before entering defrost
-            if delta_t is not None:
-                self._pre_defrost_sign = delta_t > 0
+            # Learn the direction of this defrost only: never reuse a previous one.
+            self._pre_defrost_direction = thermal_direction(delta_t)
             self._state = DefrostState.DEFROST
         # Otherwise stay NORMAL — nothing to do
 
@@ -141,16 +143,12 @@ class DefrostGuard:
             self._stable_count = 0
             return
 
-        # Check ΔT stabilization
-        if delta_t is None or self._pre_defrost_sign is None:
-            # Can't assess stability
-            self._stable_count = 0
-            return
-
-        # Use ±0.5°C threshold (same as _detect_mode_from_temperatures)
-        current_sign = delta_t > 0.5 if self._pre_defrost_sign else delta_t < -0.5
-
-        if current_sign:
+        # Check ΔT stabilization; an unknown direction proves nothing
+        direction = thermal_direction(delta_t)
+        if (
+            direction is not ThermalDirection.UNKNOWN
+            and direction is self._pre_defrost_direction
+        ):
             if not new_temperature_sample:
                 return
             self._stable_count += 1

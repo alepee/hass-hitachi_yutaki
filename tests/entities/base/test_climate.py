@@ -7,7 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
+from custom_components.hitachi_yutaki.domain.models.circuit import CircuitActivity
 from custom_components.hitachi_yutaki.entities.base.climate import (
+    _ACTIVITY_TO_HA,
     HitachiYutakiClimate,
     HitachiYutakiClimateEntityDescription,
 )
@@ -19,7 +21,7 @@ def _make_climate(
     *,
     unit_mode: HVACMode | None = HVACMode.AUTO,
     operation_state: str | None = None,
-    circuit_power: bool = True,
+    circuit_power: bool | None = True,
     is_defrosting: bool = False,
     is_compressor_running: bool = True,
     multi_circuit: bool = False,
@@ -76,15 +78,31 @@ class TestHvacAction:
         )
         assert climate.hvac_action is None
 
-    def test_explicit_heat_unchanged(self):
-        """Explicit HEAT mode still resolves to HEATING."""
-        climate = _make_climate(unit_mode=HVACMode.HEAT)
+    def test_explicit_heat_with_heat_operation_is_heating(self):
+        """Explicit HEAT mode with a heat operation state resolves to HEATING."""
+        climate = _make_climate(
+            unit_mode=HVACMode.HEAT,
+            operation_state="operation_state_heat_thermo_on",
+        )
         assert climate.hvac_action == HVACAction.HEATING
 
-    def test_explicit_cool_unchanged(self):
-        """Explicit COOL mode still resolves to COOLING."""
-        climate = _make_climate(unit_mode=HVACMode.COOL)
+    def test_explicit_cool_with_cool_operation_is_cooling(self):
+        """Explicit COOL mode with a cool operation state resolves to COOLING."""
+        climate = _make_climate(
+            unit_mode=HVACMode.COOL,
+            operation_state="operation_state_cool_thermo_on",
+        )
         assert climate.hvac_action == HVACAction.COOLING
+
+    @pytest.mark.parametrize("unit_mode", [HVACMode.HEAT, HVACMode.COOL])
+    def test_explicit_mode_with_unreadable_state_reports_no_action(self, unit_mode):
+        """An unreadable operation state reports no action, not the selected mode.
+
+        The compressor may be producing DHW or heating the pool: the selected
+        global mode does not establish that this circuit is heating or cooling.
+        """
+        climate = _make_climate(unit_mode=unit_mode, operation_state=None)
+        assert climate.hvac_action is None
 
     def test_off_returns_off(self):
         """Powered-off circuit returns OFF."""
@@ -227,17 +245,23 @@ async def test_single_circuit_writes_global_mode(requested):
     climate.coordinator.api_client.set_unit_mode.assert_awaited_once_with(requested)
 
 
-@pytest.mark.parametrize(
-    ("unit_mode", "expected"),
-    [
-        (HVACMode.AUTO, None),
-        (HVACMode.HEAT, HVACAction.HEATING),
-        (HVACMode.COOL, HVACAction.COOLING),
-    ],
-)
-def test_unknown_operation_code_uses_missing_state_fallback(unit_mode, expected):
+@pytest.mark.parametrize("unit_mode", [HVACMode.AUTO, HVACMode.HEAT, HVACMode.COOL])
+def test_unknown_operation_code_reports_no_action(unit_mode):
     """An unmapped gateway code does not invent an actual operating direction."""
     climate = _make_climate(
         unit_mode=unit_mode, operation_state="operation_state_unknown"
     )
-    assert climate.hvac_action == expected
+    assert climate.hvac_action is None
+
+
+def test_unknown_power_reports_no_action():
+    """An unreadable circuit power is not reported as OFF."""
+    climate = _make_climate(
+        circuit_power=None, operation_state="operation_state_heat_thermo_on"
+    )
+    assert climate.hvac_action is None
+
+
+def test_every_circuit_activity_has_a_home_assistant_translation():
+    """A new domain verdict cannot silently fall through the climate mapping."""
+    assert set(_ACTIVITY_TO_HA) == set(CircuitActivity)

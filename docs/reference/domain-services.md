@@ -116,9 +116,15 @@ return the positive magnitude for their respective mode, or zero.
 ### Post-cycle lock
 
 After the compressor stops, thermal inertia keeps delta T non-zero for a while.
-The accumulator activates a **post-cycle lock** once the power in the last active
-mode drops to zero. While locked, power for that mode is forced to zero. The lock
-releases when the compressor restarts.
+While the compressor is stopped, the accumulator counts only the inertia of the
+direction it last produced. It activates a **post-cycle lock** once that power
+drops to zero or the delta T falls inside the 0.5 K deadband
+(`DELTA_T_DEADBAND`, `domain/models/thermal.py`), the resolution below which the
+thermistors cannot tell heat from their own offset. While locked, **both**
+heating and cooling power are forced to zero: a delta T that inverts on a
+stopped compressor is not cooling. The lock releases when the compressor
+restarts. With no production observed yet (after a restart with the compressor
+stopped), there is no known inertia and nothing is counted.
 
 ### Energy counters
 
@@ -148,9 +154,14 @@ RECOVERY ──(is_defrosting=True)──> DEFROST   (defrost restarts)
 
 The guard leaves RECOVERY and returns to NORMAL when **either**:
 
-1. **Stable readings** -- 3 consecutive readings where delta T sign matches the
-   pre-defrost sign (with a 0.5 C deadband), or
+1. **Stable readings** -- 3 consecutive readings where the delta T direction
+   (`thermal_direction`, with the shared 0.5 K deadband) matches the pre-defrost
+   direction, or
 2. **Timeout** -- 5 minutes (300 s) elapsed since entering RECOVERY.
+
+The pre-defrost direction is learned on entering each defrost. Without a delta T,
+or with one inside the deadband, it is `ThermalDirection.UNKNOWN` and only the
+timeout ends recovery; a previous defrost's direction is never reused.
 
 ### Usage
 
@@ -214,10 +225,14 @@ downtime; the adapter owns HA state retrieval and persistence.
 **File:** `domain/services/circuit.py`
 
 `resolve_circuit_activity` receives normalized circuit power, compressor,
-defrost and operation-mode observations. Actual operation state has priority
-over the selected global mode: DHW and pool production leave a powered
-space-conditioning circuit idle. The adapter supplies observations and the
-entity only maps `CircuitActivity` to HA's `HVACAction`.
+defrost and operation-mode observations. Only the actual operation state tells
+what a running compressor serves: DHW and pool production leave a powered
+space-conditioning circuit idle. When the operation state is unreadable or
+undocumented, or the circuit power is unreadable, the verdict is
+`CircuitActivity.UNKNOWN`; the selected global mode is never a substitute, since
+the unit may be producing DHW or heating the pool. The adapter supplies
+observations and the entity only maps `CircuitActivity` to HA's `HVACAction`
+(`UNKNOWN` maps to no action).
 
 ## Maintenance Warning Policy
 
