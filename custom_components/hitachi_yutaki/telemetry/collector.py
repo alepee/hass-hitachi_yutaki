@@ -9,7 +9,6 @@ import logging
 from math import ceil
 from typing import Any
 
-from .boundary import shareable
 from .models import TelemetryLevel
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +41,9 @@ MAX_FLUSH_BYTES = 180 * 1024
 # One warning per this many silently evicted points, so a saturated buffer is
 # visible in the log without flooding it.
 _OVERFLOW_LOG_EVERY = 100
+
+# Keys to exclude from telemetry (internal coordinator flags)
+_EXCLUDED_KEYS = frozenset({"is_available"})
 
 
 def compute_buffer_max_size(scan_interval: timedelta, stride: int = 1) -> int:
@@ -140,8 +142,8 @@ class TelemetryCollector:
         if self._polls % self._stride:
             return
 
-        # Shallow copy without what never leaves the instance, add timestamp
-        point = shareable(data)
+        # Shallow copy, exclude internal keys, add timestamp
+        point = {k: v for k, v in data.items() if k not in _EXCLUDED_KEYS}
         point["time"] = datetime.now(tz=UTC)
 
         maxlen = self._buffer.maxlen

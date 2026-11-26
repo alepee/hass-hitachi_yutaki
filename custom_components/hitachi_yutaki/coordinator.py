@@ -64,7 +64,6 @@ from .telemetry.anonymizer import (
     anonymize_installation_info,
     anonymize_point,
 )
-from .telemetry.boundary import shareable
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -494,12 +493,13 @@ class HitachiYutakiDataCoordinator(DataUpdateCoordinator):
 
         meta = self._telemetry_meta
 
-        # Build register dict: only numeric values of what may be shared
-        registers: dict[str, float] = {
-            key: value
-            for key, value in shareable(data).items()
-            if isinstance(value, (int, float))
-        }
+        # Build register dict: only numeric values, skip meta keys
+        registers: dict[str, float] = {}
+        for key, value in data.items():
+            if key == "is_available":
+                continue
+            if isinstance(value, (int, float)):
+                registers[key] = value
 
         snapshot = RegisterSnapshot(
             instance_hash=meta["instance_hash"],

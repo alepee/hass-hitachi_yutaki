@@ -712,26 +712,6 @@ describe("payload types that had no test at all", () => {
     expect(archived.registers.broken).toBeUndefined();
   });
 
-  it("never archives the electricity price or cost", async () => {
-    const bucket = createFakeBucket();
-    const env = makeEnv(bucket);
-    const priced = { _current_price: 0.2516, electricity_cost: 412.37 };
-    const metrics = metricsPayload();
-    metrics.points = [{ ...metrics.points[0], ...priced }];
-
-    await worker.fetch(makeRequest(metrics), env);
-    await worker.fetch(makeRequest(snapshotPayload(priced)), env);
-
-    const point = (await storedPayload(bucket, 0)).points[0];
-    const registers = (await storedPayload(bucket, 1)).registers;
-    expect(point.outdoor_temp).toBe(5);
-    expect(registers.outdoor_temp).toBe(5);
-    for (const key of Object.keys(priced)) {
-      expect(point[key]).toBeUndefined();
-      expect(registers[key]).toBeUndefined();
-    }
-  });
-
   it("rate-limits each payload type on its own window", async () => {
     const env = makeEnv(createFakeBucket());
 

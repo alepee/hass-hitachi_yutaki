@@ -16,8 +16,6 @@ No personal information is ever collected. All data is identified by a non-rever
 | **Off** | Nothing | — |
 | **On** | Installation info (model, gateway type, configuration) + fine-grained metrics (temperatures, compressor frequency, power consumption) + a one-time register snapshot | Metrics every 5 min; installation info re-sent once per day; snapshot once after opt-in |
 
-Metrics points and the register snapshot are cut from the same poll data the sensors use, minus what describes your household rather than the heat pump. With an electricity price entity configured, the integration computes a running cost: **neither the price nor the cost is sent** (`_current_price`, `electricity_cost`), only the electrical energy the heat pump consumed. One list in the integration (`telemetry/boundary.py`) decides what never leaves the instance, for both payloads, and the ingestion endpoint drops the same keys as a second line of defence. Earlier releases did send them.
-
 ### Preventive-maintenance detectors
 
 When telemetry is on, the data also says how the opt-in [preventive-maintenance detectors](preventive-maintenance.md) behave, so their thresholds can be checked against real installations instead of a replay:

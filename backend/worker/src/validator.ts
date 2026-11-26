@@ -53,17 +53,6 @@ const INSTALLATION_FIELDS = new Map<string, "string" | "number" | "boolean">([
   ["cycling_issue_dismissed", "boolean"],
 ]);
 
-/**
- * Keys never archived from a metrics point or a register snapshot.
- *
- * Mirrors NEVER_SENT's private part in the integration
- * (telemetry/boundary.py): the user's electricity tariff and accumulated
- * cost, which earlier clients forwarded with the poll data. The
- * client no longer sends them; this keeps the archive clean of releases that
- * still do.
- */
-const PRIVATE_KEYS = new Set(["_current_price", "electricity_cost"]);
-
 /** Allowed daily stats data fields (whitelist). */
 const DAILY_STATS_FIELDS = new Set([
   "outdoor_temp_min",
@@ -252,7 +241,7 @@ function validateMetrics(
     // Type validation: only allow primitive values (no nested objects/arrays)
     const clean: MetricPoint = { time: point.time as string };
     for (const [key, value] of Object.entries(point)) {
-      if (key === "time" || PRIVATE_KEYS.has(key)) continue;
+      if (key === "time") continue;
       if (
         typeof value === "number" ||
         typeof value === "boolean" ||
@@ -310,7 +299,6 @@ function validateSnapshot(
   // Whitelist: only string keys with numeric values
   const sanitized: Record<string, number> = {};
   for (const [key, value] of Object.entries(registers as Record<string, unknown>)) {
-    if (PRIVATE_KEYS.has(key)) continue;
     if (typeof value === "number" && isFinite(value)) {
       sanitized[key] = value;
     }
