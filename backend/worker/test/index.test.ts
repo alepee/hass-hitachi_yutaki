@@ -722,8 +722,8 @@ describe("payload types that had no test at all", () => {
     await worker.fetch(makeRequest(metrics), env);
     await worker.fetch(makeRequest(snapshotPayload(priced)), env);
 
-    const point = JSON.parse(bucket.put.mock.calls[0][1] as unknown as string).points[0];
-    const registers = JSON.parse(bucket.put.mock.calls[1][1] as unknown as string).registers;
+    const point = (await storedPayload(bucket, 0)).points[0];
+    const registers = (await storedPayload(bucket, 1)).registers;
     expect(point.outdoor_temp).toBe(5);
     expect(registers.outdoor_temp).toBe(5);
     for (const key of Object.keys(priced)) {
