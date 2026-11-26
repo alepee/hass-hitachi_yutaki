@@ -417,7 +417,9 @@ class TestReloadRace:
             "custom_components.hitachi_yutaki.telemetry.fleet_ping.async_get_clientsession",
             return_value=session,
         ):
-            await async_register_fleet_ping(hass, "entry1", "2.2.0", lambda: UNIT)
+            await async_register_fleet_ping(
+                hass, "entry1", "2.2.0", lambda: UNIT, CONSENT
+            )
             first = hass.data[DATA_KEY]
             inflight = hass.async_create_task(first.async_maybe_send())
             await asyncio.sleep(0)
@@ -425,7 +427,9 @@ class TestReloadRace:
 
             # Reload of the only entry: the pinger stops, a new one starts.
             async_unregister_fleet_ping(hass, "entry1")
-            await async_register_fleet_ping(hass, "entry1", "2.2.0", lambda: UNIT)
+            await async_register_fleet_ping(
+                hass, "entry1", "2.2.0", lambda: UNIT, CONSENT
+            )
             second = hass.data[DATA_KEY]
             second_send = hass.async_create_task(second.async_maybe_send())
             await asyncio.sleep(0)
@@ -455,7 +459,7 @@ class TestReloadRace:
         session.post = MagicMock(return_value=ctx)
 
         pinger = await _started_pinger(hass, session)
-        pinger.register("entry1", lambda: UNIT)
+        pinger.register("entry1", lambda: UNIT, CONSENT)
         freezer.tick(INITIAL_DELAY)
         async_fire_time_changed(hass)
         await asyncio.wait_for(started.wait(), 1)
