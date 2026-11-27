@@ -53,7 +53,8 @@ Since a day is compacted two days later, the job has about four weeks to catch
 up after an outage before a day is lost.
 
 In production it runs as a daily CronJob on the maintainer's cluster, writing
-to a NAS share.
+to a NAS share. The job pins this script by commit SHA: a change to `lake.py`
+only takes effect once that pin is bumped.
 
 ## Running it
 
